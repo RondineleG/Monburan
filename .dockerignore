@@ -1,0 +1,90 @@
+# .NET Core
+bin/
+obj/
+out/
+
+# Visual Studio
+.vs/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# Rider
+.idea/
+
+# User-specific files
+*.rsuser
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# Build results
+[Dd]ebug/
+[Dd]ebugPublic/
+[Rr]elease/
+[Rr]eleases/
+x64/
+x86/
+build/
+bld/
+[Bb]in/
+[Oo]bj/
+
+# NuGet Packages
+*.nupkg
+*.snupkg
+**/packages/*
+!**/packages/build/
+.nuget/
+nuget.config
+nuget.config.local
+
+# Tests
+**/TestResults/
+**/[Tt]est[Rr]esult*/
+**/[Tt]est[Cc]overage/
+**/[Tt]est[Cc]overage]*/
+
+# Docker
+docker-compose.override.yml
+docker-compose.*.yml
+Dockerfile
+.dockerignore
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# CI/CD
+.github/
+.gitlab-ci.yml
+azure-pipelines.yml
+
+# Documentation
+*.md
+docs/
+IMPROVEMENTS.md
+TEST_STRATEGY.md
+
+# Environment files
+.env
+.env.local
+.env.*.local
+appsettings.Production.json
+appsettings.Staging.json
+
+# Logs
+logs/
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Tools
+tools/
+*.exe
+*.dll

@@ -1,0 +1,18 @@
+{
+  "ConnectionStrings": {
+    "DefaultConnection": "Host=127.0.0.1;Port=5432;Database=monburan;Username=postgres;Password=YOUR_POSTGRES_PASSWORD"
+  },
+  "SendGrid": {
+    "ApiKey": "YOUR_SENDGRID_API_KEY",
+    "FromEmail": "noreply@monburan.com",
+    "FromName": "Monburan"
+  },
+  "Logging": {
+    "LogLevel": {
+      "Default": "Warning",
+      "Microsoft.AspNetCore": "Warning",
+      "Microsoft.EntityFrameworkCore": "Warning"
+    }
+  },
+  "AllowedHosts": "your-domain.com"
+}
