@@ -1,0 +1,59 @@
+﻿@inherits LayoutComponentBase
+@layout Monburan.Web.Components.Layout.MainLayout
+@inject NavigationManager NavigationManager
+
+<main class="auth-layout">
+    <aside class="auth-hero">
+        <div class="auth-hero__grid" aria-hidden="true"></div>
+        <div class="auth-hero__content">
+            <span class="auth-hero__eyebrow">MONBURAN / TALENTOS QUE FICAM</span>
+            <h2>O trabalho certo muda tudo.</h2>
+            <p>Uma forma mais humana de encontrar oportunidades, contratar melhor e construir o próximo capítulo.</p>
+            <div class="auth-hero__proof">
+                <div>
+                    <span class="auth-hero__proof-icon">✓</span>
+                    <span>Perfil em um só lugar</span>
+                </div>
+                <div>
+                    <span class="auth-hero__proof-icon">⌕</span>
+                    <span>Busca sem complicação</span>
+                </div>
+            </div>
+        </div>
+        <div class="auth-hero__foot">
+            <span class="auth-hero__dot"></span>
+            <span>Ambiente seguro e gratuito para começar</span>
+        </div>
+    </aside>
+    <section class="auth-content @(IsManagePage ? "auth-content--wide" : string.Empty)" data-testid="auth-content">
+        @if (HttpContext is null)
+        {
+            <div class="loading-state loading-state--compact">
+                <span class="spinner-border" aria-hidden="true"></span>
+                <span>Carregando...</span>
+            </div>
+        }
+        else
+        {
+            @Body
+        }
+    </section>
+</main>
+
+@code {
+    private bool IsManagePage => NavigationManager.Uri.Contains("/Account/Manage", StringComparison.OrdinalIgnoreCase);
+
+    [CascadingParameter]
+    private HttpContext? HttpContext { get; set; }
+
+    protected override void OnParametersSet()
+    {
+        if (HttpContext is null)
+        {
+            // If this code runs, we're currently rendering in interactive mode, so there is no HttpContext.
+            // The identity pages need to set cookies, so they require an HttpContext. To achieve this we
+            // must transition back from interactive mode to a server-rendered page.
+            NavigationManager.Refresh(forceReload: true);
+        }
+    }
+}

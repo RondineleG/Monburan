@@ -1,0 +1,19 @@
+﻿@inherits LayoutComponentBase
+@layout AccountLayout
+
+<header class="manage-heading">
+    <span class="page-kicker">SUA CONTA</span>
+    <h1>Conta e segurança</h1>
+    <p>Atualize seus dados pessoais e as preferências de acesso.</p>
+</header>
+
+<div class="manage-layout" data-testid="account-manage-page">
+    <div class="row">
+        <div class="col-md-3">
+            <ManageNavMenu />
+        </div>
+        <div class="col-md-9">
+            @Body
+        </div>
+    </div>
+</div>

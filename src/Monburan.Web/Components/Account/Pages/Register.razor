@@ -1,0 +1,292 @@
+@page "/Account/Register"
+
+@using System.ComponentModel.DataAnnotations
+@using System.Text
+@using System.Text.Encodings.Web
+@using Microsoft.AspNetCore.Identity
+@using Microsoft.AspNetCore.WebUtilities
+@using Monburan.Web.Models
+@using Monburan.Core.UseCases.Notifications
+@using Monburan.Core.UseCases.Candidates
+@using Monburan.Core.UseCases.Advertisers
+@using Monburan.Core.DTOs.Request
+@using Monburan.Core.Enums
+@using Monburan.Web.Data
+@using Microsoft.EntityFrameworkCore
+
+@inject UserManager<ApplicationUser> UserManager
+@inject CreateCandidateUseCase CreateCandidateUseCase
+@inject CreateAdvertiserUseCase CreateAdvertiserUseCase
+@inject ApplicationDbContext DbContext
+@inject IUserStore<ApplicationUser> UserStore
+@inject SignInManager<ApplicationUser> SignInManager
+@inject IEmailSender<ApplicationUser> EmailSender
+@inject EmailConfirmationUseCase EmailConfirmationUseCase
+@inject ILogger<Register> Logger
+@inject NavigationManager NavigationManager
+@inject IdentityRedirectManager RedirectManager
+
+<PageTitle>Criar conta - Monburan</PageTitle>
+
+<div class="auth-form-page">
+    <div class="auth-form-heading">
+        <span class="auth-kicker">COMECE AGORA</span>
+        <h1>Crie sua conta</h1>
+        <p>Leva menos de um minuto. Depois, o próximo passo é com você.</p>
+    </div>
+    <div class="auth-form-grid auth-form-grid--single">
+        <section class="auth-form-card">
+        <StatusMessage Message="@Message" />
+        @if (!string.IsNullOrWhiteSpace(profileCreationError))
+        {
+            <div class="alert alert-danger" role="alert">@profileCreationError</div>
+        }
+        @if (!string.IsNullOrEmpty(successMessage))
+        {
+            <div class="alert alert-success alert-dismissible fade show" role="alert">
+                <i class="bi bi-check-circle"></i> @successMessage
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        }
+        <EditForm Model="Input" asp-route-returnUrl="@ReturnUrl" method="post" OnValidSubmit="RegisterUser" FormName="register">
+            <DataAnnotationsValidator />
+            <fieldset class="register-role-choice">
+                <legend>Como você quer usar a Monburan?</legend>
+                <InputRadioGroup TValue="string" @bind-Value="Input.AccountType">
+                    <div class="register-role-grid">
+                        <label class="register-role-option" for="register-role-candidate">
+                            <InputRadio id="register-role-candidate" Value="@("candidate")" data-testid="register-role-candidate" />
+                            <span>
+                                <strong>Quero encontrar uma vaga</strong>
+                                <small>Sou candidato(a) e quero acompanhar oportunidades.</small>
+                            </span>
+                        </label>
+                        <label class="register-role-option" for="register-role-advertiser">
+                            <InputRadio id="register-role-advertiser" Value="@("advertiser")" data-testid="register-role-advertiser" />
+                            <span>
+                                <strong>Quero contratar</strong>
+                                <small>Sou recrutador(a) e quero publicar vagas.</small>
+                            </span>
+                        </label>
+                    </div>
+                </InputRadioGroup>
+                <ValidationMessage For="() => Input.AccountType" class="text-danger" />
+            </fieldset>
+            <div class="form-floating mb-3">
+                <InputText id="register-name" @bind-Value="Input.Name" class="form-control" autocomplete="name" aria-required="true" placeholder=" " data-testid="register-name" />
+                <label for="register-name">Seu nome ou nome da empresa</label>
+                <ValidationMessage For="() => Input.Name" class="text-danger" />
+            </div>
+            <div class="form-floating mb-3">
+                <InputText id="email" @bind-Value="Input.Email" class="form-control" autocomplete="username" aria-required="true" placeholder=" " data-testid="register-email" />
+                <label for="email">E-mail</label>
+                <ValidationMessage For="() => Input.Email" class="text-danger" />
+            </div>
+            <div class="form-floating mb-3">
+                <InputText id="password" type="password" @bind-Value="Input.Password" class="form-control" autocomplete="new-password" aria-required="true" placeholder=" " data-testid="register-password" />
+                <label for="password">Senha</label>
+                <ValidationMessage For="() => Input.Password" class="text-danger" />
+            </div>
+            <div class="form-floating mb-3">
+                <InputText id="confirm-password" type="password" @bind-Value="Input.ConfirmPassword" class="form-control" autocomplete="new-password" aria-required="true" placeholder=" " data-testid="register-confirm-password" />
+                <label for="confirm-password">Confirme sua senha</label>
+                <ValidationMessage For="() => Input.ConfirmPassword" class="text-danger" data-testid="register-confirm-password-error" />
+            </div>
+            <button type="submit" class="w-100 btn btn-lg btn-primary" data-testid="register-submit">Criar minha conta</button>
+            <p class="auth-login-prompt"><span>Já tem uma conta?</span> <a href="/Account/Login">Entrar</a></p>
+            <a class="auth-forgot-link" href="/Account/ForgotPassword">Esqueci minha senha</a>
+        </EditForm>
+        </section>
+    </div>
+</div>
+
+@code {
+    private IEnumerable<IdentityError>? identityErrors;
+    private string? profileCreationError;
+    private string? successMessage;
+
+    [SupplyParameterFromForm]
+    private InputModel Input
+    {
+        get => _input ??= new();
+        set => _input = value;
+    }
+
+    private InputModel? _input;
+
+    [SupplyParameterFromQuery(Name = "AccountType")]
+    private string? RequestedAccountType { get; set; }
+
+    [SupplyParameterFromQuery]
+    private string? ReturnUrl { get; set; }
+
+    private string? Message => identityErrors is null
+        ? null
+        : "Não foi possível criar sua conta. Confira os dados e tente novamente.";
+
+    protected override void OnParametersSet()
+    {
+        if (string.IsNullOrWhiteSpace(Input.AccountType))
+        {
+            Input.AccountType = string.Equals(RequestedAccountType, "advertiser", StringComparison.OrdinalIgnoreCase)
+                ? "advertiser"
+                : "candidate";
+        }
+    }
+
+    public async Task RegisterUser(EditContext editContext)
+    {
+        if (Input.AccountType is not ("candidate" or "advertiser"))
+        {
+            profileCreationError = "Escolha se você está procurando uma vaga ou contratando.";
+            return;
+        }
+
+        profileCreationError = null;
+        var user = CreateUser();
+        var nameParts = Input.Name.Trim().Split(' ', 2, StringSplitOptions.RemoveEmptyEntries);
+        user.FirstName = nameParts[0];
+        user.LastName = nameParts.Length > 1 ? nameParts[1] : string.Empty;
+
+        await UserStore.SetUserNameAsync(user, Input.Email, CancellationToken.None);
+        var emailStore = GetEmailStore();
+        await emailStore.SetEmailAsync(user, Input.Email, CancellationToken.None);
+
+        await using (var transaction = await DbContext.Database.BeginTransactionAsync())
+        {
+            try
+            {
+                var identityResult = await UserManager.CreateAsync(user, Input.Password);
+                if (!identityResult.Succeeded)
+                {
+                    identityErrors = identityResult.Errors;
+                    await transaction.RollbackAsync();
+                    return;
+                }
+
+                var profileStatus = Input.AccountType == "candidate"
+                    ? (await CreateCandidateUseCase.ExecuteAsync(new CreateCandidateRequest
+                    {
+                        Name = Input.Name.Trim(),
+                        Email = Input.Email
+                    })).Status
+                    : (await CreateAdvertiserUseCase.ExecuteAsync(new CreateAdvertiserRequest
+                    {
+                        Name = Input.Name.Trim(),
+                        Email = Input.Email,
+                        PersonType = EPersonType.Company
+                    })).Status;
+
+                if (profileStatus != EResultStatus.Success)
+                {
+                    profileCreationError = "Não foi possível criar seu perfil. Verifique se já existe um cadastro com este e-mail.";
+                    await transaction.RollbackAsync();
+                    return;
+                }
+
+                await transaction.CommitAsync();
+            }
+            catch (DbUpdateException)
+            {
+                await transaction.RollbackAsync();
+                profileCreationError = "Já existe um perfil associado a este e-mail. Entre na sua conta ou use outro endereço.";
+                return;
+            }
+        }
+
+        Logger.LogInformation("User created a new {AccountType} account.", Input.AccountType);
+
+        var userId = await UserManager.GetUserIdAsync(user);
+        var code = await UserManager.GenerateEmailConfirmationTokenAsync(user);
+        code = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(code));
+        var callbackUrl = NavigationManager.GetUriWithQueryParameters(
+            NavigationManager.ToAbsoluteUri("Account/ConfirmEmail").AbsoluteUri,
+            new Dictionary<string, object?> { ["userId"] = userId, ["code"] = code, ["returnUrl"] = ReturnUrl });
+
+        await EmailSender.SendConfirmationLinkAsync(user, Input.Email, HtmlEncoder.Default.Encode(callbackUrl));
+
+        // Enviar email de confirmação via UseCase
+        var emailConfirmationRequest = new EmailConfirmationRequest
+        {
+            UserId = userId.ToString(),
+            Email = Input.Email,
+            UserName = Input.Email.Split('@').FirstOrDefault() ?? Input.Email,
+            ConfirmationLink = callbackUrl
+        };
+
+        var emailResult = await EmailConfirmationUseCase.ExecuteAsync(emailConfirmationRequest);
+        if (emailResult.Status == EResultStatus.Success && emailResult.Data)
+        {
+            successMessage = "Email de confirmação enviado com sucesso! Verifique sua caixa de entrada.";
+            Logger.LogInformation("Email de confirmação enviado para {Email}", Input.Email);
+        }
+        else if (emailResult.Status == EResultStatus.Success)
+        {
+            Logger.LogWarning("Email de confirmação não entregue para {Email}: provedor indisponível ou não configurado", Input.Email);
+        }
+        else
+        {
+            Logger.LogWarning("Falha ao enviar email de confirmação via UseCase: {Message}", emailResult.Message);
+        }
+
+        if (UserManager.Options.SignIn.RequireConfirmedAccount)
+        {
+            RedirectManager.RedirectTo(
+                "Account/RegisterConfirmation",
+                new() { ["email"] = Input.Email, ["returnUrl"] = ReturnUrl });
+        }
+
+        await SignInManager.SignInAsync(user, isPersistent: false);
+        RedirectManager.RedirectTo(ReturnUrl);
+    }
+
+    private ApplicationUser CreateUser()
+    {
+        try
+        {
+            return Activator.CreateInstance<ApplicationUser>();
+        }
+        catch
+        {
+            throw new InvalidOperationException($"Can't create an instance of '{nameof(ApplicationUser)}'. " +
+                $"Ensure that '{nameof(ApplicationUser)}' is not an abstract class and has a parameterless constructor.");
+        }
+    }
+
+    private IUserEmailStore<ApplicationUser> GetEmailStore()
+    {
+        if (!UserManager.SupportsUserEmail)
+        {
+            throw new NotSupportedException("The default UI requires a user store with email support.");
+        }
+        return (IUserEmailStore<ApplicationUser>)UserStore;
+    }
+
+    private sealed class InputModel
+    {
+        [Required(ErrorMessage = "Escolha como você quer usar a Monburan.")]
+        public string AccountType { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Informe seu nome ou o nome da empresa.")]
+        [StringLength(100, MinimumLength = 2, ErrorMessage = "Informe um nome com pelo menos 2 caracteres.")]
+        [Display(Name = "Nome")]
+        public string Name { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Informe seu e-mail.")]
+        [EmailAddress(ErrorMessage = "Informe um e-mail válido.")]
+        [Display(Name = "E-mail")]
+        public string Email { get; set; } = "";
+
+        [Required(ErrorMessage = "Informe uma senha.")]
+        [StringLength(100, ErrorMessage = "A senha precisa ter pelo menos {2} caracteres.", MinimumLength = 6)]
+        [DataType(DataType.Password)]
+        [Display(Name = "Senha")]
+        public string Password { get; set; } = "";
+
+        [Required(ErrorMessage = "Confirme sua senha.")]
+        [DataType(DataType.Password)]
+        [Display(Name = "Confirme sua senha")]
+        [Compare("Password", ErrorMessage = "As senhas não coincidem.")]
+        public string ConfirmPassword { get; set; } = "";
+    }
+}
