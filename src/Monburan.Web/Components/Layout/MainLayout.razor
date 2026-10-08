@@ -1,0 +1,261 @@
+﻿@inherits LayoutComponentBase
+@inject NavigationManager NavigationManager
+
+@if (IsAccountPage)
+{
+    <header class="auth-header">
+        <a class="brand" href="/" aria-label="Monburan, início">
+            <span class="brand__mark">✦</span>
+            <span class="brand__copy">
+                <strong>Monburan</strong>
+                <small>talentos que ficam</small>
+            </span>
+        </a>
+        <a class="header-backlink" href="/">← Voltar ao início</a>
+    </header>
+    <main class="app-main app-main--auth">
+        @Body
+    </main>
+}
+else
+{
+    <div class="app-shell" data-testid="app-shell" data-blazor-ready="false">
+        <aside id="app-sidebar" class="app-sidebar" aria-label="Navegação do workspace" data-testid="app-sidebar">
+            <div class="app-sidebar__top">
+                <a class="brand" href="/" aria-label="Monburan, início">
+                    <span class="brand__mark">✦</span>
+                    <span class="brand__copy">
+                        <strong>Monburan</strong>
+                        <small>talentos que ficam</small>
+                    </span>
+                </a>
+                <button class="sidebar-pin" type="button" data-action="sidebar-pin" aria-pressed="false" title="Expandir ou recolher o menu"></button>
+                <button class="sidebar-close" type="button" aria-label="Fechar menu">×</button>
+            </div>
+
+            <nav class="sidebar-nav" aria-label="Navegação principal">
+                <span class="sidebar-nav__label">Descobrir</span>
+                <NavLink class="sidebar-link" href="/jobs" data-testid="nav-jobs" title="Explorar vagas">
+                    <span class="sidebar-link__icon">⌕</span>
+                    <span>Explorar vagas</span>
+                </NavLink>
+
+                <AuthorizeView>
+                    <Authorized>
+                        @if (IsAdvertiser)
+                        {
+                            <span class="sidebar-nav__label sidebar-nav__label--spaced">Recrutamento</span>
+                            <NavLink class="sidebar-link" href="/dashboard" title="Visão geral">
+                                <span class="sidebar-link__icon">⌂</span>
+                                <span>Visão geral</span>
+                            </NavLink>
+                            <NavLink class="sidebar-link" href="/my-jobs" data-testid="nav-my-jobs" title="Minhas vagas">
+                                <span class="sidebar-link__icon">▣</span>
+                                <span>Minhas vagas</span>
+                            </NavLink>
+                            <NavLink class="sidebar-link" href="/received-applications" data-testid="nav-received-applications" title="Candidaturas recebidas">
+                                <span class="sidebar-link__icon">◎</span>
+                                <span>Candidaturas recebidas</span>
+                            </NavLink>
+                            <span class="sidebar-nav__label sidebar-nav__label--spaced">Conta da empresa</span>
+                            <NavLink class="sidebar-link" href="/profile/advertiser" title="Perfil da empresa">
+                                <span class="sidebar-link__icon">◇</span>
+                                <span>Perfil da empresa</span>
+                            </NavLink>
+                            <NavLink class="sidebar-link" href="/my-subscription" title="Plano e assinatura">
+                                <span class="sidebar-link__icon">◈</span>
+                                <span>Plano e assinatura</span>
+                            </NavLink>
+                        }
+                        else if (IsCandidate)
+                        {
+                            <span class="sidebar-nav__label sidebar-nav__label--spaced">Minha carreira</span>
+                            <NavLink class="sidebar-link" href="/my-applications" data-testid="nav-applications" title="Minhas candidaturas">
+                                <span class="sidebar-link__icon">↗</span>
+                                <span>Minhas candidaturas</span>
+                            </NavLink>
+                            <NavLink class="sidebar-link" href="/resumes" title="Meus currículos">
+                                <span class="sidebar-link__icon">▤</span>
+                                <span>Meus currículos</span>
+                            </NavLink>
+                            <NavLink class="sidebar-link" href="/notifications" title="Notificações">
+                                <span class="sidebar-link__icon">◌</span>
+                                <span>Notificações</span>
+                            </NavLink>
+                            <span class="sidebar-nav__label sidebar-nav__label--spaced">Minha conta</span>
+                            <NavLink class="sidebar-link" href="/profile/candidate" title="Meu perfil">
+                                <span class="sidebar-link__icon">◇</span>
+                                <span>Meu perfil</span>
+                            </NavLink>
+                        }
+                        else
+                        {
+                            <span class="sidebar-nav__label sidebar-nav__label--spaced">Minha conta</span>
+                            <NavLink class="sidebar-link" href="/notifications" title="Notificações">
+                                <span class="sidebar-link__icon">◌</span>
+                                <span>Notificações</span>
+                            </NavLink>
+                        }
+                    </Authorized>
+                </AuthorizeView>
+            </nav>
+
+            <div class="app-sidebar__bottom">
+                <AuthorizeView>
+                    <Authorized>
+                        @if (IsAdvertiser)
+                        {
+                            <NavLink class="profile-link" href="/profile/advertiser" title="Perfil da empresa">
+                                <span class="avatar">EM</span>
+                                <span>
+                                    <strong>Perfil da empresa</strong>
+                                    <small>Dados e configurações</small>
+                                </span>
+                                <span aria-hidden="true">→</span>
+                            </NavLink>
+                        }
+                        else
+                        {
+                            <NavLink class="profile-link" href="/profile/candidate" title="Meu perfil">
+                                <span class="avatar">EU</span>
+                                <span>
+                                    <strong>Meu perfil</strong>
+                                    <small>Dados e configurações</small>
+                                </span>
+                                <span aria-hidden="true">→</span>
+                            </NavLink>
+                        }
+                        <form class="sidebar-logout" action="Account/Logout" method="post">
+                            <AntiforgeryToken />
+                            <input type="hidden" name="returnUrl" value="/" />
+                            <button type="submit" class="sidebar-logout__btn" title="Sair" data-testid="nav-logout">
+                                <span class="sidebar-link__icon" aria-hidden="true">⏻</span>
+                                <span class="sidebar-logout__text">Sair</span>
+                            </button>
+                        </form>
+                    </Authorized>
+                    <NotAuthorized>
+                        <div class="sidebar-auth-links">
+                            <span>Já tem uma conta?</span>
+                            <a href="/Account/Login" title="Entrar">Entrar</a>
+                        </div>
+                    </NotAuthorized>
+                </AuthorizeView>
+            </div>
+        </aside>
+
+        <button class="sidebar-scrim" type="button" aria-label="Fechar navegação" tabindex="-1"></button>
+
+        <div class="app-stage">
+            <header class="app-topbar">
+                <div class="app-topbar__context">
+                    <button class="menu-toggle" type="button" aria-expanded="false" aria-controls="app-sidebar" data-testid="mobile-menu-toggle">
+                        <span></span>
+                        <span></span>
+                        <span></span>
+                        <span class="visually-hidden">Abrir navegação</span>
+                    </button>
+                    <div>
+                        <span class="app-topbar__eyebrow">MONBURAN / @CurrentArea</span>
+                        <span class="app-topbar__title">@CurrentPageTitle</span>
+                    </div>
+                </div>
+                <div class="app-topbar__actions">
+                    <button class="theme-toggle" type="button" data-action="theme-toggle" title="Alternar tema claro/escuro" aria-label="Alternar tema claro ou escuro"></button>
+                    <AuthorizeView>
+                        <Authorized>
+                            @if (IsAdvertiser)
+                            {
+                                <a class="btn btn-primary btn-sm" href="/jobs/create">Publicar vaga <span aria-hidden="true">↗</span></a>
+                            }
+                            else
+                            {
+                                <a class="btn btn-primary btn-sm" href="/jobs">Encontrar vagas <span aria-hidden="true">↗</span></a>
+                            }
+                        </Authorized>
+                        <NotAuthorized>
+                            <a class="topbar-login" href="/Account/Login">Entrar</a>
+                            <a class="btn btn-primary btn-sm" href="/Account/Register">Criar conta</a>
+                        </NotAuthorized>
+                    </AuthorizeView>
+                </div>
+            </header>
+
+            <main class="app-main">
+                @Body
+            </main>
+
+            <footer class="site-footer">
+                <div class="site-footer__inner">
+                    <span>MONBURAN · TALENTOS QUE FICAM</span>
+                    <div class="site-footer__links">
+                        <a href="/terms">Termos</a>
+                        <a href="/privacy">Privacidade</a>
+                    </div>
+                </div>
+            </footer>
+        </div>
+    </div>
+}
+
+<div id="blazor-error-ui" class="alert alert-danger" style="display: none;">
+    Algo inesperado aconteceu.
+    <a href="" class="reload">Recarregar</a>
+    <a class="dismiss" aria-label="Fechar">×</a>
+</div>
+
+@code {
+    private string currentUserType = string.Empty;
+
+    [CascadingParameter]
+    private Task<AuthenticationState>? AuthenticationStateTask { get; set; }
+
+    private bool IsAccountPage => NavigationManager.Uri.Contains("/Account/", StringComparison.OrdinalIgnoreCase);
+    private bool IsAdvertiser => string.Equals(currentUserType, "advertiser", StringComparison.OrdinalIgnoreCase);
+    private bool IsCandidate => string.Equals(currentUserType, "candidate", StringComparison.OrdinalIgnoreCase);
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (AuthenticationStateTask is not null)
+        {
+            var authenticationState = await AuthenticationStateTask;
+            currentUserType = authenticationState.User.FindFirst(Monburan.Web.Services.ClaimsExtensions.UserTypeClaimType)?.Value ?? string.Empty;
+        }
+    }
+
+    private string CurrentArea => CurrentPath switch
+    {
+        "/" or "/dashboard" => "VISÃO GERAL",
+        "/jobs" => "OPORTUNIDADES",
+        "/my-applications" or "/resumes" or "/notifications" => "MINHA CARREIRA",
+        _ when CurrentPath.StartsWith("/apply/", StringComparison.OrdinalIgnoreCase) => "CANDIDATURA",
+        "/my-jobs" or "/received-applications" => "RECRUTAMENTO",
+        "/plans" or "/my-subscription" => "CONTA DA EMPRESA",
+        _ when CurrentPath.StartsWith("/jobs/", StringComparison.OrdinalIgnoreCase) => "OPORTUNIDADES",
+        _ when CurrentPath.StartsWith("/profile/", StringComparison.OrdinalIgnoreCase) => "MEU PERFIL",
+        _ when CurrentPath.StartsWith("/admin/", StringComparison.OrdinalIgnoreCase) => "ADMINISTRAÇÃO",
+        _ => "MONBURAN"
+    };
+
+    private string CurrentPageTitle => CurrentPath switch
+    {
+        "/" or "/dashboard" => IsAdvertiser ? "Acompanhe seu recrutamento" : "Encontre seu próximo passo",
+        "/jobs" => "Oportunidades que combinam com você",
+        "/jobs/create" => "Publique uma nova oportunidade",
+        _ when CurrentPath.StartsWith("/apply/", StringComparison.OrdinalIgnoreCase) => "Envie seu perfil para a oportunidade",
+        "/my-applications" => "Acompanhe suas candidaturas",
+        "/resumes" or "/resumes/new" => "Apresente o melhor de você",
+        "/my-jobs" => "Gerencie suas vagas",
+        "/received-applications" => "Conheça quem se candidatou",
+        "/notifications" => "Atualizações importantes para você",
+        "/plans" or "/my-subscription" => "Seu plano Monburan",
+        _ when CurrentPath.StartsWith("/jobs/", StringComparison.OrdinalIgnoreCase) => "Detalhes da oportunidade",
+        _ when CurrentPath.StartsWith("/profile/", StringComparison.OrdinalIgnoreCase) => "Seus dados e preferências",
+        _ when CurrentPath.StartsWith("/admin/", StringComparison.OrdinalIgnoreCase) => "Gestão da plataforma",
+        _ => "Seu espaço na Monburan"
+    };
+
+    private string CurrentPath => "/" + NavigationManager.ToBaseRelativePath(NavigationManager.Uri)
+        .Split('?', '#')[0]
+        .Trim('/');
+}

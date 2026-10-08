@@ -1,0 +1,56 @@
+#blazor-error-ui {
+    position: fixed;
+    bottom: 1.5rem;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 1000;
+    display: none;
+    width: min(calc(100% - 2rem), 32rem);
+    padding: 1rem 1.25rem;
+    border: 1px solid var(--er, #9a1a1a);
+    border-left: 3px solid var(--er, #9a1a1a);
+    border-radius: var(--r-md, 10px);
+    background: var(--bg-card, #fefaf3);
+    color: var(--er, #9a1a1a);
+    font-size: 0.88rem;
+    box-shadow: 0 12px 36px rgb(80 40 0 / 14%), 0 2px 8px rgb(80 40 0 / 8%);
+    animation: blazor-error-in 280ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes blazor-error-in {
+    from { opacity: 0; transform: translateX(-50%) translateY(12px); }
+    to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
+#blazor-error-ui a.reload {
+    color: var(--gold-d, #5a3200);
+    font-weight: 700;
+    text-decoration: underline;
+    text-underline-offset: 0.15em;
+    margin-left: 0.35rem;
+}
+
+#blazor-error-ui a.reload:hover {
+    color: var(--gold, #8a5500);
+}
+
+#blazor-error-ui .dismiss {
+    cursor: pointer;
+    position: absolute;
+    right: 0.75rem;
+    top: 0.6rem;
+    display: grid;
+    width: 2rem;
+    height: 2rem;
+    place-items: center;
+    border: 0;
+    border-radius: 50%;
+    background: transparent;
+    color: var(--er, #9a1a1a);
+    font-size: 1.15rem;
+    transition: background 120ms ease;
+}
+
+#blazor-error-ui .dismiss:hover {
+    background: var(--er-bg, rgb(154 26 26 / 8%));
+}
