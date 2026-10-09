@@ -1,0 +1,295 @@
+@page "/admin/candidates"
+@rendermode InteractiveServer
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Policy = "AdminOnly")]
+@using Monburan.Core.DTOs.Request
+@using Monburan.Core.DTOs.Response
+@using Monburan.Core.Enums
+@using Monburan.Core.UseCases.Candidates
+@inject ListCandidatesUseCase ListCandidatesUseCase
+@inject DeleteCandidateUseCase DeleteCandidateUseCase
+@inject NavigationManager Navigation
+
+<PageTitle>Gerenciar Candidatos - Monburan</PageTitle>
+
+<div class="container mt-4 admin-list-page">
+    <header class="page-heading">
+        <div class="page-heading__copy">
+            <span class="page-kicker">ADMINISTRAÇÃO</span>
+            <h1>Candidatos</h1>
+            <p>Consulte perfis, situação da conta e atividade na plataforma.</p>
+        </div>
+    </header>
+
+    <!-- Filtros de Busca -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label class="form-label">Buscar</label>
+                    <input type="text" class="form-control" @bind="searchTerm" placeholder="Nome, email ou telefone..." />
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label" for="status-filter">Status</label>
+                    <select id="status-filter" class="form-select" @bind="statusFilter">
+                        <option value="">Todos</option>
+                        <option value="Active">Ativo</option>
+                        <option value="Inactive">Inativo</option>
+                        <option value="Incomplete">Incompleto</option>
+                        <option value="Suspended">Suspenso</option>
+                    </select>
+                </div>
+                <div class="col-md-3 d-flex align-items-end">
+                    <button class="btn btn-primary w-100" @onclick="Search">Aplicar filtros <span aria-hidden="true">↗</span></button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading -->
+    @if (isLoading)
+    {
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Carregando...</span>
+            </div>
+            <p class="mt-2">Carregando candidatos...</p>
+        </div>
+    }
+    else
+    {
+        <!-- Lista de Candidatos -->
+        @if (listResponse?.Items == null || !listResponse.Items.Any())
+        {
+            <div class="alert alert-info">
+                <i class="bi bi-info-circle"></i> Nenhum candidato encontrado.
+            </div>
+        }
+        else
+        {
+            <div class="card">
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover table-striped mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Nome</th>
+                                    <th>Email</th>
+                                    <th>Status</th>
+                                    <th>Cidade/UF</th>
+                                    <th>Currículos</th>
+                                    <th>Candidaturas</th>
+                                    <th>Data Cadastro</th>
+                                    <th class="text-center">Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var candidate in listResponse.Items)
+                                {
+                                    <tr>
+                                        <td>@candidate.Name</td>
+                                        <td>@candidate.Email</td>
+                                        <td>
+                                            @GetStatusBadge(candidate.Status)
+                                        </td>
+                                        <td>
+                                            @if (!string.IsNullOrEmpty(candidate.City))
+                                            {
+                                                @candidate.City@(string.IsNullOrEmpty(candidate.State) ? "" : $" / {candidate.State}")
+                                            }
+                                            else
+                                            {
+                                                <span class="text-muted">-</span>
+                                            }
+                                        </td>
+                                        <td class="text-center">
+                                            <span class="badge bg-info">@candidate.ResumesCount</span>
+                                        </td>
+                                        <td class="text-center">
+                                            <span class="badge bg-warning">@candidate.ApplicationsCount</span>
+                                        </td>
+                                        <td>@candidate.CreatedAt.ToString("dd/MM/yyyy")</td>
+                                        <td class="text-center">
+                                            <button class="btn btn-sm btn-outline-primary" @onclick="() => ViewDetails(candidate.Id)" title="Ver detalhes">
+                                                <i class="bi bi-eye"></i>
+                                            </button>
+                                            <button class="btn btn-sm btn-outline-danger" @onclick="() => ConfirmDelete(candidate.Id, candidate.Name)" title="Excluir">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Paginação -->
+            @if (listResponse.TotalPages > 1)
+            {
+                <nav class="mt-4">
+                    <ul class="pagination justify-content-center">
+                        @if (listResponse.HasPreviousPage)
+                        {
+                            <li class="page-item">
+                                <button class="page-link" @onclick="() => GoToPage(listResponse.Page - 1)">Anterior</button>
+                            </li>
+                        }
+
+                        @{
+                            var startPage = Math.Max(1, listResponse.Page - 2);
+                            var endPage = Math.Min(listResponse.TotalPages, startPage + 4);
+                            startPage = Math.Max(1, endPage - 4);
+                        }
+                        @for (int i = startPage; i <= endPage; i++)
+                        {
+                            var pageNum = i;
+                            <li class="page-item @(pageNum == listResponse.Page ? "active" : "")">
+                                <button class="page-link" @onclick="() => GoToPage(pageNum)">@pageNum</button>
+                            </li>
+                        }
+
+                        @if (listResponse.HasNextPage)
+                        {
+                            <li class="page-item">
+                                <button class="page-link" @onclick="() => GoToPage(listResponse.Page + 1)">Próximo</button>
+                            </li>
+                        }
+                    </ul>
+                </nav>
+            }
+
+            <div class="text-muted text-center mt-3">
+                Mostrando @listResponse.Items.Count() de @listResponse.TotalCount candidatos
+            </div>
+        }
+    }
+</div>
+
+<!-- Modal de Confirmação de Exclusão -->
+@if (showDeleteModal)
+{
+    <div class="modal fade show d-block" style="background-color: rgba(0,0,0,0.5);" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">⚠️ Confirmar Exclusão</h5>
+                    <button type="button" class="btn-close" @onclick="CancelDelete"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Tem certeza que deseja excluir o candidato <strong>@candidateToDelete</strong>?</p>
+                    <p class="text-muted small">Esta ação não pode ser desfeita.</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CancelDelete">Cancelar</button>
+                    <button type="button" class="btn btn-danger" @onclick="ExecuteDelete">Excluir</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private string searchTerm = string.Empty;
+    private string statusFilter = string.Empty;
+
+    private ListCandidatesResponse? listResponse;
+    private bool isLoading = true;
+
+    private bool showDeleteModal = false;
+    private Guid candidateIdToDelete = Guid.Empty;
+    private string candidateToDelete = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await Search();
+    }
+
+    private async Task Search()
+    {
+        isLoading = true;
+
+        var request = new ListCandidatesRequest
+        {
+            Page = 1,
+            Size = 20,
+            SearchTerm = searchTerm,
+            Status = statusFilter
+        };
+
+        var result = await ListCandidatesUseCase.ExecuteAsync(request);
+        if (result.Status == EResultStatus.Success)
+        {
+            listResponse = result.Data;
+        }
+        else
+        {
+            // Poderia mostrar mensagem de erro
+        }
+
+        isLoading = false;
+    }
+
+    private void ViewDetails(Guid candidateId)
+    {
+        Navigation.NavigateTo($"/admin/candidates/{candidateId}");
+    }
+
+    private void ConfirmDelete(Guid candidateId, string candidateName)
+    {
+        candidateIdToDelete = candidateId;
+        candidateToDelete = candidateName;
+        showDeleteModal = true;
+    }
+
+    private async Task ExecuteDelete()
+    {
+        if (candidateIdToDelete != Guid.Empty)
+        {
+            var result = await DeleteCandidateUseCase.ExecuteAsync(candidateIdToDelete);
+            if (result.Status == EResultStatus.Success)
+            {
+                await Search();
+            }
+        }
+        CancelDelete();
+    }
+
+    private void CancelDelete()
+    {
+        showDeleteModal = false;
+        candidateIdToDelete = Guid.Empty;
+        candidateToDelete = string.Empty;
+    }
+
+    private async Task GoToPage(int page)
+    {
+        var request = new ListCandidatesRequest
+        {
+            Page = page,
+            Size = 20,
+            SearchTerm = searchTerm,
+            Status = statusFilter
+        };
+
+        var result = await ListCandidatesUseCase.ExecuteAsync(request);
+        if (result.Status == EResultStatus.Success)
+        {
+            listResponse = result.Data;
+        }
+    }
+
+    private static MarkupString GetStatusBadge(string status)
+    {
+        var cssClass = status switch
+        {
+            "Active" => "bg-success",
+            "Inactive" => "bg-secondary",
+            "Incomplete" => "bg-warning",
+            "Suspended" => "bg-danger",
+            _ => "bg-light text-dark"
+        };
+
+        return new MarkupString($"<span class=\"badge {cssClass}\">{status}</span>");
+    }
+}

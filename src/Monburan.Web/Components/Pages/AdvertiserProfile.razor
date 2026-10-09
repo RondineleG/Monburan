@@ -1,0 +1,335 @@
+@page "/profile/advertiser"
+@rendermode InteractiveServer
+@using System.ComponentModel.DataAnnotations
+@attribute [Microsoft.AspNetCore.Authorization.Authorize]
+@inject Monburan.Core.UseCases.Advertisers.UpdateAdvertiserUseCase UpdateAdvertiserUseCase
+@inject Monburan.Core.Interfaces.Repositories.Base.IBaseRepository<Monburan.Core.Entities.Advertiser> AdvertiserRepository
+@inject Monburan.Web.Services.ICurrentUserHelper CurrentUserHelper
+@inject Microsoft.AspNetCore.Components.NavigationManager Navigation
+
+<PageTitle>Perfil da Empresa - Monburan</PageTitle>
+
+<div class="container mt-4 profile-layout advertiser-profile-page">
+    <header class="page-heading">
+        <div class="page-heading__copy">
+            <span class="page-kicker">ÁREA DA EMPRESA</span>
+            <h1>Perfil da empresa</h1>
+            <p>Apresente sua organização para atrair profissionais alinhados à oportunidade.</p>
+        </div>
+    </header>
+
+    @if (_isLoading)
+    {
+        <div class="d-flex justify-content-center my-4">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Carregando...</span>
+            </div>
+        </div>
+    }
+    else if (_advertiser != null)
+    {
+        <div class="row mt-4">
+            <div class="col-md-8">
+                <div class="card profile-form-card">
+                    <div class="card-header">
+                        <h5 class="mb-0">Dados da Empresa</h5>
+                    </div>
+                    <div class="card-body">
+                        @if (!string.IsNullOrEmpty(_successMessage))
+                        {
+                            <div class="alert alert-success" role="alert">
+                                @_successMessage
+                                <button type="button" class="btn-close" @onclick="() => _successMessage = null" aria-label="Fechar"></button>
+                            </div>
+                        }
+
+                        @if (!string.IsNullOrEmpty(_errorMessage))
+                        {
+                            <div class="alert alert-danger" role="alert">
+                                @_errorMessage
+                                <button type="button" class="btn-close" @onclick="() => _errorMessage = null" aria-label="Fechar"></button>
+                            </div>
+                        }
+
+                        <EditForm Model="_editModel" OnValidSubmit="HandleSaveAsync">
+                            <DataAnnotationsValidator />
+
+                            <div class="mb-3">
+                                <label class="form-label" for="_editModel.Name">Nome da Empresa *</label>
+                                <InputText @bind-Value="_editModel.Name" class="form-control" id="_editModel.Name" data-testid="advertiser-profile-name" />
+                                <ValidationMessage For="@(() => _editModel.Name)" />
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label" for="_editModel.Email">Email</label>
+                                <InputText @bind-Value="_editModel.Email" class="form-control" id="_editModel.Email" disabled />
+                                <small class="text-muted">Email não pode ser alterado</small>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label" for="_editModel.Phone">Telefone *</label>
+                                <InputText @bind-Value="_editModel.Phone" class="form-control" id="_editModel.Phone" />
+                                <ValidationMessage For="@(() => _editModel.Phone)" />
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label" for="_editModel.TaxId">CPF/CNPJ *</label>
+                                <InputText @bind-Value="_editModel.TaxId" class="form-control" id="_editModel.TaxId" autocomplete="off" />
+                                <ValidationMessage For="@(() => _editModel.TaxId)" />
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label" for="_editModel.PersonType">Tipo de Pessoa *</label>
+                                <InputSelect @bind-Value="_editModel.PersonType" class="form-select" id="_editModel.PersonType">
+                                    <option value="@Monburan.Core.Enums.EPersonType.Individual">Pessoa Física</option>
+                                    <option value="@Monburan.Core.Enums.EPersonType.Company">Pessoa Jurídica</option>
+                                </InputSelect>
+                                <ValidationMessage For="@(() => _editModel.PersonType)" />
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label" for="_editModel.CompanyDescription">Descrição da Empresa</label>
+                                <InputTextArea @bind-Value="_editModel.CompanyDescription" class="form-control" id="_editModel.CompanyDescription" rows="4" placeholder="Descreva sua empresa, cultura e benefícios..." />
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label" for="_editModel.Website">Website</label>
+                                <InputText @bind-Value="_editModel.Website" class="form-control" id="_editModel.Website" placeholder="https://www.suaempresa.com.br" />
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label" for="_editModel.LogoUrl">URL do Logo</label>
+                                <InputText @bind-Value="_editModel.LogoUrl" class="form-control" id="_editModel.LogoUrl" placeholder="https://www.suaempresa.com.br/logo.png" />
+                                @if (!string.IsNullOrEmpty(_editModel.LogoUrl))
+                                {
+                                    <div class="mt-2">
+                                        <img src="@_editModel.LogoUrl" alt="Logo da Empresa" style="max-height: 80px; max-width: 200px;" class="img-thumbnail" onerror="this.parentElement.style.display='none'" />
+                                    </div>
+                                }
+                            </div>
+
+                            <div class="d-flex gap-2">
+                                <button type="submit" class="btn btn-primary" disabled="@_isSaving">
+                                    @if (_isSaving)
+                                    {
+                                        <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                                    }
+                                    Salvar Alterações
+                                </button>
+                                <button type="button" class="btn btn-outline-secondary" @onclick="CancelEdit">Cancelar</button>
+                            </div>
+                        </EditForm>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-4">
+                <div class="card mb-3">
+                    <div class="card-header">
+                        <h5 class="mb-0">Informações da Conta</h5>
+                    </div>
+                    <div class="card-body">
+                        <dl class="mb-0">
+                            <dt>Status</dt>
+                            <dd>
+                                <span class="badge @(GetStatusBadgeClass())">@_advertiser.Status</span>
+                            </dd>
+
+                            <dt>Plano Ativo</dt>
+                            <dd>
+                                <span class="badge bg-info">@(_advertiser.ActivePlan ?? "Free")</span>
+                            </dd>
+
+                            <dt>Email Verificado</dt>
+                            <dd>
+                                @if (_advertiser.IsEmailVerified)
+                                {
+                                    <span class="badge bg-success">Sim</span>
+                                }
+                                else
+                                {
+                                    <span class="badge bg-warning">Não</span>
+                                }
+                            </dd>
+
+                            <dt>Membro desde</dt>
+                            <dd>@_advertiser.CreatedAt.ToString("dd/MM/yyyy")</dd>
+                        </dl>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">Ações Rápidas</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="d-grid gap-2">
+                            <button class="btn btn-outline-primary btn-sm" @onclick="NavigateToJobs">
+                                <i class="bi bi-briefcase"></i> Minhas Vagas
+                            </button>
+                            <button class="btn btn-outline-primary btn-sm" @onclick="NavigateToApplications">
+                                <i class="bi bi-send"></i> Candidaturas Recebidas
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="alert alert-warning mt-4">
+            <i class="bi bi-exclamation-triangle"></i>
+            Anunciante não encontrado.
+        </div>
+    }
+</div>
+
+@code {
+    private Monburan.Core.Entities.Advertiser? _advertiser;
+    private EditModel _editModel = new();
+    private bool _isLoading = true;
+    private bool _isSaving = false;
+    private string? _successMessage;
+    private string? _errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAdvertiserAsync();
+    }
+
+    private async Task LoadAdvertiserAsync()
+    {
+        _isLoading = true;
+        try
+        {
+            var advertiserId = CurrentUserHelper.GetAdvertiserId();
+            if (advertiserId.HasValue)
+            {
+                var result = await AdvertiserRepository.GetByIdAsync(Monburan.Core.ValueObjects.Id.Create(advertiserId.Value));
+                if (result.Status == Monburan.Core.Enums.EResultStatus.Success && result.Data != null)
+                {
+                    _advertiser = result.Data;
+                    _editModel = new EditModel
+                    {
+                        Id = _advertiser.Id.Value,
+                        Name = _advertiser.Name,
+                        Email = _advertiser.Email,
+                        Phone = _advertiser.Phone ?? string.Empty,
+                        TaxId = _advertiser.TaxId ?? string.Empty,
+                        PersonType = _advertiser.PersonType,
+                        CompanyDescription = _advertiser.CompanyDescription,
+                        Website = _advertiser.Website,
+                        LogoUrl = _advertiser.LogoUrl
+                    };
+                }
+            }
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task HandleSaveAsync()
+    {
+        _isSaving = true;
+        _successMessage = null;
+        _errorMessage = null;
+
+        try
+        {
+            var request = new Monburan.Core.DTOs.Request.UpdateAdvertiserRequest
+            {
+                Id = _editModel.Id,
+                Name = _editModel.Name,
+                Phone = _editModel.Phone,
+                TaxId = _editModel.TaxId,
+                PersonType = _editModel.PersonType,
+                CompanyDescription = _editModel.CompanyDescription,
+                Website = _editModel.Website,
+                LogoUrl = _editModel.LogoUrl,
+                AddressId = _editModel.AddressId
+            };
+
+            var result = await UpdateAdvertiserUseCase.ExecuteAsync(request);
+
+            if (result.Status == Monburan.Core.Enums.EResultStatus.Success)
+            {
+                _successMessage = "Perfil da empresa atualizado com sucesso!";
+                await LoadAdvertiserAsync();
+            }
+            else
+            {
+                _errorMessage = result.Message;
+            }
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = $"Erro ao salvar: {ex.Message}";
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+
+    private void CancelEdit()
+    {
+        if (_advertiser != null)
+        {
+            _editModel = new EditModel
+            {
+                Id = _advertiser.Id.Value,
+                Name = _advertiser.Name,
+                Email = _advertiser.Email,
+                Phone = _advertiser.Phone ?? string.Empty,
+                TaxId = _advertiser.TaxId ?? string.Empty,
+                PersonType = _advertiser.PersonType,
+                CompanyDescription = _advertiser.CompanyDescription,
+                Website = _advertiser.Website,
+                LogoUrl = _advertiser.LogoUrl
+            };
+            _successMessage = null;
+            _errorMessage = null;
+        }
+    }
+
+    private string GetStatusBadgeClass()
+    {
+        return _advertiser?.Status switch
+        {
+            Monburan.Core.Enums.EAdvertiserStatus.Active => "bg-success",
+            Monburan.Core.Enums.EAdvertiserStatus.Incomplete => "bg-warning",
+            Monburan.Core.Enums.EAdvertiserStatus.Blocked => "bg-danger",
+            _ => "bg-secondary"
+        };
+    }
+
+    private void NavigateToJobs()
+    {
+        Navigation.NavigateTo("/my-jobs");
+    }
+
+    private void NavigateToApplications()
+    {
+        Navigation.NavigateTo("/received-applications");
+    }
+
+    private class EditModel
+    {
+        public Guid Id { get; set; }
+        [Required(ErrorMessage = "Informe o nome da empresa.")]
+        public string Name { get; set; } = string.Empty;
+        public string Email { get; set; } = string.Empty;
+        [Required(ErrorMessage = "Informe um telefone de contato.")]
+        public string Phone { get; set; } = string.Empty;
+        [Required(ErrorMessage = "Informe o CPF ou CNPJ.")]
+        public string TaxId { get; set; } = string.Empty;
+        public Monburan.Core.Enums.EPersonType PersonType { get; set; }
+        public string? CompanyDescription { get; set; }
+        public string? Website { get; set; }
+        public string? LogoUrl { get; set; }
+        public Guid? AddressId { get; set; }
+    }
+}

@@ -1,0 +1,105 @@
+@page "/address/delete/{Id:guid}"
+@rendermode InteractiveServer
+@attribute [Microsoft.AspNetCore.Authorization.Authorize]
+
+@inject AddressService AddressService
+@inject ICurrentUserHelper CurrentUserHelper
+@inject NavigationManager Navigation
+@using Monburan.Core.Entities;
+@using Monburan.Web.Services;
+
+<PageTitle>Remover endereço - Monburan</PageTitle>
+
+<div class="container page-form-shell address-form-page">
+    @if (isLoading)
+    {
+        <div class="loading-state"><span class="spinner-border" aria-hidden="true"></span><span>Carregando endereço...</span></div>
+    }
+    else if (address == null)
+    {
+        <section class="empty-state">
+            <span class="empty-state__icon" aria-hidden="true">!</span>
+            <h2>Endereço não encontrado</h2>
+            <p>O endereço solicitado não existe ou já foi removido.</p>
+            <a class="btn btn-primary" href="/address/list">Voltar para a lista</a>
+        </section>
+    }
+    else
+    {
+        <header class="page-heading">
+            <div class="page-heading__copy">
+                <span class="page-kicker">CONFIGURAÇÕES</span>
+                <h1>Remover endereço</h1>
+                <p>Confirme se deseja remover este endereço do perfil.</p>
+            </div>
+        </header>
+        <section class="card address-delete-card">
+            <div class="card-body">
+                <span class="address-delete-card__icon" aria-hidden="true">!</span>
+                <h2>Excluir este endereço?</h2>
+                <p>
+                    <strong>@address.Street, @address.Number</strong><br />
+                    @if (!string.IsNullOrEmpty(address.Complement))
+                    {
+                        <span>@address.Complement<br /></span>
+                    }
+                    @address.District — @address.City/@address.State
+                    @if (!string.IsNullOrEmpty(address.ZipCode))
+                    {
+                        <span> · CEP @address.ZipCode</span>
+                    }
+                </p>
+                <p class="text-muted">Essa ação não pode ser desfeita.</p>
+                <div class="address-delete-card__actions">
+                    <button class="btn btn-secondary" @onclick="Cancel" disabled="@isDeleting">Manter endereço</button>
+                    <button class="btn btn-danger" @onclick="Remove" disabled="@isDeleting">
+                        @if (isDeleting)
+                        {
+                            <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                        }
+                        Excluir endereço
+                    </button>
+                </div>
+            </div>
+        </section>
+    }
+</div>
+
+@code {
+    [Parameter]
+    public Guid Id { get; set; }
+
+    private Address? address;
+    private bool isLoading = true;
+    private bool isDeleting;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var ownedIds = await AddressService.GetOwnedIdsAsync(
+            CurrentUserHelper.GetCandidateId(),
+            CurrentUserHelper.GetAdvertiserId());
+
+        if (Monburan.Core.ValueObjects.Id.TryCreate(Id, out var key) && key is not null && ownedIds.Contains(key))
+            address = await AddressService.GetByIdAsync(Id);
+
+        isLoading = false;
+    }
+
+    private async Task Remove()
+    {
+        isDeleting = true;
+        try
+        {
+            if (Monburan.Core.ValueObjects.Id.TryCreate(Id, out var key) && key is not null)
+                await AddressService.UnlinkFromOwnerAsync(key);
+            await AddressService.DeleteAsync(Id);
+            Navigation.NavigateTo("/address/list");
+        }
+        finally
+        {
+            isDeleting = false;
+        }
+    }
+
+    private void Cancel() => Navigation.NavigateTo("/address/list");
+}

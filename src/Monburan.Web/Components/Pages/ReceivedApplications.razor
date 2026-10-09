@@ -1,0 +1,200 @@
+@page "/received-applications"
+@page "/jobs/{jobId:guid}/applications"
+@rendermode InteractiveServer
+@attribute [Microsoft.AspNetCore.Authorization.Authorize]
+@using Monburan.Core.DTOs.Request
+@using Monburan.Core.DTOs.Response
+@using Monburan.Core.Enums
+@using Monburan.Core.UseCases.Applications
+@using Monburan.Web.Services
+@inject ListApplicationsByJobUseCase ListApplicationsByJobUseCase
+@inject UpdateApplicationStatusUseCase UpdateApplicationStatusUseCase
+@inject CurrentUserHelper CurrentUserHelper
+@inject NavigationManager Navigation
+
+<PageTitle>Candidaturas Recebidas - Monburan</PageTitle>
+
+<div class="container mt-4 received-applications-page">
+    <header class="page-heading">
+        <div class="page-heading__copy">
+            <span class="page-kicker">ÁREA DA EMPRESA</span>
+            <h1>Candidaturas recebidas</h1>
+            <p>Revise os perfis e escolha os próximos passos do processo.</p>
+        </div>
+        <button class="btn btn-secondary" @onclick="NavigateToMyJobs">Voltar às vagas</button>
+    </header>
+
+    @if (!string.IsNullOrEmpty(successMessage))
+    {
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            <i class="bi bi-check-circle"></i> @successMessage
+            <button type="button" class="btn-close" @onclick="() => successMessage = null"></button>
+        </div>
+    }
+
+    @if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <i class="bi bi-exclamation-triangle"></i> @errorMessage
+            <button type="button" class="btn-close" @onclick="() => errorMessage = null"></button>
+        </div>
+    }
+
+    @if (isLoading)
+    {
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary" role="status"></div>
+            <p class="mt-2">Carregando candidaturas...</p>
+        </div>
+    }
+    else if (!isAdvertiser)
+    {
+        <div class="alert alert-warning">
+            <i class="bi bi-exclamation-triangle"></i> Esta área é exclusiva para empresas.
+        </div>
+    }
+    else if (applications != null && applications.Any())
+    {
+        <div class="card received-applications-card">
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Candidato</th>
+                            <th>Vaga</th>
+                            <th>Status</th>
+                            <th>Data</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var app in applications)
+                        {
+                            <tr>
+                                <td>
+                                    <strong>@app.CandidateName</strong>
+                                    <br />
+                                    <small class="text-muted">@app.CandidateEmail</small>
+                                </td>
+                                <td>@app.JobTitle</td>
+                                <td>
+                                    @switch (app.Status)
+                                    {
+                                        case "Sent":
+                                            <span class="badge bg-primary">Enviada</span>
+                                            break;
+                                        case "Viewed":
+                                            <span class="badge bg-info">Visualizada</span>
+                                            break;
+                                        case "Selected":
+                                            <span class="badge bg-success">Selecionada</span>
+                                            break;
+                                        case "Rejected":
+                                            <span class="badge bg-danger">Rejeitada</span>
+                                            break;
+                                        default:
+                                            <span class="badge bg-secondary">@app.Status</span>
+                                            break;
+                                    }
+                                </td>
+                                <td>@app.AppliedAt?.ToString("dd/MM/yyyy HH:mm")</td>
+                                <td>
+                                    <button class="btn btn-sm btn-success" @onclick="() => UpdateStatus(app.Id, EApplicationStatus.Selected)">
+                                        <i class="bi bi-check"></i> Selecionar
+                                    </button>
+                                    <button class="btn btn-sm btn-danger" @onclick="() => UpdateStatus(app.Id, EApplicationStatus.Rejected)">
+                                        <i class="bi bi-x"></i> Rejeitar
+                                    </button>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+                </div>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="alert alert-info">
+            <i class="bi bi-info-circle"></i> Nenhuma candidatura recebida ainda.
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter]
+    public Guid? JobId { get; set; }
+
+    private IEnumerable<ApplicationResponse>? applications;
+    private bool isLoading = true;
+    private bool isAdvertiser;
+    private Guid? advertiserId;
+    private string? errorMessage;
+    private string? successMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        errorMessage = null;
+        successMessage = null;
+
+        advertiserId = CurrentUserHelper.GetAdvertiserId();
+        isAdvertiser = advertiserId.HasValue;
+
+        if (isAdvertiser)
+        {
+            var result = await ListApplicationsByJobUseCase.ExecuteAsync(new ListApplicationsByJobRequest
+            {
+                AdvertiserId = advertiserId!.Value,
+                JobId = JobId
+            });
+            if (result.Status == EResultStatus.Success)
+            {
+                applications = result.Data;
+            }
+            else
+            {
+                errorMessage = result.Message;
+            }
+        }
+
+        isLoading = false;
+    }
+
+    private async Task UpdateStatus(Guid applicationId, EApplicationStatus newStatus)
+    {
+        errorMessage = null;
+        successMessage = null;
+
+        if (!advertiserId.HasValue)
+        {
+            errorMessage = "Esta área é exclusiva para empresas.";
+            return;
+        }
+
+        var request = new UpdateApplicationStatusRequest
+        {
+            ApplicationId = applicationId,
+            AdvertiserId = advertiserId.Value,
+            NewStatus = newStatus
+        };
+
+        var result = await UpdateApplicationStatusUseCase.ExecuteAsync(request);
+
+        if (result.Status == EResultStatus.Success)
+        {
+            successMessage = $"Status atualizado para {newStatus} com sucesso!";
+            await OnInitializedAsync();
+        }
+        else
+        {
+            errorMessage = result.Message;
+        }
+    }
+
+    private void NavigateToMyJobs()
+    {
+        Navigation.NavigateTo("/my-jobs");
+    }
+}

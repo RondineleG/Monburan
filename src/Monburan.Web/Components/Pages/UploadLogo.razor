@@ -1,0 +1,202 @@
+@page "/advertiser/upload-logo"
+@rendermode InteractiveServer
+@attribute [Microsoft.AspNetCore.Authorization.Authorize]
+@using Monburan.Core.DTOs.Request
+@using Monburan.Core.Interfaces.Storage
+@inject IStorageProvider StorageProvider
+@inject NavigationManager Navigation
+@inject ILogger<UploadLogo> Logger
+
+<PageTitle>Upload de Logo - Monburan</PageTitle>
+
+<div class="container mt-4 page-form-shell upload-page">
+    <header class="page-heading">
+        <div class="page-heading__copy">
+            <span class="page-kicker">IDENTIDADE DA EMPRESA</span>
+            <h1>Atualizar logo da empresa</h1>
+            <p>Escolha uma imagem nítida que represente sua organização.</p>
+        </div>
+        <button class="btn btn-secondary" @onclick="Cancel">Voltar</button>
+    </header>
+    <div class="row">
+        <div class="col-lg-6 mx-auto">
+
+            @if (!string.IsNullOrEmpty(errorMessage))
+            {
+                <div class="alert alert-danger">
+                    <i class="bi bi-exclamation-triangle"></i> @errorMessage
+                </div>
+            }
+
+            @if (!string.IsNullOrEmpty(successMessage))
+            {
+                <div class="alert alert-success">
+                    <i class="bi bi-check-circle"></i> @successMessage
+                    <br />
+                    @if (!string.IsNullOrEmpty(logoUrl))
+                    {
+                        <div class="mt-3">
+                            <strong>Preview:</strong>
+                            <div class="card mt-2">
+                                <div class="card-body text-center">
+                                    <img src="@logoUrl" alt="Logo da Empresa" class="img-thumbnail" style="max-width: 300px;" />
+                                    <div class="mt-2">
+                                        <small class="text-muted">URL: @logoUrl</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+
+            <div class="card">
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label class="form-label" for="logo-file">Selecione o arquivo de logo</label>
+                        <InputFile class="form-control" id="logo-file" OnChange="OnFileSelected" accept="image/jpeg,image/png,image/gif,image/webp" />
+                        <div class="form-text">
+                            Formatos aceitos: JPEG, PNG, GIF, WebP | Tamanho máximo: 5MB
+                        </div>
+                    </div>
+
+                    @if (selectedFile != null)
+                    {
+                        <div class="alert alert-info">
+                            <strong>Arquivo selecionado:</strong><br />
+                            Nome: @selectedFile.Name<br />
+                            Tamanho: @(selectedFile.Size / 1024) KB<br />
+                            Tipo: @selectedFile.ContentType
+                        </div>
+                    }
+
+                    @if (imagePreviewUrl != null)
+                    {
+                        <div class="mb-3 text-center">
+                            <strong>Preview:</strong>
+                            <div class="mt-2">
+                                <img src="@imagePreviewUrl" alt="Preview" class="img-thumbnail" style="max-width: 300px;" />
+                            </div>
+                        </div>
+                    }
+
+                    <div class="d-grid gap-2">
+                        <button type="button" class="btn btn-success btn-lg" @onclick="UploadLogoAsync" disabled="@(!isFileSelected || isUploading)">
+                            @(isUploading ? "Enviando..." : "Enviar logo")
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private IBrowserFile? selectedFile;
+    private bool isFileSelected;
+    private bool isUploading;
+    private string? errorMessage;
+    private string? successMessage;
+    private string? logoUrl;
+    private string? imagePreviewUrl;
+
+    private async Task OnFileSelected(InputFileChangeEventArgs e)
+    {
+        try
+        {
+            selectedFile = e.File;
+            isFileSelected = selectedFile != null;
+            errorMessage = null;
+
+            if (selectedFile != null)
+            {
+                // Validar tamanho (5MB)
+                const long maxSize = 5 * 1024 * 1024;
+                if (selectedFile.Size > maxSize)
+                {
+                    errorMessage = $"Arquivo muito grande. Tamanho máximo: 5MB. Seu arquivo: {selectedFile.Size / 1024 / 1024}MB";
+                    isFileSelected = false;
+                    selectedFile = null;
+                    return;
+                }
+
+                // Validar tipo
+                var allowedTypes = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+                {
+                    "image/jpeg",
+                    "image/png",
+                    "image/gif",
+                    "image/webp"
+                };
+
+                if (!allowedTypes.Contains(selectedFile.ContentType))
+                {
+                    errorMessage = "Tipo de arquivo inválido. Use JPEG, PNG, GIF ou WebP.";
+                    isFileSelected = false;
+                    selectedFile = null;
+                    return;
+                }
+
+                // Criar preview da imagem
+                using var stream = selectedFile.OpenReadStream(maxSize);
+                using var memoryStream = new MemoryStream();
+                await stream.CopyToAsync(memoryStream);
+                imagePreviewUrl = $"data:{selectedFile.ContentType};base64,{Convert.ToBase64String(memoryStream.ToArray())}";
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Erro ao processar arquivo selecionado");
+            errorMessage = "Erro ao processar arquivo. Tente novamente.";
+        }
+    }
+
+    private async Task UploadLogoAsync()
+    {
+        if (selectedFile == null)
+        {
+            errorMessage = "Selecione um arquivo primeiro.";
+            return;
+        }
+
+        try
+        {
+            isUploading = true;
+            errorMessage = null;
+            successMessage = null;
+
+            const long maxSize = 5 * 1024 * 1024;
+            await using var stream = selectedFile.OpenReadStream(maxSize);
+
+            var request = new UploadFileRequest
+            {
+                FileStream = stream,
+                FileName = selectedFile.Name,
+                ContentType = selectedFile.ContentType,
+                FileType = EFileType.Image
+            };
+
+            // Usar o storage provider diretamente (em produção, usar UploadFileUseCase)
+            var fileUrl = await StorageProvider.UploadAsync(stream, selectedFile.Name, selectedFile.ContentType);
+
+            logoUrl = fileUrl;
+            successMessage = "Logo enviado com sucesso!";
+
+            Logger.LogInformation("Logo enviado com sucesso: {FileUrl}", fileUrl);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Erro ao fazer upload do logo");
+            errorMessage = "Erro ao enviar logo. Tente novamente.";
+        }
+        finally
+        {
+            isUploading = false;
+        }
+    }
+
+    private void Cancel()
+    {
+        Navigation.NavigateTo("/advertiser/profile");
+    }
+}

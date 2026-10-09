@@ -1,0 +1,108 @@
+@page "/address/create"
+@rendermode InteractiveServer
+@attribute [Microsoft.AspNetCore.Authorization.Authorize]
+
+@inject AddressService AddressService
+@inject ICurrentUserHelper CurrentUserHelper
+@inject NavigationManager Navigation
+@using Monburan.Core.Entities;
+@using Monburan.Web.Services;
+
+<PageTitle>Novo endereço - Monburan</PageTitle>
+
+<div class="container page-form-shell address-form-page">
+    <header class="page-heading">
+        <div class="page-heading__copy">
+            <span class="page-kicker">CONFIGURAÇÕES</span>
+            <h1>Novo endereço</h1>
+            <p>Informe os dados para adicionar um endereço ao perfil.</p>
+        </div>
+    </header>
+    <div class="card page-form-card">
+        <div class="card-body">
+            <EditForm Model="address" OnValidSubmit="HandleValidSubmit">
+                <DataAnnotationsValidator />
+
+                <h5>Localização</h5>
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <label for="zipcode">CEP</label>
+                        <InputText class="form-control" @bind-Value="address.ZipCode" id="zipcode" placeholder="00000-000" />
+                        <ValidationMessage For="@(() => address.ZipCode)" />
+                    </div>
+                    <div class="col-md-8">
+                        <label for="street">Rua / Logradouro</label>
+                        <InputText class="form-control" @bind-Value="address.Street" id="street" />
+                        <ValidationMessage For="@(() => address.Street)" />
+                    </div>
+                    <div class="col-md-4">
+                        <label for="number">Número</label>
+                        <InputText class="form-control" @bind-Value="address.Number" id="number" />
+                        <ValidationMessage For="@(() => address.Number)" />
+                    </div>
+                    <div class="col-md-8">
+                        <label for="complement">Complemento</label>
+                        <InputText class="form-control" @bind-Value="address.Complement" id="complement" placeholder="Apto, bloco, sala..." />
+                        <ValidationMessage For="@(() => address.Complement)" />
+                    </div>
+                    <div class="col-md-4">
+                        <label for="district">Bairro</label>
+                        <InputText class="form-control" @bind-Value="address.District" id="district" />
+                        <ValidationMessage For="@(() => address.District)" />
+                    </div>
+                    <div class="col-md-4">
+                        <label for="city">Cidade</label>
+                        <InputText class="form-control" @bind-Value="address.City" id="city" />
+                        <ValidationMessage For="@(() => address.City)" />
+                    </div>
+                    <div class="col-md-4">
+                        <label for="state">Estado (UF)</label>
+                        <InputText class="form-control" @bind-Value="address.State" id="state" placeholder="SP" />
+                        <ValidationMessage For="@(() => address.State)" />
+                    </div>
+                    <div class="col-md-4">
+                        <label for="country">País</label>
+                        <InputText class="form-control" @bind-Value="address.Country" id="country" placeholder="Brasil" />
+                        <ValidationMessage For="@(() => address.Country)" />
+                    </div>
+                </div>
+
+                <div class="d-flex gap-2 mt-4">
+                    <button type="submit" class="btn btn-primary" disabled="@isSubmitting">
+                        @if (isSubmitting)
+                        {
+                            <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                        }
+                        Salvar
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary" @onclick="Cancel" disabled="@isSubmitting">Cancelar</button>
+                </div>
+            </EditForm>
+        </div>
+    </div>
+</div>
+
+@code {
+    private Address address = new();
+    private bool isSubmitting;
+
+    private async Task HandleValidSubmit()
+    {
+        isSubmitting = true;
+        try
+        {
+            await AddressService.AddAsync(address);
+            await AddressService.LinkToOwnerAsync(
+                address.Id,
+                CurrentUserHelper.GetCandidateId(),
+                CurrentUserHelper.GetAdvertiserId());
+            Navigation.NavigateTo("/address/list");
+        }
+        finally
+        {
+            isSubmitting = false;
+        }
+    }
+
+    private void Cancel() => Navigation.NavigateTo("/address/list");
+}

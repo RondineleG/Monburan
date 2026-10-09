@@ -1,0 +1,101 @@
+@page "/address/list"
+@rendermode InteractiveServer
+@attribute [Microsoft.AspNetCore.Authorization.Authorize]
+
+@inject AddressService AddressService
+@inject ICurrentUserHelper CurrentUserHelper
+@inject NavigationManager Navigation
+@using Monburan.Core.Entities;
+@using Monburan.Web.Services;
+
+<PageTitle>Endereços - Monburan</PageTitle>
+
+<div class="container address-page">
+    <header class="page-heading">
+        <div class="page-heading__copy">
+            <span class="page-kicker">CONFIGURAÇÕES</span>
+            <h1>Endereços</h1>
+            <p>Gerencie os endereços associados à sua conta.</p>
+        </div>
+        <button class="btn btn-primary" @onclick="Create">Novo endereço <span aria-hidden="true">＋</span></button>
+    </header>
+
+    @if (isLoading)
+    {
+        <div class="loading-state">
+            <span class="spinner-border" aria-hidden="true"></span>
+            <span>Carregando endereços...</span>
+        </div>
+    }
+    else if (Addresses.Count == 0)
+    {
+        <section class="empty-state">
+            <span class="empty-state__icon" aria-hidden="true">⌖</span>
+            <h2>Nenhum endereço cadastrado</h2>
+            <p>Adicione um endereço para completar suas informações de perfil.</p>
+            <button class="btn btn-primary" @onclick="Create">Adicionar endereço</button>
+        </section>
+    }
+    else
+    {
+        <div class="card address-table-card">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Rua</th>
+                            <th>Número</th>
+                            <th>Bairro</th>
+                            <th>Cidade</th>
+                            <th>Estado</th>
+                            <th>CEP</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var address in Addresses)
+                        {
+                            <tr>
+                                <td>@address.Street</td>
+                                <td>@address.Number</td>
+                                <td>@address.District</td>
+                                <td>@address.City</td>
+                                <td>@address.State</td>
+                                <td>@address.ZipCode</td>
+                                <td>
+                                    <div class="btn-group">
+                                        <button class="btn btn-outline-primary btn-sm"
+                                                @onclick="() => Edit(address.Id)"
+                                                aria-label="@($"Editar endereço {address.Street}, {address.Number}")">Editar</button>
+                                        <button class="btn btn-outline-danger btn-sm"
+                                                @onclick="() => Delete(address.Id)"
+                                                aria-label="@($"Excluir endereço {address.Street}, {address.Number}")">Excluir</button>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private List<Address> Addresses = new();
+    private bool isLoading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Addresses = await AddressService.GetOwnedAsync(
+            CurrentUserHelper.GetCandidateId(),
+            CurrentUserHelper.GetAdvertiserId());
+        isLoading = false;
+    }
+
+    private void Create() => Navigation.NavigateTo("/address/create");
+
+    private void Edit(Guid id) => Navigation.NavigateTo($"/address/edit/{id}");
+
+    private void Delete(Guid id) => Navigation.NavigateTo($"/address/delete/{id}");
+}

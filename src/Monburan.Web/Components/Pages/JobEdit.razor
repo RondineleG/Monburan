@@ -1,0 +1,279 @@
+@page "/jobs/edit/{JobId:guid}"
+@rendermode InteractiveServer
+@attribute [Microsoft.AspNetCore.Authorization.Authorize]
+@using Monburan.Core.DTOs.Request
+@using Monburan.Core.Enums
+@using Monburan.Core.UseCases.Jobs
+@using Monburan.Web.Services
+@inject GetJobByIdUseCase GetJobByIdUseCase
+@inject UpdateJobUseCase UpdateJobUseCase
+@inject ICurrentUserHelper CurrentUserHelper
+@inject NavigationManager Navigation
+
+<PageTitle>Editar Vaga - Monburan</PageTitle>
+
+<div class="container mt-4 page-form-shell">
+    @if (isJobOwner)
+    {
+    <header class="page-heading">
+        <div class="page-heading__copy">
+            <span class="page-kicker">ÁREA DA EMPRESA</span>
+            <h1>Editar vaga</h1>
+            <p>Ajuste as informações para manter a oportunidade atrativa.</p>
+        </div>
+        <button class="btn btn-secondary" @onclick="Cancel">Cancelar</button>
+    </header>
+    <div class="row">
+        <div class="col-lg-8 mx-auto">
+
+            @if (!string.IsNullOrEmpty(errorMessage))
+            {
+                <div class="alert alert-danger">
+                    <i class="bi bi-exclamation-triangle"></i> @errorMessage
+                </div>
+            }
+
+            @if (isLoading)
+            {
+                <div class="text-center py-5">
+                    <div class="spinner-border text-primary" role="status"></div>
+                    <p class="mt-2">Carregando vaga...</p>
+                </div>
+            }
+            else
+            {
+            <div class="card page-form-card">
+                <div class="card-body">
+                    <EditForm Model="model" OnValidSubmit="SubmitForm">
+                        <DataAnnotationsValidator />
+
+                        <h5 class="mb-3"><i class="bi bi-info-circle"></i> Informações Básicas</h5>
+
+                        <div class="mb-3">
+                            <label class="form-label" for="model.Title">Título da Vaga *</label>
+                            <InputText class="form-control" @bind-Value="model.Title" id="model.Title" placeholder="Ex: Desenvolvedor Full Stack Pleno" data-testid="job-title-input" />
+                            <ValidationMessage class="text-danger" For="@(() => model.Title)" />
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label" for="model.Description">Descrição *</label>
+                            <InputTextArea class="form-control" @bind-Value="model.Description" id="model.Description" rows="5" data-testid="job-description-input" />
+                            <ValidationMessage class="text-danger" For="@(() => model.Description)" />
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label" for="model.Category">Categoria</label>
+                                <InputText class="form-control" @bind-Value="model.Category" id="model.Category" />
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label" for="model.Tags">Tags</label>
+                                <InputText class="form-control" @bind-Value="model.Tags" id="model.Tags" />
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label" for="model.NumberOfOpenings">Quantidade de vagas *</label>
+                                <InputNumber class="form-control" @bind-Value="model.NumberOfOpenings" id="model.NumberOfOpenings" min="1" />
+                                <ValidationMessage For="@(() => model.NumberOfOpenings)" />
+                            </div>
+                        </div>
+
+                        <hr class="my-4" />
+
+                        <h5 class="mb-3"><i class="bi bi-check2-square"></i> Requisitos e Responsabilidades</h5>
+
+                        <div class="mb-3">
+                            <label class="form-label" for="model.Requirements">Requisitos</label>
+                            <InputTextArea class="form-control" @bind-Value="model.Requirements" id="model.Requirements" rows="4" />
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label" for="model.Responsibilities">Responsabilidades</label>
+                            <InputTextArea class="form-control" @bind-Value="model.Responsibilities" id="model.Responsibilities" rows="4" />
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label" for="model.Benefits">Benefícios</label>
+                            <InputTextArea class="form-control" @bind-Value="model.Benefits" id="model.Benefits" rows="3" />
+                        </div>
+
+                        <hr class="my-4" />
+                        <h5 class="mb-3">Candidatura e observações</h5>
+                        <div class="mb-3">
+                            <label class="form-label" for="model.ApplicationInstructions">Como a pessoa deve se candidatar?</label>
+                            <InputTextArea class="form-control" @bind-Value="model.ApplicationInstructions" id="model.ApplicationInstructions" rows="3" maxlength="2000" />
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label" for="model.Observations">Observações</label>
+                            <InputTextArea class="form-control" @bind-Value="model.Observations" id="model.Observations" rows="3" maxlength="2000" />
+                        </div>
+
+                        <h5 class="mb-3"><i class="bi bi-geo-alt"></i> Localização</h5>
+
+                        <div class="row">
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label" for="model.Type">Tipo de Trabalho *</label>
+                                <InputSelect class="form-select" @bind-Value="model.Type" id="model.Type" data-testid="job-type-select">
+                                    <option value="OnSite">Presencial</option>
+                                    <option value="Remote">Remoto</option>
+                                    <option value="Hybrid">Híbrido</option>
+                                </InputSelect>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label" for="model.City">Cidade</label>
+                                <InputText class="form-control" @bind-Value="model.City" id="model.City" />
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label" for="model.State">Estado</label>
+                                <InputText class="form-control" @bind-Value="model.State" id="model.State" maxlength="2" />
+                            </div>
+                        </div>
+
+                        <hr class="my-4" />
+
+                        <h5 class="mb-3"><i class="bi bi-currency-exchange"></i> Faixa Salarial</h5>
+
+                        <div class="row">
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label" for="model.SalaryMin">Salário Mínimo (R$)</label>
+                                <InputNumber class="form-control" @bind-Value="model.SalaryMin" id="model.SalaryMin" />
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label" for="model.SalaryMax">Salário Máximo (R$)</label>
+                                <InputNumber class="form-control" @bind-Value="model.SalaryMax" id="model.SalaryMax" />
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label" for="model.SalaryCurrency">Moeda</label>
+                                <InputSelect class="form-select" @bind-Value="model.SalaryCurrency" id="model.SalaryCurrency">
+                                    <option value="BRL">BRL - Real Brasileiro</option>
+                                    <option value="USD">USD - Dólar Americano</option>
+                                    <option value="EUR">EUR - Euro</option>
+                                </InputSelect>
+                            </div>
+                        </div>
+
+                        <div class="mb-3 form-check">
+                            <InputCheckbox class="form-check-input" @bind-Value="model.SalaryDisplay" id="model.SalaryDisplay" />
+                            <label class="form-check-label" for="model.SalaryDisplay">Exibir faixa salarial na listagem</label>
+                        </div>
+
+                        <hr class="my-4" />
+
+                        <h5 class="mb-3"><i class="bi bi-calendar-event"></i> Validade</h5>
+
+                        <div class="mb-3">
+                            <label class="form-label" for="model.ExpirationDate">Data de Expiração *</label>
+                            <InputDate class="form-control" @bind-Value="model.ExpirationDate" id="model.ExpirationDate" />
+                        </div>
+
+                        <hr class="my-4" />
+
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-success btn-lg" disabled="@isSubmitting" data-testid="job-edit-submit">
+                                @if (isSubmitting)
+                                {
+                                    <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                                }
+                                <i class="bi bi-check-circle"></i> Salvar alterações
+                            </button>
+                        </div>
+                    </EditForm>
+                </div>
+            </div>
+            }
+        </div>
+    </div>
+    }
+    else if (!isLoading)
+    {
+        <section class="auth-message-page">
+            <h1>Vaga não disponível</h1>
+            <p>Somente o anunciante que publicou a vaga pode editá-la.</p>
+            <a class="btn btn-primary" href="/my-jobs">Voltar para minhas vagas</a>
+        </section>
+    }
+</div>
+
+@code {
+    [Parameter]
+    public Guid JobId { get; set; }
+
+    private UpdateJobRequest model = new();
+    private string errorMessage = string.Empty;
+    private bool isSubmitting;
+    private bool isLoading = true;
+    private bool isJobOwner;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var advertiserId = CurrentUserHelper.GetAdvertiserId();
+        var result = await GetJobByIdUseCase.ExecuteAsync(JobId);
+
+        if (result.Status != EResultStatus.Success || result.Data is null)
+        {
+            errorMessage = "Vaga não encontrada.";
+            isLoading = false;
+            return;
+        }
+
+        var job = result.Data;
+        isJobOwner = advertiserId.HasValue && job.AdvertiserId == advertiserId.Value;
+        if (!isJobOwner)
+        {
+            isLoading = false;
+            return;
+        }
+
+        model = new UpdateJobRequest
+        {
+            Id = job.Id,
+            Title = job.Title,
+            Description = job.Description,
+            Requirements = job.Requirements,
+            Responsibilities = job.Responsibilities,
+            Benefits = job.Benefits,
+            ApplicationInstructions = job.ApplicationInstructions,
+            NumberOfOpenings = job.NumberOfOpenings,
+            Observations = job.Observations,
+            Category = job.Category,
+            Tags = job.Tags,
+            ExpirationDate = job.ExpirationDate,
+            City = job.City,
+            State = job.State,
+            Type = job.Type ?? "OnSite",
+            IsRemote = job.IsRemote,
+            ShowAddress = true,
+            SalaryMin = job.SalaryMin,
+            SalaryMax = job.SalaryMax,
+            SalaryCurrency = job.SalaryCurrency ?? "BRL",
+            SalaryDisplay = job.SalaryDisplay
+        };
+
+        isLoading = false;
+    }
+
+    private async Task SubmitForm()
+    {
+        isSubmitting = true;
+        errorMessage = string.Empty;
+
+        model.IsRemote = model.Type is "Remote" or "Hybrid";
+
+        var result = await UpdateJobUseCase.ExecuteAsync(model);
+
+        if (result.Status == EResultStatus.Success)
+        {
+            Navigation.NavigateTo("/my-jobs");
+        }
+        else
+        {
+            errorMessage = result.Message;
+        }
+
+        isSubmitting = false;
+    }
+
+    private void Cancel()
+    {
+        Navigation.NavigateTo("/my-jobs");
+    }
+}

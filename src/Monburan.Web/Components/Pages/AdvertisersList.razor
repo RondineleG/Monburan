@@ -1,0 +1,306 @@
+@page "/admin/advertisers"
+@rendermode InteractiveServer
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Policy = "AdminOnly")]
+@using Monburan.Core.DTOs.Request
+@using Monburan.Core.DTOs.Response
+@using Monburan.Core.Enums
+@using Monburan.Core.UseCases.Advertisers
+@inject ListAdvertisersUseCase ListAdvertisersUseCase
+@inject DeleteAdvertiserUseCase DeleteAdvertiserUseCase
+@inject NavigationManager Navigation
+
+<PageTitle>Gerenciar Anunciantes - Monburan</PageTitle>
+
+<div class="container mt-4 admin-list-page">
+    <header class="page-heading">
+        <div class="page-heading__copy">
+            <span class="page-kicker">ADMINISTRAÇÃO</span>
+            <h1>Empresas</h1>
+            <p>Gerencie as organizações e acompanhe suas vagas publicadas.</p>
+        </div>
+    </header>
+
+    <!-- Filtros de Busca -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label class="form-label">Buscar</label>
+                    <input type="text" class="form-control" @bind="searchTerm" placeholder="Nome, email ou CNPJ/CPF..." />
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label" for="status-filter">Status</label>
+                    <select id="status-filter" class="form-select" @bind="statusFilter">
+                        <option value="">Todos</option>
+                        <option value="Active">Ativo</option>
+                        <option value="Inactive">Inativo</option>
+                        <option value="Incomplete">Incompleto</option>
+                        <option value="Suspended">Suspenso</option>
+                    </select>
+                </div>
+                <div class="col-md-3 d-flex align-items-end">
+                    <button class="btn btn-primary w-100" @onclick="Search">Aplicar filtros <span aria-hidden="true">↗</span></button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading -->
+    @if (isLoading)
+    {
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Carregando...</span>
+            </div>
+            <p class="mt-2">Carregando anunciantes...</p>
+        </div>
+    }
+    else
+    {
+        <!-- Lista de Anunciantes -->
+        @if (listResponse?.Items == null || !listResponse.Items.Any())
+        {
+            <div class="alert alert-info">
+                <i class="bi bi-info-circle"></i> Nenhum anunciante encontrado.
+            </div>
+        }
+        else
+        {
+            <div class="card">
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover table-striped mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Nome</th>
+                                    <th>Email</th>
+                                    <th>CNPJ/CPF</th>
+                                    <th>Status</th>
+                                    <th>Cidade/UF</th>
+                                    <th>Vagas</th>
+                                    <th>Data Cadastro</th>
+                                    <th class="text-center">Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var advertiser in listResponse.Items)
+                                {
+                                    <tr>
+                                        <td>
+                                            @if (!string.IsNullOrEmpty(advertiser.LogoUrl))
+                                            {
+                                                <img src="@advertiser.LogoUrl" alt="Logo" class="rounded-circle me-2" width="30" height="30" />
+                                            }
+                                            @advertiser.Name
+                                        </td>
+                                        <td>@advertiser.Email</td>
+                                        <td>@FormatTaxId(advertiser.TaxId)</td>
+                                        <td>
+                                            @GetStatusBadge(advertiser.Status)
+                                        </td>
+                                        <td>
+                                            @if (!string.IsNullOrEmpty(advertiser.City))
+                                            {
+                                                @advertiser.City@(string.IsNullOrEmpty(advertiser.State) ? "" : $" / {advertiser.State}")
+                                            }
+                                            else
+                                            {
+                                                <span class="text-muted">-</span>
+                                            }
+                                        </td>
+                                        <td class="text-center">
+                                            <span class="badge bg-info">@advertiser.JobsCount</span>
+                                        </td>
+                                        <td>@advertiser.CreatedAt.ToString("dd/MM/yyyy")</td>
+                                        <td class="text-center">
+                                            <button class="btn btn-sm btn-outline-danger" @onclick="() => ConfirmDelete(advertiser.Id, advertiser.Name)" title="Excluir">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Paginação -->
+            @if (listResponse.TotalPages > 1)
+            {
+                <nav class="mt-4">
+                    <ul class="pagination justify-content-center">
+                        @if (listResponse.HasPreviousPage)
+                        {
+                            <li class="page-item">
+                                <button class="page-link" @onclick="() => GoToPage(listResponse.Page - 1)">Anterior</button>
+                            </li>
+                        }
+
+                        @{
+                            var startPage = Math.Max(1, listResponse.Page - 2);
+                            var endPage = Math.Min(listResponse.TotalPages, startPage + 4);
+                            startPage = Math.Max(1, endPage - 4);
+                        }
+                        @for (int i = startPage; i <= endPage; i++)
+                        {
+                            var pageNum = i;
+                            <li class="page-item @(pageNum == listResponse.Page ? "active" : "")">
+                                <button class="page-link" @onclick="() => GoToPage(pageNum)">@pageNum</button>
+                            </li>
+                        }
+
+                        @if (listResponse.HasNextPage)
+                        {
+                            <li class="page-item">
+                                <button class="page-link" @onclick="() => GoToPage(listResponse.Page + 1)">Próximo</button>
+                            </li>
+                        }
+                    </ul>
+                </nav>
+            }
+
+            <div class="text-muted text-center mt-3">
+                Mostrando @listResponse.Items.Count() de @listResponse.TotalCount anunciantes
+            </div>
+        }
+    }
+</div>
+
+<!-- Modal de Confirmação de Exclusão -->
+@if (showDeleteModal)
+{
+    <div class="modal fade show d-block" style="background-color: rgba(0,0,0,0.5);" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">⚠️ Confirmar Exclusão</h5>
+                    <button type="button" class="btn-close" @onclick="CancelDelete"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Tem certeza que deseja excluir o anunciante <strong>@advertiserToDelete</strong>?</p>
+                    <p class="text-muted small">Esta ação não pode ser desfeita.</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CancelDelete">Cancelar</button>
+                    <button type="button" class="btn btn-danger" @onclick="ExecuteDelete">Excluir</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private string searchTerm = string.Empty;
+    private string statusFilter = string.Empty;
+
+    private ListAdvertisersResponse? listResponse;
+    private bool isLoading = true;
+
+    private bool showDeleteModal = false;
+    private Guid advertiserIdToDelete = Guid.Empty;
+    private string advertiserToDelete = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await Search();
+    }
+
+    private async Task Search()
+    {
+        isLoading = true;
+
+        var request = new ListAdvertisersRequest
+        {
+            Page = 1,
+            Size = 20,
+            SearchTerm = searchTerm,
+            Status = statusFilter
+        };
+
+        var result = await ListAdvertisersUseCase.ExecuteAsync(request);
+        if (result.Status == EResultStatus.Success)
+        {
+            listResponse = result.Data;
+        }
+
+        isLoading = false;
+    }
+
+    private void ConfirmDelete(Guid advertiserId, string advertiserName)
+    {
+        advertiserIdToDelete = advertiserId;
+        advertiserToDelete = advertiserName;
+        showDeleteModal = true;
+    }
+
+    private async Task ExecuteDelete()
+    {
+        if (advertiserIdToDelete != Guid.Empty)
+        {
+            var result = await DeleteAdvertiserUseCase.ExecuteAsync(advertiserIdToDelete);
+            if (result.Status == EResultStatus.Success)
+            {
+                await Search();
+            }
+        }
+        CancelDelete();
+    }
+
+    private void CancelDelete()
+    {
+        showDeleteModal = false;
+        advertiserIdToDelete = Guid.Empty;
+        advertiserToDelete = string.Empty;
+    }
+
+    private async Task GoToPage(int page)
+    {
+        var request = new ListAdvertisersRequest
+        {
+            Page = page,
+            Size = 20,
+            SearchTerm = searchTerm,
+            Status = statusFilter
+        };
+
+        var result = await ListAdvertisersUseCase.ExecuteAsync(request);
+        if (result.Status == EResultStatus.Success)
+        {
+            listResponse = result.Data;
+        }
+    }
+
+    private static string FormatTaxId(string? taxId)
+    {
+        if (string.IsNullOrEmpty(taxId)) return "-";
+
+        // CPF: 123.456.789-00
+        if (taxId.Length == 11)
+        {
+            return $"{taxId.Substring(0, 3)}.{taxId.Substring(3, 3)}.{taxId.Substring(6, 3)}-{taxId.Substring(9, 2)}";
+        }
+
+        // CNPJ: 12.345.678/0001-90
+        if (taxId.Length == 14)
+        {
+            return $"{taxId.Substring(0, 2)}.{taxId.Substring(2, 3)}.{taxId.Substring(5, 3)}/{taxId.Substring(8, 4)}-{taxId.Substring(12, 2)}";
+        }
+
+        return taxId;
+    }
+
+    private static MarkupString GetStatusBadge(string status)
+    {
+        var cssClass = status switch
+        {
+            "Active" => "bg-success",
+            "Inactive" => "bg-secondary",
+            "Incomplete" => "bg-warning",
+            "Suspended" => "bg-danger",
+            _ => "bg-light text-dark"
+        };
+
+        return new MarkupString($"<span class=\"badge {cssClass}\">{status}</span>");
+    }
+}
