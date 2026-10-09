@@ -1,0 +1,282 @@
+@page "/jobs/{jobId:guid}"
+@rendermode InteractiveServer
+@using Monburan.Core.DTOs.Response
+@using Monburan.Core.Enums
+@using Monburan.Core.UseCases.Jobs
+@using Monburan.Web.Services
+@inject GetJobByIdUseCase GetJobByIdUseCase
+@inject ICurrentUserHelper CurrentUserHelper
+@inject NavigationManager Navigation
+
+<PageTitle>@(job?.Title ?? "Detalhes da Vaga") - Monburan</PageTitle>
+
+<HeadContent>
+    @if (job != null)
+    {
+        <meta name="description" content="@job.Title - @(job.AdvertiserName ?? "Empresa confidencial") em @(!string.IsNullOrEmpty(job.City) ? $"{job.City}, {job.State}" : "Localização a combinar")" />
+        <meta property="og:title" content="@job.Title - Monburan" />
+        <meta property="og:description" content="@job.Description.Substring(0, Math.Min(160, job.Description.Length))..." />
+        <meta property="og:type" content="article" />
+        <meta property="og:url" content="@Navigation.Uri" />
+    }
+    else
+    {
+        <meta name="description" content="Detalhes da vaga - Monburan" />
+        <meta property="og:title" content="Monburan - Detalhes da Vaga" />
+        <meta property="og:description" content="Veja os detalhes desta vaga e candidate-se" />
+        <meta property="og:type" content="website" />
+    }
+</HeadContent>
+
+<div class="container job-detail-page">
+    @if (isLoading)
+    {
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Carregando...</span>
+            </div>
+            <p class="mt-2">Carregando detalhes da vaga...</p>
+        </div>
+    }
+    else if (job == null)
+    {
+        <div class="alert alert-danger">
+            <i class="bi bi-exclamation-triangle"></i> Vaga não encontrada.
+        </div>
+        <button class="btn btn-primary" @onclick="NavigateBackToList">
+            ← Voltar para lista de vagas
+        </button>
+    }
+    else
+    {
+        <!-- Breadcrumb -->
+            <nav aria-label="breadcrumb" class="mb-4 job-detail-breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="/jobs">Vagas</a></li>
+                <li class="breadcrumb-item active">@job.Title</li>
+            </ol>
+        </nav>
+
+        <div class="row job-detail-layout">
+            <!-- Detalhes da Vaga -->
+            <div class="col-lg-8 job-detail-main">
+                <div class="card mb-4 job-detail-card">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-start mb-3">
+                            <h1 class="card-title" data-testid="job-detail-title">@job.Title</h1>
+                            @if (job.IsRemote)
+                            {
+                                <span class="badge bg-success fs-6">Remoto</span>
+                            }
+                        </div>
+
+                        @if (!string.IsNullOrEmpty(job.AdvertiserName))
+                        {
+                            <h5 class="text-muted mb-3">
+                                <i class="bi bi-building"></i> @job.AdvertiserName
+                            </h5>
+                        }
+
+                        <div class="row mb-3">
+                            @if (!string.IsNullOrEmpty(job.City))
+                            {
+                                <div class="col-md-6 mb-2">
+                                    <strong><i class="bi bi-geo-alt"></i> Localização:</strong><br />
+                                    @job.City, @job.State
+                                </div>
+                            }
+                            
+                            @if (job.SalaryDisplay && job.SalaryMin.HasValue && job.SalaryMax.HasValue)
+                            {
+                                <div class="col-md-6 mb-2">
+                                    <strong><i class="bi bi-currency-exchange"></i> Salário:</strong><br />
+                                    <span class="text-success">
+                                        @GetCurrencySymbol(job.SalaryCurrency) @job.SalaryMin.Value.ToString("N2") - @GetCurrencySymbol(job.SalaryCurrency) @job.SalaryMax.Value.ToString("N2")
+                                    </span>
+                                </div>
+                            }
+
+                            <div class="col-md-6 mb-2">
+                                <strong><i class="bi bi-tag"></i> Tipo:</strong><br />
+                                @(job.Type == "OnSite" ? "Presencial" : job.Type == "Remote" ? "Remoto" : "Híbrido")
+                            </div>
+
+                            <div class="col-md-6 mb-2">
+                                <strong>Número de vagas:</strong><br />
+                                @job.NumberOfOpenings
+                            </div>
+
+                            @if (!string.IsNullOrEmpty(job.Category))
+                            {
+                                <div class="col-md-6 mb-2">
+                                    <strong><i class="bi bi-bookmark"></i> Categoria:</strong><br />
+                                    <span class="badge bg-info">@job.Category</span>
+                                </div>
+                            }
+                        </div>
+
+                        <hr />
+
+                        <div class="mb-4">
+                            <h4><i class="bi bi-list-check"></i> Descrição da Vaga</h4>
+                            <p class="mt-2">@job.Description</p>
+                        </div>
+
+                        @if (!string.IsNullOrEmpty(job.Requirements))
+                        {
+                            <div class="mb-4">
+                                <h4><i class="bi bi-check2-circle"></i> Requisitos</h4>
+                                <p class="mt-2">@job.Requirements</p>
+                            </div>
+                        }
+
+                        @if (!string.IsNullOrEmpty(job.Responsibilities))
+                        {
+                            <div class="mb-4">
+                                <h4><i class="bi bi-briefcase"></i> Responsabilidades</h4>
+                                <p class="mt-2">@job.Responsibilities</p>
+                            </div>
+                        }
+
+                        @if (!string.IsNullOrEmpty(job.Benefits))
+                        {
+                            <div class="mb-4">
+                                <h4><i class="bi bi-gift"></i> Benefícios</h4>
+                                <p class="mt-2">@job.Benefits</p>
+                            </div>
+                        }
+
+                        @if (!string.IsNullOrWhiteSpace(job.Observations))
+                        {
+                            <div class="mb-4">
+                                <h4>Observações</h4>
+                                <p class="mt-2">@job.Observations</p>
+                            </div>
+                        }
+
+                        @if (!string.IsNullOrWhiteSpace(job.ApplicationInstructions))
+                        {
+                            <div class="mb-4">
+                                <h4>Como se candidatar</h4>
+                                <p class="mt-2">@job.ApplicationInstructions</p>
+                            </div>
+                        }
+
+                        <div class="alert alert-warning" role="note">
+                            Nunca pague para participar de um processo seletivo e não envie documentos, dados bancários ou fotos por canais que você não conhece.
+                        </div>
+                        <p class="job-modal__disclaimer">Vaga publicada sob responsabilidade do anunciante. A Monburan não se responsabiliza pelo conteúdo informado.</p>
+
+                        @if (!string.IsNullOrEmpty(job.Tags))
+                        {
+                            <div class="mb-3">
+                                <strong>Tags:</strong>
+                                @foreach (var tag in job.Tags.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+                                {
+                                    <span class="badge bg-secondary me-1">@tag</span>
+                                }
+                            </div>
+                        }
+
+                        <div class="text-muted small">
+                            <i class="bi bi-calendar"></i> Publicada em: @job.CreatedAt.ToString("dd/MM/yyyy")<br />
+                            <i class="bi bi-clock-history"></i> Expira em: @job.ExpirationDate.ToString("dd/MM/yyyy")<br />
+                            <i class="bi bi-eye"></i> @job.Views visualizações | 
+                            <i class="bi bi-people"></i> @job.Applications candidaturas
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sidebar -->
+            <div class="col-lg-4 job-detail-sidebar">
+                <!-- Card de Candidatura -->
+                <div class="card mb-3 job-apply-card">
+                    <div class="card-body">
+                        <h5 class="card-title">Interessado nesta vaga?</h5>
+                        <p class="card-text">Candidate-se agora e demonstre seu interesse!</p>
+                        @if (isCandidate)
+                        {
+                            <a class="btn btn-success w-100 btn-lg" href="@($"/apply/{JobId}")"><i class="bi bi-send"></i> Candidatar-se</a>
+                        }
+                        else if (!isAuthenticated)
+                        {
+                            <a class="btn btn-outline-primary w-100 mb-2" href="/Account/Register?AccountType=candidate">Criar conta de candidato</a>
+                            <a class="btn btn-success w-100 btn-lg" href="@($"/Account/Login?ReturnUrl=%2Fapply%2F{JobId}")">Entrar para se candidatar</a>
+                        }
+                        else
+                        {
+                            <p class="text-muted">A candidatura está disponível para perfis de candidato.</p>
+                        }
+                    </div>
+                </div>
+
+                <!-- Card da Empresa -->
+                @if (!string.IsNullOrEmpty(job.AdvertiserName))
+                {
+                    <div class="card job-company-card">
+                        <div class="card-body">
+                            <h6 class="card-title">Sobre a Empresa</h6>
+                            @if (!string.IsNullOrEmpty(job.AdvertiserLogoUrl))
+                            {
+                                <img src="@job.AdvertiserLogoUrl" alt="Logo" class="img-fluid mb-2" style="max-height: 80px;" />
+                            }
+                            <p class="card-text"><strong>@job.AdvertiserName</strong></p>
+                            <button class="btn btn-outline-primary btn-sm w-100">
+                                Ver perfil da empresa
+                            </button>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+
+        <!-- Botões de Ação -->
+        <div class="mt-4">
+            <button class="btn btn-secondary" @onclick="NavigateBackToList">
+                ← Voltar para lista de vagas
+            </button>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter]
+    public Guid JobId { get; set; }
+
+    private JobResponse? job;
+    private bool isLoading = true;
+    private bool isAuthenticated;
+    private bool isCandidate;
+
+    protected override async Task OnInitializedAsync()
+    {
+        isAuthenticated = CurrentUserHelper.IsAuthenticated();
+        isCandidate = CurrentUserHelper.GetCandidateId().HasValue;
+
+        if (!isAuthenticated)
+        {
+            Navigation.NavigateTo($"/Account/Login?ReturnUrl={Uri.EscapeDataString($"/jobs/{JobId}")}");
+            return;
+        }
+
+        var result = await GetJobByIdUseCase.ExecuteAsync(JobId);
+        if (result.Status == EResultStatus.Success)
+        {
+            job = result.Data;
+        }
+        isLoading = false;
+    }
+
+    private static string GetCurrencySymbol(string currency) => currency switch
+    {
+        "USD" => "US$",
+        "EUR" => "€",
+        _ => "R$"
+    };
+
+    private void NavigateBackToList()
+    {
+        Navigation.NavigateTo("/jobs");
+    }
+}

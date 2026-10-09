@@ -1,0 +1,490 @@
+@page "/jobs"
+@rendermode InteractiveServer
+@using Monburan.Core.DTOs.Request
+@using Monburan.Core.DTOs.Response
+@using Monburan.Core.Enums
+@using Monburan.Core.UseCases.Jobs
+@using Monburan.Web.Services
+@inject SearchJobsUseCase SearchJobsUseCase
+@inject GetJobByIdUseCase GetJobByIdUseCase
+@inject ICurrentUserHelper CurrentUserHelper
+@inject NavigationManager Navigation
+
+<PageTitle>Vagas Disponíveis - Monburan</PageTitle>
+
+<HeadContent>
+    <meta name="description" content="Encontre as melhores vagas de emprego no Monburan. Filtre por localização, categoria e tipo de vaga." />
+    <meta property="og:title" content="Monburan - Vagas de Emprego" />
+    <meta property="og:description" content="Encontre a vaga ideal para você. Centenas de vagas disponíveis gratuitamente." />
+    <meta property="og:type" content="website" />
+</HeadContent>
+
+<div class="container jobs-page">
+    <div class="jobs-hero">
+        <div>
+            <span class="page-kicker">OPORTUNIDADES ABERTAS</span>
+            <h1 class="jobs-hero__title">Encontre sua próxima oportunidade</h1>
+            <p class="jobs-hero__subtitle">Pesquise por uma vaga que combine com seu momento, suas habilidades e o jeito que você quer trabalhar.</p>
+        </div>
+        <div class="jobs-hero__action">
+            @if (isAdvertiser)
+            {
+                <a class="btn btn-primary" href="/jobs/create">Publicar uma vaga <span aria-hidden="true">↗</span></a>
+            }
+            else if (isAnonymous)
+            {
+                <a class="btn btn-outline-primary" href="/Account/Register?AccountType=advertiser">Sou recrutador <span aria-hidden="true">↗</span></a>
+            }
+        </div>
+    </div>
+
+    <div class="card jobs-search-panel mb-4">
+        <div class="jobs-search-panel__intro">
+            <div>
+                <span class="jobs-search-panel__icon">⌕</span>
+                <div>
+                    <strong>Encontre pelo que importa</strong>
+                    <span>Combine palavras-chave, local e modelo de trabalho.</span>
+                </div>
+            </div>
+            <span class="jobs-search-panel__hint">Busca por critérios</span>
+        </div>
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label class="form-label" for="job-search">O que você procura?</label>
+                    <input id="job-search" type="text" class="form-control jobs-search-input" @bind="searchTerm" placeholder="Cargo, habilidade ou palavra-chave" data-testid="job-search" />
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label" for="job-city">Cidade</label>
+                    <input id="job-city" type="text" class="form-control" @bind="city" placeholder="Cidade..." />
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label" for="job-state">Estado</label>
+                    <input id="job-state" type="text" class="form-control" @bind="state" placeholder="UF..." maxlength="2" />
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label" for="job-salary-min">Salário Mínimo</label>
+                    <input id="job-salary-min" type="number" class="form-control" @bind="salaryMin" placeholder="R$ ..." />
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label" for="job-salary-max">Salário Máximo</label>
+                    <input id="job-salary-max" type="number" class="form-control" @bind="salaryMax" placeholder="R$ ..." />
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label" for="job-type">Tipo</label>
+                    <select id="job-type" class="form-select" @bind="jobType">
+                        <option value="">Todos</option>
+                        <option value="OnSite">Presencial</option>
+                        <option value="Remote">Remoto</option>
+                        <option value="Hybrid">Híbrido</option>
+                    </select>
+                </div>
+                <div class="col-md-3 d-flex align-items-end">
+                    <button class="btn btn-primary w-100" @onclick="Search" data-testid="job-search-submit">Buscar vagas <span aria-hidden="true">↗</span></button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading -->
+    @if (isLoading)
+    {
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Carregando...</span>
+            </div>
+            <p class="mt-2">Carregando vagas...</p>
+        </div>
+        }
+        else
+        {
+            <div class="jobs-results-bar">
+                <div>
+                    <span class="page-kicker">RESULTADOS</span>
+                    <h2>Vagas para você</h2>
+                </div>
+                <span class="jobs-count">@searchResponse.TotalCount oportunidades encontradas</span>
+            </div>
+
+            @if (searchResponse?.Jobs == null || !searchResponse.Jobs.Any())
+            {
+            <div class="alert alert-info jobs-empty" data-testid="jobs-empty">
+                <i class="bi bi-info-circle"></i> Nenhuma vaga encontrada.
+            </div>
+            }
+            else
+            {
+            <div class="row g-3 jobs-grid">
+                @foreach (var job in searchResponse.Jobs)
+                {
+                    <div class="col-md-6 col-lg-4">
+                        <article class="card h-100 job-card job-card--detailed @(job.IsRemote ? "job-card--remote" : "")" data-testid="job-card">
+                            <div class="card-body job-card__body">
+                                <div class="job-card__top">
+                                    <span class="job-company-mark">@(string.IsNullOrEmpty(job.AdvertiserName) ? "R" : job.AdvertiserName![..1].ToUpperInvariant())</span>
+                                    @if (job.IsRemote)
+                                    {
+                                        <span class="badge bg-success">Remoto</span>
+                                    }
+                                </div>
+                                <h3 class="card-title job-card__title">@job.Title</h3>
+                                @if (!string.IsNullOrEmpty(job.AdvertiserName))
+                                {
+                                    <p class="job-card__company">@job.AdvertiserName</p>
+                                }
+                                <div class="job-card__meta">
+                                    @if (!string.IsNullOrEmpty(job.City))
+                                    {
+                                        <span><span aria-hidden="true">⌖</span> @job.City, @job.State</span>
+                                    }
+                                    <span><span aria-hidden="true">◷</span> @(job.Type == "OnSite" ? "Presencial" : job.Type == "Remote" ? "Remoto" : "Híbrido")</span>
+                                    <span><span aria-hidden="true">▤</span> @job.NumberOfOpenings @(job.NumberOfOpenings == 1 ? "vaga" : "vagas")</span>
+                                    @if (job.ExpirationDate != default)
+                                    {
+                                        <span><span aria-hidden="true">◷</span> Até @job.ExpirationDate.ToString("dd/MM/yyyy")</span>
+                                    }
+                                </div>
+
+                                @if (job.SalaryDisplay && job.SalaryMin.HasValue && job.SalaryMax.HasValue)
+                                {
+                                    <p class="job-card__salary">
+                                        @GetCurrencySymbol(job.SalaryCurrency) @job.SalaryMin.Value.ToString("N2") – @GetCurrencySymbol(job.SalaryCurrency) @job.SalaryMax.Value.ToString("N2")
+                                    </p>
+                                }
+
+                                @if (!string.IsNullOrEmpty(job.Category))
+                                {
+                                    <span class="badge bg-info job-card__category">@job.Category</span>
+                                }
+
+                                @if (!string.IsNullOrWhiteSpace(job.Description))
+                                {
+                                    <p class="job-card__description">
+                                        @(job.Description.Length > 190 ? $"{job.Description[..190]}..." : job.Description)
+                                    </p>
+                                }
+
+                                @if (advertiserId.HasValue && job.AdvertiserId == advertiserId.Value)
+                                {
+                                    <div class="job-card__stats">
+                                        <span>@job.Views visualizações</span>
+                                        <span>@job.Applications candidaturas</span>
+                                    </div>
+                                }
+                            </div>
+                            <div class="card-footer bg-transparent job-card__footer">
+                                <button class="btn btn-outline-primary w-100" @onclick="() => OpenJobDetails(job)" data-testid="job-card-details">
+                                    Ver detalhes da vaga <span aria-hidden="true">↗</span>
+                                </button>
+                            </div>
+                        </article>
+                    </div>
+                }
+            </div>
+
+            <!-- Paginação -->
+            @if (searchResponse.TotalPages > 1)
+            {
+                <nav class="mt-4">
+                    <ul class="pagination justify-content-center">
+                        @if (searchResponse.HasPreviousPage)
+                        {
+                            <li class="page-item">
+                                <button class="page-link" @onclick="() => GoToPage(searchResponse.Page - 1)">Anterior</button>
+                            </li>
+                        }
+                        
+                        @for (int i = 1; i <= Math.Min(searchResponse.TotalPages, 5); i++)
+                        {
+                            <li class="page-item @(i == searchResponse.Page ? "active" : "")">
+                                <button class="page-link" @onclick="() => GoToPage(i)">@i</button>
+                            </li>
+                        }
+
+                        @if (searchResponse.HasNextPage)
+                        {
+                            <li class="page-item">
+                                <button class="page-link" @onclick="() => GoToPage(searchResponse.Page + 1)">Próximo</button>
+                            </li>
+                        }
+                    </ul>
+                </nav>
+            }
+
+            <div class="text-muted text-center mt-3">
+                Mostrando @searchResponse.Jobs.Count() de @searchResponse.TotalCount vagas
+            </div>
+
+            <aside class="promo-strip" aria-label="Publicidade">
+                <span class="promo-strip__tag">Publicidade</span>
+                <div class="promo-strip__body">
+                    <p class="promo-strip__title">Sua empresa na vitrine certa</p>
+                    <p class="promo-strip__text">Destaque vagas para milhares de profissionais que estão decidindo o próximo passo.</p>
+                </div>
+                <a class="btn btn-outline-primary" href="/plans">Ver planos <span aria-hidden="true">↗</span></a>
+            </aside>
+        }
+    }
+
+    @if (selectedJob != null)
+    {
+        <div class="job-modal-backdrop" @onclick="CloseJobDetails" role="presentation">
+            <section class="job-modal" role="dialog" aria-modal="true" aria-labelledby="job-modal-title" @onclick:stopPropagation="true" data-testid="job-details-modal">
+                <div class="job-modal__header">
+                    <div class="job-modal__identity">
+                        <span class="job-company-mark">@(string.IsNullOrEmpty(selectedJob.AdvertiserName) ? "R" : selectedJob.AdvertiserName![..1].ToUpperInvariant())</span>
+                        <div>
+                            <span class="page-kicker">@(isJobOwner ? "SUA VAGA PUBLICADA" : "DETALHES DA OPORTUNIDADE")</span>
+                            <h2 id="job-modal-title">@selectedJob.Title</h2>
+                            @if (!string.IsNullOrEmpty(selectedJob.AdvertiserName) && !isJobOwner)
+                            {
+                                <p>@selectedJob.AdvertiserName</p>
+                            }
+                        </div>
+                    </div>
+                    <button type="button" class="job-modal__close" @onclick="CloseJobDetails" aria-label="Fechar detalhes">×</button>
+                </div>
+
+                <div class="job-modal__meta">
+                    @if (!string.IsNullOrEmpty(selectedJob.City))
+                    {
+                        <span>⌖ @selectedJob.City, @selectedJob.State</span>
+                    }
+                    <span>◷ @(selectedJob.Type == "OnSite" ? "Presencial" : selectedJob.Type == "Remote" ? "Remoto" : "Híbrido")</span>
+                    @if (selectedJob.ExpirationDate != default)
+                    {
+                        <span>◔ Até @selectedJob.ExpirationDate.ToString("dd/MM/yyyy")</span>
+                    }
+                    @if (selectedJob.SalaryDisplay && selectedJob.SalaryMin.HasValue && selectedJob.SalaryMax.HasValue)
+                    {
+                        <strong>@GetCurrencySymbol(selectedJob.SalaryCurrency) @selectedJob.SalaryMin.Value.ToString("N2") – @GetCurrencySymbol(selectedJob.SalaryCurrency) @selectedJob.SalaryMax.Value.ToString("N2")</strong>
+                    }
+                </div>
+
+                @if (isJobOwner)
+                {
+                    <div class="job-modal__owner-stats">
+                        <div><strong>@selectedJob.Views</strong><span>visualizações</span></div>
+                        <div><strong>@selectedJob.Applications</strong><span>candidaturas</span></div>
+                        <div><strong>@selectedJob.NumberOfOpenings</strong><span>@(selectedJob.NumberOfOpenings == 1 ? "vaga" : "vagas")</span></div>
+                        <div><strong>@selectedJob.Status</strong><span>status</span></div>
+                    </div>
+                }
+
+                <div class="job-modal__body">
+                    @if (!string.IsNullOrWhiteSpace(selectedJob.Description))
+                    {
+                        <section>
+                            <h3>Sobre a vaga</h3>
+                            <p>@selectedJob.Description</p>
+                        </section>
+                    }
+                    @if (!string.IsNullOrWhiteSpace(selectedJob.Requirements))
+                    {
+                        <details class="job-modal__section">
+                            <summary>Requisitos</summary>
+                            <p>@selectedJob.Requirements</p>
+                        </details>
+                    }
+                    @if (!string.IsNullOrWhiteSpace(selectedJob.Responsibilities))
+                    {
+                        <details class="job-modal__section">
+                            <summary>Responsabilidades</summary>
+                            <p>@selectedJob.Responsibilities</p>
+                        </details>
+                    }
+                    @if (!string.IsNullOrWhiteSpace(selectedJob.Benefits))
+                    {
+                        <details class="job-modal__section">
+                            <summary>Benefícios</summary>
+                            <p>@selectedJob.Benefits</p>
+                        </details>
+                    }
+                    @if (!string.IsNullOrWhiteSpace(selectedJob.Observations))
+                    {
+                        <details class="job-modal__section">
+                            <summary>Observações</summary>
+                            <p>@selectedJob.Observations</p>
+                        </details>
+                    }
+
+                    @if (!isJobOwner)
+                    {
+                        @if (!string.IsNullOrWhiteSpace(selectedJob.ApplicationInstructions))
+                        {
+                            <details class="job-modal__section job-modal__section--howto" open>
+                                <summary>Como se candidatar</summary>
+                                <p>@selectedJob.ApplicationInstructions</p>
+                            </details>
+                        }
+
+                        <p class="job-modal__notice">Nunca pague para participar de um processo seletivo e não envie dados bancários ou documentos por canais desconhecidos.</p>
+                    }
+                </div>
+
+                <div class="job-modal__footer">
+                    @if (isJobOwner)
+                    {
+                        <a class="btn btn-secondary" href="@($"/jobs/{selectedJob.Id}/applications")">
+                            Ver candidaturas <span aria-hidden="true">↗</span>
+                        </a>
+                        <a class="btn btn-primary" href="@($"/jobs/edit/{selectedJob.Id}")">
+                            Editar vaga <span aria-hidden="true">↗</span>
+                        </a>
+                    }
+                    else
+                    {
+                        <button type="button" class="btn btn-secondary" @onclick="CloseJobDetails">Continuar buscando</button>
+                        @if (isCandidate)
+                        {
+                            <a class="btn btn-primary" href="@($"/apply/{selectedJob.Id}")" data-testid="job-modal-apply">
+                                Quero me candidatar <span aria-hidden="true">↗</span>
+                            </a>
+                        }
+                        else if (isAnonymous)
+                        {
+                            var returnUrl = Uri.EscapeDataString($"/jobs?jobId={selectedJob.Id}");
+                            <a class="btn btn-outline-primary" href="@($"/Account/Register?AccountType=candidate&ReturnUrl={returnUrl}")">Criar conta de candidato</a>
+                            <a class="btn btn-primary" href="@($"/Account/Login?ReturnUrl={returnUrl}")" data-testid="job-modal-apply">Entrar para se candidatar</a>
+                        }
+                        else
+                        {
+                            <span class="job-modal__account-note">A candidatura está disponível para perfis de candidato.</span>
+                        }
+                    }
+                </div>
+            </section>
+        </div>
+    }
+</div>
+
+@code {
+    private string searchTerm = string.Empty;
+    private string city = string.Empty;
+    private string state = string.Empty;
+    private decimal? salaryMin;
+    private decimal? salaryMax;
+    private string jobType = string.Empty;
+    
+    private ListJobsResponse searchResponse = new();
+    private bool isLoading = true;
+    private bool isAuthenticated;
+    private bool isAdvertiser;
+    private bool isCandidate;
+    private bool isAnonymous => !isAuthenticated;
+    private Guid? advertiserId;
+    private JobResponse? selectedJob;
+    private Guid? lastOpenedJobId;
+    private bool isJobOwner => selectedJob is not null && advertiserId.HasValue && selectedJob.AdvertiserId == advertiserId.Value;
+
+    [SupplyParameterFromQuery(Name = "jobId")]
+    private Guid? RequestedJobId { get; set; }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        isAuthenticated = CurrentUserHelper.IsAuthenticated();
+        advertiserId = CurrentUserHelper.GetAdvertiserId();
+        isAdvertiser = advertiserId.HasValue;
+        isCandidate = CurrentUserHelper.GetCandidateId().HasValue;
+
+        await Search();
+
+        if (RequestedJobId.HasValue && RequestedJobId != lastOpenedJobId)
+        {
+            lastOpenedJobId = RequestedJobId;
+
+            if (!isAuthenticated)
+            {
+                var returnUrl = Uri.EscapeDataString($"/jobs?jobId={RequestedJobId.Value}");
+                Navigation.NavigateTo($"/Account/Login?ReturnUrl={returnUrl}");
+                return;
+            }
+
+            var job = searchResponse?.Jobs.FirstOrDefault(item => item.Id == RequestedJobId.Value);
+            if (job is null)
+            {
+                var result = await GetJobByIdUseCase.ExecuteAsync(RequestedJobId.Value);
+                if (result.Status == EResultStatus.Success)
+                    job = result.Data;
+            }
+
+            if (job?.Status == "Active")
+                selectedJob = job;
+        }
+        else if (!RequestedJobId.HasValue)
+        {
+            lastOpenedJobId = null;
+        }
+    }
+
+    private async Task Search()
+    {
+        isLoading = true;
+        
+        var request = new ListJobsRequest
+        {
+            Page = 1,
+            Size = 20,
+            SearchTerm = searchTerm,
+            City = city,
+            State = state,
+            SalaryMin = salaryMin,
+            SalaryMax = salaryMax,
+            Type = string.IsNullOrEmpty(jobType) ? null : jobType
+        };
+
+        var result = await SearchJobsUseCase.ExecuteAsync(request);
+        if (result.Status == EResultStatus.Success)
+        {
+            searchResponse = result.Data ?? new ListJobsResponse();
+        }
+        
+        isLoading = false;
+    }
+
+    private void OpenJobDetails(JobResponse job)
+    {
+        if (!isAuthenticated)
+        {
+            var returnUrl = Uri.EscapeDataString($"/jobs?jobId={job.Id}");
+            Navigation.NavigateTo($"/Account/Login?ReturnUrl={returnUrl}");
+            return;
+        }
+
+        selectedJob = job;
+    }
+
+    private void CloseJobDetails()
+    {
+        selectedJob = null;
+    }
+
+    private static string GetCurrencySymbol(string currency) => currency switch
+    {
+        "USD" => "US$",
+        "EUR" => "€",
+        _ => "R$"
+    };
+
+    private async Task GoToPage(int page)
+    {
+        var request = new ListJobsRequest
+        {
+            Page = page,
+            Size = 20,
+            SearchTerm = searchTerm,
+            City = city,
+            State = state,
+            SalaryMin = salaryMin,
+            SalaryMax = salaryMax,
+            Type = string.IsNullOrEmpty(jobType) ? null : jobType
+        };
+
+        var result = await SearchJobsUseCase.ExecuteAsync(request);
+        if (result.Status == EResultStatus.Success)
+        {
+            searchResponse = result.Data ?? new ListJobsResponse();
+        }
+    }
+}
