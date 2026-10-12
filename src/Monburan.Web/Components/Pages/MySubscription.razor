@@ -1,0 +1,284 @@
+@page "/my-subscription"
+@rendermode InteractiveServer
+@attribute [Microsoft.AspNetCore.Authorization.Authorize]
+@using Monburan.Core.DTOs.Response
+@using Monburan.Core.UseCases.Subscriptions
+@using Monburan.Core.Interfaces.Services
+@inject GetAvailablePlansUseCase GetAvailablePlansUseCase
+@inject CancelSubscriptionUseCase CancelSubscriptionUseCase
+@inject ICurrentUserHelper CurrentUserHelper
+@inject NavigationManager Navigation
+@inject ILogger<MySubscription> Logger
+
+<PageTitle>Minha Assinatura - Monburan</PageTitle>
+
+<div class="container mt-4 subscription-layout">
+    <header class="page-heading">
+        <div class="page-heading__copy">
+            <span class="page-kicker">CONTA DA EMPRESA</span>
+            <h1>Plano e assinatura</h1>
+            <p>Confira os recursos disponíveis e gerencie sua assinatura.</p>
+        </div>
+    </header>
+
+    @if (isLoading)
+    {
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary" role="status"></div>
+            <p class="mt-2">Carregando assinatura...</p>
+        </div>
+    }
+    else
+    {
+        @if (!string.IsNullOrEmpty(errorMessage))
+        {
+            <div class="alert alert-danger">@errorMessage</div>
+        }
+
+        @if (availablePlans != null)
+        {
+            @if (availablePlans.CurrentSubscription != null)
+            {
+                <div class="row">
+                    <div class="col-md-8">
+                        <div class="card shadow-sm">
+                            <div class="card-header bg-primary text-white">
+                                <h5 class="mb-0">Plano atual: @availablePlans.CurrentSubscription.PlanName</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="row mb-3">
+                                    <div class="col-md-6">
+                                        <p class="mb-1"><strong>Status:</strong></p>
+                                        @{
+                                            var statusBadge = availablePlans.CurrentSubscription.Status switch
+                                            {
+                                                "Active" => "bg-success",
+                                                "Expired" => "bg-warning",
+                                                "Cancelled" => "bg-secondary",
+                                                "Pending" => "bg-info",
+                                                _ => "bg-secondary"
+                                            };
+                                        }
+                                        <span class="badge @statusBadge">@availablePlans.CurrentSubscription.Status</span>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <p class="mb-1"><strong>Preço:</strong></p>
+                                        <p class="fs-5 text-primary">
+                                            @(availablePlans.CurrentSubscription.Price == 0 ? "Grátis" : $"R$ {availablePlans.CurrentSubscription.Price:N2}/mês")
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <div class="row mb-3">
+                                    <div class="col-md-6">
+                                        <p class="mb-1"><strong>Início:</strong></p>
+                                        <p>@availablePlans.CurrentSubscription.StartDate.ToString("dd/MM/yyyy")</p>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <p class="mb-1"><strong>Expiração:</strong></p>
+                                        <p>
+                                            @(availablePlans.CurrentSubscription.EndDate?.ToString("dd/MM/yyyy") ?? "N/A (Plano Free)")
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <div class="d-flex gap-2 mt-4">
+                                    <button class="btn btn-outline-primary" @onclick="NavigateToPlans">
+                                        <i class="bi bi-arrow-up-circle"></i> Mudar de Plano
+                                    </button>
+                                    @if (availablePlans.CurrentSubscription.Status == "Active")
+                                    {
+                                        <button class="btn btn-outline-danger" @onclick="ShowCancelModal">
+                                            <i class="bi bi-x-circle"></i> Cancelar Assinatura
+                                        </button>
+                                    }
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-md-4">
+                        <div class="card shadow-sm">
+                            <div class="card-header bg-info text-white">
+                                <h5 class="mb-0">Recursos do plano</h5>
+                            </div>
+                            <div class="card-body">
+                                @{
+                                    var currentPlan = availablePlans.Plans
+                                        .FirstOrDefault(p => p.Name == availablePlans.CurrentSubscription?.PlanName);
+                                }
+                                @if (currentPlan != null)
+                                {
+                                    <ul class="list-unstyled">
+                                        <li class="mb-2">
+                                            <i class="bi @(currentPlan.MaxJobs == -1 ? "bi-infinity text-success" : "bi-briefcase text-primary")"></i>
+                                            <strong>Vagas:</strong>
+                                            @(currentPlan.MaxJobs == -1 ? "Ilimitadas" : $"{currentPlan.MaxJobs}")
+                                        </li>
+                                        <li class="mb-2">
+                                            <i class="bi @(currentPlan.HasBoost ? "bi-rocket-takeoff text-success" : "bi-x text-muted")"></i>
+                                            Boost: @(currentPlan.HasBoost ? "Sim" : "Não")
+                                        </li>
+                                        <li class="mb-2">
+                                            <i class="bi @(currentPlan.HasHighlight ? "bi-star-fill text-success" : "bi-x text-muted")"></i>
+                                            Destaque: @(currentPlan.HasHighlight ? "Sim" : "Não")
+                                        </li>
+                                        <li class="mb-2">
+                                            <i class="bi @(currentPlan.HasAnalytics ? "bi-graph-up text-success" : "bi-x text-muted")"></i>
+                                            Analytics: @(currentPlan.HasAnalytics ? "Sim" : "Não")
+                                        </li>
+                                        <li class="mb-2">
+                                            <i class="bi bi-file-earmark-text text-primary"></i>
+                                            Currículos: @currentPlan.MaxResumes
+                                        </li>
+                                    </ul>
+                                }
+                                else
+                                {
+                                    <p class="text-muted">Plano não encontrado.</p>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+            else
+            {
+                <div class="alert alert-info">
+                    <i class="bi bi-info-circle"></i> Você não possui uma assinatura ativa.
+                </div>
+                <div class="text-center mt-4">
+                    <button class="btn btn-primary btn-lg" @onclick="NavigateToPlans">
+                        <i class="bi bi-arrow-right-circle"></i> Ver Planos Disponíveis
+                    </button>
+                </div>
+            }
+        }
+
+        <!-- Modal de Cancelamento -->
+        @if (showCancelModal)
+        {
+            <div class="modal fade show d-block" style="background-color: rgba(0,0,0,0.5);" tabindex="-1">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-header bg-danger text-white">
+                            <h5 class="modal-title">&#x26A0; Cancelar Assinatura</h5>
+                            <button type="button" class="btn-close btn-close-white" @onclick="CloseCancelModal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <p>Tem certeza que deseja cancelar sua assinatura? Você voltará para o plano <strong>Free</strong>.</p>
+                            <div class="mb-3">
+                                <label class="form-label"><strong>Motivo do cancelamento:</strong></label>
+                                <textarea class="form-control" rows="3" @bind="cancelReason" placeholder="Conte-nos o motivo do cancelamento..."></textarea>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" @onclick="CloseCancelModal">
+                                Voltar
+                            </button>
+                            <button type="button" class="btn btn-danger" @onclick="ConfirmCancel">
+                                Confirmar Cancelamento
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+    }
+</div>
+
+@code {
+    private AvailablePlansResponse? availablePlans;
+    private bool isLoading = true;
+    private string? errorMessage;
+    private bool showCancelModal;
+    private string cancelReason = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var advertiserIdNullable = CurrentUserHelper.GetAdvertiserId();
+            if (!advertiserIdNullable.HasValue || advertiserIdNullable.Value == Guid.Empty)
+            {
+                errorMessage = "Usuário não identificado. Faça login novamente.";
+                isLoading = false;
+                return;
+            }
+
+            var advertiserId = advertiserIdNullable.Value;
+            var result = await GetAvailablePlansUseCase.ExecuteAsync(advertiserId);
+            if (result.Status == Core.Enums.EResultStatus.Success)
+            {
+                availablePlans = result.Data;
+            }
+            else
+            {
+                errorMessage = result.Message ?? "Erro ao carregar assinatura.";
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Erro ao carregar assinatura");
+            errorMessage = "Erro interno ao carregar assinatura. Tente novamente mais tarde.";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void NavigateToPlans()
+    {
+        Navigation.NavigateTo("/plans");
+    }
+
+    private void ShowCancelModal()
+    {
+        showCancelModal = true;
+        cancelReason = string.Empty;
+    }
+
+    private void CloseCancelModal()
+    {
+        showCancelModal = false;
+        cancelReason = string.Empty;
+    }
+
+    private async Task ConfirmCancel()
+    {
+        try
+        {
+            if (availablePlans?.CurrentSubscription == null)
+            {
+                errorMessage = "Assinatura não encontrada.";
+                return;
+            }
+
+            var request = new Core.DTOs.Request.CancelSubscriptionRequest
+            {
+                SubscriptionId = availablePlans.CurrentSubscription.Id,
+                Reason = string.IsNullOrWhiteSpace(cancelReason) ? null : cancelReason
+            };
+
+            var result = await CancelSubscriptionUseCase.ExecuteAsync(request);
+            if (result.Status == Core.Enums.EResultStatus.Success)
+            {
+                Navigation.Refresh(forceReload: true);
+            }
+            else
+            {
+                errorMessage = result.Message ?? "Erro ao cancelar assinatura.";
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Erro ao cancelar assinatura");
+            errorMessage = "Erro interno ao cancelar assinatura. Tente novamente mais tarde.";
+        }
+        finally
+        {
+            showCancelModal = false;
+        }
+    }
+}
