@@ -1,0 +1,372 @@
+@page "/resumes/{resumeId:guid}/edit"
+@rendermode InteractiveServer
+@attribute [Microsoft.AspNetCore.Authorization.Authorize]
+@using Monburan.Core.DTOs.Request
+@using Monburan.Core.DTOs.Response
+@using Monburan.Core.Enums
+@using Monburan.Core.UseCases.Resumes
+@using Monburan.Web.Services
+@inject GetResumeByIdUseCase GetResumeByIdUseCase
+@inject UpdateResumeUseCase UpdateResumeUseCase
+@inject ICurrentUserHelper CurrentUserHelper
+@inject NavigationManager Navigation
+
+<PageTitle>Editar Currículo - Monburan</PageTitle>
+
+<div class="container mt-4 page-form-shell resume-edit-page">
+    <header class="page-heading">
+        <div class="page-heading__copy">
+            <span class="page-kicker">MINHA CARREIRA</span>
+            <h1>Editar currículo</h1>
+            <p>Melhore seu currículo: complete as seções e mantenha as informações atualizadas.</p>
+        </div>
+        <button class="btn btn-secondary" @onclick="Cancel">Cancelar</button>
+    </header>
+    <div class="row">
+        <div class="col-lg-9 mx-auto">
+
+            @if (!string.IsNullOrEmpty(errorMessage))
+            {
+                <div class="alert alert-danger">
+                    <i class="bi bi-exclamation-triangle"></i> @errorMessage
+                </div>
+            }
+
+            @if (isLoading)
+            {
+                <div class="text-center py-5">
+                    <div class="spinner-border text-primary" role="status"></div>
+                    <p class="mt-2">Carregando currículo...</p>
+                </div>
+            }
+            else if (!isOwner)
+            {
+                <section class="auth-message-page">
+                    <h1>Currículo não disponível</h1>
+                    <p>Somente o dono do currículo pode editá-lo.</p>
+                    <a class="btn btn-primary" href="/resumes">Voltar para meus currículos</a>
+                </section>
+            }
+            else
+            {
+            <div class="card page-form-card">
+                <div class="card-body">
+                    <EditForm Model="model" OnValidSubmit="SubmitForm">
+                        <DataAnnotationsValidator />
+
+                        <h5 class="mb-3"><i class="bi bi-info-circle"></i> Informações Básicas</h5>
+
+                        <div class="mb-3">
+                            <label class="form-label" for="model.Title">Título do Currículo *</label>
+                            <InputText class="form-control" @bind-Value="model.Title" id="model.Title" data-testid="resume-title-input" />
+                            <ValidationMessage class="text-danger" For="@(() => model.Title)" />
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label" for="model.Summary">Resumo Profissional</label>
+                            <InputTextArea class="form-control" @bind-Value="model.Summary" id="model.Summary" rows="5" data-testid="resume-summary-input" />
+                            <div class="form-text">Máximo 2000 caracteres</div>
+                        </div>
+
+                        <div class="mb-3 form-check">
+                            <InputCheckbox class="form-check-input" @bind-Value="model.IsActive" id="model.IsActive" />
+                            <label class="form-check-label" for="model.IsActive">Definir como currículo ativo</label>
+                        </div>
+
+                        <hr class="my-4" />
+
+                        <div class="resume-section">
+                            <div class="resume-section__head">
+                                <h5><i class="bi bi-briefcase"></i> Experiência Profissional</h5>
+                                <button type="button" class="btn btn-outline-primary btn-sm" @onclick="AddExperience">+ Adicionar</button>
+                            </div>
+                            @for (var i = 0; i < experiences.Count; i++)
+                            {
+                                var index = i;
+                                var exp = experiences[index];
+                                <div class="resume-item">
+                                    <div class="row g-2">
+                                        <div class="col-md-6">
+                                            <input class="form-control" placeholder="Cargo" @bind="exp.Position" />
+                                        </div>
+                                        <div class="col-md-6">
+                                            <input class="form-control" placeholder="Empresa" @bind="exp.Company" />
+                                        </div>
+                                        <div class="col-12">
+                                            <textarea class="form-control" rows="2" placeholder="Descrição das atividades" @bind="exp.Description"></textarea>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label class="form-label small">Início</label>
+                                            <input type="date" class="form-control" @bind="exp.StartDate" />
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label class="form-label small">Fim</label>
+                                            <input type="date" class="form-control" @bind="exp.EndDate" />
+                                        </div>
+                                        <div class="col-md-4 d-flex align-items-end justify-content-between">
+                                            <div class="form-check">
+                                                <input type="checkbox" class="form-check-input" @bind="exp.IsCurrent" id="@($"exp-current-{index}")" />
+                                                <label class="form-check-label" for="@($"exp-current-{index}")">Atual</label>
+                                            </div>
+                                            <button type="button" class="btn btn-outline-danger btn-sm" @onclick="() => experiences.RemoveAt(index)">Remover</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            }
+                            @if (experiences.Count == 0)
+                            {
+                                <p class="text-muted small mb-0">Nenhuma experiência adicionada.</p>
+                            }
+                        </div>
+
+                        <hr class="my-4" />
+
+                        <div class="resume-section">
+                            <div class="resume-section__head">
+                                <h5><i class="bi bi-mortarboard"></i> Formação Acadêmica</h5>
+                                <button type="button" class="btn btn-outline-primary btn-sm" @onclick="AddEducation">+ Adicionar</button>
+                            </div>
+                            @for (var i = 0; i < educations.Count; i++)
+                            {
+                                var index = i;
+                                var edu = educations[index];
+                                <div class="resume-item">
+                                    <div class="row g-2">
+                                        <div class="col-md-6">
+                                            <input class="form-control" placeholder="Curso" @bind="edu.Course" />
+                                        </div>
+                                        <div class="col-md-6">
+                                            <input class="form-control" placeholder="Instituição" @bind="edu.Institution" />
+                                        </div>
+                                        <div class="col-md-4">
+                                            <select class="form-select" @bind="edu.Level">
+                                                @foreach (var level in Enum.GetValues<EEducationLevel>())
+                                                {
+                                                    <option value="@level">@level</option>
+                                                }
+                                            </select>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <select class="form-select" @bind="edu.Status">
+                                                @foreach (var st in Enum.GetValues<EEducationStatus>())
+                                                {
+                                                    <option value="@st">@st</option>
+                                                }
+                                            </select>
+                                        </div>
+                                        <div class="col-md-4 d-flex align-items-end justify-content-end">
+                                            <button type="button" class="btn btn-outline-danger btn-sm" @onclick="() => educations.RemoveAt(index)">Remover</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            }
+                            @if (educations.Count == 0)
+                            {
+                                <p class="text-muted small mb-0">Nenhuma formação adicionada.</p>
+                            }
+                        </div>
+
+                        <hr class="my-4" />
+
+                        <div class="resume-section">
+                            <div class="resume-section__head">
+                                <h5><i class="bi bi-translate"></i> Idiomas</h5>
+                                <button type="button" class="btn btn-outline-primary btn-sm" @onclick="AddLanguage">+ Adicionar</button>
+                            </div>
+                            @for (var i = 0; i < languages.Count; i++)
+                            {
+                                var index = i;
+                                var lang = languages[index];
+                                <div class="resume-item">
+                                    <div class="row g-2 align-items-end">
+                                        <div class="col-md-6">
+                                            <input class="form-control" placeholder="Idioma" @bind="lang.Language" />
+                                        </div>
+                                        <div class="col-md-4">
+                                            <select class="form-select" @bind="lang.Level">
+                                                @foreach (var level in Enum.GetValues<ELanguageLevel>())
+                                                {
+                                                    <option value="@level">@level</option>
+                                                }
+                                            </select>
+                                        </div>
+                                        <div class="col-md-2 d-flex justify-content-end">
+                                            <button type="button" class="btn btn-outline-danger btn-sm" @onclick="() => languages.RemoveAt(index)">Remover</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            }
+                            @if (languages.Count == 0)
+                            {
+                                <p class="text-muted small mb-0">Nenhum idioma adicionado.</p>
+                            }
+                        </div>
+
+                        <hr class="my-4" />
+
+                        <div class="resume-section">
+                            <div class="resume-section__head">
+                                <h5><i class="bi bi-star"></i> Habilidades</h5>
+                                <button type="button" class="btn btn-outline-primary btn-sm" @onclick="AddSkill">+ Adicionar</button>
+                            </div>
+                            @for (var i = 0; i < skills.Count; i++)
+                            {
+                                var index = i;
+                                var skill = skills[index];
+                                <div class="resume-item">
+                                    <div class="row g-2 align-items-end">
+                                        <div class="col-md-6">
+                                            <input class="form-control" placeholder="Habilidade" @bind="skill.Skill" />
+                                        </div>
+                                        <div class="col-md-3">
+                                            <label class="form-label small">Nível (1-5)</label>
+                                            <input type="number" class="form-control" min="1" max="5" @bind="skill.Level" />
+                                        </div>
+                                        <div class="col-md-2">
+                                            <label class="form-label small">Anos</label>
+                                            <input type="number" class="form-control" min="0" @bind="skill.YearsOfExperience" />
+                                        </div>
+                                        <div class="col-md-1 d-flex justify-content-end">
+                                            <button type="button" class="btn btn-outline-danger btn-sm" @onclick="() => skills.RemoveAt(index)">Remover</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            }
+                            @if (skills.Count == 0)
+                            {
+                                <p class="text-muted small mb-0">Nenhuma habilidade adicionada.</p>
+                            }
+                        </div>
+
+                        <hr class="my-4" />
+
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-success btn-lg" disabled="@isSubmitting" data-testid="resume-edit-submit">
+                                @if (isSubmitting)
+                                {
+                                    <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                                }
+                                <i class="bi bi-check-circle"></i> Salvar currículo
+                            </button>
+                        </div>
+                    </EditForm>
+                </div>
+            </div>
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public Guid ResumeId { get; set; }
+
+    private UpdateResumeRequest model = new();
+    private List<ExperienceRequest> experiences = [];
+    private List<EducationRequest> educations = [];
+    private List<LanguageRequest> languages = [];
+    private List<SkillRequest> skills = [];
+    private string errorMessage = string.Empty;
+    private bool isSubmitting;
+    private bool isLoading = true;
+    private bool isOwner;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var candidateId = CurrentUserHelper.GetCandidateId();
+        var result = await GetResumeByIdUseCase.ExecuteAsync(ResumeId);
+
+        if (result.Status != EResultStatus.Success || result.Data is null)
+        {
+            errorMessage = "Currículo não encontrado.";
+            isLoading = false;
+            return;
+        }
+
+        var r = result.Data;
+        isOwner = candidateId.HasValue && r.CandidateId == candidateId.Value;
+        if (!isOwner)
+        {
+            isLoading = false;
+            return;
+        }
+
+        model = new UpdateResumeRequest
+        {
+            Id = r.Id,
+            CandidateId = r.CandidateId,
+            Title = r.Title,
+            Summary = r.Summary,
+            IsActive = r.IsActive
+        };
+
+        experiences = r.ExperienceHistory?.Select(e => new ExperienceRequest
+        {
+            Company = e.Company,
+            Position = e.Position,
+            Description = e.Description,
+            StartDate = e.StartDate,
+            EndDate = e.EndDate,
+            IsCurrent = e.IsCurrent
+        }).ToList() ?? [];
+
+        educations = r.EducationHistory?.Select(e => new EducationRequest
+        {
+            Institution = e.Institution,
+            Course = e.Course,
+            Level = Enum.TryParse<EEducationLevel>(e.Level, out var lv) ? lv : EEducationLevel.HighSchool,
+            StartDate = e.StartDate,
+            EndDate = e.EndDate,
+            Status = Enum.TryParse<EEducationStatus>(e.Status, out var st) ? st : EEducationStatus.Completed
+        }).ToList() ?? [];
+
+        languages = r.Languages?.Select(l => new LanguageRequest
+        {
+            Language = l.Language,
+            Level = Enum.TryParse<ELanguageLevel>(l.Level, out var lv) ? lv : ELanguageLevel.Intermediate
+        }).ToList() ?? [];
+
+        skills = r.Skills?.Select(s => new SkillRequest
+        {
+            Skill = s.Skill,
+            Level = s.Level,
+            YearsOfExperience = s.YearsOfExperience
+        }).ToList() ?? [];
+
+        isLoading = false;
+    }
+
+    private void AddExperience() => experiences.Add(new ExperienceRequest());
+    private void AddEducation() => educations.Add(new EducationRequest());
+    private void AddLanguage() => languages.Add(new LanguageRequest());
+    private void AddSkill() => skills.Add(new SkillRequest());
+
+    private async Task SubmitForm()
+    {
+        isSubmitting = true;
+        errorMessage = string.Empty;
+
+        model.ExperienceHistory = experiences.Where(e => !string.IsNullOrWhiteSpace(e.Position) || !string.IsNullOrWhiteSpace(e.Company)).ToList();
+        model.EducationHistory = educations.Where(e => !string.IsNullOrWhiteSpace(e.Course) || !string.IsNullOrWhiteSpace(e.Institution)).ToList();
+        model.Languages = languages.Where(l => !string.IsNullOrWhiteSpace(l.Language)).ToList();
+        model.Skills = skills.Where(s => !string.IsNullOrWhiteSpace(s.Skill)).ToList();
+
+        var result = await UpdateResumeUseCase.ExecuteAsync(model);
+
+        if (result.Status == EResultStatus.Success)
+        {
+            Navigation.NavigateTo($"/resumes/{ResumeId}");
+        }
+        else
+        {
+            errorMessage = result.Message;
+        }
+
+        isSubmitting = false;
+    }
+
+    private void Cancel()
+    {
+        Navigation.NavigateTo($"/resumes/{ResumeId}");
+    }
+}

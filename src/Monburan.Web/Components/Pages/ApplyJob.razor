@@ -1,0 +1,159 @@
+@page "/apply/{jobId:guid}"
+@rendermode InteractiveServer
+@attribute [Microsoft.AspNetCore.Authorization.Authorize]
+@using Monburan.Core.DTOs.Request
+@using Monburan.Core.Enums
+@using Monburan.Core.UseCases.Applications
+@using Monburan.Core.UseCases.Jobs
+@using Monburan.Web.Services
+@inject CreateApplicationUseCase CreateApplicationUseCase
+@inject GetJobByIdUseCase GetJobByIdUseCase
+@inject ICurrentUserHelper CurrentUserHelper
+@inject NavigationManager Navigation
+
+<PageTitle>Candidatar-se - Monburan</PageTitle>
+
+<div class="container mt-4 application-page">
+    <header class="page-heading">
+        <div class="page-heading__copy">
+            <span class="page-kicker">CANDIDATURA</span>
+            <h1>Candidatar-se à vaga</h1>
+            <p>Revise os detalhes e envie seu perfil para a empresa.</p>
+        </div>
+        <button class="btn btn-secondary" @onclick="Cancel">Voltar à oportunidade</button>
+    </header>
+    <div class="row">
+        <div class="col-lg-8 mx-auto">
+
+            @if (!isCandidate)
+            {
+                <div class="alert alert-info" role="status">
+                    Esta etapa é exclusiva para candidatos. Entre com uma conta de candidato para enviar sua candidatura.
+                    <a href="/dashboard">Voltar ao início</a>
+                </div>
+            }
+            else
+            {
+                @if (!string.IsNullOrEmpty(errorMessage))
+                {
+                    <div class="alert alert-danger" data-testid="application-feedback">
+                        <i class="bi bi-exclamation-triangle"></i> @errorMessage
+                    </div>
+                }
+
+                @if (successMessage)
+                {
+                    <div class="alert alert-success" data-testid="application-feedback">
+                        <i class="bi bi-check-circle"></i> Candidatura realizada com sucesso!
+                        <br />
+                        <button class="btn btn-primary mt-2" @onclick="ViewApplications">
+                            Ver minhas candidaturas
+                        </button>
+                    </div>
+                }
+                else
+                {
+                    <div class="card">
+                        <div class="card-body">
+                            <p class="text-muted">
+                                Você está se candidatando à vaga <strong>@jobTitle</strong>.
+                                <br />
+                                Preencha as informações abaixo (opcional):
+                            </p>
+
+                            <EditForm Model="model" OnValidSubmit="SubmitForm">
+                                <DataAnnotationsValidator />
+
+                                <div class="mb-3">
+                                    <label class="form-label" for="application-notes">Observações (opcional)</label>
+                                    <InputTextArea id="application-notes" class="form-control" @bind-Value="model.Notes" rows="4" data-testid="application-notes"
+                                        placeholder="Escreva uma breve mensagem ou destaque suas qualificações..." />
+                                </div>
+
+                                <div class="alert alert-info">
+                                    <i class="bi bi-info-circle"></i>
+                                    Seu currículo ativo será enviado automaticamente.
+                                </div>
+
+                                <div class="d-grid gap-2">
+                                    <button type="submit" class="btn btn-success btn-lg" disabled="@isSubmitting" data-testid="application-submit">
+                                        @if (isSubmitting)
+                                        {
+                                            <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                                        }
+                                        <i class="bi bi-send"></i> Enviar candidatura
+                                    </button>
+                                </div>
+                            </EditForm>
+                        </div>
+                    </div>
+                }
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public Guid JobId { get; set; }
+
+    private CreateApplicationRequest model = new();
+    private string errorMessage = string.Empty;
+    private bool successMessage = false;
+    private bool isSubmitting = false;
+    private bool isCandidate;
+    private string jobTitle = "carregando...";
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Obter título da vaga
+        var jobResult = await GetJobByIdUseCase.ExecuteAsync(JobId);
+        if (jobResult.Status == EResultStatus.Success)
+        {
+            jobTitle = jobResult.Data?.Title ?? $"Vaga {JobId.ToString().Substring(0, 8)}";
+        }
+        else
+        {
+            jobTitle = $"Vaga {JobId.ToString().Substring(0, 8)}";
+            errorMessage = "Vaga não encontrada.";
+        }
+
+        // Obter CandidateId do usuário logado
+        var candidateId = CurrentUserHelper.GetCandidateId();
+        isCandidate = candidateId.HasValue;
+        if (candidateId.HasValue)
+        {
+            model.CandidateId = candidateId.Value;
+        }
+        model.JobId = JobId;
+    }
+
+    private async Task SubmitForm()
+    {
+        isSubmitting = true;
+        errorMessage = string.Empty;
+
+        var result = await CreateApplicationUseCase.ExecuteAsync(model);
+        
+        if (result.Status == EResultStatus.Success)
+        {
+            successMessage = true;
+        }
+        else
+        {
+            errorMessage = result.Message;
+        }
+
+        isSubmitting = false;
+    }
+
+    private void Cancel()
+    {
+        Navigation.NavigateTo($"/jobs?jobId={JobId}");
+    }
+
+    private void ViewApplications()
+    {
+        Navigation.NavigateTo("/my-applications");
+    }
+}

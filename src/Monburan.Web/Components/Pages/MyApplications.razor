@@ -1,0 +1,128 @@
+@page "/my-applications"
+@rendermode InteractiveServer
+@attribute [Microsoft.AspNetCore.Authorization.Authorize]
+@using Monburan.Core.DTOs.Response
+@using Monburan.Core.Enums
+@using Monburan.Core.UseCases.Applications
+@using Monburan.Web.Services
+@inject ListApplicationsByCandidateUseCase ListApplicationsByCandidateUseCase
+@inject CurrentUserHelper CurrentUserHelper
+
+<PageTitle>Minhas candidaturas - Monburan</PageTitle>
+
+<div class="container my-applications-page">
+    <header class="page-heading">
+        <div class="page-heading__copy">
+            <span class="page-kicker">MINHA CARREIRA</span>
+            <h1>Minhas candidaturas</h1>
+            <p>Acompanhe as oportunidades para as quais você já se candidatou.</p>
+        </div>
+    </header>
+
+    @if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <i class="bi bi-exclamation-triangle"></i> @errorMessage
+            <button type="button" class="btn-close" @onclick="() => errorMessage = null"></button>
+        </div>
+    }
+
+    @if (isLoading)
+    {
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary" role="status"></div>
+            <p class="mt-2">Carregando suas candidaturas...</p>
+        </div>
+    }
+    else if (!isCandidate)
+    {
+        <div class="alert alert-warning">
+            <i class="bi bi-exclamation-triangle"></i> Esta área é exclusiva para candidatos.
+        </div>
+    }
+    else if (applications != null && applications.Any())
+    {
+        <div class="card received-applications-card">
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Vaga</th>
+                                <th>Status</th>
+                                <th>Data</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var app in applications)
+                            {
+                                <tr data-testid="my-application-row">
+                                    <td><strong>@app.JobTitle</strong></td>
+                                    <td>
+                                        @switch (app.Status)
+                                        {
+                                            case "Sent":
+                                                <span class="badge bg-primary">Enviada</span>
+                                                break;
+                                            case "Viewed":
+                                                <span class="badge bg-info">Visualizada</span>
+                                                break;
+                                            case "Selected":
+                                                <span class="badge bg-success">Selecionada</span>
+                                                break;
+                                            case "Rejected":
+                                                <span class="badge bg-danger">Rejeitada</span>
+                                                break;
+                                            default:
+                                                <span class="badge bg-secondary">@app.Status</span>
+                                                break;
+                                        }
+                                    </td>
+                                    <td>@app.AppliedAt?.ToString("dd/MM/yyyy HH:mm")</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    }
+    else
+    {
+        <section class="empty-state" aria-labelledby="applications-empty-title">
+            <span class="empty-state__icon" aria-hidden="true">↗</span>
+            <span class="page-kicker">SUA PRÓXIMA OPORTUNIDADE</span>
+            <h2 id="applications-empty-title">Sua jornada começa com uma candidatura</h2>
+            <p>Quando você se candidatar, poderá acompanhar aqui as atualizações de cada processo seletivo.</p>
+            <a href="/jobs" class="btn btn-primary">Explorar vagas <span aria-hidden="true">↗</span></a>
+        </section>
+    }
+</div>
+
+@code {
+    private IEnumerable<ApplicationResponse>? applications;
+    private bool isLoading = true;
+    private bool isCandidate;
+    private string? errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var candidateId = CurrentUserHelper.GetCandidateId();
+        isCandidate = candidateId.HasValue;
+
+        if (isCandidate)
+        {
+            var result = await ListApplicationsByCandidateUseCase.ExecuteAsync(candidateId!.Value);
+            if (result.Status == EResultStatus.Success)
+            {
+                applications = result.Data;
+            }
+            else
+            {
+                errorMessage = result.Message;
+            }
+        }
+
+        isLoading = false;
+    }
+}

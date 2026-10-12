@@ -1,0 +1,226 @@
+@page "/resumes/upload"
+@rendermode InteractiveServer
+@attribute [Microsoft.AspNetCore.Authorization.Authorize]
+@using Monburan.Core.DTOs.Request
+@using Monburan.Core.Interfaces.Storage
+@using Monburan.Core.UseCases.Resumes
+@using Monburan.Web.Services
+@inject IStorageProvider StorageProvider
+@inject CreateResumeUseCase CreateResumeUseCase
+@inject ICurrentUserHelper CurrentUserHelper
+@inject NavigationManager Navigation
+@inject ILogger<UploadResume> Logger
+
+<PageTitle>Upload de Currículo - Monburan</PageTitle>
+
+<div class="container mt-4 page-form-shell upload-page">
+    <header class="page-heading">
+        <div class="page-heading__copy">
+            <span class="page-kicker">MINHA CARREIRA</span>
+            <h1>Enviar currículo em PDF</h1>
+            <p>Adicione um currículo para agilizar suas próximas candidaturas.</p>
+        </div>
+        <button class="btn btn-secondary" @onclick="Cancel">Voltar</button>
+    </header>
+    <div class="row">
+        <div class="col-lg-6 mx-auto">
+
+            @if (!string.IsNullOrEmpty(errorMessage))
+            {
+                <div class="alert alert-danger">
+                    <i class="bi bi-exclamation-triangle"></i> @errorMessage
+                </div>
+            }
+
+            @if (!string.IsNullOrEmpty(successMessage))
+            {
+                <div class="alert alert-success">
+                    <i class="bi bi-check-circle"></i> @successMessage
+                    <br />
+                    @if (!string.IsNullOrEmpty(fileUrl))
+                    {
+                        <div class="mt-3">
+                            <strong>Arquivo enviado:</strong>
+                            <div class="card mt-2">
+                                <div class="card-body">
+                                    <div class="d-flex align-items-center">
+                                        <i class="bi bi-file-earmark-pdf text-danger fs-2 me-3"></i>
+                                        <div>
+                                            <strong>@originalFileName</strong>
+                                            <br />
+                                            <small class="text-muted">URL: @fileUrl</small>
+                                            <br />
+                                            <small class="text-muted">Tamanho: @(fileSize / 1024) KB</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                    @if (importedResumeId.HasValue)
+                    {
+                        <div class="mt-3 d-flex gap-2">
+                            <a class="btn btn-primary" href="/resumes/@importedResumeId">Ver e melhorar currículo</a>
+                            <a class="btn btn-secondary" href="/resumes">Meus currículos</a>
+                        </div>
+                    }
+                </div>
+            }
+
+            <div class="card">
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label class="form-label">Selecione o currículo em PDF</label>
+                        <InputFile class="form-control" OnChange="OnFileSelected" accept="application/pdf" />
+                        <div class="form-text">
+                            Formato aceito: PDF | Tamanho máximo: 10MB
+                        </div>
+                    </div>
+
+                    @if (selectedFile != null)
+                    {
+                        <div class="alert alert-info">
+                            <strong>Arquivo selecionado:</strong><br />
+                            Nome: @selectedFile.Name<br />
+                            Tamanho: @(selectedFile.Size / 1024) KB<br />
+                            Tipo: @selectedFile.ContentType
+                        </div>
+                    }
+
+                    <div class="d-grid gap-2">
+                        <button type="button" class="btn btn-success btn-lg" @onclick="UploadResumeAsync" disabled="@(!isFileSelected || isUploading)">
+                            @(isUploading ? "Enviando..." : "Enviar currículo")
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private IBrowserFile? selectedFile;
+    private bool isFileSelected;
+    private bool isUploading;
+    private string? errorMessage;
+    private string? successMessage;
+    private string? fileUrl;
+    private string? originalFileName;
+    private long fileSize;
+    private Guid? importedResumeId;
+
+    private async Task OnFileSelected(InputFileChangeEventArgs e)
+    {
+        try
+        {
+            selectedFile = e.File;
+            isFileSelected = selectedFile != null;
+            errorMessage = null;
+
+            if (selectedFile != null)
+            {
+                // Validar tamanho (10MB)
+                const long maxSize = 10 * 1024 * 1024;
+                if (selectedFile.Size > maxSize)
+                {
+                    errorMessage = $"Arquivo muito grande. Tamanho máximo: 10MB. Seu arquivo: {selectedFile.Size / 1024 / 1024}MB";
+                    isFileSelected = false;
+                    selectedFile = null;
+                    return;
+                }
+
+                // Validar tipo
+                if (!string.Equals(selectedFile.ContentType, "application/pdf", StringComparison.OrdinalIgnoreCase))
+                {
+                    errorMessage = "Tipo de arquivo inválido. Use apenas PDF.";
+                    isFileSelected = false;
+                    selectedFile = null;
+                    return;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Erro ao processar arquivo selecionado");
+            errorMessage = "Erro ao processar arquivo. Tente novamente.";
+        }
+    }
+
+    private async Task UploadResumeAsync()
+    {
+        if (selectedFile == null)
+        {
+            errorMessage = "Selecione um arquivo primeiro.";
+            return;
+        }
+
+        try
+        {
+            isUploading = true;
+            errorMessage = null;
+            successMessage = null;
+
+            const long maxSize = 10 * 1024 * 1024;
+            await using var stream = selectedFile.OpenReadStream(maxSize);
+
+            var request = new UploadFileRequest
+            {
+                FileStream = stream,
+                FileName = selectedFile.Name,
+                ContentType = selectedFile.ContentType,
+                FileType = EFileType.Pdf
+            };
+
+            // Usar o storage provider diretamente
+            var uploadedUrl = await StorageProvider.UploadAsync(stream, selectedFile.Name, selectedFile.ContentType);
+
+            fileUrl = uploadedUrl;
+            originalFileName = selectedFile.Name;
+            fileSize = selectedFile.Size;
+
+            var candidateId = CurrentUserHelper.GetCandidateId();
+            if (candidateId.HasValue)
+            {
+                var title = Path.GetFileNameWithoutExtension(selectedFile.Name);
+                var createResult = await CreateResumeUseCase.ExecuteAsync(new CreateResumeRequest
+                {
+                    CandidateId = candidateId.Value,
+                    Title = string.IsNullOrWhiteSpace(title) ? "Currículo importado" : title,
+                    Summary = $"Currículo importado de PDF.\nArquivo: {uploadedUrl}\n\nComplete as seções abaixo para melhorar este currículo.",
+                    IsActive = false
+                });
+
+                if (createResult.Status != EResultStatus.Success)
+                {
+                    Logger.LogWarning("PDF enviado mas currículo não foi registrado: {Message}", createResult.Message);
+                    successMessage = "PDF enviado, mas não foi possível registrá-lo na sua lista de currículos.";
+                }
+                else
+                {
+                    successMessage = "Currículo enviado e adicionado à sua lista!";
+                    importedResumeId = createResult.Data!.Id;
+                }
+            }
+            else
+            {
+                successMessage = "Currículo enviado com sucesso!";
+            }
+
+            Logger.LogInformation("Currículo enviado com sucesso: {FileUrl}", uploadedUrl);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Erro ao fazer upload do currículo");
+            errorMessage = "Erro ao enviar currículo. Tente novamente.";
+        }
+        finally
+        {
+            isUploading = false;
+        }
+    }
+
+    private void Cancel()
+    {
+        Navigation.NavigateTo("/resumes");
+    }
+}

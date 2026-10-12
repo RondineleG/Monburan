@@ -1,0 +1,265 @@
+@page "/profile/candidate"
+@rendermode InteractiveServer
+@using System.ComponentModel.DataAnnotations
+@attribute [Microsoft.AspNetCore.Authorization.Authorize]
+@inject Monburan.Core.UseCases.Candidates.UpdateCandidateUseCase UpdateCandidateUseCase
+@inject Monburan.Core.Interfaces.Repositories.Base.IBaseRepository<Monburan.Core.Entities.Candidate> CandidateRepository
+@inject Monburan.Web.Services.ICurrentUserHelper CurrentUserHelper
+@inject Microsoft.AspNetCore.Components.NavigationManager Navigation
+
+<PageTitle>Meu Perfil - Monburan</PageTitle>
+
+<div class="container mt-4 profile-layout candidate-profile-page">
+    <header class="page-heading">
+        <div class="page-heading__copy">
+            <span class="page-kicker">MINHA CARREIRA</span>
+            <h1>Meu perfil</h1>
+            <p>Mantenha suas informações profissionais atualizadas para se candidatar com confiança.</p>
+        </div>
+    </header>
+
+    @if (_isLoading)
+    {
+        <div class="d-flex justify-content-center my-4">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Carregando...</span>
+            </div>
+        </div>
+    }
+    else if (_candidate != null)
+    {
+        <div class="row mt-4">
+            <div class="col-md-8">
+                <div class="card profile-form-card">
+                    <div class="card-header">
+                        <h5 class="mb-0">Dados Pessoais</h5>
+                    </div>
+                    <div class="card-body">
+                        @if (!string.IsNullOrEmpty(_successMessage))
+                        {
+                            <div class="alert alert-success" role="alert">
+                                @_successMessage
+                                <button type="button" class="btn-close" @onclick="() => _successMessage = null" aria-label="Fechar"></button>
+                            </div>
+                        }
+
+                        @if (!string.IsNullOrEmpty(_errorMessage))
+                        {
+                            <div class="alert alert-danger" role="alert">
+                                @_errorMessage
+                                <button type="button" class="btn-close" @onclick="() => _errorMessage = null" aria-label="Fechar"></button>
+                            </div>
+                        }
+
+                        <EditForm Model="_editModel" OnValidSubmit="HandleSaveAsync">
+                            <DataAnnotationsValidator />
+
+                            <div class="mb-3">
+                                <label class="form-label" for="candidate-name">Nome Completo *</label>
+                                <InputText @bind-Value="_editModel.Name" class="form-control" id="candidate-name" data-testid="candidate-profile-name" />
+                                <ValidationMessage For="@(() => _editModel.Name)" />
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label" for="candidate-email">Email</label>
+                                <InputText @bind-Value="_editModel.Email" class="form-control" id="candidate-email" disabled />
+                                <small class="text-muted">Email não pode ser alterado</small>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label" for="candidate-phone">Telefone</label>
+                                <InputText @bind-Value="_editModel.Phone" class="form-control" id="candidate-phone" placeholder="(00) 00000-0000" />
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label" for="candidate-dob">Data de Nascimento *</label>
+                                <InputDate @bind-Value="_editModel.DateOfBirth" class="form-control" id="candidate-dob" max="@DateTime.Today.AddYears(-14).ToString("yyyy-MM-dd")" />
+                                <ValidationMessage For="@(() => _editModel.DateOfBirth)" />
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label" for="candidate-linkedin">LinkedIn</label>
+                                <InputText @bind-Value="_editModel.LinkedIn" class="form-control" id="candidate-linkedin" placeholder="https://linkedin.com/in/seu-perfil" />
+                            </div>
+
+                            <div class="d-flex gap-2">
+                                <button type="submit" class="btn btn-primary" disabled="@_isSaving">
+                                    @if (_isSaving)
+                                    {
+                                        <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                                    }
+                                    Salvar Alterações
+                                </button>
+                                <button type="button" class="btn btn-outline-secondary" @onclick="CancelEdit" disabled="@_isSaving">Cancelar</button>
+                            </div>
+                        </EditForm>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">Informações da Conta</h5>
+                    </div>
+                    <div class="card-body">
+                        <dl class="row mb-0">
+                            <dt class="col-sm-5">Status</dt>
+                            <dd class="col-sm-7">
+                                <span class="badge @(GetStatusBadgeClass())">@_candidate.Status</span>
+                            </dd>
+
+                            <dt class="col-sm-5">Email Verificado</dt>
+                            <dd class="col-sm-7">
+                                @if (_candidate.IsEmailVerified)
+                                {
+                                    <span class="badge bg-success">Sim</span>
+                                }
+                                else
+                                {
+                                    <span class="badge bg-warning">Não</span>
+                                }
+                            </dd>
+
+                            <dt class="col-sm-5">Membro desde</dt>
+                            <dd class="col-sm-7">@_candidate.CreatedAt.ToString("dd/MM/yyyy")</dd>
+                        </dl>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="alert alert-warning mt-4">
+            <i class="bi bi-exclamation-triangle"></i>
+            Candidato não encontrado.
+        </div>
+    }
+</div>
+
+@code {
+    private Monburan.Core.Entities.Candidate? _candidate;
+    private EditModel _editModel = new();
+    private bool _isLoading = true;
+    private bool _isSaving = false;
+    private string? _successMessage;
+    private string? _errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadCandidateAsync();
+    }
+
+    private async Task LoadCandidateAsync()
+    {
+        _isLoading = true;
+        try
+        {
+            var candidateId = CurrentUserHelper.GetCandidateId();
+            if (candidateId.HasValue)
+            {
+                var result = await CandidateRepository.GetByIdAsync(Monburan.Core.ValueObjects.Id.Create(candidateId.Value));
+                if (result.Status == Monburan.Core.Enums.EResultStatus.Success && result.Data != null)
+                {
+                    _candidate = result.Data;
+                    _editModel = new EditModel
+                    {
+                        Id = _candidate.Id.Value,
+                        Name = _candidate.Name,
+                        Email = _candidate.Email,
+                        Phone = _candidate.Phone,
+                        DateOfBirth = _candidate.DateOfBirth,
+                        LinkedIn = _candidate.LinkedIn
+                    };
+                }
+            }
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task HandleSaveAsync()
+    {
+        _isSaving = true;
+        _successMessage = null;
+        _errorMessage = null;
+
+        try
+        {
+            var request = new Monburan.Core.DTOs.Request.UpdateCandidateRequest
+            {
+                Id = _editModel.Id,
+                Name = _editModel.Name,
+                Phone = _editModel.Phone,
+                DateOfBirth = _editModel.DateOfBirth,
+                LinkedIn = _editModel.LinkedIn,
+                AddressId = _editModel.AddressId
+            };
+
+            var result = await UpdateCandidateUseCase.ExecuteAsync(request);
+
+            if (result.Status == Monburan.Core.Enums.EResultStatus.Success)
+            {
+                _successMessage = "Perfil atualizado com sucesso!";
+                await LoadCandidateAsync();
+            }
+            else
+            {
+                _errorMessage = result.Message;
+            }
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = $"Erro ao salvar: {ex.Message}";
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+
+    private void CancelEdit()
+    {
+        if (_candidate != null)
+        {
+            _editModel = new EditModel
+            {
+                Id = _candidate.Id.Value,
+                Name = _candidate.Name,
+                Email = _candidate.Email,
+                Phone = _candidate.Phone,
+                DateOfBirth = _candidate.DateOfBirth,
+                LinkedIn = _candidate.LinkedIn
+            };
+            _successMessage = null;
+            _errorMessage = null;
+        }
+    }
+
+    private string GetStatusBadgeClass()
+    {
+        return _candidate?.Status switch
+        {
+            Monburan.Core.Enums.EAccountStatus.Active => "bg-success",
+            Monburan.Core.Enums.EAccountStatus.Incomplete => "bg-warning",
+            Monburan.Core.Enums.EAccountStatus.Blocked => "bg-danger",
+            _ => "bg-secondary"
+        };
+    }
+
+    private class EditModel
+    {
+        public Guid Id { get; set; }
+        [Required(ErrorMessage = "Informe seu nome completo.")]
+        public string Name { get; set; } = string.Empty;
+        public string Email { get; set; } = string.Empty;
+        public string? Phone { get; set; }
+        [Required(ErrorMessage = "Informe sua data de nascimento.")]
+        public DateTime? DateOfBirth { get; set; }
+        public string? LinkedIn { get; set; }
+        public Guid? AddressId { get; set; }
+    }
+}
