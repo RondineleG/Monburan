@@ -1,0 +1,203 @@
+using FluentAssertions;
+using NSubstitute;
+using Monburan.Core.DTOs.Request;
+using Monburan.Core.DTOs.Response;
+using Monburan.Core.Entities;
+using Monburan.Core.Enums;
+using Monburan.Core.Interfaces.Repositories.Base;
+using Monburan.Core.Interfaces.Validations;
+using Monburan.Core.Requests;
+using Monburan.Core.UseCases.Jobs;
+using Monburan.Core.Validations;
+using Monburan.Core.ValueObjects;
+using Xunit;
+
+namespace Monburan.UnitTests.UseCases.Jobs;
+
+public class CreateJobUseCaseTests
+{
+    private readonly IBaseRepository<Job> _mockRepository;
+    private readonly IEntityValidator<Job> _mockValidator;
+    private readonly CreateJobUseCase _useCase;
+
+    public CreateJobUseCaseTests()
+    {
+        _mockRepository = Substitute.For<IBaseRepository<Job>>();
+        _mockValidator = Substitute.For<IEntityValidator<Job>>();
+        _useCase = new CreateJobUseCase(_mockRepository, _mockValidator);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_WhenRequestIsValid_ReturnsSuccess()
+    {
+        // Arrange
+        var request = new CreateJobRequest
+        {
+            AdvertiserId = Guid.NewGuid(),
+            Title = "Senior Developer",
+            Description = "Test description",
+            Requirements = "Test requirements",
+            Responsibilities = "Test responsibilities",
+            Benefits = "Test benefits",
+            Category = "Technology",
+            Tags = "C#, .NET",
+            ExpirationDate = DateTime.UtcNow.AddDays(30),
+            City = "São Paulo",
+            State = "SP",
+            Country = "BR",
+            Type = "Remote",
+            IsRemote = true,
+            ShowAddress = false,
+            SalaryMin = 5000,
+            SalaryMax = 8000,
+            SalaryCurrency = "BRL",
+            SalaryDisplay = true
+        };
+
+        _mockValidator.Validate(Arg.Any<Job>())
+            .Returns(ValidationResult.Success());
+
+        var createdJob = new Job
+        {
+            Id = Id.Create(Guid.NewGuid()),
+            AdvertiserId = Id.Create(request.AdvertiserId),
+            Title = request.Title,
+            Description = request.Description,
+            Requirements = request.Requirements,
+            Responsibilities = request.Responsibilities,
+            Benefits = request.Benefits,
+            Category = request.Category,
+            Tags = request.Tags,
+            ExpirationDate = request.ExpirationDate,
+            Status = EJobStatus.Active,
+            TenantId = "default",
+            Location = new JobLocation
+            {
+                City = request.City,
+                State = request.State,
+                Country = request.Country,
+                Type = request.Type,
+                IsRemote = request.IsRemote,
+                ShowAddress = request.ShowAddress
+            },
+            Salary = new SalaryRange
+            {
+                Min = request.SalaryMin,
+                Max = request.SalaryMax,
+                Currency = request.SalaryCurrency,
+                Display = request.SalaryDisplay
+            },
+            Moderation = new ModerationInfo { Status = EModerationStatus.Pending },
+            Boost = new JobBoost { IsActive = false },
+            Highlight = new JobHighlight { IsActive = false },
+            Counters = new JobCounters()
+        };
+
+        _mockRepository.CreateAsync(Arg.Any<Job>())
+            .Returns(RequestResult<Job>.Success(createdJob));
+
+        // Act
+        var result = await _useCase.ExecuteAsync(request);
+
+        // Assert
+        result.Status.Should().Be(EResultStatus.Success);
+        result.Data.Should().NotBeNull();
+        result.Data!.Title.Should().Be("Senior Developer");
+        result.Data.City.Should().Be("São Paulo");
+        result.Data.SalaryMin.Should().Be(5000);
+        result.Data.SalaryMax.Should().Be(8000);
+
+        _mockValidator.Received(1).Validate(Arg.Any<Job>());
+        await _mockRepository.Received(1).CreateAsync(Arg.Any<Job>());
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_WhenValidationFails_ReturnsValidationError()
+    {
+        // Arrange
+        var request = new CreateJobRequest
+        {
+            AdvertiserId = Guid.NewGuid(),
+            Title = "", // Invalid title
+            Description = "Test description",
+            Requirements = "Test requirements",
+            Responsibilities = "Test responsibilities",
+            Benefits = "Test benefits",
+            Category = "Technology",
+            Tags = "C#, .NET",
+            ExpirationDate = DateTime.UtcNow.AddDays(30),
+            City = "São Paulo",
+            State = "SP",
+            Country = "BR",
+            Type = "Remote",
+            IsRemote = true,
+            ShowAddress = false,
+            SalaryMin = 5000,
+            SalaryMax = 8000,
+            SalaryCurrency = "BRL",
+            SalaryDisplay = true
+        };
+
+        var validationResult = ValidationResult.Failure("Title is required", "Title");
+
+        _mockValidator.Validate(Arg.Any<Job>())
+            .Returns(validationResult);
+
+        // Act
+        var result = await _useCase.ExecuteAsync(request);
+
+        // Assert
+        result.Status.Should().Be(EResultStatus.NoContent);
+        result.Data.Should().BeNull();
+        result.ValidationResult.Errors.Should().HaveCount(1);
+        result.ValidationResult.Errors.First().Field.Should().Be("Title");
+        result.ValidationResult.Errors.First().Message.Should().Be("Title is required");
+
+        _mockValidator.Received(1).Validate(Arg.Any<Job>());
+        await _mockRepository.DidNotReceive().CreateAsync(Arg.Any<Job>());
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_WhenRepositoryFails_ReturnsError()
+    {
+        // Arrange
+        var request = new CreateJobRequest
+        {
+            AdvertiserId = Guid.NewGuid(),
+            Title = "Senior Developer",
+            Description = "Test description",
+            Requirements = "Test requirements",
+            Responsibilities = "Test responsibilities",
+            Benefits = "Test benefits",
+            Category = "Technology",
+            Tags = "C#, .NET",
+            ExpirationDate = DateTime.UtcNow.AddDays(30),
+            City = "São Paulo",
+            State = "SP",
+            Country = "BR",
+            Type = "Remote",
+            IsRemote = true,
+            ShowAddress = false,
+            SalaryMin = 5000,
+            SalaryMax = 8000,
+            SalaryCurrency = "BRL",
+            SalaryDisplay = true
+        };
+
+        _mockValidator.Validate(Arg.Any<Job>())
+            .Returns(ValidationResult.Success());
+
+        _mockRepository.CreateAsync(Arg.Any<Job>())
+            .Returns(RequestResult<Job>.WithError("Database error"));
+
+        // Act
+        var result = await _useCase.ExecuteAsync(request);
+
+        // Assert
+        result.Status.Should().Be(EResultStatus.HasError);
+        result.Data.Should().BeNull();
+
+        _mockValidator.Received(1).Validate(Arg.Any<Job>());
+        await _mockRepository.Received(1).CreateAsync(Arg.Any<Job>());
+    }
+}

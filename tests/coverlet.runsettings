@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<RunSettings>
+  <DataCollectionRunSettings>
+    <DataCollectors>
+      <DataCollector friendlyName="XPlat Code Coverage">
+        <Configuration>
+          <Format>opencover</Format>
+          <Format>cobertura</Format>
+          <Format>json</Format>
+          <Format>lcov</Format>
+          <Include>[Monburan.Core]*</Include>
+          <Exclude>[Monburan.Core]*Tests*</Exclude>
+          <Exclude>[Monburan.Core]*.ValueObjects*</Exclude>
+          <ExcludeByAttribute>Obsolete,GeneratedCode,CompilerGenerated</ExcludeByAttribute>
+        </Configuration>
+      </DataCollector>
+    </DataCollectors>
+  </DataCollectionRunSettings>
+</RunSettings>
