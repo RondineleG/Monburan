@@ -1,0 +1,231 @@
+using Microsoft.Playwright;
+
+namespace Monburan.E2ETests;
+
+public class PublicPagesTests : E2ETestBase
+{
+    public PublicPagesTests(PlaywrightFixture fixture) : base(fixture)
+    {
+    }
+
+    [Fact]
+    public async Task Home_ShouldLoadDashboard()
+    {
+        var response = await GotoAsync("/");
+        Assert.NotNull(response);
+        Assert.True(response!.Ok, $"Home retornou {response.Status}");
+
+        await WaitForBlazorAsync();
+        Assert.Contains("Monburan", await Page.TitleAsync());
+    }
+
+    [Fact]
+    public async Task AnonymousHome_ShouldShowPublicLandingWithoutRecruiterMetrics()
+    {
+        await GotoAsync("/");
+        await WaitForBlazorAsync();
+
+        var body = await Page.Locator("body").InnerTextAsync();
+        Assert.Contains("Explorar vagas", body, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("SEU ESPAÇO MONBURAN", body, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("Total de vagas", body, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(1, await Page.Locator(".app-sidebar .sidebar-link").CountAsync());
+        Assert.Equal(0, await Page.GetByTestId("nav-plans").CountAsync());
+    }
+
+    [Fact]
+    public async Task Health_ShouldReturnOk()
+    {
+        var api = await Fixture.Playwright.APIRequest.NewContextAsync();
+        var response = await api.GetAsync($"{BaseUrl}/health");
+        Assert.True(response.Ok);
+    }
+
+    [Fact]
+    public async Task Jobs_ShouldList_SeededJobs()
+    {
+        var response = await GotoAsync("/jobs");
+        Assert.True(response!.Ok, $"Jobs retornou {response.Status}");
+
+        await WaitForBlazorAsync();
+
+        var cards = Page.GetByTestId("job-card");
+        await cards.First.WaitForAsync(new LocatorWaitForOptions
+        {
+            State = WaitForSelectorState.Visible
+        });
+
+        Assert.True(await cards.CountAsync() > 0,
+            "Nenhuma vaga listada — seed deveria criar vagas");
+    }
+
+    [Fact]
+    public async Task Jobs_Search_ShouldFilterResults()
+    {
+        await GotoAsync("/jobs");
+        await WaitForBlazorAsync();
+
+        await Page.GetByTestId("job-search")
+            .FillAsync("Desenvolvedor");
+        await Page.GetByTestId("job-search-submit").ClickAsync();
+        await Page.WaitForFunctionAsync("""
+            () => {
+                const cards = Array.from(document.querySelectorAll('[data-testid="job-card"]'));
+                return cards.length > 0 && cards.every(card => card.textContent.toLowerCase().includes("desenvolvedor"));
+            }
+            """);
+
+        var cards = Page.GetByTestId("job-card");
+        Assert.True(await cards.CountAsync() > 0,
+            "Busca por 'Desenvolvedor' não retornou vagas");
+
+        var titles = await cards.AllTextContentsAsync();
+        Assert.All(titles, t => Assert.Contains("Desenvolvedor", t, StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public async Task Jobs_Search_NoMatch_ShouldShowEmptyState()
+    {
+        await GotoAsync("/jobs");
+        await WaitForBlazorAsync();
+
+        await Page.GetByTestId("job-search")
+            .FillAsync("xyznonexistentterm");
+        await Page.GetByTestId("job-search-submit").ClickAsync();
+        await Page.GetByTestId("jobs-empty").WaitForAsync(new LocatorWaitForOptions
+        {
+            State = WaitForSelectorState.Visible
+        });
+
+        Assert.True(await Page.GetByTestId("jobs-empty")
+            .IsVisibleAsync(),
+            "Estado vazio não exibido para busca sem resultados");
+    }
+
+    [Fact]
+    public async Task Jobs_Mobile_ShouldFitViewport_WithoutHorizontalOverflow()
+    {
+        await Page.SetViewportSizeAsync(390, 844);
+        await GotoAsync("/jobs");
+        await WaitForBlazorAsync();
+
+        var layoutFits = await Page.EvaluateAsync<bool>("""
+            () => {
+                const width = document.documentElement.clientWidth;
+                const selectors = [".app-topbar", ".jobs-page", ".jobs-search-panel", ".jobs-grid", ".job-card"];
+                return selectors.every(selector => Array.from(document.querySelectorAll(selector)).every(element => {
+                    const bounds = element.getBoundingClientRect();
+                    return bounds.left >= -1 && bounds.right <= width + 1;
+                }));
+            }
+            """);
+
+        Assert.True(layoutFits, "Um dos principais elementos da página ultrapassou a viewport mobile.");
+        Assert.True(await Page.GetByTestId("job-search").IsVisibleAsync());
+    }
+
+    [Fact]
+    public async Task MobileNavigation_ShouldOpenAndClose()
+    {
+        await Page.SetViewportSizeAsync(390, 844);
+        await GotoAsync("/jobs");
+        await WaitForBlazorAsync();
+
+        var menuButton = Page.GetByTestId("mobile-menu-toggle");
+        Assert.True(await menuButton.IsVisibleAsync());
+        await menuButton.ClickAsync();
+
+        var sidebar = Page.GetByTestId("app-sidebar");
+        Assert.Contains("app-sidebar--open", (await sidebar.GetAttributeAsync("class")) ?? string.Empty);
+        await Page.GetByTestId("nav-jobs").ClickAsync();
+        Assert.DoesNotContain("app-sidebar--open", (await sidebar.GetAttributeAsync("class")) ?? string.Empty);
+    }
+
+    [Theory]
+    [InlineData("/Account/Login")]
+    [InlineData("/Account/Register")]
+    public async Task AccountPages_Mobile_ShouldFitViewport(string path)
+    {
+        await Page.SetViewportSizeAsync(390, 844);
+        await GotoAsync(path);
+        await WaitForBlazorAsync();
+
+        var viewportWidth = await Page.EvaluateAsync<int>("() => document.documentElement.clientWidth");
+        var documentWidth = await Page.EvaluateAsync<int>("() => document.documentElement.scrollWidth");
+        Assert.True(documentWidth <= viewportWidth, $"{path} ultrapassou a viewport: {documentWidth}px > {viewportWidth}px");
+    }
+
+    [Fact]
+    public async Task JobDetails_Anonymous_ShouldRedirectToLogin_WithReturnUrl()
+    {
+        await GotoAsync("/jobs");
+        await WaitForBlazorAsync();
+
+        var detailsButton = Page.GetByTestId("job-card-details").First;
+        await detailsButton.WaitForAsync(new LocatorWaitForOptions
+        {
+            State = WaitForSelectorState.Visible
+        });
+        await detailsButton.ClickAsync();
+
+        await Page.WaitForFunctionAsync(
+            "() => location.pathname === '/Account/Login'",
+            null,
+            new PageWaitForFunctionOptions { Timeout = 30000 });
+
+        Assert.Contains("ReturnUrl=", Page.Url, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("jobId", Page.Url, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task JobDetails_Anonymous_AfterLogin_ShouldOpenModal()
+    {
+        await GotoAsync("/jobs");
+        await WaitForBlazorAsync();
+
+        await Page.GetByTestId("job-card-details").First.ClickAsync();
+        await Page.WaitForFunctionAsync(
+            "() => location.pathname === '/Account/Login'",
+            null,
+            new PageWaitForFunctionOptions { Timeout = 30000 });
+
+        await Page.GetByTestId("login-email").FillAsync(CandidateEmail);
+        await Page.GetByTestId("login-password").FillAsync(TestPassword);
+        await Page.GetByTestId("login-submit").ClickAsync();
+
+        await Page.WaitForFunctionAsync(
+            "() => location.pathname === '/jobs' && location.search.includes('jobId')",
+            null,
+            new PageWaitForFunctionOptions { Timeout = 45000 });
+        await WaitForBlazorAsync();
+
+        await Page.GetByTestId("job-details-modal").WaitForAsync(new LocatorWaitForOptions
+        {
+            State = WaitForSelectorState.Visible,
+            Timeout = 30000
+        });
+    }
+
+    [Fact]
+    public async Task Plans_ShouldList_SeededPlans()
+    {
+        await LoginOrRegisterAsync(AdvertiserEmail, TestPassword);
+        var response = await GotoAsync("/plans");
+        Assert.True(response!.Ok, $"Plans retornou {response.Status}");
+
+        await WaitForBlazorAsync();
+        var content = await Page.ContentAsync();
+        Assert.Contains("Premium", content, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Theory]
+    [InlineData("/privacy")]
+    [InlineData("/terms")]
+    [InlineData("/address/list")]
+    public async Task StaticPages_ShouldReturnOk(string path)
+    {
+        var response = await GotoAsync(path);
+        Assert.NotNull(response);
+        Assert.True(response!.Ok, $"{path} retornou {response.Status}");
+    }
+}
