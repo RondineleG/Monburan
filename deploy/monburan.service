@@ -1,0 +1,21 @@
+[Unit]
+Description=Monburan Web App (.NET 10 Blazor)
+After=network-online.target docker.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/monburan
+ExecStart=/opt/monburan/Monburan.Web
+Environment=ASPNETCORE_ENVIRONMENT=Production
+Environment=ASPNETCORE_HTTP_PORTS=80;8080
+Environment=APPLY_MIGRATIONS=true
+Environment=ConnectionStrings__DefaultConnection=__PG_CONN__
+Environment=TZ=America/Sao_Paulo
+Restart=always
+RestartSec=5
+SyslogIdentifier=monburan
+TimeoutStopSec=30
+
+[Install]
+WantedBy=multi-user.target

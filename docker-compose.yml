@@ -1,0 +1,57 @@
+version: '3.8'
+
+services:
+  # PostgreSQL para desenvolvimento
+  postgres:
+    image: postgres:16-alpine
+    container_name: monburan-postgres
+    environment:
+      - POSTGRES_USER=${DB_USER:-postgres}
+      - POSTGRES_PASSWORD=${DB_PASSWORD:-postgres}
+      - POSTGRES_DB=${DB_NAME:-monburan}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - monburan-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres} -d ${DB_NAME:-monburan}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  # Aplicação Monburan
+  app:
+    build:
+      context: .
+      dockerfile: src/Monburan.Web/Dockerfile
+    container_name: monburan-app
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_URLS=http://+:80
+      - ConnectionStrings__DefaultConnection=Host=postgres;Port=5432;Database=${DB_NAME:-monburan};Username=${DB_USER:-postgres};Password=${DB_PASSWORD:-postgres}
+      - SendGrid__ApiKey=${SENDGRID_API_KEY:-}
+      - SendGrid__FromEmail=noreply@monburan.com
+      - SendGrid__FromName=Monburan
+    ports:
+      - "8080:80"
+    volumes:
+      - app_uploads:/app/wwwroot/uploads
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - monburan-network
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+    driver: local
+  app_uploads:
+    driver: local
+
+networks:
+  monburan-network:
+    driver: bridge
