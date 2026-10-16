@@ -1,0 +1,69 @@
+# ============================================================
+# Monburan — Produção (VPS)
+# Sobe app + Postgres numa rede interna; nginx (host) faz proxy
+# reverse para o app e serve TLS via certbot.
+#
+# Uso (na VPS, em /opt/monburan):
+#   cp docker-compose.prod.yml docker-compose.yml
+#   cp env.example .env        # preencher valores
+#   docker compose up -d
+# ============================================================
+services:
+  app:
+    image: ghcr.io/ronelineg/monburan:latest
+    container_name: monburan-app
+    restart: unless-stopped
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_URLS=http://+:80
+      # Banco (rede interna do compose)
+      - ConnectionStrings__DefaultConnection=Host=postgres;Port=5432;Database=${DB_NAME:-monburan};Username=${DB_USER:-monburan};Password=${DB_PASSWORD:?Defina DB_PASSWORD no .env}
+      # Aplica migrations automaticamente no boot
+      - APPLY_MIGRATIONS=true
+      # JWT — obrigatório, a app falha no boot sem chave de assinatura
+      - "Jwt__SigningKey=${JWT_SIGNING_KEY:?Defina JWT_SIGNING_KEY no .env — gere com: openssl rand -base64 48}"
+      # Base pública usada em links de e-mail (confirmação/reset)
+      - "App__PublicBaseUrl=${APP_PUBLIC_BASE_URL:-https://monburan.com.br}"
+      # E-mail via SMTP (Resend). Se Smtp:Host vazio, cai no SendGrid.
+      - "Smtp__Host=${SMTP_HOST:-smtp.resend.com}"
+      - "Smtp__Port=${SMTP_PORT:-465}"
+      - "Smtp__User=${SMTP_USER:-resend}"
+      - "Smtp__Password=${SMTP_PASSWORD:-}"
+      - "Smtp__FromEmail=${SMTP_FROM_EMAIL:-noreply@monburan.com.br}"
+      - "Smtp__FromName=${SMTP_FROM_NAME:-Monburan}"
+    volumes:
+      - app_uploads:/app/wwwroot/uploads
+    networks:
+      - monburan-net
+    # Só o nginx do host acessa (via 127.0.0.1)
+    expose:
+      - "80"
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: monburan-postgres
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=${DB_USER:-monburan}
+      - POSTGRES_PASSWORD=${DB_PASSWORD:?Defina DB_PASSWORD no .env}
+      - POSTGRES_DB=${DB_NAME:-monburan}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - monburan-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-monburan} -d ${DB_NAME:-monburan}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+
+volumes:
+  postgres_data:
+    driver: local
+  app_uploads:
+    driver: local
+
+networks:
+  monburan-net:
+    driver: bridge
