@@ -75,7 +75,7 @@ public class CreateJobUseCase : IUseCase<CreateJobRequest, JobResponse>
 
         var createJobResult = await _jobRepository.CreateAsync(job);
         if (createJobResult.Status != EResultStatus.Success)
-            return RequestResult<JobResponse>.WithError(createJobResult.Message);
+            return RequestResult<JobResponse>.FromResult(createJobResult);
 
         return RequestResult<JobResponse>.Success(MapToResponse(createJobResult.Data!));
     }

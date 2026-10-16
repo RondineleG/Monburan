@@ -30,19 +30,21 @@ public class SearchJobsUseCase : IUseCase<ListJobsRequest, ListJobsResponse>
             advertiserId: request.AdvertiserId,
             page: request.Page,
             size: request.Size,
-            type: request.Type);
+            type: request.Type,
+            sortBy: request.SortBy,
+            sortDescending: request.SortDescending);
 
-        if (result.Status != EResultStatus.Success)
-            return RequestResult<ListJobsResponse>.WithError(result.Message);
+        if (result.Status != EResultStatus.Success || result.Data is null)
+            return RequestResult<ListJobsResponse>.FromResult(result);
 
-        var jobs = result.Data!
+        var jobs = result.Data.Data
             .Select(MapToResponse)
             .ToList();
 
         var response = new ListJobsResponse
         {
             Jobs = jobs,
-            TotalCount = jobs.Count,
+            TotalCount = result.Data.TotalCount,
             Page = request.Page,
             Size = request.Size
         };

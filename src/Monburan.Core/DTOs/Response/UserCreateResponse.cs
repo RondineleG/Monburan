@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace Monburan.Core.DTOs.Response
 {
     public class UserCreateResponse
@@ -12,8 +14,10 @@ namespace Monburan.Core.DTOs.Response
             Success = sucesso;
         }
 
+        [JsonInclude]
         public List<string> Errors { get; private set; }
 
+        [JsonInclude]
         public bool Success { get; private set; }
 
         public void AddErros(IEnumerable<string> errors)

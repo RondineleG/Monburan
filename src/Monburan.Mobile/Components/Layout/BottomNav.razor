@@ -1,0 +1,30 @@
+@inject AuthStateService Auth
+
+<nav class="bottom-nav">
+    <NavLink href="/" Match="NavLinkMatch.All">
+        <span class="nav-icon">⌂</span>
+        <span>Vagas</span>
+    </NavLink>
+    <NavLink href="/applications">
+        <span class="nav-icon">✉</span>
+        <span>Candidaturas</span>
+    </NavLink>
+    <NavLink href="/notifications">
+        <span class="nav-item-wrap">
+            <span class="nav-icon">◈</span>
+            @if (UnreadCount > 0)
+            {
+                <span class="nav-badge">@UnreadCount</span>
+            }
+        </span>
+        <span>Avisos</span>
+    </NavLink>
+    <NavLink href="/profile">
+        <span class="nav-icon">☰</span>
+        <span>Perfil</span>
+    </NavLink>
+</nav>
+
+@code {
+    [Parameter] public int UnreadCount { get; set; }
+}

@@ -1,0 +1,120 @@
+@page "/apply/{Id:guid}"
+@inherits ProtectedPage
+@inject MonburanApiClient Api
+
+<h1 class="page-title">Candidatar-se</h1>
+
+@if (_loading)
+{
+    <LoadingState />
+}
+else if (_job is not null)
+{
+    <div class="card">
+        <h2 class="card-title">@_job.Title</h2>
+        <div class="text-dim">@_job.AdvertiserName</div>
+    </div>
+
+    @if (_success)
+    {
+        <div class="state-box">
+            <div class="state-icon">✓</div>
+            <div class="state-title">Candidatura enviada!</div>
+            <p>A empresa poderá ver seu perfil e entrar em contato.</p>
+            <a class="btn btn-primary btn-block" href="/applications">Ver minhas candidaturas</a>
+        </div>
+    }
+    else
+    {
+        @if (_error is not null)
+        {
+            <div class="alert alert-error">@_error</div>
+        }
+
+        @if (_resumes.Count > 0)
+        {
+            <div class="form-field">
+                <label>Currículo</label>
+                <select class="input" @bind="_resumeId">
+                    <option value="">Sem currículo anexado</option>
+                    @foreach (var r in _resumes)
+                    {
+                        <option value="@r.Id">@r.Title</option>
+                    }
+                </select>
+            </div>
+        }
+        else
+        {
+            <div class="alert alert-info">
+                Você ainda não tem currículo. <a href="/resumes">Adicionar currículo</a>
+            </div>
+        }
+
+        <div class="form-field">
+            <label>Mensagem para a empresa (opcional)</label>
+            <textarea class="input" @bind="_notes" placeholder="Conte brevemente por que você é a pessoa certa..."></textarea>
+        </div>
+
+        <button class="btn btn-primary btn-block" @onclick="Submit" disabled="@_busy">
+            @(_busy ? "Enviando..." : "Confirmar candidatura")
+        </button>
+    }
+}
+
+@code {
+    [Parameter] public Guid Id { get; set; }
+
+    private JobResponse? _job;
+    private List<ResumeResponse> _resumes = [];
+    private string? _notes;
+    private Guid? _resumeId;
+    private string? _error;
+    private bool _loading = true;
+    private bool _busy;
+    private bool _success;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!await EnsureAuthenticatedAsync())
+            return;
+
+        try
+        {
+            var jobTask = Api.GetJobAsync(Id);
+            var resumesTask = Api.GetMyResumesAsync();
+            await Task.WhenAll(jobTask, resumesTask);
+            _job = await jobTask;
+            _resumes = await resumesTask;
+        }
+        catch (ApiException ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task Submit()
+    {
+        _busy = true;
+        _error = null;
+        try
+        {
+            await Api.ApplyAsync(Id, _notes, _resumeId);
+            _success = true;
+        }
+        catch (ApiException ex)
+        {
+            _error = ex.StatusCode == System.Net.HttpStatusCode.Conflict
+                ? "Você já se candidatou a esta vaga."
+                : ex.Message;
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+}

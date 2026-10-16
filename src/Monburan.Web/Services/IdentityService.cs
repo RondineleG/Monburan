@@ -12,6 +12,14 @@ namespace Monburan.Web.Services;
 
 public class IdentityService : IIdentityService
 {
+    // Claim que distingue refresh de access token (não é mapeada pelo JwtSecurityTokenHandler)
+    internal const string TokenUseClaim = "token_use";
+    internal const string TokenUseAccess = "access";
+    internal const string TokenUseRefresh = "refresh";
+
+    // Claim com o SecurityStamp na emissão — revoga o refresh token se a senha mudar
+    internal const string SecurityStampClaim = "security_stamp";
+
     public IdentityService(SignInManager<ApplicationUser> signInManager,
                            UserManager<ApplicationUser> userManager,
                            IOptions<JwtOptions> jwtOptions,
@@ -30,9 +38,24 @@ public class IdentityService : IIdentityService
 
     public async Task<UserLoginResponse> Login(UserLoginRequest request)
     {
-        var result = await _signInManager.PasswordSignInAsync(request.Email, request.Password, false, true).ConfigureAwait(false);
+        // CheckPasswordSignInAsync não emite cookie Identity — a API só entrega JWT
+        var user = await _userManager.FindByEmailAsync(request.Email).ConfigureAwait(false);
+        var result = user is null
+            ? Microsoft.AspNetCore.Identity.SignInResult.Failed
+            : await _signInManager.CheckPasswordSignInAsync(user, request.Password, lockoutOnFailure: true).ConfigureAwait(false);
         if (result.Succeeded)
+        {
+            // Checado após a senha: conta desativada não pode obter um novo par de
+            // tokens (o que anularia a revogação por SecurityStamp do refresh)
+            if (!user!.IsActive)
+            {
+                var blocked = new UserLoginResponse();
+                blocked.AddErro("This account is blocked");
+                return blocked;
+            }
+
             return await GenerateCredentials(request.Email).ConfigureAwait(false);
+        }
 
         var response = new UserLoginResponse();
         if (!result.Succeeded)
@@ -50,48 +73,50 @@ public class IdentityService : IIdentityService
         return response;
     }
 
-    public async Task<UserLoginResponse> LoginWithoutPassword(string usuarioId)
+    public async Task<UserLoginResponse> RefreshToken(string refreshToken)
     {
         var response = new UserLoginResponse();
-        var usuario = await _userManager.FindByIdAsync(usuarioId).ConfigureAwait(false);
+        var handler = new JwtSecurityTokenHandler();
 
-        if (usuario is null)
+        try
         {
-            response.AddErro("User not found");
+            var validation = await handler.ValidateTokenAsync(
+                refreshToken, _jwtOptions.ToTokenValidationParameters()).ConfigureAwait(false);
+
+            // O handler pode mapear "sub" para ClaimTypes.NameIdentifier — aceita ambos
+            var userId = validation.ClaimsIdentity?.FindFirst(JwtRegisteredClaimNames.Sub)?.Value
+                ?? validation.ClaimsIdentity?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+            // Refresh tokens carregam "token_use"=refresh — um access token roubado
+            // não pode ser trocado por um par novo com refresh de 30 dias
+            var tokenUse = validation.ClaimsIdentity?.FindFirst(TokenUseClaim)?.Value;
+            var issuedStamp = validation.ClaimsIdentity?.FindFirst(SecurityStampClaim)?.Value;
+
+            if (!validation.IsValid || userId is null || tokenUse != TokenUseRefresh)
+            {
+                response.AddErro("Invalid refresh token");
+                return response;
+            }
+
+            var user = await _userManager.FindByIdAsync(userId).ConfigureAwait(false);
+
+            // Revogação: conta desativada/bloqueada ou SecurityStamp diferente do da
+            // emissão (troca de senha, "sair de todos os dispositivos") invalida o token
+            if (user is null || !user.IsActive
+                || await _userManager.IsLockedOutAsync(user).ConfigureAwait(false)
+                || !string.Equals(issuedStamp, user.SecurityStamp, StringComparison.Ordinal))
+            {
+                response.AddErro("Invalid refresh token");
+                return response;
+            }
+
+            return await GenerateCredentials(user.Email ?? string.Empty).ConfigureAwait(false);
+        }
+        catch
+        {
+            response.AddErro("Invalid refresh token");
             return response;
         }
-
-        if (await _userManager.IsLockedOutAsync(usuario).ConfigureAwait(false))
-            response.AddErro("This account is blocked");
-        else if (!await _userManager.IsEmailConfirmedAsync(usuario).ConfigureAwait(false))
-            response.AddErro("This account needs to confirm your email before you log in");
-
-        if (response.Sucesso)
-            return await GenerateCredentials(usuario.Email ?? string.Empty).ConfigureAwait(false);
-
-        return response;
-    }
-
-    public async Task<UserCreateResponse> RegisterUser(UserCreateRequest request)
-    {
-        var applicationUser = new ApplicationUser
-        {
-            UserName = request.Email,
-            Email = request.Email,
-            EmailConfirmed = true,
-            CreatedAt = DateTime.UtcNow,
-            IsActive = true
-        };
-
-        var result = await _userManager.CreateAsync(applicationUser, request.Password).ConfigureAwait(false);
-        if (result.Succeeded)
-            await _userManager.SetLockoutEnabledAsync(applicationUser, false).ConfigureAwait(false);
-
-        var response = new UserCreateResponse(result.Succeeded);
-        if (!result.Succeeded)
-            response.AddErros(result.Errors.Select(r => r.Description));
-
-        return response;
     }
 
     private async Task<UserLoginResponse> GenerateCredentials(string email)
@@ -105,7 +130,11 @@ public class IdentityService : IIdentityService
         }
 
         var accessTokenClaims = await ObterClaims(user, adicionarClaimsUsuario: true).ConfigureAwait(false);
+        accessTokenClaims.Add(new Claim(TokenUseClaim, TokenUseAccess));
+
         var refreshTokenClaims = await ObterClaims(user, adicionarClaimsUsuario: false).ConfigureAwait(false);
+        refreshTokenClaims.Add(new Claim(TokenUseClaim, TokenUseRefresh));
+        refreshTokenClaims.Add(new Claim(SecurityStampClaim, user.SecurityStamp ?? string.Empty));
 
         var dataExpiracaoAccessToken = DateTime.Now.AddSeconds(_jwtOptions.AccessTokenExpiration);
         var dataExpiracaoRefreshToken = DateTime.Now.AddSeconds(_jwtOptions.RefreshTokenExpiration);
@@ -136,7 +165,6 @@ public class IdentityService : IIdentityService
             new(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
             new(JwtRegisteredClaimNames.Email, user.Email ?? string.Empty),
             new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
-            new(JwtRegisteredClaimNames.Nbf, DateTime.Now.ToString()),
             new(JwtRegisteredClaimNames.Iat, DateTimeOffset.Now.ToUnixTimeSeconds().ToString())
         };
 

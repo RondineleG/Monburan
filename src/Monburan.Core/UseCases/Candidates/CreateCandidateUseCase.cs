@@ -37,7 +37,7 @@ public class CreateCandidateUseCase : IUseCase<CreateCandidateRequest, Candidate
 
         var result = await _candidateRepository.CreateAsync(candidate);
         if (result.Status != EResultStatus.Success)
-            return RequestResult<CandidateResponse>.WithError(result.Message);
+            return RequestResult<CandidateResponse>.FromResult(result);
 
         return RequestResult<CandidateResponse>.Success(MapToResponse(result.Data!));
     }

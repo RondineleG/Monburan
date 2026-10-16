@@ -22,7 +22,7 @@ public class ListNotificationsByUserUseCase : IUseCase<string, List<Notification
 
         var result = await _notificationRepository.GetAllAsync(1, 1000);
         if (result.Status != EResultStatus.Success)
-            return RequestResult<List<NotificationResponse>>.WithError(result.Message);
+            return RequestResult<List<NotificationResponse>>.FromResult(result);
 
         var userNotifications = result.Data!
             .Where(n => n.RecipientId == recipientId)

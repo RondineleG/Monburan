@@ -1,0 +1,211 @@
+@page "/resumes"
+@inherits ProtectedPage
+@inject MonburanApiClient Api
+
+<h1 class="page-title">Meus currículos</h1>
+<p class="page-subtitle">Envie um PDF ou cadastre seu currículo</p>
+
+@if (_message is not null)
+{
+    <div class="alert @(_messageIsError ? "alert-error" : "alert-ok")">@_message</div>
+}
+
+<div class="card">
+    <div class="list-row">
+        <div>
+            <h2 class="card-title">Enviar PDF</h2>
+            <div class="text-dim">PDF até 10MB — vira um currículo na sua lista</div>
+        </div>
+        <button class="btn" @onclick="PickAndUploadAsync" disabled="@_uploading">
+            @(_uploading ? "Enviando..." : "Escolher arquivo")
+        </button>
+    </div>
+</div>
+
+<h2 class="section-label">Novo currículo</h2>
+<div class="card">
+    <div class="form-field">
+        <label>Título</label>
+        <input class="input" @bind="_newTitle" placeholder="Ex.: Currículo Dev .NET" />
+    </div>
+    <div class="form-field">
+        <label>Resumo</label>
+        <textarea class="input" @bind="_newSummary" placeholder="Breve resumo profissional"></textarea>
+    </div>
+    <button class="btn btn-primary btn-block" @onclick="CreateAsync" disabled="@_busy">
+        @(_busy ? "Salvando..." : "Salvar currículo")
+    </button>
+</div>
+
+<h2 class="section-label">Cadastrados</h2>
+
+@if (_loading)
+{
+    <LoadingState Message="Carregando currículos..." />
+}
+else if (_error is not null)
+{
+    <ErrorState Message="@_error.Message" IsOffline="@_error.IsNetworkError" OnRetry="LoadAsync" />
+}
+else if (_items.Count == 0)
+{
+    <EmptyState Icon="▤" Title="Nenhum currículo" Message="Envie um PDF ou crie um currículo acima." />
+}
+else
+{
+    @foreach (var r in _items)
+    {
+        <div class="card">
+            <div class="list-row">
+                <div>
+                    <h2 class="card-title">@r.Title</h2>
+                    <div class="text-dim">@r.CreatedAt.ToString("dd/MM/yyyy")</div>
+                </div>
+                <div class="tag-row">
+                    @if (r.IsActive)
+                    {
+                        <span class="badge ok">Ativo</span>
+                    }
+                    <button class="btn btn-ghost btn-danger" @onclick="() => DeleteAsync(r)">Excluir</button>
+                </div>
+            </div>
+            @if (!string.IsNullOrEmpty(r.Summary))
+            {
+                <p class="card-snippet">@r.Summary</p>
+            }
+        </div>
+    }
+}
+
+@code {
+    private List<ResumeResponse> _items = [];
+    private string _newTitle = "";
+    private string? _newSummary;
+    private string? _message;
+    private bool _messageIsError;
+    private bool _loading = true;
+    private bool _busy;
+    private bool _uploading;
+    private ApiException? _error;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (await EnsureAuthenticatedAsync())
+            await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        _error = null;
+        try
+        {
+            _items = await Api.GetMyResumesAsync();
+        }
+        catch (ApiException ex)
+        {
+            _error = ex;
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task CreateAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_newTitle))
+        {
+            ShowMessage("Informe um título para o currículo.", true);
+            return;
+        }
+
+        _busy = true;
+        try
+        {
+            await Api.CreateResumeAsync(new CreateResumeRequest
+            {
+                Title = _newTitle.Trim(),
+                Summary = _newSummary,
+                IsActive = true
+            });
+            _newTitle = "";
+            _newSummary = null;
+            ShowMessage("Currículo criado!", false);
+            await LoadAsync();
+        }
+        catch (ApiException ex)
+        {
+            ShowMessage(ex.Message, true);
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private async Task PickAndUploadAsync()
+    {
+        _uploading = true;
+        try
+        {
+            var picked = await FilePicker.Default.PickAsync(new PickOptions
+            {
+                PickerTitle = "Selecione seu currículo em PDF",
+                FileTypes = FilePickerFileType.Pdf
+            });
+
+            if (picked is null)
+                return;
+
+            if (!picked.FileName.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase))
+            {
+                ShowMessage("Selecione um arquivo PDF.", true);
+                return;
+            }
+
+            await using var stream = await picked.OpenReadAsync();
+            var upload = await Api.UploadPdfAsync(stream, picked.FileName);
+
+            // Espelha o comportamento do site: o PDF vira um currículo na lista
+            var title = Path.GetFileNameWithoutExtension(picked.FileName);
+            await Api.CreateResumeAsync(new CreateResumeRequest
+            {
+                Title = string.IsNullOrWhiteSpace(title) ? "Currículo enviado" : title,
+                Summary = $"Currículo importado de PDF.\nArquivo: {upload.FileUrl}",
+                IsActive = false
+            });
+
+            ShowMessage("Currículo enviado e adicionado à sua lista!", false);
+            await LoadAsync();
+        }
+        catch (ApiException ex)
+        {
+            ShowMessage(ex.Message, true);
+        }
+        finally
+        {
+            _uploading = false;
+        }
+    }
+
+    private async Task DeleteAsync(ResumeResponse resume)
+    {
+        try
+        {
+            await Api.DeleteResumeAsync(resume.Id);
+            _items.Remove(resume);
+            ShowMessage("Currículo excluído.", false);
+        }
+        catch (ApiException ex)
+        {
+            ShowMessage(ex.Message, true);
+        }
+    }
+
+    private void ShowMessage(string message, bool isError)
+    {
+        _message = message;
+        _messageIsError = isError;
+    }
+}

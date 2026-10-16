@@ -84,6 +84,12 @@ public class RequestResult : IRequestValidations, IRequestError, IRequestEntityW
         return new RequestResult { Status = EResultStatus.HasError, Message = error.Description, RequestError = error };
     }
 
+    // Erro de regra de negócio cuja mensagem é segura para exibir ao usuário
+    public static RequestResult WithDomainError(string message)
+    {
+        return new RequestResult { Status = EResultStatus.DomainError, Message = message, RequestError = new RequestError(message) };
+    }
+
     public static RequestResult WithNoContent()
     {
         return new RequestResult { Status = EResultStatus.NoContent };
@@ -255,6 +261,29 @@ public class RequestResult<T> : RequestResult, IRequestCustomResult<T>
     public new static RequestResult<T> WithError(RequestError error)
     {
         return new RequestResult<T> { Status = EResultStatus.HasError, Message = error.Description, RequestError = error };
+    }
+
+    // Erro de regra de negócio cuja mensagem é segura para exibir ao usuário
+    public new static RequestResult<T> WithDomainError(string message)
+    {
+        return new RequestResult<T> { Status = EResultStatus.DomainError, Message = message, RequestError = new RequestError(message) };
+    }
+
+    // Propaga status/mensagens/erros de outro result (preserva NotFound/Conflict/validação
+    // em vez de achatar tudo para HasError)
+    public static RequestResult<T> FromResult(RequestResult source)
+    {
+        return new RequestResult<T>
+        {
+            Status = source.Status,
+            Message = source.Message,
+            RequestError = source.RequestError,
+            RequestEntityWarning = source.RequestEntityWarning,
+            ValidationResult = source.ValidationResult,
+            Validations = source.Validations,
+            _entityErrors = source._entityErrors,
+            _generalErrors = source._generalErrors,
+        };
     }
 
     public new static RequestResult<T> WithNoContent()

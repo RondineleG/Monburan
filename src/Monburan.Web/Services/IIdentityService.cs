@@ -7,7 +7,5 @@ public interface IIdentityService
 {
     Task<UserLoginResponse> Login(UserLoginRequest userLogin);
 
-    Task<UserLoginResponse> LoginWithoutPassword(string userId);
-
-    Task<UserCreateResponse> RegisterUser(UserCreateRequest registrationUser);
+    Task<UserLoginResponse> RefreshToken(string refreshToken);
 }

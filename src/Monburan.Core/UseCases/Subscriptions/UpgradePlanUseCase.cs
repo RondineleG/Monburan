@@ -39,7 +39,7 @@ public sealed class UpgradePlanUseCase : IUseCase<UpgradePlanRequest, Subscripti
 
         var plan = planResult.Data!;
         if (!plan.IsActive)
-            return RequestResult<SubscriptionResponse>.WithError("O plano selecionado não está ativo.");
+            return RequestResult<SubscriptionResponse>.WithDomainError("O plano selecionado não está ativo.");
 
         // Cancelar assinatura anterior se existir
         var allSubscriptionsResult = await _subscriptionRepository.GetAllAsync(1, 100);
@@ -73,7 +73,7 @@ public sealed class UpgradePlanUseCase : IUseCase<UpgradePlanRequest, Subscripti
 
         var createResult = await _subscriptionRepository.CreateAsync(newSubscription);
         if (createResult.Status != EResultStatus.Success)
-            return RequestResult<SubscriptionResponse>.WithError(createResult.Message);
+            return RequestResult<SubscriptionResponse>.FromResult(createResult);
 
         // Atualizar ActivePlan do Advertiser
         var advertiser = advertiserResult.Data;

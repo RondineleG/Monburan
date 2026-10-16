@@ -405,6 +405,9 @@ namespace Monburan.Web.Migrations
                     b.Property<DateTime?>("RejectedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<Guid?>("ResumeId")
+                        .HasColumnType("uuid");
+
                     b.Property<DateTime?>("SelectedAt")
                         .HasColumnType("timestamp with time zone");
 

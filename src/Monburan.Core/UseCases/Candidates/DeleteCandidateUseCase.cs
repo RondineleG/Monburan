@@ -20,7 +20,7 @@ public sealed class DeleteCandidateUseCase : IUseCase<Guid, bool>
     {
         var result = await _candidateRepository.DeleteAsync(Id.Create(request));
         if (result.Status != EResultStatus.Success)
-            return RequestResult<bool>.WithError(result.Message);
+            return RequestResult<bool>.FromResult(result);
 
         return RequestResult<bool>.Success(true);
     }

@@ -14,15 +14,18 @@ public class CreateApplicationUseCase : IUseCase<CreateApplicationRequest, Appli
 {
     private readonly IBaseRepository<Application> _applicationRepository;
     private readonly IBaseRepository<Job> _jobRepository;
+    private readonly IBaseRepository<Resume> _resumeRepository;
     private readonly NotifyOnApplicationCreatedUseCase _notifyOnCreatedUseCase;
 
     public CreateApplicationUseCase(
         IBaseRepository<Application> applicationRepository,
         IBaseRepository<Job> jobRepository,
+        IBaseRepository<Resume> resumeRepository,
         NotifyOnApplicationCreatedUseCase notifyOnCreatedUseCase)
     {
         _applicationRepository = applicationRepository;
         _jobRepository = jobRepository;
+        _resumeRepository = resumeRepository;
         _notifyOnCreatedUseCase = notifyOnCreatedUseCase;
     }
 
@@ -31,11 +34,23 @@ public class CreateApplicationUseCase : IUseCase<CreateApplicationRequest, Appli
         // Verificar se vaga existe e está ativa
         var jobResult = await _jobRepository.GetByIdAsync(Id.Create(request.JobId));
         if (jobResult.Status != EResultStatus.Success)
-            return RequestResult<ApplicationResponse>.WithError("Vaga não encontrada.");
+            return RequestResult<ApplicationResponse>.EntityNotFound("Job", request.JobId, "Vaga não encontrada.");
 
         var job = jobResult.Data!;
         if (job.Status != EJobStatus.Active)
-            return RequestResult<ApplicationResponse>.WithError("Vaga não está mais ativa.");
+            return RequestResult<ApplicationResponse>.WithDomainError("Vaga não está mais ativa.");
+
+        // Currículo anexado deve existir e pertencer ao candidato
+        if (request.ResumeId.HasValue)
+        {
+            var resumeResult = await _resumeRepository.GetByIdAsync(Id.Create(request.ResumeId.Value));
+            if (resumeResult.Status != EResultStatus.Success || resumeResult.Data is null
+                || resumeResult.Data.CandidateId.Value != request.CandidateId)
+            {
+                return RequestResult<ApplicationResponse>.WithValidationError(
+                    "Currículo não encontrado.", nameof(request.ResumeId));
+            }
+        }
 
         // Criar candidatura
         var application = new Application
@@ -46,12 +61,13 @@ public class CreateApplicationUseCase : IUseCase<CreateApplicationRequest, Appli
             Status = EApplicationStatus.Sent,
             AppliedAt = DateTime.UtcNow,
             Notes = request.Notes,
+            ResumeId = request.ResumeId,
             TenantId = "default"
         };
 
         var result = await _applicationRepository.CreateAsync(application);
         if (result.Status != EResultStatus.Success)
-            return RequestResult<ApplicationResponse>.WithError(result.Message);
+            return RequestResult<ApplicationResponse>.FromResult(result);
 
         // Incrementar contador de aplicações da vaga
         if (job.Counters != null)
@@ -80,6 +96,7 @@ public class CreateApplicationUseCase : IUseCase<CreateApplicationRequest, Appli
         JobId = app.JobId.Value,
         Status = app.Status.ToString(),
         AppliedAt = app.AppliedAt,
+        ResumeId = app.ResumeId,
         ViewedAt = app.ViewedAt,
         SelectedAt = app.SelectedAt,
         RejectedAt = app.RejectedAt,

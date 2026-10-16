@@ -21,7 +21,7 @@ public sealed class ListCandidatesUseCase : IUseCase<ListCandidatesRequest, List
     {
         var result = await _candidateRepository.GetAllAsync(request.Page, request.Size);
         if (result.Status != EResultStatus.Success)
-            return RequestResult<ListCandidatesResponse>.WithError(result.Message);
+            return RequestResult<ListCandidatesResponse>.FromResult(result);
 
         var candidates = result.Data!
             .Where(c => ShouldInclude(c, request))

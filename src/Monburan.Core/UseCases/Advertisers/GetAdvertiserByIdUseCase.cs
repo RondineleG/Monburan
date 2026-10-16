@@ -21,7 +21,7 @@ public sealed class GetAdvertiserByIdUseCase : IUseCase<Guid, AdvertiserResponse
     {
         var result = await _advertiserRepository.GetByIdAsync(Id.Create(request));
         if (result.Status != EResultStatus.Success)
-            return RequestResult<AdvertiserResponse>.WithError(result.Message);
+            return RequestResult<AdvertiserResponse>.FromResult(result);
 
         var advertiser = result.Data!;
         var response = MapToResponse(advertiser);

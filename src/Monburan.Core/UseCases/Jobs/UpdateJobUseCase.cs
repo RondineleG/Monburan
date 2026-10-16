@@ -72,7 +72,7 @@ public class UpdateJobUseCase : IUseCase<UpdateJobRequest, JobResponse>
 
         var updateResult = await _jobRepository.UpdateAsync(existingJob);
         if (updateResult.Status != EResultStatus.Success)
-            return RequestResult<JobResponse>.WithError(updateResult.Message);
+            return RequestResult<JobResponse>.FromResult(updateResult);
 
         return RequestResult<JobResponse>.Success(MapToResponse(updateResult.Data!));
     }

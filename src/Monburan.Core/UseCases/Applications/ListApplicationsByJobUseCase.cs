@@ -22,7 +22,7 @@ public class ListApplicationsByJobUseCase : IUseCase<ListApplicationsByJobReques
     {
         var result = await _applicationRepository.GetAllAsync(1, 1000);
         if (result.Status != EResultStatus.Success)
-            return RequestResult<IEnumerable<ApplicationResponse>>.WithError(result.Message);
+            return RequestResult<IEnumerable<ApplicationResponse>>.FromResult(result);
 
         var applications = result.Data!
             .Where(a => a.Job != null && a.Job.AdvertiserId.Value == request.AdvertiserId)
@@ -43,6 +43,7 @@ public class ListApplicationsByJobUseCase : IUseCase<ListApplicationsByJobReques
         JobTitle = app.Job?.Title,
         Status = app.Status.ToString(),
         AppliedAt = app.AppliedAt,
+        ResumeId = app.ResumeId,
         ViewedAt = app.ViewedAt,
         SelectedAt = app.SelectedAt,
         RejectedAt = app.RejectedAt,

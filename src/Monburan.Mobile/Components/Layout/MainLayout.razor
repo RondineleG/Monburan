@@ -1,0 +1,85 @@
+@inherits LayoutComponentBase
+@implements IDisposable
+@inject AuthStateService Auth
+@inject MonburanApiClient Api
+@inject NavigationManager Nav
+
+<div class="app-shell">
+    @if (!IsAuthPage)
+    {
+        <header class="app-header">
+            <a class="app-brand" href="/">RECRUI<em>VA</em></a>
+        </header>
+    }
+
+    <main class="app-content @(IsAuthPage ? "no-nav" : "")">
+        @Body
+    </main>
+
+    @if (!IsAuthPage)
+    {
+        <BottomNav UnreadCount="_unread" />
+    }
+</div>
+
+@code {
+    private static readonly TimeSpan UnreadTtl = TimeSpan.FromMinutes(1);
+
+    private int _unread;
+    private DateTime _lastUnreadFetch = DateTime.MinValue;
+
+    private bool IsAuthPage =>
+        Nav.Uri.Contains("/login", StringComparison.OrdinalIgnoreCase) ||
+        Nav.Uri.Contains("/register", StringComparison.OrdinalIgnoreCase) ||
+        Nav.Uri.Contains("/forgot-password", StringComparison.OrdinalIgnoreCase);
+
+    protected override async Task OnInitializedAsync()
+    {
+        Auth.Changed += OnAuthChanged;
+        Nav.LocationChanged += OnLocationChanged;
+        await Auth.InitializeAsync();
+        await RefreshUnreadAsync();
+    }
+
+    private void OnAuthChanged() => InvokeAsync(async () =>
+    {
+        await RefreshUnreadAsync();
+        StateHasChanged();
+    });
+
+    private void OnLocationChanged(object? sender, LocationChangedEventArgs e) =>
+        InvokeAsync(async () =>
+        {
+            await RefreshUnreadAsync();
+            StateHasChanged();
+        });
+
+    private async Task RefreshUnreadAsync()
+    {
+        if (!Auth.IsAuthenticated)
+        {
+            _unread = 0;
+            return;
+        }
+
+        // Navegação dispara isso a cada rota — TTL evita um GET por troca de página
+        if (DateTime.UtcNow - _lastUnreadFetch < UnreadTtl)
+            return;
+
+        _lastUnreadFetch = DateTime.UtcNow;
+        try
+        {
+            _unread = await Api.GetUnreadCountAsync();
+        }
+        catch (ApiException)
+        {
+            // Offline/erro: mantém o badge zerado em vez de quebrar o layout
+        }
+    }
+
+    public void Dispose()
+    {
+        Auth.Changed -= OnAuthChanged;
+        Nav.LocationChanged -= OnLocationChanged;
+    }
+}

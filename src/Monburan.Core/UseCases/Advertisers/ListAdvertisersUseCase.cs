@@ -21,7 +21,7 @@ public sealed class ListAdvertisersUseCase : IUseCase<ListAdvertisersRequest, Li
     {
         var result = await _advertiserRepository.GetAllAsync(request.Page, request.Size);
         if (result.Status != EResultStatus.Success)
-            return RequestResult<ListAdvertisersResponse>.WithError(result.Message);
+            return RequestResult<ListAdvertisersResponse>.FromResult(result);
 
         var advertisers = result.Data!
             .Where(a => ShouldInclude(a, request))

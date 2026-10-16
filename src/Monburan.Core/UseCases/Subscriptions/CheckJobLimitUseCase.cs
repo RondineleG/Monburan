@@ -35,7 +35,7 @@ public sealed class CheckJobLimitUseCase : IUseCase<CheckJobLimitRequest, CheckJ
         // Buscar assinatura ativa do anunciante
         var allSubscriptionsResult = await _subscriptionRepository.GetAllAsync(1, 100);
         if (allSubscriptionsResult.Status != EResultStatus.Success)
-            return RequestResult<CheckJobLimitResponse>.WithError(allSubscriptionsResult.Message);
+            return RequestResult<CheckJobLimitResponse>.FromResult(allSubscriptionsResult);
 
         var activeSubscription = allSubscriptionsResult.Data!
             .FirstOrDefault(s => s.AdvertiserId == Id.Create(request.AdvertiserId)

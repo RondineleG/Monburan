@@ -1,0 +1,108 @@
+@page "/register"
+@inject AuthApiClient AuthApi
+@inject AuthStateService Auth
+@inject NavigationManager Nav
+
+<div class="auth-hero">
+    <div class="brand-mark">RECRUI<em>VA</em></div>
+    <p>Crie sua conta de candidato</p>
+</div>
+
+<h1 class="page-title">Criar conta</h1>
+
+@if (_error is not null)
+{
+    <div class="alert alert-error">@_error</div>
+}
+
+<div class="form-field">
+    <label>Nome completo</label>
+    <input class="input" @bind="_name" placeholder="Seu nome" autocomplete="name" />
+</div>
+
+<div class="form-field">
+    <label>E-mail</label>
+    <input class="input" type="email" @bind="_email" placeholder="voce@email.com" autocomplete="email" />
+</div>
+
+<div class="form-field">
+    <label>Senha</label>
+    <input class="input" type="password" @bind="_password" placeholder="Mínimo 6 caracteres" autocomplete="new-password" />
+</div>
+
+<div class="form-field">
+    <label>Confirmar senha</label>
+    <input class="input" type="password" @bind="_confirm" placeholder="Repita a senha" autocomplete="new-password" />
+</div>
+
+<button class="btn btn-primary btn-block" @onclick="DoRegister" disabled="@_busy">
+    @(_busy ? "Criando..." : "Criar conta")
+</button>
+
+<div class="auth-links">
+    <p>Já tem conta? <a href="/login">Entrar</a></p>
+</div>
+
+@code {
+    private string _name = "";
+    private string _email = "";
+    private string _password = "";
+    private string _confirm = "";
+    private string? _error;
+    private bool _busy;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await Auth.InitializeAsync();
+        if (Auth.IsAuthenticated)
+            Nav.NavigateTo("/");
+    }
+
+    private async Task DoRegister()
+    {
+        _error = null;
+
+        if (string.IsNullOrWhiteSpace(_name) || string.IsNullOrWhiteSpace(_email))
+        {
+            _error = "Informe nome e e-mail.";
+            return;
+        }
+
+        if (_password.Length < 6)
+        {
+            _error = "A senha precisa de pelo menos 6 caracteres.";
+            return;
+        }
+
+        if (_password != _confirm)
+        {
+            _error = "As senhas não conferem.";
+            return;
+        }
+
+        _busy = true;
+        try
+        {
+            var tokens = await AuthApi.RegisterAsync(new RegisterRequest
+            {
+                AccountType = "candidate",
+                Name = _name.Trim(),
+                Email = _email.Trim(),
+                Password = _password,
+                ConfirmPassword = _confirm
+            });
+            await Auth.SignInAsync(tokens);
+            Nav.NavigateTo("/");
+        }
+        catch (ApiException ex)
+        {
+            _error = ex.ValidationErrors is { Count: > 0 }
+                ? string.Join(" ", ex.ValidationErrors.SelectMany(e => e.Value))
+                : ex.Message;
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+}

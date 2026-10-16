@@ -24,6 +24,9 @@ public class ApplicationConfiguration : IEntityTypeConfiguration<Application>
         builder.Property(a => a.Notes)
             .HasMaxLength(1000);
 
+        builder.Property(a => a.ResumeId)
+            .HasColumnType("uuid");
+
         builder.Property(a => a.AppliedAt)
             .HasDefaultValueSql("now()");
 

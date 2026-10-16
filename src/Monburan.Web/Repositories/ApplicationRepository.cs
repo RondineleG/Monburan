@@ -25,7 +25,9 @@ public class ApplicationRepository : IBaseRepository<Application>
                 application.CandidateId == entity.CandidateId &&
                 application.JobId == entity.JobId);
         if (alreadyApplied)
-            return RequestResult<Application>.WithError("Você já se candidatou a esta vaga.");
+            return RequestResult<Application>.EntityAlreadyExists(
+                "Application", $"{entity.CandidateId.Value}/{entity.JobId.Value}",
+                "Você já se candidatou a esta vaga.");
 
         try
         {
@@ -36,7 +38,7 @@ public class ApplicationRepository : IBaseRepository<Application>
         catch (DbUpdateException)
         {
             context.Entry(entity).State = EntityState.Detached;
-            return RequestResult<Application>.WithError("Não foi possível concluir sua candidatura. Você pode já ter se candidatado a esta vaga.");
+            return RequestResult<Application>.WithDomainError("Não foi possível concluir sua candidatura. Você pode já ter se candidatado a esta vaga.");
         }
     }
 

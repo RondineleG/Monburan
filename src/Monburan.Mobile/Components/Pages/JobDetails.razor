@@ -1,0 +1,147 @@
+@page "/jobs/{Id:guid}"
+@inject MonburanApiClient Api
+@inject AuthStateService Auth
+@inject NavigationManager Nav
+
+@if (_loading)
+{
+    <LoadingState Message="Carregando vaga..." />
+}
+else if (_error is not null)
+{
+    <ErrorState Message="@_error.Message" IsOffline="@_error.IsNetworkError" OnRetry="LoadAsync" />
+}
+else if (_job is not null)
+{
+    <div class="detail-hero">
+        <div class="tag-row">
+            @if (_job.IsRemote)
+            {
+                <span class="badge gold">Remoto</span>
+            }
+            @if (!string.IsNullOrEmpty(_job.Type) && !_job.IsRemote)
+            {
+                <span class="badge">@TypeLabel(_job.Type)</span>
+            }
+            @if (!string.IsNullOrEmpty(_job.Category))
+            {
+                <span class="badge">@_job.Category</span>
+            }
+        </div>
+        <h1>@_job.Title</h1>
+        @if (!string.IsNullOrEmpty(_job.AdvertiserName))
+        {
+            <div class="text-dim">@_job.AdvertiserName</div>
+        }
+        <div class="card-meta">
+            @if (!string.IsNullOrEmpty(_job.City))
+            {
+                <span class="meta-chip">📍 @_job.City@(_job.State is not null ? $"/{_job.State}" : "")</span>
+            }
+            @if (_job.SalaryMin.HasValue || _job.SalaryMax.HasValue)
+            {
+                <span class="salary">@FormatSalary()</span>
+            }
+            <span class="meta-chip">até @_job.ExpirationDate.ToString("dd/MM/yyyy")</span>
+        </div>
+    </div>
+
+    @if (!string.IsNullOrEmpty(_job.Description))
+    {
+        <div class="detail-section">
+            <h3>Sobre a vaga</h3>
+            <p class="body-text">@_job.Description</p>
+        </div>
+    }
+
+    @if (!string.IsNullOrEmpty(_job.Requirements))
+    {
+        <div class="detail-section">
+            <h3>Requisitos</h3>
+            <p class="body-text">@_job.Requirements</p>
+        </div>
+    }
+
+    @if (!string.IsNullOrEmpty(_job.Responsibilities))
+    {
+        <div class="detail-section">
+            <h3>Responsabilidades</h3>
+            <p class="body-text">@_job.Responsibilities</p>
+        </div>
+    }
+
+    @if (!string.IsNullOrEmpty(_job.Benefits))
+    {
+        <div class="detail-section">
+            <h3>Benefícios</h3>
+            <p class="body-text">@_job.Benefits</p>
+        </div>
+    }
+
+    @if (!string.IsNullOrEmpty(_job.ApplicationInstructions))
+    {
+        <div class="detail-section">
+            <h3>Como se candidatar</h3>
+            <p class="body-text">@_job.ApplicationInstructions</p>
+        </div>
+    }
+
+    <button class="btn btn-primary btn-block" @onclick="Apply">
+        Candidatar-se
+    </button>
+}
+
+@code {
+    [Parameter] public Guid Id { get; set; }
+
+    private JobResponse? _job;
+    private bool _loading = true;
+    private ApiException? _error;
+
+    protected override Task OnInitializedAsync() => LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        _error = null;
+        try
+        {
+            _job = await Api.GetJobAsync(Id);
+        }
+        catch (ApiException ex)
+        {
+            _error = ex;
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task Apply()
+    {
+        await Auth.InitializeAsync();
+        Nav.NavigateTo(Auth.IsAuthenticated ? $"/apply/{Id}" : "/login");
+    }
+
+    private static string TypeLabel(string type) => type switch
+    {
+        "Remote" => "Remoto",
+        "OnSite" => "Presencial",
+        "Hybrid" => "Híbrido",
+        _ => type
+    };
+
+    private string FormatSalary()
+    {
+        var min = _job!.SalaryMin?.ToString("N0");
+        var max = _job!.SalaryMax?.ToString("N0");
+        return (min, max) switch
+        {
+            (not null, not null) => $"R$ {min} – {max}",
+            (not null, null) => $"a partir de R$ {min}",
+            (null, not null) => $"até R$ {max}",
+            _ => ""
+        };
+    }
+}

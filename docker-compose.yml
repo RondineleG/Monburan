@@ -35,6 +35,11 @@ services:
       - SendGrid__ApiKey=${SENDGRID_API_KEY:-}
       - SendGrid__FromEmail=noreply@monburan.com
       - SendGrid__FromName=Monburan
+      # Obrigatório — a app falha no boot sem chave de assinatura JWT.
+      # Gere uma no .env com: openssl rand -base64 48
+      - "Jwt__SigningKey=${JWT_SIGNING_KEY:?Defina JWT_SIGNING_KEY no .env — gere com: openssl rand -base64 48}"
+      # URL pública usada em links de e-mail (vazio = scheme/host da request)
+      - "App__PublicBaseUrl=${APP_PUBLIC_BASE_URL:-}"
     ports:
       - "8080:80"
     volumes:

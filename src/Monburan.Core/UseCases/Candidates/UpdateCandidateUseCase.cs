@@ -40,11 +40,13 @@ public sealed class UpdateCandidateUseCase : IUseCase<UpdateCandidateRequest, Ca
         var result = await _candidateRepository.UpdateAsync(candidate);
 
         if (result.Status != EResultStatus.Success)
-            return RequestResult<CandidateResponse>.WithError(result.Message);
+            return RequestResult<CandidateResponse>.FromResult(result);
 
         return RequestResult<CandidateResponse>.Success(MapToResponse(result.Data!));
     }
 
+    // Mesmo mapeamento do GetCandidateByIdUseCase — PUT /candidates/me não pode
+    // zerar os contadores/campos que o GET retorna
     private static CandidateResponse MapToResponse(Candidate c) => new()
     {
         Id = c.Id.Value,
@@ -55,6 +57,12 @@ public sealed class UpdateCandidateUseCase : IUseCase<UpdateCandidateRequest, Ca
         LinkedIn = c.LinkedIn,
         Status = c.Status.ToString(),
         IsEmailVerified = c.IsEmailVerified,
-        CreatedAt = c.CreatedAt
+        IsPhoneVerified = c.IsPhoneVerified,
+        City = c.Address?.City,
+        State = c.Address?.State,
+        ResumesCount = c.Resumes?.Count ?? 0,
+        ApplicationsCount = c.Applications?.Count ?? 0,
+        CreatedAt = c.CreatedAt,
+        UpdatedAt = c.UpdatedAt
     };
 }

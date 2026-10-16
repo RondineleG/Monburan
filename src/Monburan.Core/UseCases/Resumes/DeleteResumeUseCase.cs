@@ -21,7 +21,7 @@ public class DeleteResumeUseCase : IUseCase<Guid, ResumeResponse>
     {
         var existingResumeResult = await _resumeRepository.GetByIdAsync(Id.Create(resumeId));
         if (existingResumeResult.Status != EResultStatus.Success || existingResumeResult.Data == null)
-            return RequestResult<ResumeResponse>.WithError("Currículo não encontrado.");
+            return RequestResult<ResumeResponse>.EntityNotFound("Resume", resumeId, "Currículo não encontrado.");
 
         var existingResume = existingResumeResult.Data;
 
@@ -30,7 +30,7 @@ public class DeleteResumeUseCase : IUseCase<Guid, ResumeResponse>
 
         var result = await _resumeRepository.UpdateAsync(existingResume);
         if (result.Status != EResultStatus.Success)
-            return RequestResult<ResumeResponse>.WithError(result.Message);
+            return RequestResult<ResumeResponse>.FromResult(result);
 
         return RequestResult<ResumeResponse>.Success(MapToResponse(result.Data!));
     }

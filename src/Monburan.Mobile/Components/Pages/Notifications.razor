@@ -1,0 +1,85 @@
+@page "/notifications"
+@inherits ProtectedPage
+@inject MonburanApiClient Api
+
+<h1 class="page-title">Avisos</h1>
+<p class="page-subtitle">Notificações sobre suas candidaturas</p>
+
+@if (_loading)
+{
+    <LoadingState Message="Carregando avisos..." />
+}
+else if (_error is not null)
+{
+    <ErrorState Message="@_error.Message" IsOffline="@_error.IsNetworkError" OnRetry="LoadAsync" />
+}
+else if (_items.Count == 0)
+{
+    <EmptyState Icon="◈" Title="Nenhum aviso" Message="Quando houver novidades sobre suas candidaturas, elas aparecem aqui." />
+}
+else
+{
+    @foreach (var n in _items)
+    {
+        <div class="card @(n.IsRead ? "" : "notification-unread")" @onclick="() => MarkRead(n)">
+            <div class="list-row">
+                <h2 class="card-title">@n.Title</h2>
+                @if (!n.IsRead)
+                {
+                    <span class="badge gold">Novo</span>
+                }
+            </div>
+            <p class="card-snippet">@n.Message</p>
+            <div class="card-meta">
+                <span class="text-dim">@n.CreatedAt.ToString("dd/MM/yyyy HH:mm")</span>
+            </div>
+        </div>
+    }
+}
+
+@code {
+    private List<NotificationResponse> _items = [];
+    private bool _loading = true;
+    private ApiException? _error;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (await EnsureAuthenticatedAsync())
+            await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        _error = null;
+        try
+        {
+            _items = await Api.GetMyNotificationsAsync();
+        }
+        catch (ApiException ex)
+        {
+            _error = ex;
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task MarkRead(NotificationResponse n)
+    {
+        if (n.IsRead)
+            return;
+
+        try
+        {
+            await Api.MarkNotificationAsReadAsync(n.Id);
+            n.IsRead = true;
+            n.ReadAt = DateTime.UtcNow;
+        }
+        catch (ApiException)
+        {
+            // silencioso — o aviso continua marcado como não lido
+        }
+    }
+}

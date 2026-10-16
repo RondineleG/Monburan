@@ -20,7 +20,7 @@ public class DeleteJobUseCase : IUseCase<Guid, bool>
     {
         var result = await _jobRepository.DeleteAsync(Id.Create(request));
         if (result.Status != EResultStatus.Success)
-            return RequestResult<bool>.WithError(result.Message);
+            return RequestResult<bool>.FromResult(result);
 
         return RequestResult<bool>.Success(true);
     }

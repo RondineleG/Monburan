@@ -14,5 +14,6 @@ public class ApplicationResponse
     public DateTime? SelectedAt { get; set; }
     public DateTime? RejectedAt { get; set; }
     public string? Notes { get; set; }
+    public Guid? ResumeId { get; set; }
     public DateTime CreatedAt { get; set; }
 }

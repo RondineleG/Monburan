@@ -28,7 +28,7 @@ public sealed class GetAvailablePlansUseCase : IUseCase<Guid, AvailablePlansResp
         // Listar todos os planos ativos
         var plansResult = await _planRepository.GetAllAsync(1, 100);
         if (plansResult.Status != EResultStatus.Success)
-            return RequestResult<AvailablePlansResponse>.WithError(plansResult.Message);
+            return RequestResult<AvailablePlansResponse>.FromResult(plansResult);
 
         var plans = plansResult.Data!
             .Where(p => p.IsActive)

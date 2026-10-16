@@ -1,0 +1,15 @@
+<div class="state-box">
+    <div class="state-icon">@(IsOffline ? "📡" : "⚠")</div>
+    <div class="state-title">@(IsOffline ? "Sem conexão" : "Algo deu errado")</div>
+    <p>@Message</p>
+    @if (OnRetry.HasDelegate)
+    {
+        <button class="btn btn-primary" @onclick="OnRetry">Tentar novamente</button>
+    }
+</div>
+
+@code {
+    [Parameter] public string Message { get; set; } = "Não foi possível carregar. Tente novamente.";
+    [Parameter] public bool IsOffline { get; set; }
+    [Parameter] public EventCallback OnRetry { get; set; }
+}

@@ -42,7 +42,7 @@ public class CreateNotificationUseCase : IUseCase<CreateNotificationRequest, Not
 
         var result = await _notificationRepository.CreateAsync(notification);
         if (result.Status != EResultStatus.Success)
-            return RequestResult<NotificationResponse>.WithError(result.Message);
+            return RequestResult<NotificationResponse>.FromResult(result);
 
         return RequestResult<NotificationResponse>.Success(MapToResponse(result.Data!));
     }

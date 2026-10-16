@@ -160,8 +160,17 @@ Monburan/
 │   │   ├── Program.cs          # Entry point
 │   │   └── appsettings.json    # Configurações
 │   │
-│   └── Monburan.Web.Client/    # Client Blazor WebAssembly
-│       └── UserInfo.cs         # Modelo de usuário client
+│   ├── Monburan.Web.Client/    # Client Blazor WebAssembly
+│   │   └── UserInfo.cs         # Modelo de usuário client
+│   │
+│   ├── Monburan.Mobile.Shared/ # Camada compartilhada do app
+│   │   ├── Api/                # MonburanApiClient, AuthApiClient, ApiException
+│   │   └── Auth/               # TokenService, AuthHeaderHandler, AuthStateService
+│   │
+│   └── Monburan.Mobile/        # App .NET MAUI Blazor Hybrid (Android/iOS)
+│       ├── Components/         # Páginas e layout Razor
+│       ├── Services/           # SecureStorageTokenStore, MobileApiConfig
+│       └── Platforms/          # AndroidManifest, network_security_config
 │
 ├── docker-compose.yml          # Orquestração Docker
 ├── .gitignore
@@ -235,6 +244,112 @@ export SendGrid__ApiKey="seu-api-key"
 | `DELETE` | `/jobs/{id}` | Deletar vaga (auth) |
 | `POST` | `/applications` | Candidatar-se (auth) |
 | `GET` | `/dashboard` | Dashboard analytics (auth) |
+
+---
+
+## 📱 API REST + App Mobile
+
+A camada API REST (JWT Bearer) fica em `src/Monburan.Web/Endpoints` e serve o app
+`src/Monburan.Mobile` (.NET MAUI Blazor Hybrid, `com.monburan.app`).
+
+### Autenticação (cookies no site, bearer na API)
+
+| Método | Endpoint | Descrição |
+|--------|----------|-----------|
+| `POST` | `/api/auth/login` | `{email, password}` → `{accessToken, refreshToken}` |
+| `POST` | `/api/auth/refresh` | `{refreshToken}` → novo par de tokens |
+| `POST` | `/api/auth/register` | `{accountType: candidate\|advertiser, name, email, password, confirmPassword}` → tokens |
+| `POST` | `/api/auth/forgot-password` | `{email}` → e-mail de reset |
+
+Claims emitidas: `sub`, `candidate_id`/`advertiser_id`, `user_type`.
+Endpoints `/api/**` exigem `Authorization: Bearer` (policy `ApiBearer`) e respondem
+ProblemDetails — nunca redirecionam para login em cookie.
+
+### Endpoints `/api/v1`
+
+| Método | Endpoint | Auth | Descrição |
+|--------|----------|------|-----------|
+| `GET` | `/api/v1/jobs` | anon | Lista paginada (`page,size,searchTerm,city,state,isRemote,type,salaryMin/Max,category,sortBy,sortDescending`) |
+| `GET` | `/api/v1/jobs/{id}` | anon | Detalhes da vaga |
+| `POST` | `/api/v1/jobs` | advertiser | Criar vaga |
+| `GET`/`PUT`/`DELETE` | `/api/v1/jobs/mine`, `/{id}` | advertiser | Vagas do anunciante |
+| `POST` | `/api/v1/applications` | candidate | Candidatar-se (`candidateId` do body é ignorado — usa a claim) |
+| `GET` | `/api/v1/applications/mine` | candidate | Minhas candidaturas |
+| `GET`/`PUT` | `/api/v1/candidates/me` | candidate | Perfil do candidato |
+| `GET`/`POST`/`PUT`/`DELETE` | `/api/v1/resumes/**` | candidate | Currículos (`/mine`, `/{id}`) |
+| `POST` | `/api/v1/files/upload?fileType=Pdf` | bearer | Multipart `file` → `fileUrl` (imagem ≤5MB, PDF ≤10MB) |
+| `GET`/`PUT` | `/api/v1/notifications/mine`, `/{id}/read` | bearer | Notificações |
+| `POST` | `/api/v1/advertisers/logo` | advertiser | Upload de logo (multipart `file`) + atualiza perfil |
+| `GET` | `/api/v1/dashboard` | advertiser | Métricas |
+| `GET` | `/api/v1/plans` | anon | Planos (com assinatura atual se anunciante logado) |
+| `GET` | `/api/v1/notifications/mine/unread-count` | bearer | Contagem de não lidas (badge) |
+
+### JWT config
+
+```json
+"Jwt": {
+  "Issuer": "monburan.api",
+  "Audience": "monburan.app",
+  "AccessTokenExpiration": 3600,       // segundos
+  "RefreshTokenExpiration": 2592000,   // segundos (30 dias)
+  "SigningKey": ""                     // produção: JWT_SIGNING_KEY / Jwt__SigningKey
+}
+```
+
+A app falha no boot sem `Jwt__SigningKey` (`ValidateOnStart`). Em produção:
+`docker-compose.yml` exige `JWT_SIGNING_KEY` no `.env` e `deploy/deploy.sh` gera/reusa
+`/opt/monburan/.jwt_signing_key` no VPS, injetando segredos via
+`/opt/monburan/monburan.env` (`EnvironmentFile=`, chmod 600) — nunca dentro da unit
+systemd (que é legível por qualquer usuário local). Gere com `openssl rand -base64 48`.
+No Azure App Service, provisione o app setting `Jwt__SigningKey` (os jobs de deploy do
+CI fazem isso quando `AZURE_CREDENTIALS`+`AZURE_RESOURCE_GROUP`+`JWT_SIGNING_KEY` estão
+configurados — sem eles o deploy falha cedo em vez de derrubar a produção).
+
+`App__PublicBaseUrl` (ex.: `https://monburan.com`) é opcional mas recomendado em
+produção: os links de confirmação de e-mail e reset de senha usam essa base. Sem ela, a
+app usa `scheme://host` da request — atrás de proxy TLS sem `ForwardedHeaders` os links
+saem como `http://interno`.
+
+### Rodando o app mobile
+
+Pré-requisito: o workload MAUI Android é necessário inclusive para
+`dotnet restore`/`dotnet build` da solution:
+
+```bash
+dotnet workload install maui-android
+```
+
+```bash
+# 1. API de pé (Postgres via docker compose + migrations/seed)
+docker compose up -d
+APPLY_MIGRATIONS=true dotnet run --project src/Monburan.Web
+
+# 2. Emulador OU device físico (USB): expor a API local ao app
+adb reverse tcp:5095 tcp:5095   # app usa http://127.0.0.1:5095 em Debug — funciona
+                                # em emulador e em device físico com depuração USB.
+                                # Nota: o network_security_config de Debug só libera
+                                # cleartext para 127.0.0.1/localhost/10.0.2.2, então
+                                # http://<IP-da-LAN>:5095 NÃO funciona no device físico
+                                # — use adb reverse (ou ajuste MobileApiConfig + config).
+
+# 3. Build + deploy
+dotnet build src/Monburan.Mobile -f net10.0-android -c Debug -t:Run
+# ou gerar APK autocontido:
+dotnet build src/Monburan.Mobile -f net10.0-android -c Debug -p:EmbedAssembliesIntoApk=true
+
+# 4. Release AAB (assinado quando keystore configurado)
+dotnet publish src/Monburan.Mobile -f net10.0-android -c Release \
+  -p:AndroidSigningKeyStore=<keystore> -p:AndroidSigningKeyAlias=<alias> \
+  -p:AndroidSigningStorePass=<senha> -p:AndroidSigningKeyPass=<senha>
+```
+
+Estrutura mobile:
+- `src/Monburan.Mobile.Shared` — `MonburanApiClient`, `AuthApiClient`, `TokenService`
+  (refresh transparente em 401), `AuthHeaderHandler`, `AuthStateService`, `ITokenStore`
+- `src/Monburan.Mobile` — app MAUI Blazor Hybrid; `SecureStorageTokenStore` persiste a
+  sessão; `network_security_config.xml` permite cleartext só para localhost/emulador
+
+Testes de API: `tests/Monburan.ApiTests` (WebApplicationFactory + EF InMemory).
 
 ### Modelos de Dados
 

@@ -21,7 +21,7 @@ public class ListApplicationsByCandidateUseCase : IUseCase<Guid, IEnumerable<App
     {
         var result = await _applicationRepository.GetAllAsync(1, 1000);
         if (result.Status != EResultStatus.Success)
-            return RequestResult<IEnumerable<ApplicationResponse>>.WithError(result.Message);
+            return RequestResult<IEnumerable<ApplicationResponse>>.FromResult(result);
 
         var applications = result.Data!
             .Where(a => a.CandidateId.Value == request)
@@ -41,6 +41,7 @@ public class ListApplicationsByCandidateUseCase : IUseCase<Guid, IEnumerable<App
         JobTitle = app.Job?.Title,
         Status = app.Status.ToString(),
         AppliedAt = app.AppliedAt,
+        ResumeId = app.ResumeId,
         ViewedAt = app.ViewedAt,
         SelectedAt = app.SelectedAt,
         RejectedAt = app.RejectedAt,

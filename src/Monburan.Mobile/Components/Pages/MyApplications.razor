@@ -1,0 +1,92 @@
+@page "/applications"
+@inherits ProtectedPage
+@inject MonburanApiClient Api
+
+<h1 class="page-title">Minhas candidaturas</h1>
+<p class="page-subtitle">Acompanhe o status das suas candidaturas</p>
+
+@if (_loading)
+{
+    <LoadingState Message="Carregando candidaturas..." />
+}
+else if (_error is not null)
+{
+    <ErrorState Message="@_error.Message" IsOffline="@_error.IsNetworkError" OnRetry="LoadAsync" />
+}
+else if (_items.Count == 0)
+{
+    <EmptyState Icon="✉" Title="Nenhuma candidatura ainda"
+                Message="Explore as vagas abertas e candidate-se às que combinam com você.">
+        <a class="btn btn-primary" href="/">Ver vagas</a>
+    </EmptyState>
+}
+else
+{
+    @foreach (var app in _items)
+    {
+        <a class="card-link" href="/jobs/@app.JobId">
+            <div class="card">
+                <div class="list-row">
+                    <h2 class="card-title">@(app.JobTitle ?? "Vaga")</h2>
+                    <span class="badge @StatusClass(app.Status)">@StatusLabel(app.Status)</span>
+                </div>
+                <div class="card-meta">
+                    @if (app.AppliedAt.HasValue)
+                    {
+                        <span class="meta-chip">Enviada em @app.AppliedAt.Value.ToString("dd/MM/yyyy")</span>
+                    }
+                </div>
+            </div>
+        </a>
+    }
+}
+
+@code {
+    private List<ApplicationResponse> _items = [];
+    private bool _loading = true;
+    private ApiException? _error;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (await EnsureAuthenticatedAsync())
+            await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        _error = null;
+        try
+        {
+            _items = await Api.GetMyApplicationsAsync();
+        }
+        catch (ApiException ex)
+        {
+            _error = ex;
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    // Mesmos rótulos do site (MyApplications.razor web): EApplicationStatus =
+    // { Sent, Viewed, Selected, Rejected, Archived }
+    private static string StatusClass(string status) => status switch
+    {
+        "Selected" => "ok",
+        "Rejected" => "er",
+        "Viewed" => "info",
+        _ => "gold"
+    };
+
+    private static string StatusLabel(string status) => status switch
+    {
+        "Sent" => "Enviada",
+        "Viewed" => "Visualizada",
+        "Selected" => "Selecionada",
+        "Rejected" => "Rejeitada",
+        "Archived" => "Arquivada",
+        _ => status
+    };
+}

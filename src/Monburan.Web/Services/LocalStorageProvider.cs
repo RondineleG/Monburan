@@ -13,6 +13,17 @@ public sealed class LocalStorageProvider : Core.Interfaces.Storage.IStorageProvi
     private readonly string _uploadsPath;
     private readonly string _baseUrl;
 
+    // Extensão é derivada do content-type validado, nunca do filename do cliente —
+    // impede que um "evil.html" enviado como image/png vire arquivo executável no site.
+    private static readonly Dictionary<string, string> ExtensionByContentType = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["image/jpeg"] = ".jpg",
+        ["image/png"] = ".png",
+        ["image/gif"] = ".gif",
+        ["image/webp"] = ".webp",
+        ["application/pdf"] = ".pdf"
+    };
+
     public LocalStorageProvider(IWebHostEnvironment environment)
     {
         _uploadsPath = Path.Combine(environment.WebRootPath, "uploads");
@@ -27,8 +38,8 @@ public sealed class LocalStorageProvider : Core.Interfaces.Storage.IStorageProvi
 
     public async Task<string> UploadAsync(Stream fileStream, string fileName, string contentType)
     {
-        // Gerar nome único com GUID + extensão original
-        var extension = Path.GetExtension(fileName);
+        // Gerar nome único com GUID + extensão canônica do content-type
+        var extension = ExtensionByContentType.GetValueOrDefault(contentType ?? string.Empty, ".bin");
         var uniqueFileName = $"{Guid.NewGuid():N}{extension}";
 
         // Organizar por subpasta mensal (ex: uploads/2024/01/)

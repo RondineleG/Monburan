@@ -27,12 +27,12 @@ public class UpdateApplicationStatusUseCase : IUseCase<UpdateApplicationStatusRe
     {
         var result = await _applicationRepository.GetByIdAsync(Id.Create(request.ApplicationId));
         if (result.Status != EResultStatus.Success)
-            return RequestResult<ApplicationResponse>.WithError("Candidatura não encontrada.");
+            return RequestResult<ApplicationResponse>.EntityNotFound("Application", request.ApplicationId, "Candidatura não encontrada.");
 
         var application = result.Data!;
 
         if (application.Job == null || application.Job.AdvertiserId.Value != request.AdvertiserId)
-            return RequestResult<ApplicationResponse>.WithError("Candidatura não encontrada.");
+            return RequestResult<ApplicationResponse>.EntityNotFound("Application", request.ApplicationId, "Candidatura não encontrada.");
 
         var oldStatus = application.Status;
 
@@ -53,7 +53,7 @@ public class UpdateApplicationStatusUseCase : IUseCase<UpdateApplicationStatusRe
 
         var updateResult = await _applicationRepository.UpdateAsync(application);
         if (updateResult.Status != EResultStatus.Success)
-            return RequestResult<ApplicationResponse>.WithError(updateResult.Message);
+            return RequestResult<ApplicationResponse>.FromResult(updateResult);
 
         // Enviar notificação por email para o candidato (não bloqueante)
         try
@@ -75,6 +75,7 @@ public class UpdateApplicationStatusUseCase : IUseCase<UpdateApplicationStatusRe
         JobId = app.JobId.Value,
         Status = app.Status.ToString(),
         AppliedAt = app.AppliedAt,
+        ResumeId = app.ResumeId,
         ViewedAt = app.ViewedAt,
         SelectedAt = app.SelectedAt,
         RejectedAt = app.RejectedAt,

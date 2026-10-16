@@ -7,7 +7,7 @@ namespace Monburan.Core.Interfaces.Repositories;
 
 public interface IJobRepository : IBaseRepository<Job>
 {
-    Task<RequestResult<IEnumerable<Job>>> SearchAsync(
+    Task<RequestResult<PagedResponse<Job>>> SearchAsync(
         string? searchTerm = null,
         string? city = null,
         string? state = null,
@@ -18,7 +18,9 @@ public interface IJobRepository : IBaseRepository<Job>
         Guid? advertiserId = null,
         int page = 1,
         int size = 10,
-        string? type = null);
+        string? type = null,
+        string? sortBy = null,
+        bool? sortDescending = null);
 
     Task<PagedResponse<Job>> GetAllPagedAsync(int page, int size);
 }

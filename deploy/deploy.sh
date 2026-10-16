@@ -3,10 +3,13 @@
 # Uso (como root, dentro do diretorio onde o pacote foi extraido):
 #   chmod +x deploy.sh && ./deploy.sh
 # Variaveis opcionais:
-#   PG_CONN     - connection string completa do Postgres
-#   PGPASSWORD  - senha do postgres (default: postgres)
-#   PGUSER      - usuario do postgres (default: postgres)
-#   APP_PORT    - porta HTTP da app (default: 80)
+#   PG_CONN         - connection string completa do Postgres
+#   PGPASSWORD      - senha do postgres (default: postgres)
+#   PGUSER          - usuario do postgres (default: postgres)
+#   APP_PORT        - porta HTTP da app (default: 80)
+#   APP_PUBLIC_BASE_URL - URL pública p/ links de e-mail (ex.: https://monburan.com)
+#   JWT_SIGNING_KEY - chave de assinatura JWT; se ausente, reusa a de
+#                   /opt/monburan/.jwt_signing_key ou gera uma nova
 set -euo pipefail
 
 APP_DIR=/opt/monburan
@@ -36,8 +39,31 @@ else
   echo "    AVISO: nenhum psql/docker encontrado - crie o database 'monburan' manualmente"
 fi
 
+echo "==> Resolvendo chave de assinatura JWT"
+KEY_FILE="$APP_DIR/.jwt_signing_key"
+if [ -z "${JWT_SIGNING_KEY:-}" ]; then
+  if [ -f "$KEY_FILE" ]; then
+    JWT_SIGNING_KEY="$(cat "$KEY_FILE")"
+    echo "    reusando chave persistida em $KEY_FILE"
+  else
+    JWT_SIGNING_KEY="$(openssl rand -base64 48 | tr -d '\n')"
+    echo "    gerada nova chave (openssl rand -base64 48)"
+  fi
+fi
+umask 077  # arquivos de segredo nascem 600 — sem janela world-readable
+printf '%s' "$JWT_SIGNING_KEY" > "$KEY_FILE"
+chmod 600 "$KEY_FILE"
+
+echo "==> Escrevendo $APP_DIR/monburan.env (segredos fora da unit, chmod 600)"
+cat > "$APP_DIR/monburan.env" <<EOF
+ConnectionStrings__DefaultConnection=$PG_CONN
+Jwt__SigningKey=$JWT_SIGNING_KEY
+App__PublicBaseUrl=${APP_PUBLIC_BASE_URL:-}
+EOF
+chmod 600 "$APP_DIR/monburan.env"
+
 echo "==> Instalando systemd unit (porta $APP_PORT)"
-sed -e "s|__PG_CONN__|$PG_CONN|" -e "s|http://+:80|http://+:$APP_PORT|" monburan.service \
+sed -e "s|__APP_PORT__|$APP_PORT|" monburan.service \
   > /etc/systemd/system/monburan.service
 systemctl daemon-reload
 systemctl enable monburan

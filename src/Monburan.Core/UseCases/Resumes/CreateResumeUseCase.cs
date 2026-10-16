@@ -41,11 +41,11 @@ public class CreateResumeUseCase : IUseCase<CreateResumeRequest, ResumeResponse>
 
         var validationResult = _validator.Validate(resume);
         if (!validationResult.IsValid)
-            return RequestResult<ResumeResponse>.WithError(validationResult.Errors.First().Message);
+            return RequestResult<ResumeResponse>.WithValidationError(validationResult.Errors.First().Message);
 
         var result = await _resumeRepository.CreateAsync(resume);
         if (result.Status != EResultStatus.Success)
-            return RequestResult<ResumeResponse>.WithError(result.Message);
+            return RequestResult<ResumeResponse>.FromResult(result);
 
         return RequestResult<ResumeResponse>.Success(MapToResponse(result.Data!));
     }

@@ -31,7 +31,7 @@ public class MarkNotificationAsReadUseCase : IUseCase<Guid, NotificationResponse
 
         var result = await _notificationRepository.UpdateAsync(notification);
         if (result.Status != EResultStatus.Success)
-            return RequestResult<NotificationResponse>.WithError(result.Message);
+            return RequestResult<NotificationResponse>.FromResult(result);
 
         return RequestResult<NotificationResponse>.Success(MapToResponse(result.Data!));
     }

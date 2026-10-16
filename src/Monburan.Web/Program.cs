@@ -1,3 +1,5 @@
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+
 using Monburan.Core.DTOs.Request;
 using Monburan.Core.DTOs.Response;
 using Monburan.Core.Entities;
@@ -15,6 +17,8 @@ using Monburan.Core.UseCases.Notifications;
 using Monburan.Core.UseCases.Storage;
 using Monburan.Core.UseCases.Subscriptions;
 using Monburan.Core.Validations;
+using Monburan.Web.Configurations;
+using Monburan.Web.Endpoints;
 using Monburan.Web.Middleware;
 using Monburan.Web.Repositories;
 using Monburan.Web.Services;
@@ -56,19 +60,53 @@ builder.Services.AddSwaggerGen(c =>
 builder.Services.AddHealthChecks();
 
 builder.Services.AddCascadingAuthenticationState();
+// Enums como string nas minimal APIs (ex.: UpdateApplicationStatusRequest.NewStatus
+// aceita "Selected"; NotificationResponse.Type emite "NewApplication")
+builder.Services.ConfigureHttpJsonOptions(options =>
+    options.SerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter()));
 builder.Services.AddScoped<IdentityUserAccessor>();
 builder.Services.AddScoped<IdentityRedirectManager>();
 builder.Services.AddScoped<AuthenticationStateProvider, PersistingRevalidatingAuthenticationStateProvider>();
+
+// JWT para a API mobile (emissor: IdentityService; validador: AddJwtBearer)
+builder.Services.AddOptions<JwtOptions>()
+    .Bind(builder.Configuration.GetSection(JwtOptions.SectionName))
+    .Validate(o => !string.IsNullOrWhiteSpace(o.SigningKey), "Jwt:SigningKey é obrigatório (defina via appsettings ou variável de ambiente Jwt__SigningKey).")
+    .Validate(o => System.Text.Encoding.UTF8.GetByteCount(o.SigningKey) >= 32, "Jwt:SigningKey precisa de pelo menos 32 bytes (HMAC-SHA256).")
+    .Validate(o => !string.IsNullOrWhiteSpace(o.Issuer) && !string.IsNullOrWhiteSpace(o.Audience), "Jwt:Issuer e Jwt:Audience são obrigatórios.")
+    .ValidateOnStart();
+builder.Services.AddScoped<IIdentityService, IdentityService>();
 
 builder.Services.AddAuthentication(options =>
 {
     options.DefaultScheme = IdentityConstants.ApplicationScheme;
     options.DefaultSignInScheme = IdentityConstants.ExternalScheme;
 })
+.AddJwtBearer(JwtBearerDefaults.AuthenticationScheme, options =>
+{
+    var jwt = builder.Configuration.GetSection(JwtOptions.SectionName).Get<JwtOptions>() ?? new JwtOptions();
+    options.TokenValidationParameters = jwt.ToTokenValidationParameters();
+    options.Events = new JwtBearerEvents
+    {
+        OnChallenge = context =>
+        {
+            // API responde 401 em JSON, nunca redirect de cookie
+            context.HandleResponse();
+            context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+            return context.Response.WriteAsJsonAsync(new { error = "Unauthorized" });
+        }
+    };
+})
 .AddIdentityCookies();
 
 builder.Services.AddAuthorizationBuilder()
-    .AddPolicy("AdminOnly", policy => policy.RequireRole("Admin"));
+    .AddPolicy("AdminOnly", policy => policy.RequireRole("Admin"))
+    // token_use=access impede que um refresh token (JWT válido por 30 dias)
+    // autentique como bearer em endpoints que só exigem RequireAuthenticatedUser
+    .AddPolicy("ApiBearer", policy => policy
+        .AddAuthenticationSchemes(JwtBearerDefaults.AuthenticationScheme)
+        .RequireAuthenticatedUser()
+        .RequireClaim(IdentityService.TokenUseClaim, IdentityService.TokenUseAccess));
 
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
     ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
@@ -222,7 +260,9 @@ app.UseRequestLocalization(new RequestLocalizationOptions()
     .AddSupportedUICultures("pt-BR"));
 app.UseRateLimit(100); // 100 requests per second
 app.UseSecurityHeaders();
-app.UseStatusCodePagesWithReExecute("/404");
+// Re-execute para /404 só fora da API — rotas /api/* inexistentes respondem 404 vazio, não HTML do site
+app.UseWhen(ctx => !ctx.Request.Path.StartsWithSegments("/api"),
+    branch => branch.UseStatusCodePagesWithReExecute("/404"));
 app.UseStaticFiles();
 app.UseAntiforgery();
 
@@ -233,6 +273,9 @@ app.MapRazorComponents<App>()
     .AddAdditionalAssemblies(typeof(Monburan.Web.Client._Imports).Assembly);
 
 app.MapAdditionalIdentityEndpoints();
+
+// API REST consumida pelo app mobile
+app.MapApiEndpoints();
 
 // Health Check endpoint
 app.MapHealthChecks("/health");
@@ -268,3 +311,6 @@ finally
 {
     Log.CloseAndFlush();
 }
+
+// Necessário para WebApplicationFactory<Program> nos testes de API
+public partial class Program;

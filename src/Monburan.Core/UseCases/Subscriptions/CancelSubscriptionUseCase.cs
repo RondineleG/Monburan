@@ -32,7 +32,7 @@ public sealed class CancelSubscriptionUseCase : IUseCase<CancelSubscriptionReque
 
         // Verificar se está ativa
         if (subscription.Status != ESubscriptionStatus.Active)
-            return RequestResult<RequestResult>.WithError("A assinatura não está ativa e não pode ser cancelada.");
+            return RequestResult<RequestResult>.WithDomainError("A assinatura não está ativa e não pode ser cancelada.");
 
         // Cancelar assinatura
         subscription.Status = ESubscriptionStatus.Cancelled;

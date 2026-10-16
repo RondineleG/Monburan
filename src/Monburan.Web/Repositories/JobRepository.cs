@@ -99,7 +99,7 @@ public class JobRepository : IJobRepository
         return RequestResult<Job>.Success(entity);
     }
 
-    public async Task<RequestResult<IEnumerable<Job>>> SearchAsync(
+    public async Task<RequestResult<PagedResponse<Job>>> SearchAsync(
         string? searchTerm = null,
         string? city = null,
         string? state = null,
@@ -110,7 +110,9 @@ public class JobRepository : IJobRepository
         Guid? advertiserId = null,
         int page = 1,
         int size = 10,
-        string? type = null)
+        string? type = null,
+        string? sortBy = null,
+        bool? sortDescending = null)
     {
         await using var context = await _contextFactory.CreateDbContextAsync();
         var query = context.Jobs
@@ -126,21 +128,24 @@ public class JobRepository : IJobRepository
             query = query.Where(j => j.AdvertiserId == advertiserKey);
         }
 
-        // Filtro por busca textual (aplicado no WHERE do SQL)
+        // Filtro por busca textual (aplicado no WHERE do SQL).
+        // Usa ToLower().Contains() em vez de EF.Functions.ILike para manter a consulta
+        // executável no provider InMemory dos testes de API — funciona igual no Npgsql
+        // (embora sem pg_trgm/citext). Para buscas maiores, considerar Testcontainers.
         if (!string.IsNullOrWhiteSpace(searchTerm))
         {
             var term = searchTerm.ToLower();
             query = query.Where(j =>
-                EF.Functions.ILike(j.Title, $"%{term}%") ||
-                EF.Functions.ILike(j.Description, $"%{term}%") ||
-                (j.Category != null && EF.Functions.ILike(j.Category, $"%{term}%")));
+                j.Title.ToLower().Contains(term) ||
+                j.Description.ToLower().Contains(term) ||
+                (j.Category != null && j.Category.ToLower().Contains(term)));
         }
 
         // Filtro por cidade
         if (!string.IsNullOrWhiteSpace(city))
         {
             var cityLower = city.ToLower();
-            query = query.Where(j => j.Location != null && j.Location.City != null && EF.Functions.ILike(j.Location.City, $"%{cityLower}%"));
+            query = query.Where(j => j.Location != null && j.Location.City != null && j.Location.City.ToLower().Contains(cityLower));
         }
 
         // Filtro por estado
@@ -180,14 +185,30 @@ public class JobRepository : IJobRepository
             query = query.Where(j => j.Category == category);
         }
 
-        // Paginação com OFFSET/FETCH
+        // Ordenação — sortBy: "createdAt" (default), "title", "salary"
+        var descending = sortDescending ?? true;
+        query = sortBy?.ToLowerInvariant() switch
+        {
+            "title" => descending ? query.OrderByDescending(j => j.Title) : query.OrderBy(j => j.Title),
+            "salary" => descending
+                ? query.OrderByDescending(j => j.Salary == null ? null : j.Salary.Max)
+                : query.OrderBy(j => j.Salary == null ? null : j.Salary.Max),
+            _ => descending ? query.OrderByDescending(j => j.CreatedAt) : query.OrderBy(j => j.CreatedAt),
+        };
+
+        // Paginação com OFFSET/FETCH — TotalCount é o total filtrado, não o tamanho da página
         var totalJobs = await query.CountAsync();
         var jobs = await query
-            .OrderByDescending(j => j.CreatedAt)
             .Skip((page - 1) * size)
             .Take(size)
             .ToListAsync();
 
-        return RequestResult<IEnumerable<Job>>.Success(jobs);
+        return RequestResult<PagedResponse<Job>>.Success(new PagedResponse<Job>
+        {
+            Data = jobs,
+            TotalCount = totalJobs,
+            Page = page,
+            Size = size
+        });
     }
 }

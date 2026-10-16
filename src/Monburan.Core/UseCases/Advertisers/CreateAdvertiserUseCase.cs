@@ -41,7 +41,7 @@ public class CreateAdvertiserUseCase : IUseCase<CreateAdvertiserRequest, Adverti
 
         var result = await _advertiserRepository.CreateAsync(advertiser);
         if (result.Status != EResultStatus.Success)
-            return RequestResult<AdvertiserResponse>.WithError(result.Message);
+            return RequestResult<AdvertiserResponse>.FromResult(result);
 
         return RequestResult<AdvertiserResponse>.Success(MapToResponse(result.Data!));
     }

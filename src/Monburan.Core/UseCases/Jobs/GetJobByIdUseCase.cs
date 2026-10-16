@@ -21,7 +21,9 @@ public class GetJobByIdUseCase : IUseCase<Guid, JobResponse>
     {
         var result = await _jobRepository.GetByIdAsync(Id.Create(request));
         if (result.Status != EResultStatus.Success)
-            return RequestResult<JobResponse>.WithError(result.Message);
+            return result.Status == EResultStatus.EntityNotFound
+                ? RequestResult<JobResponse>.EntityNotFound("Job", request, result.Message)
+                : RequestResult<JobResponse>.FromResult(result);
 
         var job = result.Data!;
         var response = MapToResponse(job);

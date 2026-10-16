@@ -1,0 +1,172 @@
+@page "/"
+@page "/jobs"
+@inject MonburanApiClient Api
+@inject NavigationManager Nav
+
+<h1 class="page-title">Oportunidades</h1>
+<p class="page-subtitle">Encontre a vaga ideal para você</p>
+
+<div class="search-row">
+    <input class="input" placeholder="Buscar cargo, empresa..." @bind="_searchTerm" @bind:event="oninput" @onkeydown="OnSearchKey" />
+    <button class="btn btn-primary" @onclick="Search">Buscar</button>
+</div>
+
+<div class="filter-chips">
+    <button class="filter-chip @(_isRemote == null ? "active" : "")" @onclick="() => SetRemote(null)">Todas</button>
+    <button class="filter-chip @(_isRemote == true ? "active" : "")" @onclick="() => SetRemote(true)">Remoto</button>
+    <button class="filter-chip @(_isRemote == false ? "active" : "")" @onclick="() => SetRemote(false)">Presencial</button>
+</div>
+
+@if (_loading)
+{
+    <LoadingState Message="Buscando vagas..." />
+}
+else if (_error is not null)
+{
+    <ErrorState Message="@_error.Message" IsOffline="@_error.IsNetworkError" OnRetry="LoadAsync" />
+}
+else if (_jobs.Count == 0)
+{
+    <EmptyState Icon="⌂" Title="Nenhuma vaga encontrada"
+                Message="Tente ajustar os filtros ou buscar por outro termo." />
+}
+else
+{
+    @foreach (var job in _jobs)
+    {
+        <a class="card-link" href="/jobs/@job.Id">
+            <div class="card">
+                <div class="list-row">
+                    <h2 class="card-title">@job.Title</h2>
+                    @if (job.IsRemote)
+                    {
+                        <span class="badge gold">Remoto</span>
+                    }
+                </div>
+                @if (!string.IsNullOrEmpty(job.AdvertiserName))
+                {
+                    <div class="text-dim">@job.AdvertiserName</div>
+                }
+                @if (!string.IsNullOrEmpty(job.Description))
+                {
+                    <p class="card-snippet">@job.Description</p>
+                }
+                <div class="card-meta">
+                    @if (!string.IsNullOrEmpty(job.City))
+                    {
+                        <span class="meta-chip">📍 @job.City@(job.State is not null ? $"/{job.State}" : "")</span>
+                    }
+                    @if (job.SalaryMin.HasValue || job.SalaryMax.HasValue)
+                    {
+                        <span class="salary">@FormatSalary(job)</span>
+                    }
+                    @if (!string.IsNullOrEmpty(job.Category))
+                    {
+                        <span class="badge">@job.Category</span>
+                    }
+                </div>
+            </div>
+        </a>
+    }
+
+    @if (_hasMore)
+    {
+        <button class="btn btn-block" @onclick="LoadMoreAsync" disabled="@_loadingMore">
+            @(_loadingMore ? "Carregando..." : "Carregar mais")
+        </button>
+    }
+}
+
+@code {
+    private readonly List<JobResponse> _jobs = [];
+    private string? _searchTerm;
+    private bool? _isRemote;
+    private int _page = 1;
+    private const int PageSize = 10;
+    private bool _hasMore;
+    private bool _loading = true;
+    private bool _loadingMore;
+    private ApiException? _error;
+
+    protected override Task OnInitializedAsync() => LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        _error = null;
+        _page = 1;
+        _jobs.Clear();
+
+        try
+        {
+            var result = await Api.GetJobsAsync(BuildRequest());
+            _jobs.AddRange(result.Jobs);
+            _hasMore = result.HasNextPage;
+        }
+        catch (ApiException ex)
+        {
+            _error = ex;
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task LoadMoreAsync()
+    {
+        _loadingMore = true;
+        try
+        {
+            _page++;
+            var result = await Api.GetJobsAsync(BuildRequest());
+            _jobs.AddRange(result.Jobs);
+            _hasMore = result.HasNextPage;
+        }
+        catch (ApiException ex)
+        {
+            _error = ex;
+            _page--;
+        }
+        finally
+        {
+            _loadingMore = false;
+        }
+    }
+
+    private ListJobsRequest BuildRequest() => new()
+    {
+        Page = _page,
+        Size = PageSize,
+        SearchTerm = string.IsNullOrWhiteSpace(_searchTerm) ? null : _searchTerm,
+        IsRemote = _isRemote,
+        SortDescending = true
+    };
+
+    private Task Search() => LoadAsync();
+
+    private Task SetRemote(bool? value)
+    {
+        _isRemote = value;
+        return LoadAsync();
+    }
+
+    private async Task OnSearchKey(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+            await LoadAsync();
+    }
+
+    private static string FormatSalary(JobResponse job)
+    {
+        var min = job.SalaryMin?.ToString("N0");
+        var max = job.SalaryMax?.ToString("N0");
+        return (min, max) switch
+        {
+            (not null, not null) => $"R$ {min} – {max}",
+            (not null, null) => $"a partir de R$ {min}",
+            (null, not null) => $"até R$ {max}",
+            _ => ""
+        };
+    }
+}

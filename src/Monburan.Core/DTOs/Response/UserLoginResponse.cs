@@ -12,11 +12,14 @@ namespace Monburan.Core.DTOs.Response
             RefreshToken = refreshToken;
         }
 
+        [JsonInclude]
         [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
         public string AccessToken { get; private set; } = string.Empty;
 
+        [JsonInclude]
         public List<string> Erros { get; private set; }
 
+        [JsonInclude]
         [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
         public string RefreshToken { get; private set; } = string.Empty;
 

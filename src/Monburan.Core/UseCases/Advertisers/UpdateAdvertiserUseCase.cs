@@ -43,7 +43,7 @@ public sealed class UpdateAdvertiserUseCase : IUseCase<UpdateAdvertiserRequest, 
         var result = await _advertiserRepository.UpdateAsync(advertiser);
 
         if (result.Status != EResultStatus.Success)
-            return RequestResult<AdvertiserResponse>.WithError(result.Message);
+            return RequestResult<AdvertiserResponse>.FromResult(result);
 
         return RequestResult<AdvertiserResponse>.Success(MapToResponse(result.Data!));
     }

@@ -22,6 +22,9 @@ public class Application : BaseEntity
 
     public string? Notes { get; set; }
 
+    /// <summary>Currículo anexado à candidatura (FK lógica para Resume, sem cascata).</summary>
+    public Guid? ResumeId { get; set; }
+
     public DateTime? RejectedAt { get; set; }
 
     public DateTime? SelectedAt { get; set; }

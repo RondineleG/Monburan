@@ -21,7 +21,7 @@ public class ListResumesByCandidateUseCase : IUseCase<Guid, IEnumerable<ResumeRe
     {
         var result = await _resumeRepository.GetAllAsync(1, 1000);
         if (result.Status != EResultStatus.Success)
-            return RequestResult<IEnumerable<ResumeResponse>>.WithError(result.Message);
+            return RequestResult<IEnumerable<ResumeResponse>>.FromResult(result);
 
         var resumes = result.Data!
             .Where(r => r.CandidateId.Value == request)

@@ -21,7 +21,7 @@ public sealed class GetCandidateByIdUseCase : IUseCase<Guid, CandidateResponse>
     {
         var result = await _candidateRepository.GetByIdAsync(Id.Create(request));
         if (result.Status != EResultStatus.Success)
-            return RequestResult<CandidateResponse>.WithError(result.Message);
+            return RequestResult<CandidateResponse>.FromResult(result);
 
         var candidate = result.Data!;
         var response = MapToResponse(candidate);
