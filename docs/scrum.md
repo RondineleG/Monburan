@@ -33,26 +33,42 @@ Entrega funcional a cada sprint: build compilando sem erros, testes aprovados e 
 
 O **GitHub Projects #14** está configurado com:
 
-- **Colunas de status:** `Todo` → `In Progress` → `Done`
 - **Campo `Fase`:** `Etapa 1` | `Etapa 2`
 - **Campo `Prioridade`:** `Alta` | `Media` | `Baixa`
 
+### Fluxo otimizado (6 colunas)
+
+O quadro segue o fluxo de trabalho abaixo, com critério de sucesso definido para cada coluna:
+
+| # | Coluna | Significado | Critério de sucesso |
+|---|---|---|---|
+| 1 | **Backlog** | Ideias e demandas futuras; tarefas brutas de longo prazo ainda não refinadas. | Nenhuma tarefa entra sem descrição mínima do problema. |
+| 2 | **Ready for Dev** | Aprovado para execução; cards refinados, estimados e com critérios de aceite claros. | Especificação completa, sem dúvidas técnicas antes do início. |
+| 3 | **In Progress** | Em desenvolvimento ativo (com limite de WIP — ex.: máx. 1–2 cards por pessoa). | Existe branch criada ou Draft PR associada ao card. |
+| 4 | **In Review** | Revisão de código / CI; PR aberto aguardando aprovação ou testes automatizados. | PR passou nas verificações de CI e possui os approvals necessários. |
+| 5 | **In QA** | Validação e testes; alteração em ambiente de Staging/Preview. | Funcionalidade testada (manual/automatizada) no staging sem regressões. |
+| 6 | **Done** | Concluído / em produção; código mesclado na `main` e disponibilizado. | PR fechada/mesclada e card arquivado/concluído. |
+
 ### Distribuição atual das 12 issues
 
-| Issue | Título | Fase | Prioridade |
-|---|---|---|---|
-| #1 | ci: substituir secret scan por ferramenta dedicada | Etapa 1 | Alta |
-| #2 | chore: atualizar pacotes NuGet | Etapa 1 | Média |
-| #3 | ci: executar testes E2E com Playwright no pipeline | Etapa 1 | Média |
-| #4 | test: migrar testes para Testcontainers PostgreSQL | Etapa 1 | Média |
-| #5 | chore: configurar Dependabot | Etapa 1 | Baixa |
-| #6 | feat: notificações em tempo real com SignalR | Etapa 2 | Média |
-| #7 | mobile: automatizar build e assinatura do APK | Etapa 2 | Alta |
-| #8 | feat: endpoints da API para o lado anunciante | Etapa 2 | Média |
-| #9 | feat: camada de cache para listagens | Etapa 2 | Baixa |
-| #10 | feat: observabilidade com OpenTelemetry | Etapa 2 | Baixa |
-| #11 | chore: branch protection e templates | Etapa 1 | Média |
-| #12 | docs: documentação de arquitetura e contribuição | Etapa 1 | Baixa |
+| Issue | Título | Coluna | Fase | Prioridade |
+|---|---|---|---|---|
+| #6 | feat: notificações em tempo real com SignalR | Backlog | Etapa 2 | Média |
+| #9 | feat: camada de cache para listagens | Backlog | Etapa 2 | Baixa |
+| #10 | feat: observabilidade com OpenTelemetry | Backlog | Etapa 2 | Baixa |
+| #1 | ci: substituir secret scan por ferramenta dedicada | Ready for Dev | Etapa 1 | Alta |
+| #2 | chore: atualizar pacotes NuGet | Ready for Dev | Etapa 1 | Média |
+| #3 | ci: executar testes E2E com Playwright no pipeline | Ready for Dev | Etapa 1 | Média |
+| #4 | test: migrar testes para Testcontainers PostgreSQL | Ready for Dev | Etapa 1 | Média |
+| #5 | chore: configurar Dependabot | Ready for Dev | Etapa 1 | Baixa |
+| #11 | chore: branch protection e templates | Ready for Dev | Etapa 1 | Média |
+| #12 | docs: documentação de arquitetura e contribuição | Ready for Dev | Etapa 1 | Baixa |
+| #7 | mobile: automatizar build e assinatura do APK | In Progress | Etapa 2 | Alta |
+| #8 | feat: endpoints da API para o lado anunciante | In Progress | Etapa 2 | Média |
+
+> **Nota sobre a coluna In Progress:** o critério formal exige branch ou Draft PR associada. O projeto foi desenvolvido com commits diretos na `main` (sem fluxo de PR), então os cards #7 e #8 estão em `In Progress` por terem implementação parcial já presente na `main` (#7: job `android-build` criado, faltando gatilho por `paths` e cache de NuGet; #8: endpoints e guards criados, faltando teste de dashboard). Ao adotar o fluxo de PR, esses cards migrariam para `In Review`/`In QA` conforme o fluxo define.
+
+As colunas `In Review`, `In QA` e `Done` estão vazias por enquanto — serão preenchidas conforme os cards avançarem pelo fluxo (hoje não há PR aberto nem ambiente de staging).
 
 ## 5. Milestones (etapas da avaliação)
 
