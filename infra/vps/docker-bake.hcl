@@ -8,7 +8,7 @@
 # os escopos write:packages e read:packages.
 # ============================================================
 variable "IMAGE" {
-  default = "ghcr.io/ronelineg/monburan"
+  default = "ghcr.io/rondineleg/monburan"
 }
 
 variable "TAG" {

@@ -10,7 +10,7 @@
 # ============================================================
 services:
   app:
-    image: ghcr.io/ronelineg/monburan:latest
+    image: ghcr.io/rondineleg/monburan:latest
     container_name: monburan-app
     restart: unless-stopped
     environment:
@@ -35,9 +35,9 @@ services:
       - app_uploads:/app/wwwroot/uploads
     networks:
       - monburan-net
-    # Só o nginx do host acessa (via 127.0.0.1)
-    expose:
-      - "80"
+    # Só o nginx do host acessa (via 127.0.0.1:8080 -> container 80)
+    ports:
+      - "127.0.0.1:8080:80"
 
   postgres:
     image: postgres:16-alpine

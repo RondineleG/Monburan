@@ -19,7 +19,7 @@ set -euo pipefail
 
 REPO="https://github.com/RondineleG/Monburan.git"
 SRC_DIR="/opt/monburan/src"
-IMAGE="ghcr.io/ronelineg/monburan"
+IMAGE="ghcr.io/rondineleg/monburan"
 TAG="${TAG:-latest}"
 
 if [[ -z "${GHCR_TOKEN:-}" ]]; then
