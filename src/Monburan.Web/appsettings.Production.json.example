@@ -4,7 +4,7 @@
   },
   "SendGrid": {
     "ApiKey": "YOUR_SENDGRID_API_KEY",
-    "FromEmail": "noreply@monburan.com",
+    "FromEmail": "noreply@monburan.com.br",
     "FromName": "Monburan"
   },
   "Logging": {

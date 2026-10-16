@@ -21,7 +21,7 @@ public sealed class SendGridEmailSender : IEmailSender
         _configuration = configuration;
         _logger = logger;
         _apiKey = _configuration["SendGrid:ApiKey"];
-        _fromEmail = _configuration["SendGrid:FromEmail"] ?? "noreply@monburan.com";
+        _fromEmail = _configuration["SendGrid:FromEmail"] ?? "noreply@monburan.com.br";
         _fromName = _configuration["SendGrid:FromName"] ?? "Monburan";
     }
 

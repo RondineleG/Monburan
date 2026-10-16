@@ -4,7 +4,7 @@ public static class DevelopmentIdentitySeedData
 {
     private const string Password = "Monburan123";
     private const string AdminRole = "Admin";
-    private const string AdminEmail = "admin@monburan.com";
+    private const string AdminEmail = "admin@monburan.com.br";
 
     private static readonly string[] Emails =
     [

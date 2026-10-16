@@ -33,7 +33,7 @@ services:
       - ASPNETCORE_URLS=http://+:80
       - ConnectionStrings__DefaultConnection=Host=postgres;Port=5432;Database=${DB_NAME:-monburan};Username=${DB_USER:-postgres};Password=${DB_PASSWORD:-postgres}
       - SendGrid__ApiKey=${SENDGRID_API_KEY:-}
-      - SendGrid__FromEmail=noreply@monburan.com
+      - SendGrid__FromEmail=noreply@monburan.com.br
       - SendGrid__FromName=Monburan
       # Obrigatório — a app falha no boot sem chave de assinatura JWT.
       # Gere uma no .env com: openssl rand -base64 48

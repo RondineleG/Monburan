@@ -10,7 +10,7 @@ public static class MobileApiConfig
 #if DEBUG
     public static readonly Uri BaseUrl = new("http://127.0.0.1:5095/");
 #else
-    // API e site convivem na mesma origem — o deploy publica tudo em monburan.com
-    public static readonly Uri BaseUrl = new("https://monburan.com/");
+    // API e site convivem na mesma origem — o deploy publica tudo em monburan.com.br
+    public static readonly Uri BaseUrl = new("https://monburan.com.br/");
 #endif
 }

@@ -87,4 +87,6 @@ Thumbs.db
 # Tools
 tools/
 *.exe
-*.dll
+
+# NOTA: não ignorar *.dll/*.so na raiz — o Blazor WASM serve wwwroot/_framework/*.dll.
+# bin/ e obj/ já cobrem os artefatos de build.

@@ -67,7 +67,7 @@ public static class SeedData
             Id = Id.Create(Guid.Parse("11111111-1111-1111-1111-111111111111")),
             TenantId = tenantId,
             DisplayName = "Monburan",
-            BaseUrl = "https://monburan.com",
+            BaseUrl = "https://monburan.com.br",
             IsActive = true,
             PrimaryThemeColor = "#0d6efd"
         };

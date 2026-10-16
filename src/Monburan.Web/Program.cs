@@ -131,8 +131,16 @@ builder.Services.AddIdentityCore<ApplicationUser>(options =>
 
 builder.Services.AddDatabaseDeveloperPageExceptionFilter();
 
-// Registrar EmailSender (SendGrid com fallback para NoOp em desenvolvimento)
-builder.Services.AddScoped<Monburan.Core.Interfaces.Services.IEmailSender, Monburan.Web.Services.SendGridEmailSender>();
+// Registrar EmailSender: SMTP (Resend) quando Smtp:Host está configurado, senão SendGrid.
+builder.Services.AddScoped<Monburan.Web.Services.SmtpEmailSender>();
+builder.Services.AddScoped<Monburan.Web.Services.SendGridEmailSender>();
+builder.Services.AddScoped<Monburan.Core.Interfaces.Services.IEmailSender>(sp =>
+{
+    var configuration = sp.GetRequiredService<IConfiguration>();
+    return !string.IsNullOrWhiteSpace(configuration["Smtp:Host"])
+        ? sp.GetRequiredService<Monburan.Web.Services.SmtpEmailSender>()
+        : sp.GetRequiredService<Monburan.Web.Services.SendGridEmailSender>();
+});
 builder.Services.AddScoped<Microsoft.AspNetCore.Identity.IEmailSender<ApplicationUser>, IdentityEmailSender>();
 
 // Registrar Repositórios
