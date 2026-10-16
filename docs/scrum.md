@@ -49,26 +49,65 @@ O quadro segue o fluxo de trabalho abaixo, com critério de sucesso definido par
 | 5 | **In QA** | Validação e testes; alteração em ambiente de Staging/Preview. | Funcionalidade testada (manual/automatizada) no staging sem regressões. |
 | 6 | **Done** | Concluído / em produção; código mesclado na `main` e disponibilizado. | PR fechada/mesclada e card arquivado/concluído. |
 
-### Distribuição atual das 12 issues
+### Distribuição atual das 24 issues
 
-| Issue | Título | Coluna | Fase | Prioridade |
-|---|---|---|---|---|
-| #6 | feat: notificações em tempo real com SignalR | Backlog | Etapa 2 | Média |
-| #9 | feat: camada de cache para listagens | Backlog | Etapa 2 | Baixa |
-| #10 | feat: observabilidade com OpenTelemetry | Backlog | Etapa 2 | Baixa |
-| #1 | ci: substituir secret scan por ferramenta dedicada | Ready for Dev | Etapa 1 | Alta |
-| #2 | chore: atualizar pacotes NuGet | Ready for Dev | Etapa 1 | Média |
-| #3 | ci: executar testes E2E com Playwright no pipeline | Ready for Dev | Etapa 1 | Média |
-| #4 | test: migrar testes para Testcontainers PostgreSQL | Ready for Dev | Etapa 1 | Média |
-| #5 | chore: configurar Dependabot | Ready for Dev | Etapa 1 | Baixa |
-| #11 | chore: branch protection e templates | Ready for Dev | Etapa 1 | Média |
-| #12 | docs: documentação de arquitetura e contribuição | Ready for Dev | Etapa 1 | Baixa |
-| #7 | mobile: automatizar build e assinatura do APK | In Progress | Etapa 2 | Alta |
-| #8 | feat: endpoints da API para o lado anunciante | In Progress | Etapa 2 | Média |
+O quadro está distribuído em 2 grupos: **trabalho já implementado** (issues #13–#24, criadas para registrar as entregas concluídas) e **melhorias pendentes** (issues #1–#12, planejadas para as etapas).
 
-> **Nota sobre a coluna In Progress:** o critério formal exige branch ou Draft PR associada. O projeto foi desenvolvido com commits diretos na `main` (sem fluxo de PR), então os cards #7 e #8 estão em `In Progress` por terem implementação parcial já presente na `main` (#7: job `android-build` criado, faltando gatilho por `paths` e cache de NuGet; #8: endpoints e guards criados, faltando teste de dashboard). Ao adotar o fluxo de PR, esses cards migrariam para `In Review`/`In QA` conforme o fluxo define.
+#### Coluna `Done` — implementado, integrado e verificado (7)
 
-As colunas `In Review`, `In QA` e `Done` estão vazias por enquanto — serão preenchidas conforme os cards avançarem pelo fluxo (hoje não há PR aberto nem ambiente de staging).
+| Issue | Título | Fase | Prioridade |
+|---|---|---|---|
+| #13 | feat: modelo de domínio e entidades principais | Etapa 1 | Alta |
+| #14 | feat: autenticação JWT com access e refresh token | Etapa 1 | Alta |
+| #15 | feat: marketplace público de vagas com busca e paginação | Etapa 1 | Alta |
+| #16 | feat: espaço do anunciante com gestão de vagas | Etapa 1 | Média |
+| #17 | feat: espaço do candidato e gestão de currículos | Etapa 1 | Média |
+| #18 | feat: sistema de planos e assinaturas | Etapa 1 | Baixa |
+| #19 | feat: API REST para o fluxo de candidato | Etapa 1 | Alta |
+
+#### Coluna `In QA` — implementado, aguardando validação funcional (3)
+
+| Issue | Título | Fase | Prioridade |
+|---|---|---|---|
+| #20 | test: suíte E2E com Playwright | Etapa 1 | Média |
+| #21 | chore: empacotamento Docker e compose de deploy | Etapa 1 | Média |
+| #22 | feat: health checks, logging estruturado e Swagger | Etapa 1 | Baixa |
+
+#### Coluna `In Review` — implementado, aguardando revisão de código (2)
+
+| Issue | Título | Fase | Prioridade |
+|---|---|---|---|
+| #23 | feat: app mobile Android com MAUI Blazor Hybrid | Etapa 2 | Alta |
+| #24 | feat: middlewares de segurança e rate limiting | Etapa 1 | Média |
+
+#### Coluna `In Progress` — em desenvolvimento ativo (2)
+
+| Issue | Título | Fase | Prioridade |
+|---|---|---|---|
+| #7 | mobile: automatizar build e assinatura do APK | Etapa 2 | Alta |
+| #8 | feat: endpoints da API para o lado anunciante | Etapa 2 | Média |
+
+#### Coluna `Ready for Dev` — refinadas, prontas para puxar (7)
+
+| Issue | Título | Fase | Prioridade |
+|---|---|---|---|
+| #1 | ci: substituir secret scan por ferramenta dedicada | Etapa 1 | Alta |
+| #2 | chore: atualizar pacotes NuGet | Etapa 1 | Média |
+| #3 | ci: executar testes E2E com Playwright no pipeline | Etapa 1 | Média |
+| #4 | test: migrar testes para Testcontainers PostgreSQL | Etapa 1 | Média |
+| #5 | chore: configurar Dependabot | Etapa 1 | Baixa |
+| #11 | chore: branch protection e templates | Etapa 1 | Média |
+| #12 | docs: documentação de arquitetura e contribuição | Etapa 1 | Baixa |
+
+#### Coluna `Backlog` — demandas futuras de longo prazo (3)
+
+| Issue | Título | Fase | Prioridade |
+|---|---|---|---|
+| #6 | feat: notificações em tempo real com SignalR | Etapa 2 | Média |
+| #9 | feat: camada de cache para listagens | Etapa 2 | Baixa |
+| #10 | feat: observabilidade com OpenTelemetry | Etapa 2 | Baixa |
+
+> **Nota de transparência:** os cards nas colunas `Done`, `In QA` e `In Review` representam trabalho já desenvolvido e presente no repositório. Como o projeto foi construído com commits diretos na `main` (sem fluxo de PR), essas colunas refletem o estado de implementação/validação real de cada entregável, e não a passagem por PRs abertos — o que aconteceria ao adotar o fluxo de PR completo.
 
 ## 5. Milestones (etapas da avaliação)
 
