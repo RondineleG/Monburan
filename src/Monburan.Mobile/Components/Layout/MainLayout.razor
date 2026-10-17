@@ -3,12 +3,16 @@
 @inject AuthStateService Auth
 @inject MonburanApiClient Api
 @inject NavigationManager Nav
+@inject IJSRuntime JS
 
 <div class="app-shell">
     @if (!IsAuthPage)
     {
         <header class="app-header">
-            <a class="app-brand" href="/">MON<em>BURAN</em></a>
+            <a class="app-brand" href="/">Monburan</a>
+            <button class="theme-toggle" @onclick="ToggleTheme" aria-label="Alternar tema">
+                @(_isDark ? "☀" : "☾")
+            </button>
         </header>
     }
 
@@ -27,6 +31,7 @@
 
     private int _unread;
     private DateTime _lastUnreadFetch = DateTime.MinValue;
+    private bool _isDark = true;
 
     private bool IsAuthPage =>
         Nav.Uri.Contains("/login", StringComparison.OrdinalIgnoreCase) ||
@@ -35,10 +40,27 @@
 
     protected override async Task OnInitializedAsync()
     {
+        // Aplica tema salvo (padrão: dark, igual ao web)
+        var saved = await JS.InvokeAsync<string>("monburan.getTheme");
+        _isDark = saved != "light";
+        ApplyTheme();
+        
         Auth.Changed += OnAuthChanged;
         Nav.LocationChanged += OnLocationChanged;
         await Auth.InitializeAsync();
         await RefreshUnreadAsync();
+    }
+
+    private async Task ToggleTheme()
+    {
+        _isDark = !_isDark;
+        ApplyTheme();
+        await JS.InvokeVoidAsync("monburan.setTheme", _isDark ? "dark" : "light");
+    }
+
+    private void ApplyTheme()
+    {
+        _ = JS.InvokeVoidAsync("monburan.applyTheme", _isDark ? "dark" : "light").AsTask();
     }
 
     private void OnAuthChanged() => InvokeAsync(async () =>

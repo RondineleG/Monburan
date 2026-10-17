@@ -3,8 +3,12 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <meta name="theme-color" content="#0A0806" />
     <title>Monburan</title>
     <base href="/" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;900&family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Share+Tech+Mono&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="app.css" />
     <link rel="stylesheet" href="Monburan.Mobile.styles.css" />
     <link rel="icon" href="data:,">
@@ -23,6 +27,28 @@
     </div>
 
     <script src="_framework/blazor.webview.js" autostart="false"></script>
+    <script>
+        window.monburan = {
+            getTheme: function () {
+                try { return localStorage.getItem('monburan-theme') || 'dark'; }
+                catch (e) { return 'dark'; }
+            },
+            setTheme: function (theme) {
+                try { localStorage.setItem('monburan-theme', theme); } catch (e) { }
+            },
+            applyTheme: function (theme) {
+                document.documentElement.setAttribute('data-theme', theme);
+                var meta = document.querySelector('meta[name="theme-color"]');
+                if (meta) meta.setAttribute('content', theme === 'dark' ? '#0A0806' : '#F2EBD9');
+            }
+        };
+        // Aplica tema salvo antes do primeiro paint
+        (function () {
+            var theme = 'dark';
+            try { theme = localStorage.getItem('monburan-theme') || 'dark'; } catch (e) { }
+            document.documentElement.setAttribute('data-theme', theme);
+        })();
+    </script>
 
 </body>
 
