@@ -55,9 +55,10 @@ jobs:
       run: dotnet workload install maui-ios
 
     # O SDK de iOS do .NET (o do iOS 26 pede o Xcode 26.0) e o compilador de assets do Xcode (actool) impõem duas coisas:
-    # o Xcode tem de ser da série do SDK alvo e precisa existir um runtime de simulador do mesmo build do SDK de
-    # simulador dele. O runner só guarda os runtimes mais novos, então o passo escolhe o Xcode mais antigo, a partir do
-    # SDK alvo, que tenha runtime instalado (o mais antigo é o que menos se afasta do SDK que o .NET espera).
+    # o Xcode tem de ser da série do SDK alvo e precisa existir um runtime de simulador da mesma versão do iOS que o SDK
+    # de simulador dele (compara major.minor; o build do runtime difere do do SDK). O runner só guarda os runtimes mais
+    # novos, então o passo escolhe o Xcode mais antigo, a partir do SDK alvo, que tenha runtime instalado (o mais antigo
+    # é o que menos se afasta do SDK que o .NET espera).
     - name: Selecionar o Xcode do SDK de iOS alvo
       run: |
         echo "macOS: $(sw_vers -productVersion) | SDK de iOS alvo: $IOS_SDK"
@@ -65,9 +66,9 @@ jobs:
         import json, sys
         for r in json.load(sys.stdin)["runtimes"]:
             if r.get("isAvailable") and "iOS" in r.get("name", ""):
-                print(r.get("buildversion", ""))
+                print(".".join(r.get("version", "").split(".")[:2]))
         ')"
-        echo "Runtimes de simulador de iOS instalados (build): $(echo "$RUNTIMES" | tr '\n' ' ')"
+        echo "Runtimes de simulador de iOS instalados (versão): $(echo "$RUNTIMES" | tr '\n' ' ')"
         XCODE=""
         SEEN=""
         for app in $(find /Applications -maxdepth 1 -name 'Xcode_*.app' | sort -V); do
@@ -77,9 +78,9 @@ jobs:
           ver="$(basename "$real" .app | sed 's/^Xcode_//')"
           # só do SDK alvo em diante
           if [ "$(printf '%s\n%s\n' "$IOS_SDK" "$ver" | sort -V | head -1)" != "$IOS_SDK" ]; then continue; fi
-          sdkbuild="$(DEVELOPER_DIR="$real/Contents/Developer" xcrun --sdk iphonesimulator --show-sdk-build-version 2>/dev/null || true)"
-          echo "  $(basename "$real"): SDK de simulador $sdkbuild"
-          if [ -n "$sdkbuild" ] && echo "$RUNTIMES" | grep -qx "$sdkbuild"; then
+          sdkver="$(DEVELOPER_DIR="$real/Contents/Developer" xcrun --sdk iphonesimulator --show-sdk-version 2>/dev/null | cut -d. -f1,2 || true)"
+          echo "  $(basename "$real"): SDK de simulador $sdkver"
+          if [ -n "$sdkver" ] && echo "$RUNTIMES" | grep -qx "$sdkver"; then
             XCODE="$real"
             break
           fi
@@ -173,9 +174,10 @@ jobs:
       run: dotnet workload install maui-ios
 
     # O SDK de iOS do .NET (o do iOS 26 pede o Xcode 26.0) e o compilador de assets do Xcode (actool) impõem duas coisas:
-    # o Xcode tem de ser da série do SDK alvo e precisa existir um runtime de simulador do mesmo build do SDK de
-    # simulador dele. O runner só guarda os runtimes mais novos, então o passo escolhe o Xcode mais antigo, a partir do
-    # SDK alvo, que tenha runtime instalado (o mais antigo é o que menos se afasta do SDK que o .NET espera).
+    # o Xcode tem de ser da série do SDK alvo e precisa existir um runtime de simulador da mesma versão do iOS que o SDK
+    # de simulador dele (compara major.minor; o build do runtime difere do do SDK). O runner só guarda os runtimes mais
+    # novos, então o passo escolhe o Xcode mais antigo, a partir do SDK alvo, que tenha runtime instalado (o mais antigo
+    # é o que menos se afasta do SDK que o .NET espera).
     - name: Selecionar o Xcode do SDK de iOS alvo
       run: |
         echo "macOS: $(sw_vers -productVersion) | SDK de iOS alvo: $IOS_SDK"
@@ -183,9 +185,9 @@ jobs:
         import json, sys
         for r in json.load(sys.stdin)["runtimes"]:
             if r.get("isAvailable") and "iOS" in r.get("name", ""):
-                print(r.get("buildversion", ""))
+                print(".".join(r.get("version", "").split(".")[:2]))
         ')"
-        echo "Runtimes de simulador de iOS instalados (build): $(echo "$RUNTIMES" | tr '\n' ' ')"
+        echo "Runtimes de simulador de iOS instalados (versão): $(echo "$RUNTIMES" | tr '\n' ' ')"
         XCODE=""
         SEEN=""
         for app in $(find /Applications -maxdepth 1 -name 'Xcode_*.app' | sort -V); do
@@ -195,9 +197,9 @@ jobs:
           ver="$(basename "$real" .app | sed 's/^Xcode_//')"
           # só do SDK alvo em diante
           if [ "$(printf '%s\n%s\n' "$IOS_SDK" "$ver" | sort -V | head -1)" != "$IOS_SDK" ]; then continue; fi
-          sdkbuild="$(DEVELOPER_DIR="$real/Contents/Developer" xcrun --sdk iphonesimulator --show-sdk-build-version 2>/dev/null || true)"
-          echo "  $(basename "$real"): SDK de simulador $sdkbuild"
-          if [ -n "$sdkbuild" ] && echo "$RUNTIMES" | grep -qx "$sdkbuild"; then
+          sdkver="$(DEVELOPER_DIR="$real/Contents/Developer" xcrun --sdk iphonesimulator --show-sdk-version 2>/dev/null | cut -d. -f1,2 || true)"
+          echo "  $(basename "$real"): SDK de simulador $sdkver"
+          if [ -n "$sdkver" ] && echo "$RUNTIMES" | grep -qx "$sdkver"; then
             XCODE="$real"
             break
           fi
