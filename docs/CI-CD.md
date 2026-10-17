@@ -7,6 +7,7 @@
 | `ci-cd.yml` | push e PR em `main`/`develop`, manual | build Release da solução (inclui o app Android), testes unitários, de integração e de API com coverage, **E2E** (Playwright contra o app em Development + Postgres de serviço, com 1 retentativa), scan de segredos, auditoria de pacotes NuGet vulneráveis e `dotnet publish` da web como artefato |
 | `docker-ghcr.yml` | push na `main` com mudança em `src/**`, manual | constrói a imagem Docker e publica em `ghcr.io/rondineleg/monburan` (`latest` + tag com o sha do commit) |
 | `android-release.yml` | push na `main` com mudança no app/Core, PR para a `main`, manual | compila, assina e confere o APK; na `main`, publica a release `v<versão>` com o APK |
+| `ios-build.yml` | push na `main` e PR com mudança no app/Core, manual | em macOS: compila o app para o simulador, abre e tira print; gera o `.ipa` sem assinatura (anexado à release na `main`) |
 
 Os jobs `deploy-staging` e `deploy-production` (Azure Web App) só rodam quando existe a variável de repositório
 `AZURE_RESOURCE_GROUP` (mais os secrets do Azure). A produção atual é a VPS (abaixo), então eles ficam ignorados.
@@ -36,6 +37,31 @@ Guarde a keystore e as senhas fora do repositório: se forem perdidas, não é m
 instalem por cima do app já instalado. As primeiras releases (até a v1.3.0 manual) foram assinadas com a chave de
 debug de um computador; se a keystore da esteira for outra, o workflow detecta e avisa nas notas da release que é
 preciso desinstalar a versão anterior uma vez.
+
+## iOS (sem conta Apple Developer)
+
+O iOS só compila em macOS, então o `ios-build.yml` usa runner `macos-latest` (grátis em repositório público). O projeto
+declara o alvo `net10.0-ios` apenas quando o build roda em macOS; no Linux, no Windows e no APK nada muda.
+
+Sem conta Apple Developer não há assinatura, TestFlight nem App Store. O que a esteira entrega:
+
+- **Job `simulator`:** compila em Release para o simulador, abre o app, espera 25 s, confirma que ele continua em
+  execução e guarda o print (`ios-simulador-print`) como artefato. O app de Release lê a lista de vagas de
+  `https://monburan.com.br/` (leitura pública).
+- **Job `ipa`:** compila para aparelho (`ios-arm64`) sem assinar, monta o `.ipa` (um zip com o `.app` em `Payload/`) e
+  confere identificador (`com.monburan.app`), versão e build contra o csproj, a arquitetura e a ausência de assinatura.
+  Em PR vira artefato do run; na `main` é anexado à release `v<versão>` (criada pelo `android-release.yml`, que o job
+  espera existir), com as instruções de instalação nas notas.
+
+**Instalar o `.ipa` sem assinatura:** o arquivo não instala direto. Use AltStore ou Sideloadly com um Apple ID gratuito,
+que assinam na hora. Limites do Apple ID gratuito: a assinatura vale 7 dias (é preciso renovar), no máximo 3 apps ativos
+e o iPhone precisa estar com o Modo Desenvolvedor ligado. Serve para você e poucos testadores, não para o público.
+
+**Quando houver conta Apple Developer** (US$ 99/ano), a próxima fase é assinar na esteira e enviar ao TestFlight. Seriam
+necessários: certificado de distribuição (`.p12` e senha), perfil de provisionamento do `com.monburan.app` e a chave da
+API do App Store Connect (Issuer ID, Key ID e `.p8`), além de um número de build que cresça a cada envio (a Apple
+recusa repetidos). Para a App Store, faltam ainda a exclusão de conta dentro do app, o manifesto de privacidade
+(`PrivacyInfo.xcprivacy`), ícones e capturas de tela.
 
 ## Publicar a web (VPS)
 
