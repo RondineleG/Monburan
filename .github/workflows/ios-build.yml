@@ -1,0 +1,399 @@
+name: iOS
+
+# Build do app para iOS em runner macOS (o iOS só compila em macOS, com Xcode).
+# Sem conta Apple Developer não há assinatura, TestFlight nem App Store; esta esteira entrega o que dá sem ela:
+#  - simulador: compila (Release) para o simulador, instala, abre o app e guarda um print como artefato;
+#  - .ipa sem assinatura: para sideload com Apple ID gratuito (AltStore/Sideloadly). Na main é anexado à release
+#    "v<versão>" criada pelo android-release.yml; em PR é só ensaio (artefato do run).
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'src/Monburan.Mobile/**'
+      - 'src/Monburan.Mobile.Shared/**'
+      - 'src/Monburan.Core/**'
+      - '.github/workflows/ios-build.yml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'src/Monburan.Mobile/**'
+      - 'src/Monburan.Mobile.Shared/**'
+      - 'src/Monburan.Core/**'
+      - '.github/workflows/ios-build.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write   # anexar o .ipa à release
+
+concurrency:
+  group: ios-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  DOTNET_VERSION: '10.0.x'
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+  CSPROJ: src/Monburan.Mobile/Monburan.Mobile.csproj
+  # SDK de iOS alvo: casa com IosSdkVersion do csproj; o Xcode usado é o mais antigo, a partir dele, com runtime de simulador
+  IOS_SDK: '26.0'
+
+jobs:
+  simulator:
+    runs-on: macos-latest
+    timeout-minutes: 60
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+
+    - name: Install MAUI iOS workload
+      run: dotnet workload install maui-ios
+
+    # O compilador de assets do Xcode (actool) exige um runtime de simulador da mesma versão do iOS que o SDK do Xcode em
+    # uso (compara major.minor; o build do runtime difere do do SDK). O runner só guarda os runtimes mais novos, então o
+    # passo escolhe o Xcode mais antigo, a partir do SDK alvo, que tenha runtime instalado (hoje o 26.2). O SDK de iOS 26.0
+    # do .NET pede o Xcode 26.0, que aqui não tem runtime; por isso os builds desligam essa checagem de versão
+    # (ValidateXcodeVersion=false), que só compara o major.minor do Xcode.
+    - name: Selecionar o Xcode do SDK de iOS alvo
+      run: |
+        echo "macOS: $(sw_vers -productVersion) | SDK de iOS alvo: $IOS_SDK"
+        RUNTIMES="$(xcrun simctl list runtimes -j | python3 -c '
+        import json, sys
+        for r in json.load(sys.stdin)["runtimes"]:
+            if r.get("isAvailable") and "iOS" in r.get("name", ""):
+                print(".".join(r.get("version", "").split(".")[:2]))
+        ')"
+        echo "Runtimes de simulador de iOS instalados (versão): $(echo "$RUNTIMES" | tr '\n' ' ')"
+        XCODE=""
+        SEEN=""
+        for app in $(find /Applications -maxdepth 1 -name 'Xcode_*.app' | sort -V); do
+          real="$(realpath "$app")"
+          case " $SEEN " in *" $real "*) continue ;; esac
+          SEEN="$SEEN $real"
+          ver="$(basename "$real" .app | sed 's/^Xcode_//')"
+          # só do SDK alvo em diante
+          if [ "$(printf '%s\n%s\n' "$IOS_SDK" "$ver" | sort -V | head -1)" != "$IOS_SDK" ]; then continue; fi
+          sdkver="$(DEVELOPER_DIR="$real/Contents/Developer" xcrun --sdk iphonesimulator --show-sdk-version 2>/dev/null | cut -d. -f1,2 || true)"
+          echo "  $(basename "$real"): SDK de simulador $sdkver"
+          if [ -n "$sdkver" ] && echo "$RUNTIMES" | grep -qx "$sdkver"; then
+            XCODE="$real"
+            XCODE_SDK="$sdkver"
+            break
+          fi
+        done
+        if [ -z "$XCODE" ]; then
+          echo "::error::Nenhum Xcode a partir do ${IOS_SDK} tem runtime de simulador instalado neste runner; veja a lista acima"
+          exit 1
+        fi
+        echo "Xcode escolhido: $XCODE"
+        sudo xcode-select -s "$XCODE/Contents/Developer"
+        xcodebuild -version
+        # runtime de simulador que casa com esse Xcode (o job do simulador usa)
+        echo "SIM_RUNTIME=$XCODE_SDK" >> "$GITHUB_ENV"
+
+    - name: Build para o simulador (Release, sem assinatura)
+      run: |
+        if [ "$(uname -m)" = "arm64" ]; then rid=iossimulator-arm64; else rid=iossimulator-x64; fi
+        # IosOnly=true: o app declara só o alvo iOS; sem isso o macOS também avalia o alvo Android e exige o workload dele
+        dotnet build "$CSPROJ" -f "net10.0-ios${IOS_SDK}" -c Release -p:IosOnly=true -p:IosSdkVersion="$IOS_SDK" -p:RuntimeIdentifier="$rid" -p:EnableCodeSigning=false -p:ValidateXcodeVersion=false
+
+    # O app de Release aponta para https://monburan.com.br: o print mostra a lista de vagas carregada (leitura pública)
+    - name: Abrir o app no simulador e tirar print
+      run: |
+        APP="$(find src/Monburan.Mobile/bin/Release -maxdepth 3 -name '*.app' -type d -path '*iossimulator*' | head -1)"
+        if [ -z "$APP" ]; then
+          echo "::error::Nenhum .app gerado pelo build"
+          find src/Monburan.Mobile/bin -maxdepth 4 | head -30
+          exit 1
+        fi
+        echo "App: $APP"
+
+        # O simulador em Mac arm64 só executa binários com assinatura válida. O build é sem assinatura (não há
+        # certificado), então o app e as bibliotecas nativas recebem aqui uma assinatura ad hoc, que não identifica ninguém.
+        echo "Assinatura antes: $(codesign -dv "$APP" 2>&1 | tr '\n' ' ' | cut -c1-240)"
+        while IFS= read -r -d '' item; do
+          codesign --force --sign - --timestamp=none "$item"
+        done < <(find "$APP" -depth \( -name '*.dylib' -o -name '*.framework' \) -print0)
+        codesign --force --sign - --timestamp=none "$APP"
+        echo "Assinatura depois: $(codesign -dv "$APP" 2>&1 | tr '\n' ' ' | cut -c1-240)"
+
+        # Um iPhone disponível, de preferência no runtime que casa com o Xcode escolhido (senão, no mais novo)
+        UDID="$(xcrun simctl list devices available -j | python3 -c '
+        import json, os, sys
+        want = "iOS-" + os.environ.get("SIM_RUNTIME", "").replace(".", "-")
+        best = None
+        for runtime, devices in json.load(sys.stdin)["devices"].items():
+            if "iOS" not in runtime:
+                continue
+            for d in devices:
+                if d.get("isAvailable") and d["name"].startswith("iPhone"):
+                    rank = (runtime.endswith(want), runtime)
+                    if best is None or rank > best[0]:
+                        best = (rank, d["udid"])
+        print(best[1] if best else "")
+        ')"
+        if [ -z "$UDID" ]; then
+          echo "::error::Nenhum iPhone disponível no simulador"
+          xcrun simctl list devices available
+          exit 1
+        fi
+        echo "Simulador: $UDID"
+
+        # Resume um relatório de crash (.ips): exceção, motivo e o topo da pilha. Só é usado se o app cair.
+        cat > "$RUNNER_TEMP/resumo-crash.py" <<'PY'
+        import json, sys
+        raw = open(sys.argv[1], encoding="utf-8", errors="replace").read()
+        _, _, rest = raw.partition("\n")
+        try:
+            b = json.loads(rest)
+        except ValueError:
+            print(raw[:6000])
+            sys.exit(0)
+        print("exceção:", json.dumps(b.get("exception")))
+        print("término:", json.dumps(b.get("termination")))
+        print("asi:", json.dumps(b.get("asi"), ensure_ascii=False)[:4000])
+        images = b.get("usedImages", [])
+        def pilha(titulo, frames, n):
+            print(titulo)
+            for f in frames[:n]:
+                i = f.get("imageIndex")
+                img = images[i].get("name", "?") if isinstance(i, int) and i < len(images) else "?"
+                print("  %s %s" % (img, f.get("symbol", "?")))
+        threads = b.get("threads", [])
+        ft = b.get("faultingThread")
+        if isinstance(ft, int) and ft < len(threads):
+            pilha("thread que falhou:", threads[ft].get("frames", []), 25)
+        if b.get("lastExceptionBacktrace"):
+            pilha("pilha da última exceção:", b["lastExceptionBacktrace"], 20)
+        PY
+
+        xcrun simctl boot "$UDID" || true
+        xcrun simctl bootstatus "$UDID" -b
+        xcrun simctl install "$UDID" "$APP"
+
+        # Log do app, guardado para o diagnóstico se ele cair
+        mkdir -p "$RUNNER_TEMP/ios-diagnostico"
+        xcrun simctl spawn "$UDID" log stream --style compact --level debug --predicate 'process == "Monburan.Mobile"' > "$RUNNER_TEMP/ios-diagnostico/app-log.txt" 2>&1 &
+        LOG_PID=$!
+        trap 'kill "$LOG_PID" 2>/dev/null || true' EXIT
+
+        xcrun simctl launch "$UDID" com.monburan.app
+        sleep 25
+        xcrun simctl io "$UDID" screenshot "$RUNNER_TEMP/ios-simulador.png"
+
+        # Se o app caiu, o launchd do simulador não o lista mais
+        if xcrun simctl spawn "$UDID" launchctl list | grep -q "com.monburan.app"; then
+          echo "O app continua em execução depois de 25 s"
+        else
+          echo "::error::O app não está mais em execução (provável crash na abertura)"
+          while IFS= read -r relatorio; do
+            echo "=== relatório de crash: $relatorio"
+            cp "$relatorio" "$RUNNER_TEMP/ios-diagnostico/"
+            python3 "$RUNNER_TEMP/resumo-crash.py" "$relatorio" || true
+          done < <(find "$HOME/Library/Logs/DiagnosticReports" -maxdepth 1 -type f -name 'Monburan*.ips' 2>/dev/null | sort | tail -3)
+          echo "=== log do app no simulador (fim)"
+          tail -n 60 "$RUNNER_TEMP/ios-diagnostico/app-log.txt" || true
+          echo "=== log do macOS sobre o app (últimos 3 min)"
+          sudo log show --last 3m --style compact --predicate 'eventMessage CONTAINS[c] "monburan"' 2>/dev/null | tail -n 40 || true
+          exit 1
+        fi
+
+    - name: Upload print do simulador
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: ios-simulador-print
+        path: ${{ runner.temp }}/ios-simulador.png
+        retention-days: 14
+        if-no-files-found: ignore
+
+    - name: Upload diagnóstico do simulador
+      if: failure()
+      uses: actions/upload-artifact@v4
+      with:
+        name: ios-simulador-diagnostico
+        path: ${{ runner.temp }}/ios-diagnostico
+        retention-days: 14
+        if-no-files-found: ignore
+
+  ipa:
+    runs-on: macos-latest
+    timeout-minutes: 90
+    env:
+      PUBLISHING: ${{ github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch') }}
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+
+    - name: Install MAUI iOS workload
+      run: dotnet workload install maui-ios
+
+    # O compilador de assets do Xcode (actool) exige um runtime de simulador da mesma versão do iOS que o SDK do Xcode em
+    # uso (compara major.minor; o build do runtime difere do do SDK). O runner só guarda os runtimes mais novos, então o
+    # passo escolhe o Xcode mais antigo, a partir do SDK alvo, que tenha runtime instalado (hoje o 26.2). O SDK de iOS 26.0
+    # do .NET pede o Xcode 26.0, que aqui não tem runtime; por isso os builds desligam essa checagem de versão
+    # (ValidateXcodeVersion=false), que só compara o major.minor do Xcode.
+    - name: Selecionar o Xcode do SDK de iOS alvo
+      run: |
+        echo "macOS: $(sw_vers -productVersion) | SDK de iOS alvo: $IOS_SDK"
+        RUNTIMES="$(xcrun simctl list runtimes -j | python3 -c '
+        import json, sys
+        for r in json.load(sys.stdin)["runtimes"]:
+            if r.get("isAvailable") and "iOS" in r.get("name", ""):
+                print(".".join(r.get("version", "").split(".")[:2]))
+        ')"
+        echo "Runtimes de simulador de iOS instalados (versão): $(echo "$RUNTIMES" | tr '\n' ' ')"
+        XCODE=""
+        SEEN=""
+        for app in $(find /Applications -maxdepth 1 -name 'Xcode_*.app' | sort -V); do
+          real="$(realpath "$app")"
+          case " $SEEN " in *" $real "*) continue ;; esac
+          SEEN="$SEEN $real"
+          ver="$(basename "$real" .app | sed 's/^Xcode_//')"
+          # só do SDK alvo em diante
+          if [ "$(printf '%s\n%s\n' "$IOS_SDK" "$ver" | sort -V | head -1)" != "$IOS_SDK" ]; then continue; fi
+          sdkver="$(DEVELOPER_DIR="$real/Contents/Developer" xcrun --sdk iphonesimulator --show-sdk-version 2>/dev/null | cut -d. -f1,2 || true)"
+          echo "  $(basename "$real"): SDK de simulador $sdkver"
+          if [ -n "$sdkver" ] && echo "$RUNTIMES" | grep -qx "$sdkver"; then
+            XCODE="$real"
+            XCODE_SDK="$sdkver"
+            break
+          fi
+        done
+        if [ -z "$XCODE" ]; then
+          echo "::error::Nenhum Xcode a partir do ${IOS_SDK} tem runtime de simulador instalado neste runner; veja a lista acima"
+          exit 1
+        fi
+        echo "Xcode escolhido: $XCODE"
+        sudo xcode-select -s "$XCODE/Contents/Developer"
+        xcodebuild -version
+        # runtime de simulador que casa com esse Xcode (o job do simulador usa)
+        echo "SIM_RUNTIME=$XCODE_SDK" >> "$GITHUB_ENV"
+
+    - name: Ler a versão do csproj
+      id: version
+      run: |
+        name="$(grep -o '<ApplicationDisplayVersion>[^<]*' "$CSPROJ" | sed 's/<ApplicationDisplayVersion>//' | tr -d '\r')"
+        code="$(grep -o '<ApplicationVersion>[^<]*' "$CSPROJ" | sed 's/<ApplicationVersion>//' | tr -d '\r')"
+        if [ -z "$name" ] || [ -z "$code" ]; then
+          echo "::error::ApplicationDisplayVersion/ApplicationVersion não encontrados em $CSPROJ"
+          exit 1
+        fi
+        {
+          echo "name=$name"
+          echo "code=$code"
+        } >> "$GITHUB_OUTPUT"
+        echo "Versão do app: $name (build $code)"
+
+    # Build para aparelho (ios-arm64) sem certificado: o resultado é um .app sem assinatura
+    - name: Build para aparelho (Release, sem assinatura)
+      run: dotnet build "$CSPROJ" -f "net10.0-ios${IOS_SDK}" -c Release -p:IosOnly=true -p:IosSdkVersion="$IOS_SDK" -p:RuntimeIdentifier=ios-arm64 -p:EnableCodeSigning=false -p:ValidateXcodeVersion=false
+
+    # O .ipa é só um zip com o .app dentro de Payload/
+    - name: Montar o .ipa
+      id: ipa
+      env:
+        VERSION_NAME: ${{ steps.version.outputs.name }}
+      run: |
+        APP="$(find src/Monburan.Mobile/bin/Release -maxdepth 3 -name '*.app' -type d -path '*ios-arm64*' | head -1)"
+        if [ -z "$APP" ]; then
+          echo "::error::Nenhum .app gerado pelo build para aparelho"
+          find src/Monburan.Mobile/bin -maxdepth 4 | head -30
+          exit 1
+        fi
+        IPA="$GITHUB_WORKSPACE/Monburan-v$VERSION_NAME-unsigned.ipa"
+        rm -rf "$RUNNER_TEMP/ipa" "$IPA"
+        mkdir -p "$RUNNER_TEMP/ipa/Payload"
+        cp -R "$APP" "$RUNNER_TEMP/ipa/Payload/"
+        (cd "$RUNNER_TEMP/ipa" && zip -qry "$IPA" Payload)
+        {
+          echo "path=$IPA"
+          echo "app=$APP"
+        } >> "$GITHUB_OUTPUT"
+        ls -la "$IPA"
+
+    - name: Conferir o pacote (identificador, versão, arquitetura e ausência de assinatura)
+      id: check
+      env:
+        VERSION_NAME: ${{ steps.version.outputs.name }}
+        VERSION_CODE: ${{ steps.version.outputs.code }}
+        IPA: ${{ steps.ipa.outputs.path }}
+      run: |
+        rm -rf "$RUNNER_TEMP/check" && mkdir -p "$RUNNER_TEMP/check"
+        unzip -q "$IPA" -d "$RUNNER_TEMP/check"
+        APP="$(find "$RUNNER_TEMP/check/Payload" -maxdepth 1 -name '*.app' -type d | head -1)"
+        PLIST="$APP/Info.plist"
+        id="$(plutil -extract CFBundleIdentifier raw "$PLIST")"
+        short="$(plutil -extract CFBundleShortVersionString raw "$PLIST")"
+        build="$(plutil -extract CFBundleVersion raw "$PLIST")"
+        exe="$(plutil -extract CFBundleExecutable raw "$PLIST")"
+        minos="$(plutil -extract MinimumOSVersion raw "$PLIST")"
+        echo "Identificador: $id | versão: $short | build: $build | iOS mínimo: $minos"
+        echo "Arquitetura: $(lipo -info "$APP/$exe")"
+        if [ "$id" != "com.monburan.app" ] || [ "$short" != "$VERSION_NAME" ] || [ "$build" != "$VERSION_CODE" ]; then
+          echo "::error::O pacote não tem a identidade esperada (com.monburan.app / $VERSION_NAME / $VERSION_CODE)"
+          exit 1
+        fi
+        # Sem assinatura de propósito: o codesign precisa dizer isso, para ninguém tomar o arquivo por distribuível
+        if codesign -dv "$APP" 2>&1 | grep -q "not signed at all"; then
+          echo "Sem assinatura, como esperado"
+        else
+          echo "::warning::O .app aparenta ter alguma assinatura; confira a saída do codesign abaixo"
+          codesign -dv "$APP" 2>&1 | head -8 || true
+        fi
+        echo "sha256=$(shasum -a 256 "$IPA" | awk '{print $1}')" >> "$GITHUB_OUTPUT"
+
+    - name: Upload .ipa sem assinatura
+      uses: actions/upload-artifact@v4
+      with:
+        name: monburan-ios-unsigned-v${{ steps.version.outputs.name }}
+        path: ${{ steps.ipa.outputs.path }}
+        retention-days: 30
+        if-no-files-found: error
+
+    # A release v<versão> é criada pelo android-release.yml (que roda em paralelo); espera ela existir e anexa o .ipa
+    - name: Anexar o .ipa à release
+      if: env.PUBLISHING == 'true'
+      env:
+        GH_TOKEN: ${{ github.token }}
+        VERSION_NAME: ${{ steps.version.outputs.name }}
+        IPA: ${{ steps.ipa.outputs.path }}
+        SHA256: ${{ steps.check.outputs.sha256 }}
+      run: |
+        tag="v$VERSION_NAME"
+        for _ in $(seq 1 40); do
+          if gh release view "$tag" > /dev/null 2>&1; then break; fi
+          sleep 30
+        done
+        if ! gh release view "$tag" > /dev/null 2>&1; then
+          echo "::warning::A release $tag não existe (o android-release.yml não a publicou); o .ipa fica só como artefato do run"
+          exit 0
+        fi
+        gh release upload "$tag" "$IPA" --clobber
+
+        # Instruções de instalação nas notas, uma vez só (marcador no comentário HTML)
+        body="$(gh release view "$tag" --json body --jq .body)"
+        if ! grep -q 'ios-sem-assinatura' <<< "$body"; then
+          {
+            printf '%s\n\n' "$body"
+            echo '<!-- ios-sem-assinatura -->'
+            echo '### iOS (sem assinatura)'
+            echo
+            echo "O arquivo \`$(basename "$IPA")\` **não é assinado** (o projeto não tem conta Apple Developer), então não instala direto. Para testar num iPhone, use um assinador com Apple ID gratuito, como AltStore ou Sideloadly, que assina na hora. Limites do Apple ID gratuito: a assinatura vale 7 dias (precisa renovar), no máximo 3 apps ativos e o iPhone precisa estar com o Modo Desenvolvedor ligado. Não serve para distribuir ao público."
+            echo
+            echo "- SHA-256 do .ipa: \`$SHA256\`"
+          } > ios-notes.md
+          gh release edit "$tag" --notes-file ios-notes.md
+        fi
+        echo "Anexado a $tag."
