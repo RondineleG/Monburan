@@ -214,18 +214,17 @@ h1[tabindex="-1"]:focus { outline: none; }
     gap: 0.7rem;
     margin: 0.12rem 0;
     padding: 0.5rem 0.65rem;
-    border-left: 2px solid transparent;
-    border-radius: 0 var(--r-sm) var(--r-sm) 0;
+    border-radius: var(--r-sm);
     color: var(--tx-2) !important;
     font-family: var(--f-ui);
     font-size: 0.88rem;
     font-weight: 600;
     text-decoration: none;
-    transition: color var(--dur-xs) ease, background var(--dur-xs) ease, border-color var(--dur-xs) ease;
+    transition: color var(--dur-xs) ease, background var(--dur-xs) ease, box-shadow var(--dur-xs) ease;
 }
 
 .sidebar-link:hover,
-.sidebar-link.active { border-left-color: var(--gold); background: var(--gold-soft); color: var(--gold-d) !important; }
+.sidebar-link.active { background: var(--gold-soft); color: var(--gold-d) !important; box-shadow: inset 3px 0 0 var(--gold); }
 .sidebar-link__icon { display: grid; width: 1.7rem; height: 1.7rem; place-items: center; flex: 0 0 auto; border: 1px solid var(--gold-border); border-radius: var(--r-xs); color: var(--gold); font-family: var(--f-mono); font-size: 0.8rem; }
 .sidebar-callout { display: flex; flex-direction: column; gap: 0.55rem; margin: 1.2rem 0.2rem 0; padding: 0.9rem; border: 1px solid var(--gold-border); border-radius: var(--r-md); background: linear-gradient(145deg, var(--gold-soft), transparent); }
 .sidebar-callout__eyebrow { color: var(--gold); font-family: var(--f-mono); font-size: 0.52rem; letter-spacing: 0.14em; }
@@ -696,7 +695,7 @@ body:has(.job-modal-backdrop) { overflow: hidden; }
 .job-modal__howto { padding: 0.9rem 1rem; border: 1px solid rgb(46 104 48 / 25%); border-radius: var(--r-sm); background: var(--ok-bg); }
 .job-modal__howto h3 { color: var(--ok); }
 .job-modal__howto h3::before { background: var(--ok); }
-.job-modal__warning { margin-top: 1.35rem; padding: 0.9rem 1rem; border: 1px solid rgb(180 83 9 / 30%); border-left: 3px solid var(--gold-d); border-radius: var(--r-sm); background: var(--gold-soft); }
+.job-modal__warning { margin-top: 1.35rem; padding: 0.9rem 1rem; border: 1px solid rgb(180 83 9 / 30%); border-radius: var(--r-sm); background: var(--gold-soft); }
 .job-modal__warning h3 { color: var(--gold-d); }
 .job-modal__warning p { font-size: 0.92rem; }
 .job-modal__disclaimer { margin-top: 1.1rem; color: var(--tx-2); font-family: var(--f-ui); font-size: 0.82rem; line-height: 1.6; }
@@ -729,7 +728,7 @@ body:has(.job-modal-backdrop) { overflow: hidden; }
 .job-modal__section p { padding: 0 0.9rem 0.85rem; font-size: 0.9rem !important; }
 .job-modal__section--howto { border-color: var(--gold-border); background: var(--gold-soft); }
 .job-modal__section--howto summary::before { background: var(--gold-d); }
-.job-modal__notice { margin-top: 1rem; padding: 0.65rem 0.85rem; border-left: 2px solid var(--gold-d); color: var(--tx-2); font-family: var(--f-ui); font-size: 0.78rem !important; line-height: 1.5 !important; }
+.job-modal__notice { margin-top: 1rem; padding: 0.65rem 0.85rem; border-radius: var(--r-sm); background: var(--surface); color: var(--tx-2); font-family: var(--f-ui); font-size: 0.78rem !important; line-height: 1.5 !important; }
 
 /* Stats do dono da vaga */
 .job-modal__owner-stats {
@@ -801,8 +800,8 @@ body:has(.job-modal-backdrop) { overflow: hidden; }
 
 .job-card { display: flex; height: 100%; flex-direction: column; transition: transform var(--dur-sm) var(--ease), box-shadow var(--dur-sm) var(--ease), border-color var(--dur-sm) var(--ease); }
 .job-card:hover { border-color: var(--gold-border); box-shadow: var(--shadow-md); transform: translateY(-2px); }
-.job-card--remote { border-left: 3px solid var(--gold-border); }
-.job-card--remote:hover { border-left-color: var(--gold-d); }
+.job-card--remote { background: var(--gold-soft); }
+.job-card--remote:hover { background: var(--gold-soft); border-color: var(--gold-border); }
 .job-card__body { display: flex; flex: 1; flex-direction: column; padding: 1.15rem 1.25rem 1rem; }
 .job-card__top { display: flex; align-items: center; justify-content: space-between; gap: 0.6rem; margin-bottom: 0.8rem; }
 .job-company-mark { display: grid; width: 2.4rem; height: 2.4rem; place-items: center; flex: 0 0 auto; border: 1px solid var(--gold-border); border-radius: var(--r-sm); background: linear-gradient(145deg, var(--gold-soft), transparent); color: var(--gold-d); font-family: var(--f-display); font-size: 1.05rem; font-weight: 600; }
@@ -1015,8 +1014,8 @@ body::after {
     html.sidebar-rail .app-sidebar:not(:hover):not(:focus-within) .sidebar-logout__text { display: none; }
 
     html.sidebar-rail .app-sidebar:not(:hover):not(:focus-within) .app-sidebar__top { justify-content: center; padding-inline: 0; }
-    html.sidebar-rail .app-sidebar:not(:hover):not(:focus-within) .sidebar-link { justify-content: center; padding-inline: 0; border-left-color: transparent; border-radius: var(--r-sm); }
-    html.sidebar-rail .app-sidebar:not(:hover):not(:focus-within) .sidebar-link.active { border-left-color: transparent; }
+    html.sidebar-rail .app-sidebar:not(:hover):not(:focus-within) .sidebar-link { justify-content: center; padding-inline: 0; box-shadow: none; border-radius: var(--r-sm); }
+    html.sidebar-rail .app-sidebar:not(:hover):not(:focus-within) .sidebar-link.active { box-shadow: none; }
     html.sidebar-rail .app-sidebar:not(:hover):not(:focus-within) .profile-link { justify-content: center; padding-inline: 0; }
     html.sidebar-rail .app-sidebar:not(:hover):not(:focus-within) .sidebar-auth-links { justify-content: center; }
     html.sidebar-rail .app-sidebar:not(:hover):not(:focus-within) .sidebar-auth-links a {
@@ -1077,7 +1076,7 @@ html[data-theme="dark"] .theme-toggle::before { content: "☀"; }
     gap: 0.7rem;
     padding: 0.4rem 0.65rem;
     border: 0;
-    border-left: 2px solid transparent;
+    box-shadow: none;
     border-radius: 0 var(--r-sm) var(--r-sm) 0;
     background: transparent;
     color: var(--tx-2);
@@ -1086,7 +1085,7 @@ html[data-theme="dark"] .theme-toggle::before { content: "☀"; }
     font-weight: 600;
     transition: color var(--dur-xs) ease, background var(--dur-xs) ease;
 }
-.sidebar-logout__btn:hover { border-left-color: var(--er); background: var(--er-bg); color: var(--er); }
+.sidebar-logout__btn:hover { box-shadow: inset 3px 0 0 var(--er); background: var(--er-bg); color: var(--er); }
 .sidebar-logout__btn .sidebar-link__icon { border-color: var(--border-2); color: var(--tx-3); }
 .sidebar-logout__btn:hover .sidebar-link__icon { border-color: var(--er); color: var(--er); }
 
