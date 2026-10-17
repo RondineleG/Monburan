@@ -34,6 +34,8 @@ env:
   DOTNET_NOLOGO: true
   DOTNET_CLI_TELEMETRY_OPTOUT: true
   CSPROJ: src/Monburan.Mobile/Monburan.Mobile.csproj
+  # SDK de iOS alvo: casa com IosSdkVersion do csproj e define o Xcode usado (o do iOS 26 é o Xcode 26.0)
+  IOS_SDK: '26.0'
 
 jobs:
   simulator:
@@ -52,23 +54,19 @@ jobs:
     - name: Install MAUI iOS workload
       run: dotnet workload install maui-ios
 
-    # O workload iOS do .NET exige o Xcode da versão do SDK de iOS que ele traz (hoje o iOS 27, que pede o Xcode 27).
-    # A versão sai do nome do pacote instalado (Microsoft.iOS.Sdk.net10.0_<versão>), então a esteira acompanha o
-    # workload sem número fixo: escolhe o Xcode instalado no runner que casa com ela.
-    - name: Selecionar o Xcode exigido pelo workload
+    # O SDK de iOS do .NET exige o Xcode da sua própria versão (o do iOS 26 pede o Xcode 26.0). O workload também traz o
+    # SDK do iOS 27, mas os runners ainda não têm o Xcode 27, então o app mira o iOS 26 (IosSdkVersion no csproj).
+    - name: Selecionar o Xcode do SDK de iOS alvo
       run: |
-        PACK="$(find "${DOTNET_ROOT:-$HOME/.dotnet}/packs" -maxdepth 1 -name 'Microsoft.iOS.Sdk.net10.0_*' | sort -V | tail -1)"
-        REQ="${PACK##*_}"
-        MAJOR="${REQ%%.*}"
-        echo "macOS: $(sw_vers -productVersion) | o workload iOS exige o Xcode $REQ"
+        echo "macOS: $(sw_vers -productVersion) | SDK de iOS alvo: $IOS_SDK"
         echo "Xcodes instalados no runner:"
         find /Applications -maxdepth 1 -name 'Xcode*.app' | sort -V
-        XCODE="$(find /Applications -maxdepth 1 -name "Xcode_${REQ}*.app" | sort -V | tail -1)"
+        XCODE="$(find /Applications -maxdepth 1 -name "Xcode_${IOS_SDK}.app" | head -1)"
         if [ -z "$XCODE" ]; then
-          XCODE="$(find /Applications -maxdepth 1 -name "Xcode_${MAJOR}*.app" | sort -V | tail -1)"
+          XCODE="$(find /Applications -maxdepth 1 -name "Xcode_${IOS_SDK}*.app" | sort -V | head -1)"
         fi
         if [ -z "$XCODE" ]; then
-          echo "::error::Nenhum Xcode ${REQ} (nem ${MAJOR}.x) instalado neste runner; veja a lista acima"
+          echo "::error::Nenhum Xcode ${IOS_SDK} instalado neste runner; veja a lista acima"
           exit 1
         fi
         sudo xcode-select -s "$XCODE/Contents/Developer"
@@ -78,12 +76,12 @@ jobs:
       run: |
         if [ "$(uname -m)" = "arm64" ]; then rid=iossimulator-arm64; else rid=iossimulator-x64; fi
         # IosOnly=true: o app declara só o alvo iOS; sem isso o macOS também avalia o alvo Android e exige o workload dele
-        dotnet build "$CSPROJ" -f net10.0-ios -c Release -p:IosOnly=true -p:RuntimeIdentifier="$rid"
+        dotnet build "$CSPROJ" -f "net10.0-ios${IOS_SDK}" -c Release -p:IosOnly=true -p:IosSdkVersion="$IOS_SDK" -p:RuntimeIdentifier="$rid"
 
     # O app de Release aponta para https://monburan.com.br: o print mostra a lista de vagas carregada (leitura pública)
     - name: Abrir o app no simulador e tirar print
       run: |
-        APP="$(find src/Monburan.Mobile/bin/Release/net10.0-ios -maxdepth 2 -name '*.app' -type d | head -1)"
+        APP="$(find src/Monburan.Mobile/bin/Release -maxdepth 3 -name '*.app' -type d -path '*iossimulator*' | head -1)"
         if [ -z "$APP" ]; then
           echo "::error::Nenhum .app gerado pelo build"
           find src/Monburan.Mobile/bin -maxdepth 4 | head -30
@@ -154,23 +152,19 @@ jobs:
     - name: Install MAUI iOS workload
       run: dotnet workload install maui-ios
 
-    # O workload iOS do .NET exige o Xcode da versão do SDK de iOS que ele traz (hoje o iOS 27, que pede o Xcode 27).
-    # A versão sai do nome do pacote instalado (Microsoft.iOS.Sdk.net10.0_<versão>), então a esteira acompanha o
-    # workload sem número fixo: escolhe o Xcode instalado no runner que casa com ela.
-    - name: Selecionar o Xcode exigido pelo workload
+    # O SDK de iOS do .NET exige o Xcode da sua própria versão (o do iOS 26 pede o Xcode 26.0). O workload também traz o
+    # SDK do iOS 27, mas os runners ainda não têm o Xcode 27, então o app mira o iOS 26 (IosSdkVersion no csproj).
+    - name: Selecionar o Xcode do SDK de iOS alvo
       run: |
-        PACK="$(find "${DOTNET_ROOT:-$HOME/.dotnet}/packs" -maxdepth 1 -name 'Microsoft.iOS.Sdk.net10.0_*' | sort -V | tail -1)"
-        REQ="${PACK##*_}"
-        MAJOR="${REQ%%.*}"
-        echo "macOS: $(sw_vers -productVersion) | o workload iOS exige o Xcode $REQ"
+        echo "macOS: $(sw_vers -productVersion) | SDK de iOS alvo: $IOS_SDK"
         echo "Xcodes instalados no runner:"
         find /Applications -maxdepth 1 -name 'Xcode*.app' | sort -V
-        XCODE="$(find /Applications -maxdepth 1 -name "Xcode_${REQ}*.app" | sort -V | tail -1)"
+        XCODE="$(find /Applications -maxdepth 1 -name "Xcode_${IOS_SDK}.app" | head -1)"
         if [ -z "$XCODE" ]; then
-          XCODE="$(find /Applications -maxdepth 1 -name "Xcode_${MAJOR}*.app" | sort -V | tail -1)"
+          XCODE="$(find /Applications -maxdepth 1 -name "Xcode_${IOS_SDK}*.app" | sort -V | head -1)"
         fi
         if [ -z "$XCODE" ]; then
-          echo "::error::Nenhum Xcode ${REQ} (nem ${MAJOR}.x) instalado neste runner; veja a lista acima"
+          echo "::error::Nenhum Xcode ${IOS_SDK} instalado neste runner; veja a lista acima"
           exit 1
         fi
         sudo xcode-select -s "$XCODE/Contents/Developer"
@@ -193,7 +187,7 @@ jobs:
 
     # Build para aparelho (ios-arm64) sem certificado: o resultado é um .app sem assinatura
     - name: Build para aparelho (Release, sem assinatura)
-      run: dotnet build "$CSPROJ" -f net10.0-ios -c Release -p:IosOnly=true -p:RuntimeIdentifier=ios-arm64 -p:EnableCodeSigning=false
+      run: dotnet build "$CSPROJ" -f "net10.0-ios${IOS_SDK}" -c Release -p:IosOnly=true -p:IosSdkVersion="$IOS_SDK" -p:RuntimeIdentifier=ios-arm64 -p:EnableCodeSigning=false
 
     # O .ipa é só um zip com o .app dentro de Payload/
     - name: Montar o .ipa
@@ -201,7 +195,7 @@ jobs:
       env:
         VERSION_NAME: ${{ steps.version.outputs.name }}
       run: |
-        APP="$(find src/Monburan.Mobile/bin/Release/net10.0-ios/ios-arm64 -maxdepth 1 -name '*.app' -type d | head -1)"
+        APP="$(find src/Monburan.Mobile/bin/Release -maxdepth 3 -name '*.app' -type d -path '*ios-arm64*' | head -1)"
         if [ -z "$APP" ]; then
           echo "::error::Nenhum .app gerado pelo build para aparelho"
           find src/Monburan.Mobile/bin -maxdepth 4 | head -30

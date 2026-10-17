@@ -41,7 +41,11 @@ preciso desinstalar a versão anterior uma vez.
 ## iOS (sem conta Apple Developer)
 
 O iOS só compila em macOS, então o `ios-build.yml` usa runner `macos-latest` (grátis em repositório público). O projeto
-declara o alvo `net10.0-ios` apenas quando o build roda em macOS; no Linux, no Windows e no APK nada muda.
+declara o alvo `net10.0-ios26.0` apenas quando o build roda em macOS; no Linux, no Windows e no APK nada muda.
+
+O alvo é o SDK do iOS 26 (Xcode 26.0): o workload do .NET 10 traz também o do iOS 27, que exige o Xcode 27, ainda
+ausente dos runners do GitHub. Para mirar o 27, troque `IosSdkVersion` no csproj e `IOS_SDK` no `ios-build.yml`.
+A esteira usa `-p:IosOnly=true` para o app declarar só o alvo iOS e não exigir o workload do Android no macOS.
 
 Sem conta Apple Developer não há assinatura, TestFlight nem App Store. O que a esteira entrega:
 
