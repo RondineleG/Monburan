@@ -87,12 +87,16 @@ else
     private bool _hasMore;
     private bool _loading = true;
     private bool _loadingMore;
+    private int _loadVersion;
     private ApiException? _error;
 
     protected override Task OnInitializedAsync() => LoadAsync();
 
     private async Task LoadAsync()
     {
+        // Só a busca mais recente preenche a lista: buscar ou filtrar com a carga anterior
+        // ainda em andamento somava as duas respostas (cards duplicados e fora do filtro)
+        var version = ++_loadVersion;
         _loading = true;
         _error = null;
         _page = 1;
@@ -100,35 +104,44 @@ else
 
         try
         {
-            var result = await Api.GetJobsAsync(BuildRequest());
+            var result = await Api.GetJobsAsync(BuildRequest(1));
+            if (version != _loadVersion)
+                return;
+
             _jobs.AddRange(result.Jobs);
             _hasMore = result.HasNextPage;
         }
         catch (ApiException ex)
         {
-            _error = ex;
+            if (version == _loadVersion)
+                _error = ex;
         }
         finally
         {
-            _loading = false;
+            if (version == _loadVersion)
+                _loading = false;
         }
     }
 
     private async Task LoadMoreAsync()
     {
+        var version = _loadVersion;
         _loadingMore = true;
         try
         {
+            var result = await Api.GetJobsAsync(BuildRequest(_page + 1));
+            if (version != _loadVersion)
+                return;
+
             _page++;
-            var result = await Api.GetJobsAsync(BuildRequest());
             _jobs.AddRange(result.Jobs);
             _hasMore = result.HasNextPage;
         }
         catch (ApiException ex)
         {
             // Mantém as vagas já carregadas; só avisa que a próxima página falhou
-            _page--;
-            Toast.ShowError(ex.Message);
+            if (version == _loadVersion)
+                Toast.ShowError(ex.Message);
         }
         finally
         {
@@ -136,9 +149,9 @@ else
         }
     }
 
-    private ListJobsRequest BuildRequest() => new()
+    private ListJobsRequest BuildRequest(int page) => new()
     {
-        Page = _page,
+        Page = page,
         Size = PageSize,
         SearchTerm = string.IsNullOrWhiteSpace(_searchTerm) ? null : _searchTerm,
         IsRemote = _isRemote,
