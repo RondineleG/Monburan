@@ -113,6 +113,15 @@ jobs:
         fi
         echo "App: $APP"
 
+        # O simulador em Mac arm64 só executa binários com assinatura válida. O build é sem assinatura (não há
+        # certificado), então o app e as bibliotecas nativas recebem aqui uma assinatura ad hoc, que não identifica ninguém.
+        echo "Assinatura antes: $(codesign -dv "$APP" 2>&1 | tr '\n' ' ' | cut -c1-240)"
+        while IFS= read -r -d '' item; do
+          codesign --force --sign - --timestamp=none "$item"
+        done < <(find "$APP" -depth \( -name '*.dylib' -o -name '*.framework' \) -print0)
+        codesign --force --sign - --timestamp=none "$APP"
+        echo "Assinatura depois: $(codesign -dv "$APP" 2>&1 | tr '\n' ' ' | cut -c1-240)"
+
         # Um iPhone disponível, de preferência no runtime que casa com o Xcode escolhido (senão, no mais novo)
         UDID="$(xcrun simctl list devices available -j | python3 -c '
         import json, os, sys
@@ -135,9 +144,44 @@ jobs:
         fi
         echo "Simulador: $UDID"
 
+        # Resume um relatório de crash (.ips): exceção, motivo e o topo da pilha. Só é usado se o app cair.
+        cat > "$RUNNER_TEMP/resumo-crash.py" <<'PY'
+        import json, sys
+        raw = open(sys.argv[1], encoding="utf-8", errors="replace").read()
+        _, _, rest = raw.partition("\n")
+        try:
+            b = json.loads(rest)
+        except ValueError:
+            print(raw[:6000])
+            sys.exit(0)
+        print("exceção:", json.dumps(b.get("exception")))
+        print("término:", json.dumps(b.get("termination")))
+        print("asi:", json.dumps(b.get("asi"), ensure_ascii=False)[:4000])
+        images = b.get("usedImages", [])
+        def pilha(titulo, frames, n):
+            print(titulo)
+            for f in frames[:n]:
+                i = f.get("imageIndex")
+                img = images[i].get("name", "?") if isinstance(i, int) and i < len(images) else "?"
+                print("  %s %s" % (img, f.get("symbol", "?")))
+        threads = b.get("threads", [])
+        ft = b.get("faultingThread")
+        if isinstance(ft, int) and ft < len(threads):
+            pilha("thread que falhou:", threads[ft].get("frames", []), 25)
+        if b.get("lastExceptionBacktrace"):
+            pilha("pilha da última exceção:", b["lastExceptionBacktrace"], 20)
+        PY
+
         xcrun simctl boot "$UDID" || true
         xcrun simctl bootstatus "$UDID" -b
         xcrun simctl install "$UDID" "$APP"
+
+        # Log do app, guardado para o diagnóstico se ele cair
+        mkdir -p "$RUNNER_TEMP/ios-diagnostico"
+        xcrun simctl spawn "$UDID" log stream --style compact --level debug --predicate 'process == "Monburan.Mobile"' > "$RUNNER_TEMP/ios-diagnostico/app-log.txt" 2>&1 &
+        LOG_PID=$!
+        trap 'kill "$LOG_PID" 2>/dev/null || true' EXIT
+
         xcrun simctl launch "$UDID" com.monburan.app
         sleep 25
         xcrun simctl io "$UDID" screenshot "$RUNNER_TEMP/ios-simulador.png"
@@ -147,7 +191,15 @@ jobs:
           echo "O app continua em execução depois de 25 s"
         else
           echo "::error::O app não está mais em execução (provável crash na abertura)"
-          find "$HOME/Library/Logs/DiagnosticReports" -maxdepth 1 -type f -iname '*monburan*' 2>/dev/null | head -10 || true
+          while IFS= read -r relatorio; do
+            echo "=== relatório de crash: $relatorio"
+            cp "$relatorio" "$RUNNER_TEMP/ios-diagnostico/"
+            python3 "$RUNNER_TEMP/resumo-crash.py" "$relatorio" || true
+          done < <(find "$HOME/Library/Logs/DiagnosticReports" -maxdepth 1 -type f -name 'Monburan*.ips' 2>/dev/null | sort | tail -3)
+          echo "=== log do app no simulador (fim)"
+          tail -n 60 "$RUNNER_TEMP/ios-diagnostico/app-log.txt" || true
+          echo "=== log do macOS sobre o app (últimos 3 min)"
+          sudo log show --last 3m --style compact --predicate 'eventMessage CONTAINS[c] "monburan"' 2>/dev/null | tail -n 40 || true
           exit 1
         fi
 
@@ -157,6 +209,15 @@ jobs:
       with:
         name: ios-simulador-print
         path: ${{ runner.temp }}/ios-simulador.png
+        retention-days: 14
+        if-no-files-found: ignore
+
+    - name: Upload diagnóstico do simulador
+      if: failure()
+      uses: actions/upload-artifact@v4
+      with:
+        name: ios-simulador-diagnostico
+        path: ${{ runner.temp }}/ios-diagnostico
         retention-days: 14
         if-no-files-found: ignore
 
