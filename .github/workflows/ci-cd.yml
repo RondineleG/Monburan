@@ -2,15 +2,15 @@ name: CI/CD Pipeline
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [ main, dev ]
   pull_request:
-    branches: [ main, develop ]
+    branches: [ main, dev ]
   workflow_dispatch:
 
 permissions:
   contents: read
 
-# Um push novo no mesmo PR cancela a execução anterior; pushes em main/develop sempre terminam
+# Um push novo no mesmo PR cancela a execução anterior; pushes em main/dev sempre terminam
 concurrency:
   group: ci-cd-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
@@ -198,7 +198,7 @@ jobs:
   deploy-staging:
     runs-on: ubuntu-latest
     needs: [build-and-test, security-scan]
-    if: github.ref == 'refs/heads/develop' && github.event_name == 'push' && vars.AZURE_RESOURCE_GROUP != ''
+    if: github.ref == 'refs/heads/dev' && github.event_name == 'push' && vars.AZURE_RESOURCE_GROUP != ''
     environment:
       name: staging
       url: https://staging.monburan.com.br
