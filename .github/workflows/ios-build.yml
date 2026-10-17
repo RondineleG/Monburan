@@ -23,7 +23,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write   # anexar o .ipa à release
+  contents: read
 
 concurrency:
   group: ios-${{ github.ref }}
@@ -45,6 +45,8 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
+      with:
+        persist-credentials: false
 
     - name: Setup .NET
       uses: actions/setup-dotnet@v4
@@ -224,12 +226,16 @@ jobs:
   ipa:
     runs-on: macos-latest
     timeout-minutes: 90
+    permissions:
+      contents: write   # anexar o .ipa à release
     env:
       PUBLISHING: ${{ github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch') }}
 
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
+      with:
+        persist-credentials: false
 
     - name: Setup .NET
       uses: actions/setup-dotnet@v4
