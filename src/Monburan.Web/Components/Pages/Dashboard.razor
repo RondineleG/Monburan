@@ -11,6 +11,7 @@
 @inject GetDashboardAnalyticsUseCase DashboardAnalyticsUseCase
 @inject ICurrentUserHelper CurrentUserHelper
 @inject NavigationManager Navigation
+@inject ILogger<Dashboard> Logger
 
 <PageTitle>Dashboard - Monburan | Plataforma de Recrutamento</PageTitle>
 
@@ -52,10 +53,13 @@
 
     @if (isLoading)
     {
-        <div class="text-center py-5">
-            <div class="spinner-border text-primary" role="status"></div>
-            <p class="mt-2">Carregando...</p>
-        </div>
+        <LoadingState Message="Carregando..." />
+    }
+    else if (loadFailed)
+    {
+        <ErrorState Title="Não foi possível carregar o painel"
+                    Message="Tivemos um problema ao buscar seus indicadores. Tente novamente em instantes."
+                    OnRetry="LoadAsync" />
     }
     else if (isAdvertiser)
     {
@@ -348,11 +352,17 @@
             }
         </div>
     }
-    else if (!isLoading)
+    else if (!isLoading && !loadFailed)
     {
-        <div class="alert alert-info">
-            <i class="bi bi-info-circle"></i> Nenhuma vaga disponível no momento.
-        </div>
+        <EmptyState Icon="▣"
+                    Title="@(isAdvertiser ? "Você ainda não publicou vagas" : "Nenhuma vaga disponível no momento")"
+                    Message="@(isAdvertiser ? "Publique sua primeira vaga para começar a receber candidaturas." : "Novas oportunidades são publicadas todos os dias. Volte em breve.")"
+                    TestId="dashboard-jobs-empty">
+            @if (isAdvertiser)
+            {
+                <a class="btn btn-primary" href="/jobs/create">Publicar vaga</a>
+            }
+        </EmptyState>
     }
 
     @if (isAdvertiser && !isLoading)
@@ -373,6 +383,7 @@
     private DashboardAnalyticsResponse? analytics;
     private List<JobResponse> recentJobs = [];
     private bool isLoading = true;
+    private bool loadFailed;
     private bool isAuthenticated;
     private bool isAdvertiser;
     private bool isCandidate;
@@ -385,20 +396,40 @@
         isAdvertiser = advertiserId.HasValue;
         isCandidate = CurrentUserHelper.GetCandidateId().HasValue;
 
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        isLoading = true;
+        loadFailed = false;
+
         if (isAdvertiser)
         {
-            var analyticsResult = await DashboardAnalyticsUseCase.ExecuteAsync(advertiserId);
+            var analyticsResult = await DashboardAnalyticsUseCase.ExecuteAsync(CurrentUserHelper.GetAdvertiserId());
             if (analyticsResult.Status == EResultStatus.Success)
             {
                 analytics = analyticsResult.Data;
                 recentJobs = analytics?.RecentJobs ?? [];
+            }
+            else
+            {
+                Logger.LogFailure(analyticsResult, "Carregar painel do anunciante");
+                loadFailed = true;
             }
         }
         else
         {
             var jobsResult = await SearchJobsUseCase.ExecuteAsync(new ListJobsRequest { Page = 1, Size = 6 });
             if (jobsResult.Status == EResultStatus.Success && jobsResult.Data is not null)
+            {
                 recentJobs = jobsResult.Data.Jobs.ToList();
+            }
+            else
+            {
+                Logger.LogFailure(jobsResult, "Carregar vagas recentes");
+                loadFailed = true;
+            }
         }
 
         isLoading = false;

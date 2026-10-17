@@ -1,12 +1,13 @@
 @page "/plans"
 @rendermode InteractiveServer
+@using Monburan.Core.DTOs.Request
 @using Monburan.Core.DTOs.Response
 @using Monburan.Core.UseCases.Subscriptions
-@using Monburan.Core.Interfaces.Services
 @inject GetAvailablePlansUseCase GetAvailablePlansUseCase
 @inject UpgradePlanUseCase UpgradePlanUseCase
 @inject ICurrentUserHelper CurrentUserHelper
 @inject NavigationManager Navigation
+@inject IToastService Toast
 @inject ILogger<Plans> Logger
 
 <PageTitle>Planos e Preços - Monburan</PageTitle>
@@ -22,215 +23,210 @@
 
     @if (isLoading)
     {
-        <div class="text-center py-5">
-            <div class="spinner-border text-primary" role="status"></div>
-            <p class="mt-2">Carregando planos...</p>
-        </div>
+        <LoadingState Message="Carregando planos..." />
+    }
+    else if (loadFailed)
+    {
+        <ErrorState Title="Não foi possível carregar os planos"
+                    Message="Tivemos um problema ao buscar os planos disponíveis. Tente novamente em instantes."
+                    OnRetry="LoadAsync" />
+    }
+    else if (availablePlans is null || availablePlans.Plans.Count == 0)
+    {
+        <EmptyState Icon="◈" Title="Nenhum plano disponível no momento" Message="Volte em breve para conhecer as opções para empresas." />
     }
     else
     {
-        @if (!string.IsNullOrEmpty(errorMessage))
+        @if (availablePlans.CurrentSubscription != null)
         {
-            <div class="alert alert-danger">@errorMessage</div>
+            <div class="alert alert-info d-flex align-items-center mb-4">
+                <div>
+                    <strong>Seu plano atual:</strong> @availablePlans.CurrentSubscription.PlanName
+                    @if (availablePlans.CurrentSubscription.EndDate.HasValue)
+                    {
+                        <span class="ms-2">| Válido até: @UiLabels.FormatMomentDate(availablePlans.CurrentSubscription.EndDate)</span>
+                    }
+                </div>
+            </div>
         }
-        else if (availablePlans != null && availablePlans.Plans.Any())
+        else if (!isAdvertiser)
         {
-            @if (availablePlans.CurrentSubscription != null)
-            {
-                <div class="alert alert-info d-flex align-items-center mb-4">
-                    <i class="bi bi-info-circle me-2"></i>
-                    <div>
-                        <strong>Seu plano atual:</strong> @availablePlans.CurrentSubscription.PlanName
-                        @if (availablePlans.CurrentSubscription.EndDate.HasValue)
-                        {
-                            <span class="ms-2">| Válido até: @availablePlans.CurrentSubscription.EndDate.Value.ToString("dd/MM/yyyy")</span>
-                        }
-                    </div>
+            <div class="alert alert-info d-flex align-items-center mb-4">
+                <div>
+                    <strong>Planos para empresas.</strong> Os recursos abaixo valem para contas de anunciante — candidatos usam o Monburan gratuitamente.
                 </div>
-            }
-            else if (!isAdvertiser)
+            </div>
+        }
+
+        <div class="row g-4 plans-grid">
+            @foreach (var plan in availablePlans.Plans.OrderBy(p => p.Price))
             {
-                <div class="alert alert-info d-flex align-items-center mb-4">
-                    <i class="bi bi-info-circle me-2"></i>
-                    <div>
-                        <strong>Planos para empresas.</strong> Os recursos abaixo valem para contas de anunciante — candidatos usam o Monburan gratuitamente.
-                    </div>
-                </div>
-            }
+                var isCurrentPlan = availablePlans.CurrentSubscription?.PlanName == plan.Name;
+                var isFeatured = plan.Name == "Premium";
 
-            <div class="row g-4 plans-grid">
-                @foreach (var plan in availablePlans.Plans.OrderBy(p => p.Price))
-                {
-                    var isCurrentPlan = availablePlans.CurrentSubscription?.PlanName == plan.Name;
-                    var isFeatured = plan.Name == "Premium";
+                <div class="col-md-4">
+                    <div class="card h-100 plan-card @(isCurrentPlan ? "plan-card--current" : isFeatured ? "plan-card--featured" : "")">
+                        <div class="plan-card__ribbon">
+                            @if (isCurrentPlan)
+                            {
+                                <span>&#x2714; Plano atual</span>
+                            }
+                            else if (isFeatured)
+                            {
+                                <span>&#x2726; Mais escolhido</span>
+                            }
+                        </div>
+                        <div class="card-body">
+                            <h3 class="card-title text-center">@plan.Name</h3>
+                            <p class="plan-card__desc text-center">@plan.Description</p>
 
-                    <div class="col-md-4">
-                        <div class="card h-100 plan-card @(isCurrentPlan ? "plan-card--current" : isFeatured ? "plan-card--featured" : "")">
-                            <div class="plan-card__ribbon">
-                                @if (isCurrentPlan)
+                            <div class="plan-card__price text-center">
+                                @if (plan.Price == 0)
                                 {
-                                    <span>&#x2714; Plano atual</span>
-                                }
-                                else if (isFeatured)
-                                {
-                                    <span>&#x2726; Mais escolhido</span>
-                                }
-                            </div>
-                            <div class="card-body">
-                                <h3 class="card-title text-center">@plan.Name</h3>
-                                <p class="plan-card__desc text-center">@plan.Description</p>
-
-                                <div class="plan-card__price text-center">
-                                    @if (plan.Price == 0)
-                                    {
-                                        <strong>Grátis</strong>
-                                    }
-                                    else
-                                    {
-                                        <strong>R$ @plan.Price.ToString("N2")</strong>
-                                        <small>/mês</small>
-                                    }
-                                </div>
-
-                                @* Só recursos aplicados pelo backend: o limite de vagas ativas (CreateJobUseCase).
-                                   Boost, destaque e analytics por plano não têm implementação — não são anunciados. *@
-                                <ul class="list-unstyled">
-                                    <li>
-                                        <i class="bi @(plan.MaxJobs == -1 ? "bi-infinity" : "bi-briefcase")"></i>
-                                        @(plan.MaxJobs == -1 ? "Vagas ativas ilimitadas" : $"Até {plan.MaxJobs} vagas ativas ao mesmo tempo")
-                                    </li>
-                                    <li>
-                                        <i class="bi bi-people"></i>
-                                        Candidaturas ilimitadas em cada vaga
-                                    </li>
-                                    <li>
-                                        <i class="bi bi-graph-up"></i>
-                                        Painel com indicadores das suas vagas
-                                    </li>
-                                </ul>
-                            </div>
-                            <div class="card-footer bg-transparent text-center">
-                                @if (isAdvertiser)
-                                {
-                                    if (isCurrentPlan)
-                                    {
-                                        <button class="btn btn-secondary w-100" disabled>
-                                            Plano Atual
-                                        </button>
-                                    }
-                                    else
-                                    {
-                                        <button class="btn btn-primary w-100" @onclick="() => UpgradePlan(plan.Id)">
-                                            @(plan.Price == 0 ? "Mudar para este plano" : "Fazer upgrade")
-                                        </button>
-                                    }
-                                }
-                                else if (isCandidate)
-                                {
-                                    <span class="plan-card__note">Exclusivo para contas de empresa</span>
+                                    <strong>Grátis</strong>
                                 }
                                 else
                                 {
-                                    <a class="btn btn-primary w-100" href="/Account/Register?AccountType=advertiser">
-                                        Criar conta de empresa
-                                    </a>
+                                    <strong>R$ @plan.Price.ToString("N2")</strong>
+                                    <small>/mês</small>
                                 }
                             </div>
+
+                            @* Só recursos aplicados pelo backend: o limite de vagas ativas (CreateJobUseCase).
+                               Boost, destaque e analytics por plano não têm implementação — não são anunciados. *@
+                            <ul class="list-unstyled">
+                                <li>
+                                    <i class="bi @(plan.MaxJobs == -1 ? "bi-infinity" : "bi-briefcase")"></i>
+                                    @(plan.MaxJobs == -1 ? "Vagas ativas ilimitadas" : $"Até {plan.MaxJobs} vagas ativas ao mesmo tempo")
+                                </li>
+                                <li>
+                                    <i class="bi bi-people"></i>
+                                    Candidaturas ilimitadas em cada vaga
+                                </li>
+                                <li>
+                                    <i class="bi bi-graph-up"></i>
+                                    Painel com indicadores das suas vagas
+                                </li>
+                            </ul>
+                        </div>
+                        <div class="card-footer bg-transparent text-center">
+                            @if (isAdvertiser)
+                            {
+                                if (isCurrentPlan)
+                                {
+                                    <button class="btn btn-secondary w-100" disabled>
+                                        Plano atual
+                                    </button>
+                                }
+                                else
+                                {
+                                    <button class="btn btn-primary w-100" @onclick="() => ChangePlanAsync(plan)" disabled="@(changingPlanId is not null)">
+                                        @if (changingPlanId == plan.Id)
+                                        {
+                                            <span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>
+                                            <span>Ativando...</span>
+                                        }
+                                        else
+                                        {
+                                            @(plan.Price == 0 ? "Mudar para este plano" : "Fazer upgrade")
+                                        }
+                                    </button>
+                                }
+                            }
+                            else if (isCandidate)
+                            {
+                                <span class="plan-card__note">Exclusivo para contas de empresa</span>
+                            }
+                            else
+                            {
+                                <a class="btn btn-primary w-100" href="/Account/Register?AccountType=advertiser">
+                                    Criar conta de empresa
+                                </a>
+                            }
                         </div>
                     </div>
-                }
-            </div>
-
-
-            @if (!isAdvertiser)
-            {
-                <p class="plans-footnote">Já tem conta de empresa? <a href="/Account/Login">Entre para assinar</a>.</p>
+                </div>
             }
-        }
-        else
+        </div>
+
+        @if (!isAdvertiser && !isCandidate)
         {
-            <div class="alert alert-warning">
-                <i class="bi bi-exclamation-triangle"></i> Nenhum plano disponível no momento.
-            </div>
+            <p class="plans-footnote">Já tem conta de empresa? <a href="/Account/Login?ReturnUrl=%2Fplans">Entre para assinar</a>.</p>
         }
     }
 </div>
 
+<ConfirmDialog @ref="confirmDialog" />
+
 @code {
     private AvailablePlansResponse? availablePlans;
     private bool isLoading = true;
+    private bool loadFailed;
     private bool isAdvertiser;
     private bool isCandidate;
-    private string? errorMessage;
+    private Guid? changingPlanId;
+    private ConfirmDialog confirmDialog = default!;
 
     protected override async Task OnInitializedAsync()
     {
-        try
-        {
-            isAdvertiser = CurrentUserHelper.GetAdvertiserId().HasValue;
-            isCandidate = CurrentUserHelper.GetCandidateId().HasValue;
-
-            var advertiserId = CurrentUserHelper.GetAdvertiserId() ?? Guid.Empty;
-            var result = await GetAvailablePlansUseCase.ExecuteAsync(advertiserId);
-            if (result.Status == Core.Enums.EResultStatus.Success)
-            {
-                availablePlans = result.Data;
-            }
-            else
-            {
-                errorMessage = result.Message ?? "Erro ao carregar planos.";
-            }
-        }
-        catch (Exception ex)
-        {
-            Logger.LogError(ex, "Erro ao carregar planos disponíveis");
-            errorMessage = "Erro interno ao carregar planos. Tente novamente mais tarde.";
-        }
-        finally
-        {
-            isLoading = false;
-        }
+        isAdvertiser = CurrentUserHelper.GetAdvertiserId().HasValue;
+        isCandidate = CurrentUserHelper.GetCandidateId().HasValue;
+        await LoadAsync();
     }
 
-    private async Task UpgradePlan(Guid planId)
+    private async Task LoadAsync()
     {
-        try
+        isLoading = true;
+        loadFailed = false;
+
+        var result = await GetAvailablePlansUseCase.ExecuteAsync(CurrentUserHelper.GetAdvertiserId() ?? Guid.Empty);
+        if (result.Status == Core.Enums.EResultStatus.Success)
         {
-            var advertiserIdNullable = CurrentUserHelper.GetAdvertiserId();
-            if (!advertiserIdNullable.HasValue || advertiserIdNullable.Value == Guid.Empty)
-            {
-                errorMessage = "Usuário não identificado. Faça login novamente.";
-                return;
-            }
-
-            var advertiserId = advertiserIdNullable.Value;
-
-            var request = new Core.DTOs.Request.UpgradePlanRequest
-            {
-                AdvertiserId = advertiserId,
-                NewPlanId = planId,
-                PaymentMethod = "manual"
-            };
-
-            var result = await UpgradePlanUseCase.ExecuteAsync(request);
-            if (result.Status == Core.Enums.EResultStatus.Success)
-            {
-                Navigation.NavigateTo("/my-subscription");
-            }
-            else
-            {
-                errorMessage = result.Message ?? "Erro ao realizar upgrade.";
-            }
+            availablePlans = result.Data;
         }
-        catch (Exception ex)
+        else
         {
-            Logger.LogError(ex, "Erro ao fazer upgrade de plano");
-            errorMessage = "Erro interno ao fazer upgrade. Tente novamente mais tarde.";
+            Logger.LogFailure(result, "Carregar planos");
+            loadFailed = true;
         }
+
+        isLoading = false;
     }
 
-    private void NavigateToPlans()
+    private async Task ChangePlanAsync(PlanResponse plan)
     {
-        Navigation.NavigateTo("/plans");
+        var advertiserId = CurrentUserHelper.GetAdvertiserId();
+        if (!advertiserId.HasValue || changingPlanId is not null)
+            return;
+
+        var price = plan.Price == 0 ? "gratuito" : $"R$ {plan.Price:N2} por mês";
+        var limit = plan.MaxJobs == -1 ? "vagas ativas ilimitadas" : $"até {plan.MaxJobs} vagas ativas";
+        var confirmed = await confirmDialog.ShowAsync(new ConfirmOptions
+        {
+            Title = $"Mudar para o plano {plan.Name}?",
+            Message = $"O plano {plan.Name} ({price}, {limit}) substitui o plano atual a partir de agora.",
+            ConfirmText = "Confirmar mudança"
+        });
+        if (!confirmed)
+            return;
+
+        changingPlanId = plan.Id;
+        var result = await UpgradePlanUseCase.ExecuteAsync(new UpgradePlanRequest
+        {
+            AdvertiserId = advertiserId.Value,
+            NewPlanId = plan.Id,
+            PaymentMethod = "manual"
+        });
+        changingPlanId = null;
+
+        if (result.Status == Core.Enums.EResultStatus.Success)
+        {
+            Toast.ShowSuccess($"Seu plano agora é o {plan.Name}.", "Plano atualizado");
+            Navigation.NavigateTo("/my-subscription");
+            return;
+        }
+
+        Logger.LogFailure(result, "Mudar de plano");
+        Toast.ShowError(ResultMessages.ToUserMessage(result, "Não foi possível mudar de plano. Tente novamente."));
     }
 }

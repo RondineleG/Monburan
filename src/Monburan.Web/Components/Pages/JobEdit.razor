@@ -9,11 +9,29 @@
 @inject UpdateJobUseCase UpdateJobUseCase
 @inject ICurrentUserHelper CurrentUserHelper
 @inject NavigationManager Navigation
+@inject IToastService Toast
+@inject ILogger<JobEdit> Logger
 
 <PageTitle>Editar Vaga - Monburan</PageTitle>
 
 <div class="container mt-4 page-form-shell">
-    @if (isJobOwner)
+    @if (isLoading)
+    {
+        <LoadingState Message="Carregando vaga..." />
+    }
+    else if (loadFailed)
+    {
+        <ErrorState Title="Não foi possível carregar a vaga"
+                    Message="Tivemos um problema ao abrir a vaga para edição. Tente novamente em instantes."
+                    OnRetry="LoadAsync" />
+    }
+    else if (!isJobOwner)
+    {
+        <EmptyState Icon="!" Title="Vaga não disponível" Message="Ela não existe mais ou pertence a outra empresa. Somente quem publicou a vaga pode editá-la.">
+            <a class="btn btn-primary" href="/my-jobs">Voltar para minhas vagas</a>
+        </EmptyState>
+    }
+    else
     {
     <header class="page-heading">
         <div class="page-heading__copy">
@@ -28,24 +46,16 @@
 
             @if (!string.IsNullOrEmpty(errorMessage))
             {
-                <div class="alert alert-danger">
-                    <i class="bi bi-exclamation-triangle"></i> @errorMessage
+                <div class="alert alert-danger" role="alert">
+                    @errorMessage
                 </div>
             }
 
-            @if (isLoading)
-            {
-                <div class="text-center py-5">
-                    <div class="spinner-border text-primary" role="status"></div>
-                    <p class="mt-2">Carregando vaga...</p>
-                </div>
-            }
-            else
-            {
             <div class="card page-form-card">
                 <div class="card-body">
                     <EditForm Model="model" OnValidSubmit="SubmitForm">
                         <DataAnnotationsValidator />
+                        <ServerValidationErrors @ref="serverErrors" FieldMap="ServerFieldMap" />
 
                         <h5 class="mb-3"><i class="bi bi-info-circle"></i> Informações Básicas</h5>
 
@@ -65,14 +75,16 @@
                             <div class="col-md-6 mb-3">
                                 <label class="form-label" for="model.Category">Categoria</label>
                                 <InputText class="form-control" @bind-Value="model.Category" id="model.Category" />
+                                <ValidationMessage class="text-danger" For="@(() => model.Category)" />
                             </div>
                             <div class="col-md-6 mb-3">
                                 <label class="form-label" for="model.Tags">Tags</label>
                                 <InputText class="form-control" @bind-Value="model.Tags" id="model.Tags" />
+                                <ValidationMessage class="text-danger" For="@(() => model.Tags)" />
                             </div>
                             <div class="col-md-6 mb-3">
                                 <label class="form-label" for="model.NumberOfOpenings">Quantidade de vagas *</label>
-                                <InputNumber class="form-control" @bind-Value="model.NumberOfOpenings" id="model.NumberOfOpenings" min="1" />
+                                <InputNumber ParsingErrorMessage="Informe um número válido." class="form-control" @bind-Value="model.NumberOfOpenings" id="model.NumberOfOpenings" min="1" />
                                 <ValidationMessage For="@(() => model.NumberOfOpenings)" />
                             </div>
                         </div>
@@ -84,16 +96,19 @@
                         <div class="mb-3">
                             <label class="form-label" for="model.Requirements">Requisitos</label>
                             <InputTextArea class="form-control" @bind-Value="model.Requirements" id="model.Requirements" rows="4" />
+                            <ValidationMessage class="text-danger" For="@(() => model.Requirements)" />
                         </div>
 
                         <div class="mb-3">
                             <label class="form-label" for="model.Responsibilities">Responsabilidades</label>
                             <InputTextArea class="form-control" @bind-Value="model.Responsibilities" id="model.Responsibilities" rows="4" />
+                            <ValidationMessage class="text-danger" For="@(() => model.Responsibilities)" />
                         </div>
 
                         <div class="mb-3">
                             <label class="form-label" for="model.Benefits">Benefícios</label>
                             <InputTextArea class="form-control" @bind-Value="model.Benefits" id="model.Benefits" rows="3" />
+                            <ValidationMessage class="text-danger" For="@(() => model.Benefits)" />
                         </div>
 
                         <hr class="my-4" />
@@ -101,10 +116,12 @@
                         <div class="mb-3">
                             <label class="form-label" for="model.ApplicationInstructions">Como a pessoa deve se candidatar?</label>
                             <InputTextArea class="form-control" @bind-Value="model.ApplicationInstructions" id="model.ApplicationInstructions" rows="3" maxlength="2000" />
+                            <ValidationMessage class="text-danger" For="@(() => model.ApplicationInstructions)" />
                         </div>
                         <div class="mb-3">
                             <label class="form-label" for="model.Observations">Observações</label>
                             <InputTextArea class="form-control" @bind-Value="model.Observations" id="model.Observations" rows="3" maxlength="2000" />
+                            <ValidationMessage class="text-danger" For="@(() => model.Observations)" />
                         </div>
 
                         <h5 class="mb-3"><i class="bi bi-geo-alt"></i> Localização</h5>
@@ -121,10 +138,12 @@
                             <div class="col-md-4 mb-3">
                                 <label class="form-label" for="model.City">Cidade</label>
                                 <InputText class="form-control" @bind-Value="model.City" id="model.City" />
+                                <ValidationMessage class="text-danger" For="@(() => model.City)" />
                             </div>
                             <div class="col-md-4 mb-3">
                                 <label class="form-label" for="model.State">Estado</label>
                                 <InputText class="form-control" @bind-Value="model.State" id="model.State" maxlength="2" />
+                                <ValidationMessage class="text-danger" For="@(() => model.State)" />
                             </div>
                         </div>
 
@@ -135,11 +154,13 @@
                         <div class="row">
                             <div class="col-md-4 mb-3">
                                 <label class="form-label" for="model.SalaryMin">Salário Mínimo (R$)</label>
-                                <InputNumber class="form-control" @bind-Value="model.SalaryMin" id="model.SalaryMin" />
+                                <InputNumber ParsingErrorMessage="Informe um número válido." class="form-control" @bind-Value="model.SalaryMin" id="model.SalaryMin" />
+                                <ValidationMessage class="text-danger" For="@(() => model.SalaryMin)" />
                             </div>
                             <div class="col-md-4 mb-3">
                                 <label class="form-label" for="model.SalaryMax">Salário Máximo (R$)</label>
-                                <InputNumber class="form-control" @bind-Value="model.SalaryMax" id="model.SalaryMax" />
+                                <InputNumber ParsingErrorMessage="Informe um número válido." class="form-control" @bind-Value="model.SalaryMax" id="model.SalaryMax" />
+                                <ValidationMessage class="text-danger" For="@(() => model.SalaryMax)" />
                             </div>
                             <div class="col-md-4 mb-3">
                                 <label class="form-label" for="model.SalaryCurrency">Moeda</label>
@@ -162,7 +183,8 @@
 
                         <div class="mb-3">
                             <label class="form-label" for="model.ExpirationDate">Data de Expiração *</label>
-                            <InputDate class="form-control" @bind-Value="model.ExpirationDate" id="model.ExpirationDate" />
+                            <InputDate ParsingErrorMessage="Informe uma data válida." class="form-control" @bind-Value="model.ExpirationDate" id="model.ExpirationDate" />
+                            <ValidationMessage class="text-danger" For="@(() => model.ExpirationDate)" />
                         </div>
 
                         <hr class="my-4" />
@@ -179,17 +201,8 @@
                     </EditForm>
                 </div>
             </div>
-            }
         </div>
     </div>
-    }
-    else if (!isLoading)
-    {
-        <section class="auth-message-page">
-            <h1>Vaga não disponível</h1>
-            <p>Somente o anunciante que publicou a vaga pode editá-la.</p>
-            <a class="btn btn-primary" href="/my-jobs">Voltar para minhas vagas</a>
-        </section>
     }
 </div>
 
@@ -197,20 +210,35 @@
     [Parameter]
     public Guid JobId { get; set; }
 
+    private static readonly Dictionary<string, string> ServerFieldMap = new() { ["Salary"] = nameof(UpdateJobRequest.SalaryMax) };
+
     private UpdateJobRequest model = new();
     private string errorMessage = string.Empty;
     private bool isSubmitting;
     private bool isLoading = true;
+    private bool loadFailed;
     private bool isJobOwner;
+    private ServerValidationErrors serverErrors = default!;
 
-    protected override async Task OnInitializedAsync()
+    protected override Task OnInitializedAsync() => LoadAsync();
+
+    private async Task LoadAsync()
     {
+        isLoading = true;
+        loadFailed = false;
+
         var advertiserId = CurrentUserHelper.GetAdvertiserId();
         var result = await GetJobByIdUseCase.ExecuteAsync(JobId);
 
         if (result.Status != EResultStatus.Success || result.Data is null)
         {
-            errorMessage = "Vaga não encontrada.";
+            if (result.Status != EResultStatus.EntityNotFound)
+            {
+                Logger.LogFailure(result, "Carregar vaga para edição");
+                loadFailed = true;
+            }
+
+            isJobOwner = false;
             isLoading = false;
             return;
         }
@@ -253,6 +281,9 @@
 
     private async Task SubmitForm()
     {
+        if (isSubmitting)
+            return;
+
         isSubmitting = true;
         errorMessage = string.Empty;
 
@@ -262,12 +293,18 @@
 
         if (result.Status == EResultStatus.Success)
         {
+            Toast.ShowSuccess($"As alterações em \"{model.Title}\" foram salvas.", "Vaga atualizada");
             Navigation.NavigateTo("/my-jobs");
+            return;
         }
-        else
-        {
-            errorMessage = result.Message;
-        }
+
+        Logger.LogFailure(result, "Atualizar vaga");
+        var fieldErrors = ResultMessages.FieldErrors(result);
+        var unmatched = serverErrors.Display(fieldErrors);
+        errorMessage = fieldErrors.Count > 0 && unmatched.Count == 0
+            ? "Revise os campos destacados no formulário."
+            : ResultMessages.ToUserMessage(result, "Não foi possível salvar a vaga. Tente novamente.");
+        Toast.ShowError(errorMessage);
 
         isSubmitting = false;
     }

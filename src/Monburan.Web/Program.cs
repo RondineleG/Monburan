@@ -78,6 +78,9 @@ builder.Services.AddOptions<JwtOptions>()
 builder.Services.AddScoped<IIdentityService, IdentityService>();
 builder.Services.AddScoped<AccountProfileService>();
 
+// Feedback de UI: escopo por circuito (página e ToastHost do layout compartilham a instância)
+builder.Services.AddScoped<IToastService, ToastService>();
+
 builder.Services.AddAuthentication(options =>
 {
     options.DefaultScheme = IdentityConstants.ApplicationScheme;
@@ -187,6 +190,7 @@ builder.Services.AddScoped<GetJobByIdUseCase>();
 builder.Services.AddScoped<UpdateJobUseCase>();
 builder.Services.AddScoped<DeleteJobUseCase>();
 builder.Services.AddScoped<SearchJobsUseCase>();
+builder.Services.AddScoped<ChangeJobStatusUseCase>();
 
 // Registrar Use Cases de Applications
 builder.Services.AddScoped<CreateApplicationUseCase>();

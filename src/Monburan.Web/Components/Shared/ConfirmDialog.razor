@@ -1,0 +1,97 @@
+@implements IDisposable
+
+@*
+    Confirmação para ações destrutivas. Uso:
+        <ConfirmDialog @ref="confirm" />
+        if (!await confirm.ShowAsync(new ConfirmOptions { ... })) return;
+    ChildContent permite campos extras (ex.: motivo do cancelamento).
+*@
+@if (isOpen)
+{
+    <div class="confirm-backdrop" role="presentation" @onclick="Cancel" @onkeydown="OnKeyDown">
+        <section class="confirm-dialog"
+                 role="alertdialog"
+                 aria-modal="true"
+                 aria-labelledby="@titleId"
+                 aria-describedby="@messageId"
+                 data-testid="confirm-dialog"
+                 @onclick:stopPropagation="true">
+            <header class="confirm-dialog__header">
+                <span class="confirm-dialog__icon @(options.Destructive ? "confirm-dialog__icon--danger" : string.Empty)" aria-hidden="true">@(options.Destructive ? "!" : "?")</span>
+                <h2 id="@titleId">@options.Title</h2>
+            </header>
+            <div class="confirm-dialog__body">
+                <p id="@messageId">@options.Message</p>
+                @ChildContent
+            </div>
+            <footer class="confirm-dialog__footer">
+                <button type="button" class="btn btn-secondary" @ref="cancelButton" @onclick="Cancel" data-testid="confirm-cancel">@options.CancelText</button>
+                <button type="button" class="btn @(options.Destructive ? "btn-danger" : "btn-primary")" @onclick="Confirm" data-testid="confirm-accept">@options.ConfirmText</button>
+            </footer>
+        </section>
+    </div>
+}
+
+@code {
+    private readonly string titleId = $"confirm-title-{Guid.NewGuid():N}";
+    private readonly string messageId = $"confirm-message-{Guid.NewGuid():N}";
+    private ConfirmOptions options = new();
+    private TaskCompletionSource<bool>? pending;
+    private ElementReference cancelButton;
+    private bool isOpen;
+    private bool focusPending;
+
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    /// <summary>Abre o diálogo e devolve <c>true</c> só se o usuário confirmar.</summary>
+    public Task<bool> ShowAsync(ConfirmOptions confirmOptions)
+    {
+        pending?.TrySetResult(false);
+
+        options = confirmOptions;
+        pending = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        isOpen = true;
+        focusPending = true;
+        StateHasChanged();
+
+        return pending.Task;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!focusPending || !isOpen)
+            return;
+
+        focusPending = false;
+        try
+        {
+            // Foco na opção segura: Enter acidental não exclui nada
+            await cancelButton.FocusAsync();
+        }
+        catch (JSException)
+        {
+            // Elemento já removido (diálogo fechado no mesmo ciclo) — nada a focar
+        }
+    }
+
+    private void Confirm() => Close(true);
+
+    private void Cancel() => Close(false);
+
+    private void OnKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Escape")
+            Cancel();
+    }
+
+    private void Close(bool confirmed)
+    {
+        isOpen = false;
+        var completion = pending;
+        pending = null;
+        completion?.TrySetResult(confirmed);
+    }
+
+    public void Dispose() => pending?.TrySetResult(false);
+}

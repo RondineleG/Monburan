@@ -1,0 +1,34 @@
+<section class="empty-state" data-testid="@TestId">
+    <span class="empty-state__icon" aria-hidden="true">@Icon</span>
+    @if (!string.IsNullOrWhiteSpace(Kicker))
+    {
+        <span class="page-kicker">@Kicker</span>
+    }
+    <h2>@Title</h2>
+    @if (!string.IsNullOrWhiteSpace(Message))
+    {
+        <p>@Message</p>
+    }
+    @ChildContent
+</section>
+
+@code {
+    [Parameter]
+    public string Icon { get; set; } = "◌";
+
+    [Parameter]
+    public string? Kicker { get; set; }
+
+    [Parameter]
+    public string Title { get; set; } = "Nada por aqui ainda";
+
+    [Parameter]
+    public string? Message { get; set; }
+
+    /// <summary>Chamada para ação (ex.: link "Explorar vagas").</summary>
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    [Parameter]
+    public string TestId { get; set; } = "empty-state";
+}

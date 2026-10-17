@@ -24,7 +24,7 @@ public static class FileEndpoints
                 return Results.ValidationProblem(new Dictionary<string, string[]>
                 {
                     ["file"] = ["Arquivo é obrigatório"]
-                });
+                }, title: "Erro de validação");
             }
 
             // Apenas imagens e PDF são servidos de wwwroot/uploads — tipos arbitrários
@@ -34,7 +34,7 @@ public static class FileEndpoints
                 return Results.ValidationProblem(new Dictionary<string, string[]>
                 {
                     ["fileType"] = ["Tipo de arquivo não suportado. Use Image ou Pdf."]
-                });
+                }, title: "Erro de validação");
             }
 
             await using var stream = file.OpenReadStream();

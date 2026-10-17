@@ -1,0 +1,49 @@
+@implements IDisposable
+@inject IToastService ToastService
+
+@* Ilha interativa no layout (SSR): a região aria-live existe antes dos avisos para leitores de tela *@
+<div class="toast-stack" role="region" aria-live="polite" aria-label="Avisos" data-testid="toast-stack">
+    @foreach (var toast in ToastService.Toasts)
+    {
+        <div @key="toast.Id"
+             class="toast-card toast-card--@LevelClass(toast.Level)"
+             role="@(toast.Level == ToastLevel.Error ? "alert" : "status")"
+             data-testid="toast"
+             data-level="@LevelClass(toast.Level)">
+            <span class="toast-card__icon" aria-hidden="true">@Icon(toast.Level)</span>
+            <div class="toast-card__body">
+                @if (!string.IsNullOrWhiteSpace(toast.Title))
+                {
+                    <strong>@toast.Title</strong>
+                }
+                <p>@toast.Message</p>
+            </div>
+            <button type="button" class="toast-card__close" aria-label="Fechar aviso" @onclick="() => ToastService.Dismiss(toast.Id)">×</button>
+        </div>
+    }
+</div>
+
+@code {
+    protected override void OnInitialized() => ToastService.Changed += OnToastsChanged;
+
+    // Timers de auto-dismiss disparam fora do contexto de renderização
+    private void OnToastsChanged() => _ = InvokeAsync(StateHasChanged);
+
+    private static string LevelClass(ToastLevel level) => level switch
+    {
+        ToastLevel.Success => "success",
+        ToastLevel.Error => "error",
+        ToastLevel.Warning => "warning",
+        _ => "info"
+    };
+
+    private static string Icon(ToastLevel level) => level switch
+    {
+        ToastLevel.Success => "✓",
+        ToastLevel.Error => "!",
+        ToastLevel.Warning => "⚠",
+        _ => "i"
+    };
+
+    public void Dispose() => ToastService.Changed -= OnToastsChanged;
+}

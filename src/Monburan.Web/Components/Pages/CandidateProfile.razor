@@ -7,6 +7,7 @@
 @inject Monburan.Web.Services.ICurrentUserHelper CurrentUserHelper
 @inject Microsoft.AspNetCore.Components.NavigationManager Navigation
 @inject ILogger<CandidateProfile> Logger
+@inject IToastService Toast
 
 <PageTitle>Meu Perfil - Monburan</PageTitle>
 
@@ -21,11 +22,13 @@
 
     @if (_isLoading)
     {
-        <div class="d-flex justify-content-center my-4">
-            <div class="spinner-border text-primary" role="status">
-                <span class="visually-hidden">Carregando...</span>
-            </div>
-        </div>
+        <LoadingState Message="Carregando seu perfil..." />
+    }
+    else if (_loadFailed)
+    {
+        <ErrorState Title="Não foi possível carregar o perfil"
+                    Message="Tivemos um problema ao buscar seus dados. Tente novamente em instantes."
+                    OnRetry="LoadCandidateAsync" />
     }
     else if (_candidate != null)
     {
@@ -36,24 +39,9 @@
                         <h5 class="mb-0">Dados Pessoais</h5>
                     </div>
                     <div class="card-body">
-                        @if (!string.IsNullOrEmpty(_successMessage))
-                        {
-                            <div class="alert alert-success" role="alert">
-                                @_successMessage
-                                <button type="button" class="btn-close" @onclick="() => _successMessage = null" aria-label="Fechar"></button>
-                            </div>
-                        }
-
-                        @if (!string.IsNullOrEmpty(_errorMessage))
-                        {
-                            <div class="alert alert-danger" role="alert">
-                                @_errorMessage
-                                <button type="button" class="btn-close" @onclick="() => _errorMessage = null" aria-label="Fechar"></button>
-                            </div>
-                        }
-
                         <EditForm Model="_editModel" OnValidSubmit="HandleSaveAsync">
                             <DataAnnotationsValidator />
+                            <ServerValidationErrors @ref="_serverErrors" />
 
                             <div class="mb-3">
                                 <label class="form-label" for="candidate-name">Nome Completo *</label>
@@ -70,17 +58,19 @@
                             <div class="mb-3">
                                 <label class="form-label" for="candidate-phone">Telefone</label>
                                 <InputText @bind-Value="_editModel.Phone" class="form-control" id="candidate-phone" placeholder="(00) 00000-0000" />
+                                <ValidationMessage class="text-danger" For="@(() => _editModel.Phone)" />
                             </div>
 
                             <div class="mb-3">
                                 <label class="form-label" for="candidate-dob">Data de Nascimento *</label>
-                                <InputDate @bind-Value="_editModel.DateOfBirth" class="form-control" id="candidate-dob" max="@DateTime.Today.AddYears(-14).ToString("yyyy-MM-dd")" />
+                                <InputDate ParsingErrorMessage="Informe uma data válida." @bind-Value="_editModel.DateOfBirth" class="form-control" id="candidate-dob" max="@DateTime.Today.AddYears(-14).ToString("yyyy-MM-dd")" />
                                 <ValidationMessage For="@(() => _editModel.DateOfBirth)" />
                             </div>
 
                             <div class="mb-3">
                                 <label class="form-label" for="candidate-linkedin">LinkedIn</label>
                                 <InputText @bind-Value="_editModel.LinkedIn" class="form-control" id="candidate-linkedin" placeholder="https://linkedin.com/in/seu-perfil" />
+                                <ValidationMessage class="text-danger" For="@(() => _editModel.LinkedIn)" />
                             </div>
 
                             <div class="d-flex gap-2">
@@ -145,10 +135,9 @@
     }
     else
     {
-        <div class="alert alert-warning mt-4">
-            <i class="bi bi-exclamation-triangle"></i>
-            Candidato não encontrado.
-        </div>
+        <EmptyState Icon="!" Title="Perfil de candidato não encontrado" Message="Esta área é exclusiva para contas de candidato.">
+            <a class="btn btn-primary" href="/dashboard">Voltar ao início</a>
+        </EmptyState>
     }
 </div>
 
@@ -157,8 +146,8 @@
     private EditModel _editModel = new();
     private bool _isLoading = true;
     private bool _isSaving = false;
-    private string? _successMessage;
-    private string? _errorMessage;
+    private bool _loadFailed;
+    private ServerValidationErrors _serverErrors = default!;
 
     protected override async Task OnInitializedAsync()
     {
@@ -168,13 +157,19 @@
     private async Task LoadCandidateAsync()
     {
         _isLoading = true;
+        _loadFailed = false;
         try
         {
             var candidateId = CurrentUserHelper.GetCandidateId();
             if (candidateId.HasValue)
             {
                 var result = await CandidateRepository.GetByIdAsync(Monburan.Core.ValueObjects.Id.Create(candidateId.Value));
-                if (result.Status == Monburan.Core.Enums.EResultStatus.Success && result.Data != null)
+                if (result.Status is not (Monburan.Core.Enums.EResultStatus.Success or Monburan.Core.Enums.EResultStatus.EntityNotFound))
+                {
+                    Logger.LogFailure(result, "Carregar perfil do candidato");
+                    _loadFailed = true;
+                }
+                else if (result.Status == Monburan.Core.Enums.EResultStatus.Success && result.Data != null)
                 {
                     _candidate = result.Data;
                     _editModel = new EditModel
@@ -197,9 +192,10 @@
 
     private async Task HandleSaveAsync()
     {
+        if (_isSaving)
+            return;
+
         _isSaving = true;
-        _successMessage = null;
-        _errorMessage = null;
 
         try
         {
@@ -217,20 +213,24 @@
 
             if (result.Status == Monburan.Core.Enums.EResultStatus.Success)
             {
-                _successMessage = "Perfil atualizado com sucesso!";
+                Toast.ShowSuccess("Seus dados foram atualizados.", "Perfil salvo");
                 await LoadCandidateAsync();
             }
             else
             {
                 Logger.LogFailure(result, "Atualizar perfil do candidato");
-                _errorMessage = ResultMessages.ToUserMessage(result, "Não foi possível salvar o perfil. Tente novamente.");
+                var fieldErrors = ResultMessages.FieldErrors(result);
+                var unmatched = _serverErrors.Display(fieldErrors);
+                Toast.ShowError(fieldErrors.Count > 0 && unmatched.Count == 0
+                    ? "Revise os campos destacados no formulário."
+                    : ResultMessages.ToUserMessage(result, "Não foi possível salvar o perfil. Tente novamente."));
             }
         }
         catch (Exception ex)
         {
             // Exceção nunca vai crua para a tela (pode conter SQL/caminhos internos)
             Logger.LogError(ex, "Erro ao salvar o perfil do candidato");
-            _errorMessage = ResultMessages.GenericError;
+            Toast.ShowError(ResultMessages.GenericError);
         }
         finally
         {
@@ -251,8 +251,7 @@
                 DateOfBirth = _candidate.DateOfBirth,
                 LinkedIn = _candidate.LinkedIn
             };
-            _successMessage = null;
-            _errorMessage = null;
+            _serverErrors.Clear();
         }
     }
 

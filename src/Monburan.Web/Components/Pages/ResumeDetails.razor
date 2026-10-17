@@ -12,35 +12,27 @@
 @inject ICurrentUserHelper CurrentUserHelper
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
+@inject IToastService Toast
+@inject ILogger<ResumeDetails> Logger
 
 <PageTitle>Detalhes do Currículo - Monburan</PageTitle>
 
 <div class="container mt-4">
-    @if (!string.IsNullOrEmpty(errorMessage))
-    {
-        <div class="alert alert-danger alert-dismissible fade show" role="alert">
-            <i class="bi bi-exclamation-triangle"></i> @errorMessage
-            <button type="button" class="btn-close" @onclick="() => errorMessage = null"></button>
-        </div>
-    }
-
     @if (isLoading)
     {
-        <div class="text-center py-5">
-            <div class="spinner-border text-primary" role="status">
-                <span class="visually-hidden">Carregando...</span>
-            </div>
-            <p class="mt-2">Carregando detalhes do currículo...</p>
-        </div>
+        <LoadingState Message="Carregando currículo..." />
+    }
+    else if (loadFailed)
+    {
+        <ErrorState Title="Não foi possível carregar o currículo"
+                    Message="Tivemos um problema ao abrir este currículo. Tente novamente em instantes."
+                    OnRetry="LoadAsync" />
     }
     else if (resume == null)
     {
-        <div class="alert alert-danger">
-            <i class="bi bi-exclamation-triangle"></i> Currículo não encontrado.
-        </div>
-        <button class="btn btn-primary" @onclick="NavigateBackToList">
-            ← Voltar para lista de currículos
-        </button>
+        <EmptyState Icon="?" Title="Currículo não encontrado" Message="Ele pode ter sido excluído ou você não tem acesso a ele.">
+            <a class="btn btn-primary" href="/resumes">Ir para meus currículos</a>
+        </EmptyState>
     }
     else
     {
@@ -229,8 +221,8 @@
                             </button>
                             @if (isOwner)
                             {
-                                <button class="btn btn-danger" @onclick="ConfirmDelete">
-                                    <i class="bi bi-trash"></i> Excluir Currículo
+                                <button class="btn btn-danger" @onclick="DeleteAsync" disabled="@isDeleting" data-testid="resume-delete">
+                                    @(isDeleting ? "Excluindo..." : "Excluir currículo")
                                 </button>
                             }
                         </div>
@@ -275,30 +267,10 @@
             </button>
         </div>
 
-        <!-- Modal de Confirmação de Exclusão -->
-        @if (showDeleteConfirm)
-        {
-            <div class="modal fade show d-block" style="background-color: rgba(0,0,0,0.5);" tabindex="-1">
-                <div class="modal-dialog modal-dialog-centered">
-                    <div class="modal-content">
-                        <div class="modal-header bg-danger text-white">
-                            <h5 class="modal-title">Confirmar Exclusão</h5>
-                            <button type="button" class="btn-close btn-close-white" @onclick="CancelDelete"></button>
-                        </div>
-                        <div class="modal-body">
-                            <p>Tem certeza que deseja excluir o currículo <strong>"@resume.Title"</strong>?</p>
-                            <p class="text-muted small">Esta ação irá desativar o currículo e ele não ficará mais visível para os recrutadores.</p>
-                        </div>
-                        <div class="modal-footer">
-                            <button type="button" class="btn btn-secondary" @onclick="CancelDelete">Cancelar</button>
-                            <button type="button" class="btn btn-danger" @onclick="DeleteResumeConfirmed">Confirmar Exclusão</button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        }
     }
 </div>
+
+<ConfirmDialog @ref="confirmDialog" />
 
 @code {
     [Parameter]
@@ -307,12 +279,17 @@
     private ResumeResponse? resume;
     private bool isOwner;
     private bool isLoading = true;
-    private bool showDeleteConfirm = false;
-    private string? errorMessage;
+    private bool loadFailed;
+    private bool isDeleting;
+    private ConfirmDialog confirmDialog = default!;
 
-    protected override async Task OnInitializedAsync()
+    protected override Task OnInitializedAsync() => LoadAsync();
+
+    private async Task LoadAsync()
     {
-        errorMessage = null;
+        isLoading = true;
+        loadFailed = false;
+
         var result = await GetResumeByIdUseCase.ExecuteAsync(ResumeId);
         if (result.Status == EResultStatus.Success && result.Data is not null
             && await CanViewAsync(result.Data))
@@ -321,7 +298,8 @@
         }
         else if (result.Status is EResultStatus.HasError or EResultStatus.EntityHasError)
         {
-            errorMessage = ResultMessages.GenericError;
+            Logger.LogFailure(result, "Carregar currículo");
+            loadFailed = true;
         }
 
         // Sem permissão cai em "Currículo não encontrado" — não revela que o id existe
@@ -338,33 +316,34 @@
         await JS.InvokeVoidAsync("print");
     }
 
-    private void ConfirmDelete()
+    private async Task DeleteAsync()
     {
-        showDeleteConfirm = true;
-    }
-
-    private void CancelDelete()
-    {
-        showDeleteConfirm = false;
-    }
-
-    private async Task DeleteResumeConfirmed()
-    {
-        showDeleteConfirm = false;
-        if (!isOwner)
+        if (!isOwner || resume is null || isDeleting)
             return;
 
-        errorMessage = null;
+        var confirmed = await confirmDialog.ShowAsync(new ConfirmOptions
+        {
+            Title = "Excluir currículo?",
+            Message = $"O currículo \"{resume.Title}\" será removido e não poderá mais ser enviado em candidaturas.",
+            ConfirmText = "Excluir currículo",
+            Destructive = true
+        });
+        if (!confirmed)
+            return;
 
+        isDeleting = true;
         var result = await DeleteResumeUseCase.ExecuteAsync(ResumeId);
+        isDeleting = false;
+
         if (result.Status == EResultStatus.Success)
         {
+            Toast.ShowSuccess($"O currículo \"{resume.Title}\" foi excluído.");
             Navigation.NavigateTo("/resumes");
+            return;
         }
-        else
-        {
-            errorMessage = ResultMessages.ToUserMessage(result, "Não foi possível excluir o currículo. Tente novamente.");
-        }
+
+        Logger.LogFailure(result, "Excluir currículo");
+        Toast.ShowError(ResultMessages.ToUserMessage(result, "Não foi possível excluir o currículo. Tente novamente."));
     }
 
     private void NavigateBackToList()

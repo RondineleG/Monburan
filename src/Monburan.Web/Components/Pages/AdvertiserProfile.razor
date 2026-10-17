@@ -7,6 +7,7 @@
 @inject Monburan.Web.Services.ICurrentUserHelper CurrentUserHelper
 @inject Microsoft.AspNetCore.Components.NavigationManager Navigation
 @inject ILogger<AdvertiserProfile> Logger
+@inject IToastService Toast
 
 <PageTitle>Perfil da Empresa - Monburan</PageTitle>
 
@@ -21,11 +22,13 @@
 
     @if (_isLoading)
     {
-        <div class="d-flex justify-content-center my-4">
-            <div class="spinner-border text-primary" role="status">
-                <span class="visually-hidden">Carregando...</span>
-            </div>
-        </div>
+        <LoadingState Message="Carregando o perfil da empresa..." />
+    }
+    else if (_loadFailed)
+    {
+        <ErrorState Title="Não foi possível carregar o perfil"
+                    Message="Tivemos um problema ao buscar os dados da empresa. Tente novamente em instantes."
+                    OnRetry="LoadAdvertiserAsync" />
     }
     else if (_advertiser != null)
     {
@@ -36,24 +39,9 @@
                         <h5 class="mb-0">Dados da Empresa</h5>
                     </div>
                     <div class="card-body">
-                        @if (!string.IsNullOrEmpty(_successMessage))
-                        {
-                            <div class="alert alert-success" role="alert">
-                                @_successMessage
-                                <button type="button" class="btn-close" @onclick="() => _successMessage = null" aria-label="Fechar"></button>
-                            </div>
-                        }
-
-                        @if (!string.IsNullOrEmpty(_errorMessage))
-                        {
-                            <div class="alert alert-danger" role="alert">
-                                @_errorMessage
-                                <button type="button" class="btn-close" @onclick="() => _errorMessage = null" aria-label="Fechar"></button>
-                            </div>
-                        }
-
                         <EditForm Model="_editModel" OnValidSubmit="HandleSaveAsync">
                             <DataAnnotationsValidator />
+                            <ServerValidationErrors @ref="_serverErrors" />
 
                             <div class="mb-3">
                                 <label class="form-label" for="_editModel.Name">Nome da Empresa *</label>
@@ -91,16 +79,19 @@
                             <div class="mb-3">
                                 <label class="form-label" for="_editModel.CompanyDescription">Descrição da Empresa</label>
                                 <InputTextArea @bind-Value="_editModel.CompanyDescription" class="form-control" id="_editModel.CompanyDescription" rows="4" placeholder="Descreva sua empresa, cultura e benefícios..." />
+                                <ValidationMessage class="text-danger" For="@(() => _editModel.CompanyDescription)" />
                             </div>
 
                             <div class="mb-3">
                                 <label class="form-label" for="_editModel.Website">Website</label>
                                 <InputText @bind-Value="_editModel.Website" class="form-control" id="_editModel.Website" placeholder="https://www.suaempresa.com.br" />
+                                <ValidationMessage class="text-danger" For="@(() => _editModel.Website)" />
                             </div>
 
                             <div class="mb-3">
                                 <label class="form-label" for="_editModel.LogoUrl">Logo da empresa</label>
                                 <InputText @bind-Value="_editModel.LogoUrl" class="form-control" id="_editModel.LogoUrl" placeholder="https://www.suaempresa.com.br/logo.png" />
+                                <ValidationMessage class="text-danger" For="@(() => _editModel.LogoUrl)" />
                                 <div class="form-text">Cole o endereço de uma imagem ou <a href="/advertiser/upload-logo">envie um arquivo do seu computador</a>.</div>
                                 @if (!string.IsNullOrEmpty(_editModel.LogoUrl))
                                 {
@@ -183,10 +174,9 @@
     }
     else
     {
-        <div class="alert alert-warning mt-4">
-            <i class="bi bi-exclamation-triangle"></i>
-            Anunciante não encontrado.
-        </div>
+        <EmptyState Icon="!" Title="Perfil de empresa não encontrado" Message="Esta área é exclusiva para contas de empresa.">
+            <a class="btn btn-primary" href="/dashboard">Voltar ao início</a>
+        </EmptyState>
     }
 </div>
 
@@ -195,8 +185,8 @@
     private EditModel _editModel = new();
     private bool _isLoading = true;
     private bool _isSaving = false;
-    private string? _successMessage;
-    private string? _errorMessage;
+    private bool _loadFailed;
+    private ServerValidationErrors _serverErrors = default!;
 
     protected override async Task OnInitializedAsync()
     {
@@ -206,13 +196,19 @@
     private async Task LoadAdvertiserAsync()
     {
         _isLoading = true;
+        _loadFailed = false;
         try
         {
             var advertiserId = CurrentUserHelper.GetAdvertiserId();
             if (advertiserId.HasValue)
             {
                 var result = await AdvertiserRepository.GetByIdAsync(Monburan.Core.ValueObjects.Id.Create(advertiserId.Value));
-                if (result.Status == Monburan.Core.Enums.EResultStatus.Success && result.Data != null)
+                if (result.Status is not (Monburan.Core.Enums.EResultStatus.Success or Monburan.Core.Enums.EResultStatus.EntityNotFound))
+                {
+                    Logger.LogFailure(result, "Carregar perfil do anunciante");
+                    _loadFailed = true;
+                }
+                else if (result.Status == Monburan.Core.Enums.EResultStatus.Success && result.Data != null)
                 {
                     _advertiser = result.Data;
                     _editModel = new EditModel
@@ -238,9 +234,10 @@
 
     private async Task HandleSaveAsync()
     {
+        if (_isSaving)
+            return;
+
         _isSaving = true;
-        _successMessage = null;
-        _errorMessage = null;
 
         try
         {
@@ -261,20 +258,24 @@
 
             if (result.Status == Monburan.Core.Enums.EResultStatus.Success)
             {
-                _successMessage = "Perfil da empresa atualizado com sucesso!";
+                Toast.ShowSuccess("Os dados da empresa foram atualizados.", "Perfil salvo");
                 await LoadAdvertiserAsync();
             }
             else
             {
                 Logger.LogFailure(result, "Atualizar perfil do anunciante");
-                _errorMessage = ResultMessages.ToUserMessage(result, "Não foi possível salvar o perfil. Tente novamente.");
+                var fieldErrors = ResultMessages.FieldErrors(result);
+                var unmatched = _serverErrors.Display(fieldErrors);
+                Toast.ShowError(fieldErrors.Count > 0 && unmatched.Count == 0
+                    ? "Revise os campos destacados no formulário."
+                    : ResultMessages.ToUserMessage(result, "Não foi possível salvar o perfil. Tente novamente."));
             }
         }
         catch (Exception ex)
         {
             // Exceção nunca vai crua para a tela (pode conter SQL/caminhos internos)
             Logger.LogError(ex, "Erro ao salvar o perfil do anunciante");
-            _errorMessage = ResultMessages.GenericError;
+            Toast.ShowError(ResultMessages.GenericError);
         }
         finally
         {
@@ -298,8 +299,7 @@
                 Website = _advertiser.Website,
                 LogoUrl = _advertiser.LogoUrl
             };
-            _successMessage = null;
-            _errorMessage = null;
+            _serverErrors.Clear();
         }
     }
 

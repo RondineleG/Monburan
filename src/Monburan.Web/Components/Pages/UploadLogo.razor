@@ -8,6 +8,7 @@
 @inject UpdateAdvertiserLogoUseCase UpdateAdvertiserLogoUseCase
 @inject ICurrentUserHelper CurrentUserHelper
 @inject NavigationManager Navigation
+@inject IToastService Toast
 @inject ILogger<UploadLogo> Logger
 
 <PageTitle>Upload de Logo - Monburan</PageTitle>
@@ -156,6 +157,7 @@
         if (selectedFile == null)
         {
             errorMessage = "Selecione um arquivo primeiro.";
+            Toast.ShowError(errorMessage);
             return;
         }
 
@@ -163,6 +165,7 @@
         if (!advertiserId.HasValue)
         {
             errorMessage = "Esta área é exclusiva para contas de empresa.";
+            Toast.ShowError(errorMessage);
             return;
         }
 
@@ -186,6 +189,7 @@
             {
                 Logger.LogFailure(upload, "Upload da logo");
                 errorMessage = ResultMessages.ToUserMessage(upload, "Não foi possível enviar a imagem. Tente novamente.");
+                Toast.ShowError(errorMessage);
                 return;
             }
 
@@ -196,6 +200,7 @@
             {
                 Logger.LogFailure(update, "Atualização da logo");
                 errorMessage = ResultMessages.ToUserMessage(update, "A imagem foi enviada, mas não foi possível atualizar o perfil. Tente novamente.");
+                Toast.ShowError(errorMessage);
                 return;
             }
 
@@ -204,11 +209,13 @@
             isFileSelected = false;
             imagePreviewUrl = null;
             successMessage = "Logo atualizada! Ela já aparece no perfil da empresa e nas suas vagas.";
+            Toast.ShowSuccess(successMessage);
         }
         catch (IOException ex)
         {
             Logger.LogWarning(ex, "Falha ao ler o arquivo de logo enviado");
             errorMessage = "Não foi possível ler o arquivo. Verifique se ele tem no máximo 5 MB e tente novamente.";
+            Toast.ShowError(errorMessage);
         }
         finally
         {

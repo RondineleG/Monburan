@@ -9,6 +9,7 @@
 @inject CreateResumeUseCase CreateResumeUseCase
 @inject ICurrentUserHelper CurrentUserHelper
 @inject NavigationManager Navigation
+@inject IToastService Toast
 @inject ILogger<UploadResume> Logger
 
 <PageTitle>Upload de Currículo - Monburan</PageTitle>
@@ -149,6 +150,7 @@
         if (selectedFile == null)
         {
             errorMessage = "Selecione um arquivo primeiro.";
+            Toast.ShowError(errorMessage);
             return;
         }
 
@@ -156,6 +158,7 @@
         if (!candidateId.HasValue)
         {
             errorMessage = "Esta área é exclusiva para candidatos.";
+            Toast.ShowError(errorMessage);
             return;
         }
 
@@ -179,6 +182,7 @@
             {
                 Logger.LogFailure(upload, "Upload de currículo em PDF");
                 errorMessage = ResultMessages.ToUserMessage(upload, "Não foi possível enviar o PDF. Tente novamente.");
+                Toast.ShowError(errorMessage);
                 return;
             }
 
@@ -199,6 +203,7 @@
             {
                 Logger.LogFailure(createResult, "Registro do currículo importado");
                 errorMessage = "O PDF foi enviado, mas não foi possível adicioná-lo à sua lista de currículos. Tente novamente.";
+                Toast.ShowError(errorMessage);
                 return;
             }
 
@@ -206,11 +211,13 @@
             selectedFile = null;
             isFileSelected = false;
             successMessage = "Currículo enviado e adicionado à sua lista!";
+            Toast.ShowSuccess(successMessage);
         }
         catch (IOException ex)
         {
             Logger.LogWarning(ex, "Falha ao ler o PDF enviado");
             errorMessage = "Não foi possível ler o arquivo. Verifique se ele tem no máximo 10 MB e tente novamente.";
+            Toast.ShowError(errorMessage);
         }
         finally
         {

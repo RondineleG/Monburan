@@ -1,0 +1,12 @@
+<div class="loading-state @(Compact ? "loading-state--compact" : string.Empty)" role="status" aria-live="polite" data-testid="loading-state">
+    <span class="spinner-border" aria-hidden="true"></span>
+    <span>@Message</span>
+</div>
+
+@code {
+    [Parameter]
+    public string Message { get; set; } = "Carregando...";
+
+    [Parameter]
+    public bool Compact { get; set; }
+}

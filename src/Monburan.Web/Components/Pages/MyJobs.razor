@@ -6,8 +6,13 @@
 @using Monburan.Core.UseCases.Jobs
 @using Monburan.Web.Services
 @inject SearchJobsUseCase SearchJobsUseCase
+@inject DeleteJobUseCase DeleteJobUseCase
+@inject ChangeJobStatusUseCase ChangeJobStatusUseCase
+@inject GetJobByIdUseCase GetJobByIdUseCase
 @inject CurrentUserHelper CurrentUserHelper
 @inject NavigationManager Navigation
+@inject IToastService Toast
+@inject ILogger<MyJobs> Logger
 
 <PageTitle>Minhas Vagas - Monburan</PageTitle>
 
@@ -18,23 +23,26 @@
             <h1>Minhas vagas</h1>
             <p>Gerencie publicações, acompanhe o interesse e avance com os candidatos.</p>
         </div>
-        <button class="btn btn-primary" @onclick="@(() => Navigation.NavigateTo("/jobs/create"))">
+        <a class="btn btn-primary" href="/jobs/create">
             Nova vaga <span aria-hidden="true">↗</span>
-        </button>
+        </a>
     </header>
 
     @if (isLoading)
     {
-        <div class="text-center py-5">
-            <div class="spinner-border text-primary" role="status"></div>
-            <p class="mt-2">Carregando suas vagas...</p>
-        </div>
+        <LoadingState Message="Carregando suas vagas..." />
     }
-    else if (jobs?.Any() == true)
+    else if (loadFailed)
+    {
+        <ErrorState Title="Não foi possível carregar suas vagas"
+                    Message="Tivemos um problema ao buscar suas publicações. Tente novamente em instantes."
+                    OnRetry="LoadAsync" />
+    }
+    else if (jobs.Count > 0)
     {
         <section class="row g-3 mb-4 dashboard-metrics" aria-label="Resumo das vagas">
             <div class="col-md-3">
-                <article class="card dashboard-metric"><div class="card-body"><span class="dashboard-metric__icon" aria-hidden="true">▣</span><span class="dashboard-metric__label">Total de vagas</span><strong class="dashboard-metric__value">@jobs.Count()</strong></div></article>
+                <article class="card dashboard-metric"><div class="card-body"><span class="dashboard-metric__icon" aria-hidden="true">▣</span><span class="dashboard-metric__label">Total de vagas</span><strong class="dashboard-metric__value">@jobs.Count</strong></div></article>
             </div>
             <div class="col-md-3">
                 <article class="card dashboard-metric"><div class="card-body"><span class="dashboard-metric__icon" aria-hidden="true">✓</span><span class="dashboard-metric__label">Vagas ativas</span><strong class="dashboard-metric__value">@jobs.Count(j => j.Status == "Active")</strong></div></article>
@@ -47,119 +55,204 @@
             </div>
         </section>
 
-        <!-- Tabela de Vagas -->
         <div class="card jobs-management-card">
             <div class="card-body p-0">
                 <div class="table-responsive">
                     <table class="table table-hover">
-                    <thead>
-                        <tr>
-                            <th>Título</th>
-                            <th>Status</th>
-                            <th>Visualizações</th>
-                            <th>Candidaturas</th>
-                            <th>Expira em</th>
-                            <th>Ações</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach (var job in jobs)
-                        {
-                            <tr data-testid="my-job-row">
-                                <td>
-                                    <strong>@job.Title</strong>
-                                    @if (!string.IsNullOrEmpty(job.Category))
-                                    {
-                                        <br />
-                                        <small class="text-muted"><i class="bi bi-tag"></i> @job.Category</small>
-                                    }
-                                </td>
-                                <td>
-                                    <span class="badge @UiLabels.JobStatusBadge(job.Status)">@UiLabels.JobStatus(job.Status)</span>
-                                </td>
-                                <td><i class="bi bi-eye"></i> @job.Views</td>
-                                <td><i class="bi bi-people"></i> @job.Applications</td>
-                                <td>
-                                    @if (job.ExpirationDate < DateTime.UtcNow)
-                                    {
-                                        <span class="text-danger"><i class="bi bi-exclamation-triangle"></i> Expirada</span>
-                                    }
-                                    else
-                                    {
-                                        @UiLabels.FormatDate(job.ExpirationDate)
-                                    }
-                                </td>
-                                <td>
-                                    <div class="btn-group btn-group-sm">
-                                        <button class="btn btn-outline-primary" @onclick="() => ViewJob(job.Id)" title="Ver detalhes">
-                                            <i class="bi bi-eye"></i>
-                                        </button>
-                                        <button class="btn btn-outline-warning" @onclick="() => EditJob(job.Id)" title="Editar">
-                                            <i class="bi bi-pencil"></i>
-                                        </button>
-                                        <button class="btn btn-outline-info" @onclick="() => ViewApplications(job.Id)" title="Ver candidaturas">
-                                            <i class="bi bi-envelope-open"></i>
-                                        </button>
-                                    </div>
-                                </td>
+                        <thead>
+                            <tr>
+                                <th>Título</th>
+                                <th>Situação</th>
+                                <th>Visualizações</th>
+                                <th>Candidaturas</th>
+                                <th>Expira em</th>
+                                <th>Ações</th>
                             </tr>
-                        }
-                    </tbody>
-                </table>
+                        </thead>
+                        <tbody>
+                            @foreach (var job in jobs)
+                            {
+                                <tr data-testid="my-job-row">
+                                    <td>
+                                        <strong>@job.Title</strong>
+                                        @if (!string.IsNullOrEmpty(job.Category))
+                                        {
+                                            <br />
+                                            <small class="text-muted">@job.Category</small>
+                                        }
+                                    </td>
+                                    <td>
+                                        <span class="badge @UiLabels.JobStatusBadge(job.Status)">@UiLabels.JobStatus(job.Status)</span>
+                                    </td>
+                                    <td>@job.Views</td>
+                                    <td>@job.Applications</td>
+                                    <td>
+                                        @if (job.ExpirationDate.Date < DateTime.UtcNow.Date)
+                                        {
+                                            <span class="text-danger">Expirada</span>
+                                        }
+                                        else
+                                        {
+                                            @UiLabels.FormatDate(job.ExpirationDate)
+                                        }
+                                    </td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm" role="group" aria-label="Ações da vaga @job.Title">
+                                            <a class="btn btn-outline-primary" href="@($"/jobs/{job.Id}")" title="Ver detalhes">Ver</a>
+                                            <a class="btn btn-outline-primary" href="@($"/jobs/edit/{job.Id}")" title="Editar vaga">Editar</a>
+                                            <a class="btn btn-outline-primary" href="@($"/jobs/{job.Id}/applications")" title="Ver candidaturas">Candidaturas</a>
+                                            @if (job.Status == "Active")
+                                            {
+                                                <button type="button" class="btn btn-outline-primary" @onclick="() => ChangeStatusAsync(job, EJobStatus.Paused)" disabled="@(changingId == job.Id)" title="Parar de receber candidaturas" data-testid="my-job-pause">Pausar</button>
+                                            }
+                                            else if (job.Status is "Paused" or "Expired")
+                                            {
+                                                @if (job.ExpirationDate.Date >= DateTime.UtcNow.Date)
+                                                {
+                                                    <button type="button" class="btn btn-outline-primary" @onclick="() => ChangeStatusAsync(job, EJobStatus.Active)" disabled="@(changingId == job.Id)" title="Voltar a receber candidaturas" data-testid="my-job-activate">Reativar</button>
+                                                }
+                                                else
+                                                {
+                                                    <a class="btn btn-outline-primary" href="@($"/jobs/edit/{job.Id}")" title="Defina uma nova data de validade para reativar">Renovar</a>
+                                                }
+                                            }
+                                            <button type="button" class="btn btn-outline-danger" @onclick="() => DeleteAsync(job)" disabled="@(deletingId == job.Id)" title="Excluir vaga" data-testid="my-job-delete">
+                                                @(deletingId == job.Id ? "Excluindo..." : "Excluir")
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </div>
     }
     else
     {
-        <div class="text-center mt-5">
-            <i class="bi bi-briefcase display-1 text-muted"></i>
-            <h3 class="mt-3">Nenhuma vaga criada ainda</h3>
-            <p class="text-muted">Crie sua primeira vaga para começar a receber candidaturas!</p>
-            <button class="btn btn-primary btn-lg" @onclick="@(() => Navigation.NavigateTo("/jobs/create"))">
-                <i class="bi bi-plus-circle"></i> Criar Minha Primeira Vaga
-            </button>
-        </div>
+        <EmptyState Icon="▣"
+                    Kicker="ÁREA DA EMPRESA"
+                    Title="Nenhuma vaga criada ainda"
+                    Message="Publique sua primeira vaga para começar a receber candidaturas."
+                    TestId="my-jobs-empty">
+            <a class="btn btn-primary" href="/jobs/create">Criar minha primeira vaga <span aria-hidden="true">↗</span></a>
+        </EmptyState>
     }
 </div>
 
+<ConfirmDialog @ref="confirmDialog" />
+
 @code {
-    private IEnumerable<JobResponse>? jobs;
+    private List<JobResponse> jobs = [];
     private bool isLoading = true;
+    private bool loadFailed;
+    private Guid? deletingId;
+    private Guid? changingId;
+    private ConfirmDialog confirmDialog = default!;
 
     protected override async Task OnInitializedAsync()
     {
-        // Obter advertiserId do usuário logado
-        var advertiserId = CurrentUserHelper.GetAdvertiserId();
+        await LoadAsync();
+    }
 
-        var request = new ListJobsRequest
+    private async Task LoadAsync()
+    {
+        isLoading = true;
+        loadFailed = false;
+
+        var advertiserId = CurrentUserHelper.GetAdvertiserId();
+        if (!advertiserId.HasValue)
+        {
+            // Sem anunciante o filtro ficava nulo e a busca trazia as vagas de todo mundo
+            jobs = [];
+            isLoading = false;
+            return;
+        }
+
+        var result = await SearchJobsUseCase.ExecuteAsync(new ListJobsRequest
         {
             Page = 1,
             Size = 100,
             AdvertiserId = advertiserId
-        };
+        });
 
-        var result = await SearchJobsUseCase.ExecuteAsync(request);
         if (result.Status == EResultStatus.Success)
         {
-            jobs = result.Data?.Jobs;
+            jobs = result.Data?.Jobs.ToList() ?? [];
+        }
+        else
+        {
+            Logger.LogFailure(result, "Listar vagas do anunciante");
+            loadFailed = true;
         }
 
         isLoading = false;
     }
 
-    private void ViewJob(Guid jobId)
+    private async Task ChangeStatusAsync(JobResponse job, EJobStatus newStatus)
     {
-        Navigation.NavigateTo($"/jobs/{jobId}");
+        var advertiserId = CurrentUserHelper.GetAdvertiserId();
+        if (!advertiserId.HasValue || changingId.HasValue)
+            return;
+
+        changingId = job.Id;
+        var result = await ChangeJobStatusUseCase.ExecuteAsync(new ChangeJobStatusRequest(job.Id, advertiserId.Value, newStatus));
+        changingId = null;
+
+        if (result.Status == EResultStatus.Success && result.Data is not null)
+        {
+            job.Status = result.Data.Status;
+            Toast.ShowSuccess(newStatus == EJobStatus.Paused
+                ? $"\"{job.Title}\" foi pausada e não recebe novas candidaturas."
+                : $"\"{job.Title}\" está ativa e visível para os candidatos.");
+        }
+        else
+        {
+            Logger.LogFailure(result, "Alterar situação da vaga");
+            Toast.ShowError(ResultMessages.ToUserMessage(result, "Não foi possível alterar a situação da vaga. Tente novamente."));
+        }
     }
 
-    private void EditJob(Guid jobId)
+    private async Task DeleteAsync(JobResponse job)
     {
-        Navigation.NavigateTo($"/jobs/edit/{jobId}");
-    }
+        var message = job.Applications > 0
+            ? $"A vaga \"{job.Title}\" deixará de aparecer nas buscas. As {job.Applications} candidaturas recebidas continuam no seu histórico."
+            : $"A vaga \"{job.Title}\" deixará de aparecer nas buscas.";
 
-    private void ViewApplications(Guid jobId)
-    {
-        Navigation.NavigateTo($"/jobs/{jobId}/applications");
+        var confirmed = await confirmDialog.ShowAsync(new ConfirmOptions
+        {
+            Title = "Excluir vaga?",
+            Message = message,
+            ConfirmText = "Excluir vaga",
+            Destructive = true
+        });
+        if (!confirmed)
+            return;
+
+        // Defesa em profundidade: confere a propriedade antes de excluir
+        var advertiserId = CurrentUserHelper.GetAdvertiserId();
+        var current = await GetJobByIdUseCase.ExecuteAsync(job.Id);
+        if (current.Status != EResultStatus.Success || current.Data?.AdvertiserId != advertiserId)
+        {
+            Toast.ShowError("Esta vaga não pertence à sua empresa ou já foi removida.");
+            await LoadAsync();
+            return;
+        }
+
+        deletingId = job.Id;
+        var result = await DeleteJobUseCase.ExecuteAsync(job.Id);
+        deletingId = null;
+
+        if (result.Status == EResultStatus.Success)
+        {
+            jobs.Remove(job);
+            Toast.ShowSuccess($"A vaga \"{job.Title}\" foi excluída.");
+        }
+        else
+        {
+            Logger.LogFailure(result, "Excluir vaga");
+            Toast.ShowError(ResultMessages.ToUserMessage(result, "Não foi possível excluir a vaga. Tente novamente."));
+        }
     }
 }

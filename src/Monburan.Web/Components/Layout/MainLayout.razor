@@ -209,6 +209,9 @@ else
                 @Body
             </main>
 
+            @* Ilha interativa: toasts disparados pelas páginas (mesmo circuito, mesmo IToastService) *@
+            <ToastHost @rendermode="InteractiveServer" />
+
             <footer class="site-footer">
                 <div class="site-footer__inner">
                     <span>MONBURAN · TALENTOS QUE FICAM</span>

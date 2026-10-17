@@ -13,6 +13,7 @@
 @inject ILogger<ApplyJob> Logger
 @inject ICurrentUserHelper CurrentUserHelper
 @inject NavigationManager Navigation
+@inject IToastService Toast
 
 <PageTitle>Candidatar-se - Monburan</PageTitle>
 
@@ -28,7 +29,11 @@
     <div class="row">
         <div class="col-lg-8 mx-auto">
 
-            @if (!isCandidate)
+            @if (isLoading)
+            {
+                <LoadingState Message="Carregando a vaga..." />
+            }
+            else if (!isCandidate)
             {
                 <div class="alert alert-info" role="status">
                     Esta etapa é exclusiva para candidatos. Entre com uma conta de candidato para enviar sua candidatura.
@@ -131,6 +136,7 @@
     private bool isCandidate;
     private string jobTitle = "carregando...";
     private string? jobUnavailableMessage;
+    private bool isLoading = true;
     private List<ResumeResponse> resumes = [];
 
     protected override async Task OnInitializedAsync()
@@ -167,10 +173,15 @@
             }
         }
         model.JobId = JobId;
+        isLoading = false;
     }
 
     private async Task SubmitForm()
     {
+        // Clique duplo antes do re-render não pode enviar duas candidaturas
+        if (isSubmitting)
+            return;
+
         isSubmitting = true;
         errorMessage = string.Empty;
 
@@ -179,12 +190,14 @@
         if (result.Status == EResultStatus.Success)
         {
             successMessage = true;
+            Toast.ShowSuccess("A empresa já pode ver sua candidatura. Acompanhe em Minhas candidaturas.", "Candidatura enviada");
         }
         else
         {
             // "Já se candidatou" (409) e validações chegavam com Message vazio — nada aparecia
             Logger.LogFailure(result, "Enviar candidatura");
             errorMessage = ResultMessages.ToUserMessage(result, "Não foi possível enviar sua candidatura. Tente novamente.");
+            Toast.ShowError(errorMessage);
         }
 
         isSubmitting = false;

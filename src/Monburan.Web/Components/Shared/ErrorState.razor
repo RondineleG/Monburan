@@ -1,0 +1,41 @@
+<section class="empty-state error-state" role="alert" data-testid="error-state">
+    <span class="empty-state__icon error-state__icon" aria-hidden="true">!</span>
+    <h2>@Title</h2>
+    <p>@Message</p>
+    @if (OnRetry.HasDelegate)
+    {
+        <button type="button" class="btn btn-primary" @onclick="RetryAsync" disabled="@retrying" data-testid="error-retry">
+            @(retrying ? "Tentando..." : "Tentar novamente")
+        </button>
+    }
+    @ChildContent
+</section>
+
+@code {
+    private bool retrying;
+
+    [Parameter]
+    public string Title { get; set; } = "Não foi possível carregar";
+
+    [Parameter]
+    public string Message { get; set; } = "Algo deu errado. Verifique sua conexão e tente novamente.";
+
+    [Parameter]
+    public EventCallback OnRetry { get; set; }
+
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    private async Task RetryAsync()
+    {
+        retrying = true;
+        try
+        {
+            await OnRetry.InvokeAsync();
+        }
+        finally
+        {
+            retrying = false;
+        }
+    }
+}

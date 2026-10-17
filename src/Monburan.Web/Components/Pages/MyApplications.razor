@@ -7,6 +7,7 @@
 @using Monburan.Web.Services
 @inject ListApplicationsByCandidateUseCase ListApplicationsByCandidateUseCase
 @inject CurrentUserHelper CurrentUserHelper
+@inject ILogger<MyApplications> Logger
 
 <PageTitle>Minhas candidaturas - Monburan</PageTitle>
 
@@ -19,28 +20,23 @@
         </div>
     </header>
 
-    @if (!string.IsNullOrEmpty(errorMessage))
-    {
-        <div class="alert alert-danger alert-dismissible fade show" role="alert">
-            <i class="bi bi-exclamation-triangle"></i> @errorMessage
-            <button type="button" class="btn-close" @onclick="() => errorMessage = null"></button>
-        </div>
-    }
-
     @if (isLoading)
     {
-        <div class="text-center py-5">
-            <div class="spinner-border text-primary" role="status"></div>
-            <p class="mt-2">Carregando suas candidaturas...</p>
-        </div>
+        <LoadingState Message="Carregando suas candidaturas..." />
     }
     else if (!isCandidate)
     {
-        <div class="alert alert-warning">
-            <i class="bi bi-exclamation-triangle"></i> Esta área é exclusiva para candidatos.
-        </div>
+        <EmptyState Icon="!" Title="Área exclusiva para candidatos" Message="Entre com uma conta de candidato para acompanhar candidaturas.">
+            <a href="/dashboard" class="btn btn-primary">Voltar ao início</a>
+        </EmptyState>
     }
-    else if (applications != null && applications.Any())
+    else if (loadFailed)
+    {
+        <ErrorState Title="Não foi possível carregar suas candidaturas"
+                    Message="Tivemos um problema ao buscar suas candidaturas. Tente novamente em instantes."
+                    OnRetry="LoadAsync" />
+    }
+    else if (applications.Count > 0)
     {
         <div class="card received-applications-card">
             <div class="card-body p-0">
@@ -49,7 +45,7 @@
                         <thead>
                             <tr>
                                 <th>Vaga</th>
-                                <th>Status</th>
+                                <th>Situação</th>
                                 <th>Data</th>
                             </tr>
                         </thead>
@@ -72,40 +68,43 @@
     }
     else
     {
-        <section class="empty-state" aria-labelledby="applications-empty-title">
-            <span class="empty-state__icon" aria-hidden="true">↗</span>
-            <span class="page-kicker">SUA PRÓXIMA OPORTUNIDADE</span>
-            <h2 id="applications-empty-title">Sua jornada começa com uma candidatura</h2>
-            <p>Quando você se candidatar, poderá acompanhar aqui as atualizações de cada processo seletivo.</p>
+        <EmptyState Icon="↗"
+                    Kicker="SUA PRÓXIMA OPORTUNIDADE"
+                    Title="Sua jornada começa com uma candidatura"
+                    Message="Quando você se candidatar, poderá acompanhar aqui as atualizações de cada processo seletivo."
+                    TestId="applications-empty">
             <a href="/jobs" class="btn btn-primary">Explorar vagas <span aria-hidden="true">↗</span></a>
-        </section>
+        </EmptyState>
     }
 </div>
 
 @code {
-    private IEnumerable<ApplicationResponse>? applications;
+    private List<ApplicationResponse> applications = [];
     private bool isLoading = true;
     private bool isCandidate;
-    private string? errorMessage;
+    private bool loadFailed;
 
     protected override async Task OnInitializedAsync()
     {
-        var candidateId = CurrentUserHelper.GetCandidateId();
-        isCandidate = candidateId.HasValue;
-
+        isCandidate = CurrentUserHelper.GetCandidateId().HasValue;
         if (isCandidate)
-        {
-            var result = await ListApplicationsByCandidateUseCase.ExecuteAsync(candidateId!.Value);
-            if (result.Status == EResultStatus.Success)
-            {
-                applications = result.Data;
-            }
-            else
-            {
-                errorMessage = ResultMessages.ToUserMessage(result, "Não foi possível carregar suas candidaturas.");
-            }
-        }
+            await LoadAsync();
 
         isLoading = false;
+    }
+
+    private async Task LoadAsync()
+    {
+        loadFailed = false;
+        var result = await ListApplicationsByCandidateUseCase.ExecuteAsync(CurrentUserHelper.GetCandidateId()!.Value);
+        if (result.Status == EResultStatus.Success)
+        {
+            applications = result.Data?.ToList() ?? [];
+        }
+        else
+        {
+            Logger.LogFailure(result, "Listar candidaturas do candidato");
+            loadFailed = true;
+        }
     }
 }

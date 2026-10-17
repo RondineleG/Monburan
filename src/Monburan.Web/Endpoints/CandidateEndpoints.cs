@@ -99,7 +99,7 @@ public static class CandidateEndpoints
                 return Results.ValidationProblem(new Dictionary<string, string[]>
                 {
                     ["file"] = ["Arquivo é obrigatório"]
-                });
+                }, title: "Erro de validação");
             }
 
             await using var stream = file.OpenReadStream();
