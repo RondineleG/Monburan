@@ -5,6 +5,9 @@
              quebraria dotnet build/test da solution em Linux/Windows, que não têm o workload do iOS -->
         <TargetFrameworks>net10.0-android</TargetFrameworks>
         <TargetFrameworks Condition="$([MSBuild]::IsOSPlatform('osx'))">$(TargetFrameworks);net10.0-ios</TargetFrameworks>
+        <!-- Esteira do iOS (macOS): -p:IosOnly=true declara só o alvo iOS, sem exigir o workload do Android no restore.
+             Usar uma chave própria (e não -p:TargetFrameworks) porque propriedade global vai junto para as referências de projeto -->
+        <TargetFrameworks Condition="'$(IosOnly)' == 'true'">net10.0-ios</TargetFrameworks>
 
         <!-- Cleartext HTTP só em Debug (API local) — Release usa o manifest padrão, sem networkSecurityConfig -->
         <AndroidManifest Condition="'$(Configuration)' == 'Debug'">Platforms\Android\AndroidManifest.Debug.xml</AndroidManifest>

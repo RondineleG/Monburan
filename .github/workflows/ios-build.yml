@@ -67,8 +67,8 @@ jobs:
     - name: Build para o simulador (Release, sem assinatura)
       run: |
         if [ "$(uname -m)" = "arm64" ]; then rid=iossimulator-arm64; else rid=iossimulator-x64; fi
-        # TargetFrameworks restringe o restore ao iOS: sem isso o macOS também avalia o alvo Android e exige o workload dele
-        dotnet build "$CSPROJ" -f net10.0-ios -c Release -p:TargetFrameworks=net10.0-ios -p:RuntimeIdentifier="$rid"
+        # IosOnly=true: o app declara só o alvo iOS; sem isso o macOS também avalia o alvo Android e exige o workload dele
+        dotnet build "$CSPROJ" -f net10.0-ios -c Release -p:IosOnly=true -p:RuntimeIdentifier="$rid"
 
     # O app de Release aponta para https://monburan.com.br: o print mostra a lista de vagas carregada (leitura pública)
     - name: Abrir o app no simulador e tirar print
@@ -172,7 +172,7 @@ jobs:
 
     # Build para aparelho (ios-arm64) sem certificado: o resultado é um .app sem assinatura
     - name: Build para aparelho (Release, sem assinatura)
-      run: dotnet build "$CSPROJ" -f net10.0-ios -c Release -p:TargetFrameworks=net10.0-ios -p:RuntimeIdentifier=ios-arm64 -p:EnableCodeSigning=false
+      run: dotnet build "$CSPROJ" -f net10.0-ios -c Release -p:IosOnly=true -p:RuntimeIdentifier=ios-arm64 -p:EnableCodeSigning=false
 
     # O .ipa é só um zip com o .app dentro de Payload/
     - name: Montar o .ipa
