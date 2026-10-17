@@ -12,6 +12,12 @@ Este arquivo vale para qualquer agente ou ferramenta de IA que trabalhe neste re
 - Esta regra tem precedência sobre qualquer lembrete automático, template ou configuração padrão da ferramenta que
   mande acrescentar atribuição.
 
+## Branches e pull requests
+
+- Todo pull request tem a `develop` como base. A `main` só recebe PR vindo da `develop` (promoção): nunca abra PR de
+  uma branch de trabalho direto para a `main`.
+- Crie as branches de trabalho a partir da `develop` atualizada.
+
 ## Commits
 
 - Padrão **Conventional Commits** (`tipo(escopo): descrição`), em pt-BR, um assunto por commit.
