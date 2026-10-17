@@ -28,12 +28,12 @@ else
             <div class="card">
                 <div class="list-row">
                     <h2 class="card-title">@(app.JobTitle ?? "Vaga")</h2>
-                    <span class="badge @StatusClass(app.Status)">@StatusLabel(app.Status)</span>
+                    <span class="badge @Formatters.ApplicationStatusClass(app.Status)">@Formatters.ApplicationStatus(app.Status)</span>
                 </div>
                 <div class="card-meta">
                     @if (app.AppliedAt.HasValue)
                     {
-                        <span class="meta-chip">Enviada em @app.AppliedAt.Value.ToString("dd/MM/yyyy")</span>
+                        <span class="meta-chip">Enviada em @Formatters.MomentDate(app.AppliedAt.Value)</span>
                     }
                 </div>
             </div>
@@ -69,24 +69,4 @@ else
             _loading = false;
         }
     }
-
-    // Mesmos rótulos do site (MyApplications.razor web): EApplicationStatus =
-    // { Sent, Viewed, Selected, Rejected, Archived }
-    private static string StatusClass(string status) => status switch
-    {
-        "Selected" => "ok",
-        "Rejected" => "er",
-        "Viewed" => "info",
-        _ => "gold"
-    };
-
-    private static string StatusLabel(string status) => status switch
-    {
-        "Sent" => "Enviada",
-        "Viewed" => "Visualizada",
-        "Selected" => "Selecionada",
-        "Rejected" => "Rejeitada",
-        "Archived" => "Arquivada",
-        _ => status
-    };
 }

@@ -1,14 +1,10 @@
 @page "/resumes"
 @inherits ProtectedPage
 @inject MonburanApiClient Api
+@inject IToastService Toast
 
 <h1 class="page-title">Meus currículos</h1>
 <p class="page-subtitle">Envie um PDF ou cadastre seu currículo</p>
-
-@if (_message is not null)
-{
-    <div class="alert @(_messageIsError ? "alert-error" : "alert-ok")">@_message</div>
-}
 
 <div class="card">
     <div class="list-row">
@@ -23,19 +19,23 @@
 </div>
 
 <h2 class="section-label">Novo currículo</h2>
-<div class="card">
+<form class="card" @onsubmit="CreateAsync" novalidate>
     <div class="form-field">
-        <label>Título</label>
-        <input class="input" @bind="_newTitle" placeholder="Ex.: Currículo Dev .NET" />
+        <label for="resume-title">Título</label>
+        <input id="resume-title" class="input" @bind="_newTitle" placeholder="Ex.: Currículo Dev .NET" maxlength="200" />
+        @if (_titleError is not null)
+        {
+            <div class="field-error">@_titleError</div>
+        }
     </div>
     <div class="form-field">
-        <label>Resumo</label>
-        <textarea class="input" @bind="_newSummary" placeholder="Breve resumo profissional"></textarea>
+        <label for="resume-summary">Resumo</label>
+        <textarea id="resume-summary" class="input" @bind="_newSummary" placeholder="Breve resumo profissional" maxlength="2000"></textarea>
     </div>
-    <button class="btn btn-primary btn-block" @onclick="CreateAsync" disabled="@_busy">
+    <button type="submit" class="btn btn-primary btn-block" disabled="@_busy">
         @(_busy ? "Salvando..." : "Salvar currículo")
     </button>
-</div>
+</form>
 
 <h2 class="section-label">Cadastrados</h2>
 
@@ -59,14 +59,14 @@ else
             <div class="list-row">
                 <div>
                     <h2 class="card-title">@r.Title</h2>
-                    <div class="text-dim">@r.CreatedAt.ToString("dd/MM/yyyy")</div>
+                    <div class="text-dim">@Formatters.MomentDate(r.CreatedAt)</div>
                 </div>
                 <div class="tag-row">
                     @if (r.IsActive)
                     {
                         <span class="badge ok">Ativo</span>
                     }
-                    <button class="btn btn-ghost btn-danger" @onclick="() => DeleteAsync(r)">Excluir</button>
+                    <button class="btn btn-ghost btn-danger" @onclick="() => DeleteAsync(r)" disabled="@(_deletingId == r.Id)">@(_deletingId == r.Id ? "Excluindo..." : "Excluir")</button>
                 </div>
             </div>
             @if (!string.IsNullOrEmpty(r.Summary))
@@ -77,12 +77,15 @@ else
     }
 }
 
+<ConfirmDialog @ref="_confirm" />
+
 @code {
     private List<ResumeResponse> _items = [];
     private string _newTitle = "";
     private string? _newSummary;
-    private string? _message;
-    private bool _messageIsError;
+    private string? _titleError;
+    private Guid? _deletingId;
+    private ConfirmDialog _confirm = default!;
     private bool _loading = true;
     private bool _busy;
     private bool _uploading;
@@ -114,9 +117,13 @@ else
 
     private async Task CreateAsync()
     {
+        if (_busy)
+            return;
+
+        _titleError = null;
         if (string.IsNullOrWhiteSpace(_newTitle))
         {
-            ShowMessage("Informe um título para o currículo.", true);
+            _titleError = "Informe um título para o currículo.";
             return;
         }
 
@@ -131,12 +138,13 @@ else
             });
             _newTitle = "";
             _newSummary = null;
-            ShowMessage("Currículo criado!", false);
+            Toast.ShowSuccess("Currículo criado!");
             await LoadAsync();
         }
         catch (ApiException ex)
         {
-            ShowMessage(ex.Message, true);
+            _titleError = ex.FieldError("title");
+            Toast.ShowError(ex.Message);
         }
         finally
         {
@@ -160,7 +168,7 @@ else
 
             if (!picked.FileName.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase))
             {
-                ShowMessage("Selecione um arquivo PDF.", true);
+                Toast.ShowError("Selecione um arquivo PDF.");
                 return;
             }
 
@@ -176,12 +184,12 @@ else
                 IsActive = false
             });
 
-            ShowMessage("Currículo enviado e adicionado à sua lista!", false);
+            Toast.ShowSuccess("Currículo enviado e adicionado à sua lista!");
             await LoadAsync();
         }
         catch (ApiException ex)
         {
-            ShowMessage(ex.Message, true);
+            Toast.ShowError(ex.Message);
         }
         finally
         {
@@ -191,21 +199,31 @@ else
 
     private async Task DeleteAsync(ResumeResponse resume)
     {
+        // Antes excluía direto, sem confirmação
+        var confirmed = await _confirm.ShowAsync(new ConfirmOptions
+        {
+            Title = "Excluir currículo?",
+            Message = $"\"{resume.Title}\" será removido e não poderá mais ser enviado em candidaturas.",
+            ConfirmText = "Excluir currículo",
+            Destructive = true
+        });
+        if (!confirmed)
+            return;
+
+        _deletingId = resume.Id;
         try
         {
             await Api.DeleteResumeAsync(resume.Id);
             _items.Remove(resume);
-            ShowMessage("Currículo excluído.", false);
+            Toast.ShowSuccess("Currículo excluído.");
         }
         catch (ApiException ex)
         {
-            ShowMessage(ex.Message, true);
+            Toast.ShowError(ex.Message);
         }
-    }
-
-    private void ShowMessage(string message, bool isError)
-    {
-        _message = message;
-        _messageIsError = isError;
+        finally
+        {
+            _deletingId = null;
+        }
     }
 }

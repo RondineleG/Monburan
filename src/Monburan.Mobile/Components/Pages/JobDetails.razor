@@ -2,6 +2,7 @@
 @inject MonburanApiClient Api
 @inject AuthStateService Auth
 @inject NavigationManager Nav
+@inject ILogger<JobDetails> Logger
 
 @if (_loading)
 {
@@ -9,7 +10,16 @@
 }
 else if (_error is not null)
 {
-    <ErrorState Message="@_error.Message" IsOffline="@_error.IsNetworkError" OnRetry="LoadAsync" />
+    @if (_error.StatusCode == System.Net.HttpStatusCode.NotFound)
+    {
+        <EmptyState Icon="?" Title="Vaga não encontrada" Message="Ela pode ter sido encerrada ou removida pela empresa.">
+            <a class="btn btn-primary" href="/">Ver vagas abertas</a>
+        </EmptyState>
+    }
+    else
+    {
+        <ErrorState Message="@_error.Message" IsOffline="@_error.IsNetworkError" OnRetry="LoadAsync" />
+    }
 }
 else if (_job is not null)
 {
@@ -21,7 +31,7 @@ else if (_job is not null)
             }
             @if (!string.IsNullOrEmpty(_job.Type) && !_job.IsRemote)
             {
-                <span class="badge">@TypeLabel(_job.Type)</span>
+                <span class="badge">@Formatters.JobType(_job.Type)</span>
             }
             @if (!string.IsNullOrEmpty(_job.Category))
             {
@@ -38,11 +48,11 @@ else if (_job is not null)
             {
                 <span class="meta-chip">📍 @_job.City@(_job.State is not null ? $"/{_job.State}" : "")</span>
             }
-            @if (_job.SalaryMin.HasValue || _job.SalaryMax.HasValue)
+            @if (Formatters.Salary(_job) is { } salary)
             {
-                <span class="salary">@FormatSalary()</span>
+                <span class="salary">@salary</span>
             }
-            <span class="meta-chip">até @_job.ExpirationDate.ToString("dd/MM/yyyy")</span>
+            <span class="meta-chip">até @Formatters.CalendarDate(_job.ExpirationDate)</span>
         </div>
     </div>
 
@@ -86,9 +96,24 @@ else if (_job is not null)
         </div>
     }
 
-    <button class="btn btn-primary btn-block" @onclick="Apply">
-        Candidatar-se
-    </button>
+    <div class="alert alert-info">Nunca pague para participar de um processo seletivo nem envie dados bancários por canais desconhecidos.</div>
+
+    @if (_alreadyApplied)
+    {
+        <div class="alert alert-ok">Você já se candidatou a esta vaga.</div>
+        <a class="btn btn-block" href="/applications">Ver minhas candidaturas</a>
+    }
+    else if (_job.Status != "Active")
+    {
+        <div class="alert alert-info">Esta vaga não está mais recebendo candidaturas.</div>
+        <a class="btn btn-block" href="/">Ver outras vagas</a>
+    }
+    else
+    {
+        <button class="btn btn-primary btn-block" @onclick="Apply">
+            Candidatar-se
+        </button>
+    }
 }
 
 @code {
@@ -96,6 +121,7 @@ else if (_job is not null)
 
     private JobResponse? _job;
     private bool _loading = true;
+    private bool _alreadyApplied;
     private ApiException? _error;
 
     protected override Task OnInitializedAsync() => LoadAsync();
@@ -107,6 +133,7 @@ else if (_job is not null)
         try
         {
             _job = await Api.GetJobAsync(Id);
+            await CheckAlreadyAppliedAsync();
         }
         catch (ApiException ex)
         {
@@ -118,30 +145,29 @@ else if (_job is not null)
         }
     }
 
+    // Evita o candidato descobrir só no envio (409) que já está no processo
+    private async Task CheckAlreadyAppliedAsync()
+    {
+        await Auth.InitializeAsync();
+        if (!Auth.IsAuthenticated)
+            return;
+
+        try
+        {
+            var applications = await Api.GetMyApplicationsAsync();
+            _alreadyApplied = applications.Any(a => a.JobId == Id);
+        }
+        catch (ApiException ex)
+        {
+            // Informativo: se falhar, o envio ainda é validado no servidor (409)
+            Logger.LogDebug(ex, "Não foi possível verificar candidaturas existentes");
+            _alreadyApplied = false;
+        }
+    }
+
     private async Task Apply()
     {
         await Auth.InitializeAsync();
         Nav.NavigateTo(Auth.IsAuthenticated ? $"/apply/{Id}" : "/login");
-    }
-
-    private static string TypeLabel(string type) => type switch
-    {
-        "Remote" => "Remoto",
-        "OnSite" => "Presencial",
-        "Hybrid" => "Híbrido",
-        _ => type
-    };
-
-    private string FormatSalary()
-    {
-        var min = _job!.SalaryMin?.ToString("N0");
-        var max = _job!.SalaryMax?.ToString("N0");
-        return (min, max) switch
-        {
-            (not null, not null) => $"R$ {min} – {max}",
-            (not null, null) => $"a partir de R$ {min}",
-            (null, not null) => $"até R$ {max}",
-            _ => ""
-        };
     }
 }

@@ -1,12 +1,18 @@
 @page "/apply/{Id:guid}"
 @inherits ProtectedPage
 @inject MonburanApiClient Api
+@inject IToastService Toast
 
 <h1 class="page-title">Candidatar-se</h1>
 
 @if (_loading)
 {
-    <LoadingState />
+    <LoadingState Message="Carregando vaga..." />
+}
+else if (_loadError is not null)
+{
+    @* Antes uma falha aqui deixava a tela em branco, só com o título *@
+    <ErrorState Message="@_loadError.Message" IsOffline="@_loadError.IsNetworkError" OnRetry="LoadAsync" />
 }
 else if (_job is not null)
 {
@@ -24,41 +30,57 @@ else if (_job is not null)
             <a class="btn btn-primary btn-block" href="/applications">Ver minhas candidaturas</a>
         </div>
     }
+    else if (_job.Status != "Active")
+    {
+        <EmptyState Icon="!" Title="Vaga encerrada" Message="Esta vaga não está mais recebendo candidaturas.">
+            <a class="btn btn-primary" href="/">Ver outras vagas</a>
+        </EmptyState>
+    }
     else
     {
         @if (_error is not null)
         {
-            <div class="alert alert-error">@_error</div>
+            <div class="alert alert-error" role="alert">@_error</div>
         }
 
-        @if (_resumes.Count > 0)
-        {
-            <div class="form-field">
-                <label>Currículo</label>
-                <select class="input" @bind="_resumeId">
-                    <option value="">Sem currículo anexado</option>
-                    @foreach (var r in _resumes)
+        <form @onsubmit="Submit" novalidate>
+            @if (_resumes.Count > 0)
+            {
+                <div class="form-field">
+                    <label for="apply-resume">Currículo</label>
+                    <select id="apply-resume" class="input" @bind="_resumeId">
+                        <option value="">Sem currículo anexado</option>
+                        @foreach (var r in _resumes)
+                        {
+                            <option value="@r.Id">@r.Title@(r.IsActive ? " (ativo)" : "")</option>
+                        }
+                    </select>
+                    @if (_fieldErrors.GetValueOrDefault("resumeId") is { } resumeError)
                     {
-                        <option value="@r.Id">@r.Title</option>
+                        <div class="field-error">@resumeError</div>
                     }
-                </select>
-            </div>
-        }
-        else
-        {
-            <div class="alert alert-info">
-                Você ainda não tem currículo. <a href="/resumes">Adicionar currículo</a>
-            </div>
-        }
+                </div>
+            }
+            else
+            {
+                <div class="alert alert-info">
+                    Você ainda não tem currículo. <a href="/resumes">Adicionar currículo</a>
+                </div>
+            }
 
-        <div class="form-field">
-            <label>Mensagem para a empresa (opcional)</label>
-            <textarea class="input" @bind="_notes" placeholder="Conte brevemente por que você é a pessoa certa..."></textarea>
-        </div>
+            <div class="form-field">
+                <label for="apply-notes">Mensagem para a empresa (opcional)</label>
+                <textarea id="apply-notes" class="input" maxlength="2000" @bind="_notes" placeholder="Conte brevemente por que você é a pessoa certa..."></textarea>
+                @if (_fieldErrors.GetValueOrDefault("notes") is { } notesError)
+                {
+                    <div class="field-error">@notesError</div>
+                }
+            </div>
 
-        <button class="btn btn-primary btn-block" @onclick="Submit" disabled="@_busy">
-            @(_busy ? "Enviando..." : "Confirmar candidatura")
-        </button>
+            <button type="submit" class="btn btn-primary btn-block" disabled="@_busy">
+                @(_busy ? "Enviando..." : "Confirmar candidatura")
+            </button>
+        </form>
     }
 }
 
@@ -70,15 +92,22 @@ else if (_job is not null)
     private string? _notes;
     private Guid? _resumeId;
     private string? _error;
+    private ApiException? _loadError;
+    private Dictionary<string, string> _fieldErrors = new(StringComparer.OrdinalIgnoreCase);
     private bool _loading = true;
     private bool _busy;
     private bool _success;
 
     protected override async Task OnInitializedAsync()
     {
-        if (!await EnsureAuthenticatedAsync())
-            return;
+        if (await EnsureAuthenticatedAsync())
+            await LoadAsync();
+    }
 
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        _loadError = null;
         try
         {
             var jobTask = Api.GetJobAsync(Id);
@@ -86,10 +115,12 @@ else if (_job is not null)
             await Task.WhenAll(jobTask, resumesTask);
             _job = await jobTask;
             _resumes = await resumesTask;
+            // Mesmo comportamento do site: o currículo ativo vem selecionado
+            _resumeId ??= _resumes.FirstOrDefault(r => r.IsActive)?.Id;
         }
         catch (ApiException ex)
         {
-            _error = ex.Message;
+            _loadError = ex;
         }
         finally
         {
@@ -99,18 +130,30 @@ else if (_job is not null)
 
     private async Task Submit()
     {
+        if (_busy)
+            return;
+
         _busy = true;
         _error = null;
+        _fieldErrors = new(StringComparer.OrdinalIgnoreCase);
         try
         {
             await Api.ApplyAsync(Id, _notes, _resumeId);
             _success = true;
+            Toast.ShowSuccess("A empresa já pode ver sua candidatura.", "Candidatura enviada");
         }
         catch (ApiException ex)
         {
+            foreach (var field in new[] { "resumeId", "notes" })
+            {
+                if (ex.FieldError(field) is { } message)
+                    _fieldErrors[field] = message;
+            }
+
             _error = ex.StatusCode == System.Net.HttpStatusCode.Conflict
                 ? "Você já se candidatou a esta vaga."
                 : ex.Message;
+            Toast.ShowError(_error);
         }
         finally
         {

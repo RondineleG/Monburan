@@ -2,6 +2,7 @@
 @inject AuthApiClient AuthApi
 @inject AuthStateService Auth
 @inject NavigationManager Nav
+@inject IToastService Toast
 
 <div class="auth-hero">
     <div class="brand-mark">✦ Monburan</div>
@@ -13,32 +14,51 @@
 
 @if (_error is not null)
 {
-    <div class="alert alert-error">@_error</div>
+    <div class="alert alert-error" role="alert">@_error</div>
 }
 
-<div class="form-field">
-    <label>Nome completo</label>
-    <input class="input" @bind="_name" placeholder="Seu nome" autocomplete="name" />
-</div>
+<form @onsubmit="DoRegister" novalidate>
+    <div class="form-field">
+        <label for="register-name">Nome completo</label>
+        <input id="register-name" class="input" @bind="_name" placeholder="Seu nome" autocomplete="name" />
+        @if (FieldError("name") is { } nameError)
+        {
+            <div class="field-error">@nameError</div>
+        }
+    </div>
 
-<div class="form-field">
-    <label>E-mail</label>
-    <input class="input" type="email" @bind="_email" placeholder="voce@email.com" autocomplete="email" />
-</div>
+    <div class="form-field">
+        <label for="register-email">E-mail</label>
+        <input id="register-email" class="input" type="email" @bind="_email" placeholder="voce@email.com" autocomplete="email" inputmode="email" />
+        @if (FieldError("email") is { } emailError)
+        {
+            <div class="field-error">@emailError</div>
+        }
+    </div>
 
-<div class="form-field">
-    <label>Senha</label>
-    <input class="input" type="password" @bind="_password" placeholder="Mínimo 6 caracteres" autocomplete="new-password" />
-</div>
+    <div class="form-field">
+        <label for="register-password">Senha</label>
+        <input id="register-password" class="input" type="password" @bind="_password" placeholder="Mínimo 6 caracteres" autocomplete="new-password" />
+        <div class="text-dim">Use ao menos 6 caracteres, com letra maiúscula, minúscula e número.</div>
+        @if (FieldError("password") is { } passwordError)
+        {
+            <div class="field-error">@passwordError</div>
+        }
+    </div>
 
-<div class="form-field">
-    <label>Confirmar senha</label>
-    <input class="input" type="password" @bind="_confirm" placeholder="Repita a senha" autocomplete="new-password" />
-</div>
+    <div class="form-field">
+        <label for="register-confirm">Confirmar senha</label>
+        <input id="register-confirm" class="input" type="password" @bind="_confirm" placeholder="Repita a senha" autocomplete="new-password" />
+        @if (FieldError("confirmPassword") is { } confirmError)
+        {
+            <div class="field-error">@confirmError</div>
+        }
+    </div>
 
-<button class="btn btn-primary btn-block" @onclick="DoRegister" disabled="@_busy">
-    @(_busy ? "Criando..." : "Criar conta")
-</button>
+    <button type="submit" class="btn btn-primary btn-block" disabled="@_busy">
+        @(_busy ? "Criando..." : "Criar conta")
+    </button>
+</form>
 
 <div class="auth-links">
     <p>Já tem conta? <a href="/login">Entrar</a></p>
@@ -51,6 +71,7 @@
     private string _confirm = "";
     private string? _error;
     private bool _busy;
+    private Dictionary<string, string> _fieldErrors = new(StringComparer.OrdinalIgnoreCase);
 
     protected override async Task OnInitializedAsync()
     {
@@ -59,27 +80,27 @@
             Nav.NavigateTo("/");
     }
 
+    private string? FieldError(string field) => _fieldErrors.GetValueOrDefault(field);
+
     private async Task DoRegister()
     {
+        if (_busy)
+            return;
+
         _error = null;
+        _fieldErrors = new(StringComparer.OrdinalIgnoreCase);
 
-        if (string.IsNullOrWhiteSpace(_name) || string.IsNullOrWhiteSpace(_email))
-        {
-            _error = "Informe nome e e-mail.";
-            return;
-        }
-
+        if (string.IsNullOrWhiteSpace(_name))
+            _fieldErrors["name"] = "Informe seu nome.";
+        if (string.IsNullOrWhiteSpace(_email) || !_email.Contains('@'))
+            _fieldErrors["email"] = "Informe um e-mail válido.";
         if (_password.Length < 6)
-        {
-            _error = "A senha precisa de pelo menos 6 caracteres.";
-            return;
-        }
+            _fieldErrors["password"] = "A senha precisa de pelo menos 6 caracteres.";
+        else if (_password != _confirm)
+            _fieldErrors["confirmPassword"] = "As senhas não conferem.";
 
-        if (_password != _confirm)
-        {
-            _error = "As senhas não conferem.";
+        if (_fieldErrors.Count > 0)
             return;
-        }
 
         _busy = true;
         try
@@ -93,13 +114,25 @@
                 ConfirmPassword = _confirm
             });
             await Auth.SignInAsync(tokens);
+            Toast.ShowSuccess("Sua conta foi criada. Boas-vindas à Monburan!");
             Nav.NavigateTo("/");
         }
         catch (ApiException ex)
         {
-            _error = ex.ValidationErrors is { Count: > 0 }
-                ? string.Join(" ", ex.ValidationErrors.SelectMany(e => e.Value))
-                : ex.Message;
+            // Erros com campo vão para baixo do campo; os gerais (regras de senha do servidor) no alerta
+            foreach (var field in new[] { "name", "email", "password", "confirmPassword" })
+            {
+                if (ex.FieldError(field) is { } message)
+                    _fieldErrors[field] = message;
+            }
+
+            var general = ex.ValidationErrors?
+                .Where(e => !_fieldErrors.ContainsKey(e.Key))
+                .SelectMany(e => e.Value)
+                .ToList();
+            _error = general is { Count: > 0 }
+                ? string.Join(" ", general)
+                : _fieldErrors.Count > 0 ? null : ex.Message;
         }
         finally
         {

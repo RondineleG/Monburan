@@ -1,6 +1,7 @@
 @page "/notifications"
 @inherits ProtectedPage
 @inject MonburanApiClient Api
+@inject IToastService Toast
 
 <h1 class="page-title">Avisos</h1>
 <p class="page-subtitle">Notificações sobre suas candidaturas</p>
@@ -15,13 +16,22 @@ else if (_error is not null)
 }
 else if (_items.Count == 0)
 {
-    <EmptyState Icon="◈" Title="Nenhum aviso" Message="Quando houver novidades sobre suas candidaturas, elas aparecem aqui." />
+    <EmptyState Icon="◈" Title="Nenhum aviso" Message="Quando houver novidades sobre suas candidaturas, elas aparecem aqui.">
+        <a class="btn btn-primary" href="/">Ver vagas</a>
+    </EmptyState>
 }
 else
 {
+    @if (_items.Any(n => !n.IsRead))
+    {
+        <button class="btn btn-block" @onclick="MarkAllAsync" disabled="@_markingAll" style="margin-bottom: var(--s-3)">
+            @(_markingAll ? "Marcando..." : "Marcar todos como lidos")
+        </button>
+    }
+
     @foreach (var n in _items)
     {
-        <div class="card @(n.IsRead ? "" : "notification-unread")" @onclick="() => MarkRead(n)">
+        <div class="card @(n.IsRead ? "" : "notification-unread")" role="button" tabindex="0" @onclick="() => MarkRead(n)">
             <div class="list-row">
                 <h2 class="card-title">@n.Title</h2>
                 @if (!n.IsRead)
@@ -31,7 +41,7 @@ else
             </div>
             <p class="card-snippet">@n.Message</p>
             <div class="card-meta">
-                <span class="text-dim">@n.CreatedAt.ToString("dd/MM/yyyy HH:mm")</span>
+                <span class="text-dim">@Formatters.Moment(n.CreatedAt)</span>
             </div>
         </div>
     }
@@ -40,6 +50,7 @@ else
 @code {
     private List<NotificationResponse> _items = [];
     private bool _loading = true;
+    private bool _markingAll;
     private ApiException? _error;
 
     protected override async Task OnInitializedAsync()
@@ -77,9 +88,38 @@ else
             n.IsRead = true;
             n.ReadAt = DateTime.UtcNow;
         }
-        catch (ApiException)
+        catch (ApiException ex)
         {
-            // silencioso — o aviso continua marcado como não lido
+            // Antes a falha era silenciosa e o aviso continuava "Novo" sem explicação
+            Toast.ShowError(ex.Message);
+        }
+    }
+
+    private async Task MarkAllAsync()
+    {
+        if (_markingAll)
+            return;
+
+        _markingAll = true;
+        try
+        {
+            await Api.MarkAllNotificationsAsReadAsync();
+            var now = DateTime.UtcNow;
+            foreach (var n in _items.Where(n => !n.IsRead))
+            {
+                n.IsRead = true;
+                n.ReadAt = now;
+            }
+
+            Toast.ShowSuccess("Todos os avisos foram marcados como lidos.");
+        }
+        catch (ApiException ex)
+        {
+            Toast.ShowError(ex.Message);
+        }
+        finally
+        {
+            _markingAll = false;
         }
     }
 }

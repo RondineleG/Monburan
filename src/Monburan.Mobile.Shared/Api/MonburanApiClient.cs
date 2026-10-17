@@ -83,6 +83,9 @@ public class MonburanApiClient
     public Task MarkNotificationAsReadAsync(Guid id, CancellationToken ct = default) =>
         SendAsync<object>(HttpMethod.Put, $"api/v1/notifications/{id}/read", null, ct);
 
+    public Task MarkAllNotificationsAsReadAsync(CancellationToken ct = default) =>
+        SendAsync<object>(HttpMethod.Put, "api/v1/notifications/mine/read-all", null, ct);
+
     public async Task<int> GetUnreadCountAsync(CancellationToken ct = default)
     {
         var result = await SendAsync<UnreadCountResponse>(HttpMethod.Get, "api/v1/notifications/mine/unread-count", null, ct);
@@ -148,7 +151,17 @@ public class MonburanApiClient
         if (response.StatusCode == HttpStatusCode.NoContent || typeof(T) == typeof(object))
             return default!;
 
-        return (await response.Content.ReadFromJsonAsync<T>(ApiJson.Options, ct))!;
+        try
+        {
+            var body = await response.Content.ReadFromJsonAsync<T>(ApiJson.Options, ct);
+            return body ?? throw ApiException.InvalidResponse(response.StatusCode);
+        }
+        catch (Exception ex) when (ex is JsonException or NotSupportedException)
+        {
+            // Contrato quebrado (HTML de proxy, JSON fora do formato): sem isso a exceção
+            // escapava dos "catch (ApiException)" das telas e derrubava o app
+            throw ApiException.InvalidResponse(response.StatusCode);
+        }
     }
 
     private static async Task<ApiException> ToApiExceptionAsync(HttpResponseMessage response, CancellationToken ct)
@@ -178,7 +191,11 @@ public class MonburanApiClient
                     message = problem.Title;
 
                 if (problem.Errors is { Count: > 0 })
+                {
                     validationErrors = problem.Errors;
+                    // "Erro de validação" sozinho não orienta: a mensagem principal vira o erro concreto
+                    message = string.Join(" ", problem.Errors.SelectMany(e => e.Value).Distinct().Take(3));
+                }
             }
         }
         catch (JsonException)

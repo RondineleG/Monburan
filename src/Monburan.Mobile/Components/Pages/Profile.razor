@@ -1,6 +1,7 @@
 @page "/profile"
 @inherits ProtectedPage
 @inject MonburanApiClient Api
+@inject IToastService Toast
 
 <h1 class="page-title">Perfil</h1>
 <p class="page-subtitle">Seus dados de candidato</p>
@@ -15,11 +16,6 @@ else if (_loadError is not null)
 }
 else if (_candidate is not null)
 {
-    @if (_message is not null)
-    {
-        <div class="alert @(_messageIsError ? "alert-error" : "alert-ok")">@_message</div>
-    }
-
     <div class="card">
         <div class="list-row">
             <div>
@@ -38,23 +34,35 @@ else if (_candidate is not null)
     </div>
 
     <h2 class="section-label">Editar dados</h2>
-    <div class="card">
+    <form class="card" @onsubmit="SaveAsync" novalidate>
         <div class="form-field">
-            <label>Nome</label>
-            <input class="input" @bind="_name" />
+            <label for="profile-name">Nome</label>
+            <input id="profile-name" class="input" @bind="_name" autocomplete="name" />
+            @if (_fieldErrors.GetValueOrDefault("name") is { } nameError)
+            {
+                <div class="field-error">@nameError</div>
+            }
         </div>
         <div class="form-field">
-            <label>Telefone</label>
-            <input class="input" type="tel" @bind="_phone" placeholder="(11) 99999-0000" />
+            <label for="profile-phone">Telefone</label>
+            <input id="profile-phone" class="input" type="tel" @bind="_phone" placeholder="(11) 99999-0000" autocomplete="tel" />
+            @if (_fieldErrors.GetValueOrDefault("phone") is { } phoneError)
+            {
+                <div class="field-error">@phoneError</div>
+            }
         </div>
         <div class="form-field">
-            <label>LinkedIn</label>
-            <input class="input" @bind="_linkedIn" placeholder="https://linkedin.com/in/voce" />
+            <label for="profile-linkedin">LinkedIn</label>
+            <input id="profile-linkedin" class="input" type="url" @bind="_linkedIn" placeholder="https://linkedin.com/in/voce" />
+            @if (_fieldErrors.GetValueOrDefault("linkedIn") is { } linkedInError)
+            {
+                <div class="field-error">@linkedInError</div>
+            }
         </div>
-        <button class="btn btn-primary btn-block" @onclick="SaveAsync" disabled="@_busy">
+        <button type="submit" class="btn btn-primary btn-block" disabled="@_busy">
             @(_busy ? "Salvando..." : "Salvar")
         </button>
-    </div>
+    </form>
 
     <a class="btn btn-block" href="/resumes" style="margin-bottom: var(--s-3)">Meus currículos</a>
     <button class="btn btn-ghost btn-block" @onclick="LogoutAsync">Sair da conta</button>
@@ -65,8 +73,7 @@ else if (_candidate is not null)
     private string _name = "";
     private string? _phone;
     private string? _linkedIn;
-    private string? _message;
-    private bool _messageIsError;
+    private Dictionary<string, string> _fieldErrors = new(StringComparer.OrdinalIgnoreCase);
     private bool _loading = true;
     private bool _busy;
     private ApiException? _loadError;
@@ -100,11 +107,17 @@ else if (_candidate is not null)
 
     private async Task SaveAsync()
     {
-        if (_candidate is null)
+        if (_candidate is null || _busy)
             return;
 
+        if (string.IsNullOrWhiteSpace(_name))
+        {
+            _fieldErrors = new(StringComparer.OrdinalIgnoreCase) { ["name"] = "Informe seu nome." };
+            return;
+        }
+
         _busy = true;
-        _message = null;
+        _fieldErrors = new(StringComparer.OrdinalIgnoreCase);
         try
         {
             _candidate = await Api.UpdateMyCandidateAsync(new UpdateCandidateRequest
@@ -115,13 +128,17 @@ else if (_candidate is not null)
                 DateOfBirth = _candidate.DateOfBirth,
                 LinkedIn = _linkedIn
             });
-            _message = "Perfil atualizado!";
-            _messageIsError = false;
+            Toast.ShowSuccess("Seus dados foram atualizados.", "Perfil salvo");
         }
         catch (ApiException ex)
         {
-            _message = ex.Message;
-            _messageIsError = true;
+            foreach (var field in new[] { "name", "phone", "linkedIn", "dateOfBirth" })
+            {
+                if (ex.FieldError(field) is { } message)
+                    _fieldErrors[field] = message;
+            }
+
+            Toast.ShowError(ex.Message);
         }
         finally
         {

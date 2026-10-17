@@ -1,9 +1,12 @@
 @inherits LayoutComponentBase
 @implements IDisposable
 @inject AuthStateService Auth
+@inject TokenService Tokens
 @inject MonburanApiClient Api
 @inject NavigationManager Nav
 @inject IJSRuntime JS
+@inject IToastService Toast
+@inject ILogger<MainLayout> Logger
 
 <div class="app-shell">
     @if (!IsAuthPage)
@@ -24,6 +27,8 @@
     {
         <BottomNav UnreadCount="_unread" />
     }
+
+    <ToastHost />
 </div>
 
 @code {
@@ -46,6 +51,7 @@
         ApplyTheme();
         
         Auth.Changed += OnAuthChanged;
+        Tokens.SessionExpired += OnSessionExpired;
         Nav.LocationChanged += OnLocationChanged;
         await Auth.InitializeAsync();
         await RefreshUnreadAsync();
@@ -66,6 +72,17 @@
     private void OnAuthChanged() => InvokeAsync(async () =>
     {
         await RefreshUnreadAsync();
+        StateHasChanged();
+    });
+
+    // Refresh token rejeitado: a sessão acabou de verdade. Sem isso a tela atual ficava
+    // mostrando "Sessão expirada" com "Tentar novamente" em loop.
+    private void OnSessionExpired() => InvokeAsync(() =>
+    {
+        _unread = 0;
+        Toast.ShowWarning("Sua sessão expirou. Entre novamente para continuar.");
+        if (!IsAuthPage)
+            Nav.NavigateTo("/login");
         StateHasChanged();
     });
 
@@ -93,15 +110,17 @@
         {
             _unread = await Api.GetUnreadCountAsync();
         }
-        catch (ApiException)
+        catch (ApiException ex)
         {
-            // Offline/erro: mantém o badge zerado em vez de quebrar o layout
+            // Badge é acessório: offline/erro não interrompe a navegação
+            Logger.LogDebug(ex, "Não foi possível atualizar o contador de avisos");
         }
     }
 
     public void Dispose()
     {
         Auth.Changed -= OnAuthChanged;
+        Tokens.SessionExpired -= OnSessionExpired;
         Nav.LocationChanged -= OnLocationChanged;
     }
 }

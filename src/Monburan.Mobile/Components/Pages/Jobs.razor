@@ -2,14 +2,15 @@
 @page "/jobs"
 @inject MonburanApiClient Api
 @inject NavigationManager Nav
+@inject IToastService Toast
 
 <h1 class="page-title">Oportunidades</h1>
 <p class="page-subtitle">Encontre a vaga ideal para você</p>
 
-<div class="search-row">
-    <input class="input" placeholder="Buscar cargo, empresa..." @bind="_searchTerm" @bind:event="oninput" @onkeydown="OnSearchKey" />
-    <button class="btn btn-primary" @onclick="Search">Buscar</button>
-</div>
+<form class="search-row" role="search" @onsubmit="Search">
+    <input class="input" type="search" aria-label="Buscar vagas" placeholder="Buscar cargo, empresa..." @bind="_searchTerm" @bind:event="oninput" />
+    <button type="submit" class="btn btn-primary">Buscar</button>
+</form>
 
 <div class="filter-chips">
     <button class="filter-chip @(_isRemote == null ? "active" : "")" @onclick="() => SetRemote(null)">Todas</button>
@@ -56,9 +57,9 @@ else
                     {
                         <span class="meta-chip">📍 @job.City@(job.State is not null ? $"/{job.State}" : "")</span>
                     }
-                    @if (job.SalaryMin.HasValue || job.SalaryMax.HasValue)
+                    @if (Formatters.Salary(job) is { } salary)
                     {
-                        <span class="salary">@FormatSalary(job)</span>
+                        <span class="salary">@salary</span>
                     }
                     @if (!string.IsNullOrEmpty(job.Category))
                     {
@@ -125,8 +126,9 @@ else
         }
         catch (ApiException ex)
         {
-            _error = ex;
+            // Mantém as vagas já carregadas; só avisa que a próxima página falhou
             _page--;
+            Toast.ShowError(ex.Message);
         }
         finally
         {
@@ -149,24 +151,5 @@ else
     {
         _isRemote = value;
         return LoadAsync();
-    }
-
-    private async Task OnSearchKey(KeyboardEventArgs e)
-    {
-        if (e.Key == "Enter")
-            await LoadAsync();
-    }
-
-    private static string FormatSalary(JobResponse job)
-    {
-        var min = job.SalaryMin?.ToString("N0");
-        var max = job.SalaryMax?.ToString("N0");
-        return (min, max) switch
-        {
-            (not null, not null) => $"R$ {min} – {max}",
-            (not null, null) => $"a partir de R$ {min}",
-            (null, not null) => $"até R$ {max}",
-            _ => ""
-        };
     }
 }
