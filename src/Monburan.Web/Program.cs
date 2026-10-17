@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 using Monburan.Core.DTOs.Request;
 using Monburan.Core.DTOs.Response;
@@ -59,6 +60,9 @@ builder.Services.AddSwaggerGen(c =>
 // Adicionar Health Checks
 builder.Services.AddHealthChecks();
 
+// ProblemDetails (RFC 7807) para toda resposta de erro da API, com títulos pt-BR
+builder.Services.AddProblemDetails(options => options.CustomizeProblemDetails = ApiProblemDetails.Localize);
+
 builder.Services.AddCascadingAuthenticationState();
 // Enums como string nas minimal APIs (ex.: UpdateApplicationStatusRequest.NewStatus
 // aceita "Selected"; NotificationResponse.Type emite "NewApplication")
@@ -94,11 +98,13 @@ builder.Services.AddAuthentication(options =>
     {
         OnChallenge = context =>
         {
-            // API responde 401 em JSON, nunca redirect de cookie
+            // API responde 401 em ProblemDetails, nunca redirect de cookie
             context.HandleResponse();
-            context.Response.StatusCode = StatusCodes.Status401Unauthorized;
-            return context.Response.WriteAsJsonAsync(new { error = "Unauthorized" });
-        }
+            return ApiProblemDetails.WriteAsync(context.HttpContext, StatusCodes.Status401Unauthorized,
+                "Sua sessão expirou ou é inválida. Entre novamente.");
+        },
+        OnForbidden = context => ApiProblemDetails.WriteAsync(context.HttpContext, StatusCodes.Status403Forbidden,
+            "Você não tem permissão para esta ação.")
     };
 })
 .AddIdentityCookies();
@@ -251,6 +257,8 @@ builder.Services.AddScoped<UploadFileUseCase>();
 
 // Registrar CurrentUserHelper
 builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<CircuitUserAccessor>();
+builder.Services.TryAddEnumerable(ServiceDescriptor.Scoped<Microsoft.AspNetCore.Components.Server.Circuits.CircuitHandler, UserCircuitHandler>());
 builder.Services.AddScoped<CurrentUserHelper>();
 builder.Services.AddScoped<ICurrentUserHelper>(services =>
     services.GetRequiredService<CurrentUserHelper>());
@@ -278,7 +286,12 @@ if (app.Environment.IsDevelopment())
 }
 else
 {
-    app.UseExceptionHandler("/Error", createScopeForErrors: true);
+    // API: exceção não tratada vira ProblemDetails (JSON) — antes o app recebia a página
+    // HTML de erro e não conseguia ler a resposta. Site continua na página /Error.
+    app.UseWhen(ctx => ctx.Request.Path.StartsWithSegments("/api"),
+        api => api.UseExceptionHandler());
+    app.UseWhen(ctx => !ctx.Request.Path.StartsWithSegments("/api"),
+        web => web.UseExceptionHandler("/Error", createScopeForErrors: true));
     app.UseHsts();
 }
 
@@ -289,9 +302,12 @@ app.UseRequestLocalization(new RequestLocalizationOptions()
     .AddSupportedUICultures("pt-BR"));
 app.UseRateLimit(100); // 100 requests per second
 app.UseSecurityHeaders();
-// Re-execute para /404 só fora da API — rotas /api/* inexistentes respondem 404 vazio, não HTML do site
+// Re-execute para /404 só fora da API; na API, respostas de erro sem corpo (rota
+// inexistente, método não permitido) ganham ProblemDetails em vez de HTML do site
 app.UseWhen(ctx => !ctx.Request.Path.StartsWithSegments("/api"),
     branch => branch.UseStatusCodePagesWithReExecute("/404"));
+app.UseWhen(ctx => ctx.Request.Path.StartsWithSegments("/api"),
+    branch => branch.UseStatusCodePages());
 app.UseStaticFiles();
 app.UseAntiforgery();
 

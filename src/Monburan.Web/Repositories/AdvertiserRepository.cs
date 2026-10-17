@@ -72,7 +72,17 @@ public class AdvertiserRepository : IAdvertiserRepository
     {
         await using var context = await _contextFactory.CreateDbContextAsync();
         context.Advertisers.Update(entity);
-        await context.SaveChangesAsync();
+        try
+        {
+            await context.SaveChangesAsync();
+        }
+        catch (DbUpdateException ex) when (ex.InnerException is Npgsql.PostgresException { SqlState: Npgsql.PostgresErrorCodes.UniqueViolation })
+        {
+            // CPF/CNPJ é único (IX_Advertisers_TaxId); o e-mail não é editável pelo perfil
+            return RequestResult<Advertiser>.WithValidationError(
+                "Este CPF/CNPJ já está cadastrado em outra conta.", nameof(Advertiser.TaxId));
+        }
+
         return RequestResult<Advertiser>.Success(entity);
     }
 

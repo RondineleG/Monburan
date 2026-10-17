@@ -5,13 +5,17 @@ namespace Monburan.Web.Services;
 public sealed class CurrentUserHelper : ICurrentUserHelper
 {
     private readonly IHttpContextAccessor _httpContextAccessor;
+    private readonly CircuitUserAccessor _circuitUser;
 
-    public CurrentUserHelper(IHttpContextAccessor httpContextAccessor)
+    public CurrentUserHelper(IHttpContextAccessor httpContextAccessor, CircuitUserAccessor circuitUser)
     {
         _httpContextAccessor = httpContextAccessor;
+        _circuitUser = circuitUser;
     }
 
-    private ClaimsPrincipal? User => _httpContextAccessor.HttpContext?.User;
+    // Circuito interativo: usuário do AuthenticationStateProvider. Requisições HTTP
+    // (API, SSR, pré-renderização): usuário da requisição.
+    private ClaimsPrincipal? User => _circuitUser.User ?? _httpContextAccessor.HttpContext?.User;
 
     public Guid? GetCandidateId()
     {

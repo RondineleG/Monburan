@@ -1,3 +1,5 @@
+using Microsoft.Extensions.Logging;
+
 using Monburan.Core.DTOs.Request;
 using Monburan.Core.DTOs.Response;
 using Monburan.Core.Entities;
@@ -14,13 +16,16 @@ public class UpdateApplicationStatusUseCase : IUseCase<UpdateApplicationStatusRe
 {
     private readonly IBaseRepository<Application> _applicationRepository;
     private readonly NotifyOnApplicationStatusChangedUseCase _notifyOnStatusChangedUseCase;
+    private readonly ILogger<UpdateApplicationStatusUseCase> _logger;
 
     public UpdateApplicationStatusUseCase(
         IBaseRepository<Application> applicationRepository,
-        NotifyOnApplicationStatusChangedUseCase notifyOnStatusChangedUseCase)
+        NotifyOnApplicationStatusChangedUseCase notifyOnStatusChangedUseCase,
+        ILogger<UpdateApplicationStatusUseCase> logger)
     {
         _applicationRepository = applicationRepository;
         _notifyOnStatusChangedUseCase = notifyOnStatusChangedUseCase;
+        _logger = logger;
     }
 
     public async Task<RequestResult<ApplicationResponse>> ExecuteAsync(UpdateApplicationStatusRequest request)
@@ -58,11 +63,15 @@ public class UpdateApplicationStatusUseCase : IUseCase<UpdateApplicationStatusRe
         // Enviar notificação por email para o candidato (não bloqueante)
         try
         {
-            await _notifyOnStatusChangedUseCase.ExecuteAsync(new NotifyOnApplicationStatusChangedRequest(updateResult.Data!.Id.Value));
+            var notify = await _notifyOnStatusChangedUseCase.ExecuteAsync(new NotifyOnApplicationStatusChangedRequest(updateResult.Data!.Id.Value));
+            if (notify.Status != EResultStatus.Success)
+                _logger.LogWarning("Status da candidatura {ApplicationId} atualizado, mas o candidato não foi notificado: {Detail}",
+                    updateResult.Data.Id.Value, notify.Message);
         }
-        catch (Exception)
+        catch (Exception ex)
         {
-            // Falha na notificação não deve impedir a atualização do status
+            // Falha na notificação não impede a atualização, mas precisa ficar visível no log
+            _logger.LogError(ex, "Falha ao notificar o candidato sobre a candidatura {ApplicationId}", updateResult.Data!.Id.Value);
         }
 
         return RequestResult<ApplicationResponse>.Success(MapToResponse(updateResult.Data!));

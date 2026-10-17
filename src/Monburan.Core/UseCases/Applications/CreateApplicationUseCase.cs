@@ -1,3 +1,5 @@
+using Microsoft.Extensions.Logging;
+
 using Monburan.Core.DTOs.Request;
 using Monburan.Core.DTOs.Response;
 using Monburan.Core.Entities;
@@ -16,17 +18,20 @@ public class CreateApplicationUseCase : IUseCase<CreateApplicationRequest, Appli
     private readonly IBaseRepository<Job> _jobRepository;
     private readonly IBaseRepository<Resume> _resumeRepository;
     private readonly NotifyOnApplicationCreatedUseCase _notifyOnCreatedUseCase;
+    private readonly ILogger<CreateApplicationUseCase> _logger;
 
     public CreateApplicationUseCase(
         IBaseRepository<Application> applicationRepository,
         IBaseRepository<Job> jobRepository,
         IBaseRepository<Resume> resumeRepository,
-        NotifyOnApplicationCreatedUseCase notifyOnCreatedUseCase)
+        NotifyOnApplicationCreatedUseCase notifyOnCreatedUseCase,
+        ILogger<CreateApplicationUseCase> logger)
     {
         _applicationRepository = applicationRepository;
         _jobRepository = jobRepository;
         _resumeRepository = resumeRepository;
         _notifyOnCreatedUseCase = notifyOnCreatedUseCase;
+        _logger = logger;
     }
 
     public async Task<RequestResult<ApplicationResponse>> ExecuteAsync(CreateApplicationRequest request)
@@ -79,11 +84,15 @@ public class CreateApplicationUseCase : IUseCase<CreateApplicationRequest, Appli
         // Enviar notificação por email para o anunciante (não bloqueante)
         try
         {
-            await _notifyOnCreatedUseCase.ExecuteAsync(new NotifyOnApplicationCreatedRequest(result.Data!.Id.Value));
+            var notify = await _notifyOnCreatedUseCase.ExecuteAsync(new NotifyOnApplicationCreatedRequest(result.Data!.Id.Value));
+            if (notify.Status != EResultStatus.Success)
+                _logger.LogWarning("Candidatura {ApplicationId} criada, mas o anunciante não foi notificado: {Detail}",
+                    result.Data.Id.Value, notify.Message);
         }
-        catch (Exception)
+        catch (Exception ex)
         {
-            // Falha na notificação não deve impedir a criação da candidatura
+            // Falha na notificação não impede a candidatura, mas precisa ficar visível no log
+            _logger.LogError(ex, "Falha ao notificar o anunciante sobre a candidatura {ApplicationId}", result.Data!.Id.Value);
         }
 
         return RequestResult<ApplicationResponse>.Success(MapToResponse(result.Data!));
