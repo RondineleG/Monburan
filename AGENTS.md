@@ -14,12 +14,12 @@ Este arquivo vale para qualquer agente ou ferramenta de IA que trabalhe neste re
 
 ## Branches e pull requests
 
-- Todo pull request tem a `develop` como base. A `main` só recebe PR vindo da `develop` (promoção): nunca abra PR de
+- Todo pull request tem a `dev` como base. A `main` só recebe PR vindo da `dev` (promoção): nunca abra PR de
   uma branch de trabalho direto para a `main`.
-- Crie as branches de trabalho a partir da `develop` atualizada.
-- Nada é publicado a partir da `develop`: os workflows que geram versão (APK, iOS e imagem Docker) publicam só no push
-  na `main`. Enquanto a `develop` não é promovida, a versão publicada continua a antiga; ao promover, a esteira completa
-  roda. Não acrescente gatilhos da `develop` a esses workflows.
+- Crie as branches de trabalho a partir da `dev` atualizada.
+- Nada é publicado a partir da `dev`: os workflows que geram versão (APK, iOS e imagem Docker) publicam só no push
+  na `main`. Enquanto a `dev` não é promovida, a versão publicada continua a antiga; ao promover, a esteira completa
+  roda. Não acrescente gatilhos da `dev` a esses workflows.
 
 ## Commits
 
