@@ -71,6 +71,11 @@ jobs:
         fi
         sudo xcode-select -s "$XCODE/Contents/Developer"
         xcodebuild -version
+        echo "Selecionado: $XCODE ($(readlink "$XCODE" || echo 'não é link'))"
+        echo "SDKs que o Xcode selecionado enxerga:"
+        xcodebuild -showsdks | head -25
+        echo "SDK do macOS dentro do Xcode:"
+        find "$XCODE/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs" -maxdepth 1 2>&1 | head -5
 
     - name: Build para o simulador (Release, sem assinatura)
       run: |
@@ -169,6 +174,11 @@ jobs:
         fi
         sudo xcode-select -s "$XCODE/Contents/Developer"
         xcodebuild -version
+        echo "Selecionado: $XCODE ($(readlink "$XCODE" || echo 'não é link'))"
+        echo "SDKs que o Xcode selecionado enxerga:"
+        xcodebuild -showsdks | head -25
+        echo "SDK do macOS dentro do Xcode:"
+        find "$XCODE/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs" -maxdepth 1 2>&1 | head -5
 
     - name: Ler a versão do csproj
       id: version
