@@ -98,6 +98,12 @@ public class FullSweepTests : E2ETestBase
             }
         };
 
+        // A página de chegada (depois do login ou do registro) pode ainda estar negociando o circuito Blazor. Navegar
+        // antes disso aborta a negociação, e o navegador registra "Failed to fetch" como erro de console sem haver
+        // defeito no app.
+        if (Page.Url != "about:blank")
+            await WaitForBlazorAsync();
+
         foreach (var route in routes)
         {
             currentRoute = route;
