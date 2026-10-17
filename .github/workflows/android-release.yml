@@ -136,8 +136,19 @@ jobs:
           exit 1
         fi
 
-        "$BT/apksigner" verify --verbose --print-certs "$FINAL" | tee "$RUNNER_TEMP/certs.txt" | grep -E 'Verifies|Signer #1 certificate (DN|SHA-256)'
-        cert="$(awk '/Signer #1 certificate SHA-256 digest/{print $NF}' "$RUNNER_TEMP/certs.txt")"
+        # Sem pipe: o status do apksigner decide (um pipe com tee/grep esconderia um "DOES NOT VERIFY")
+        if ! "$BT/apksigner" verify --verbose --print-certs "$FINAL" > "$RUNNER_TEMP/certs.txt" 2>&1; then
+          cat "$RUNNER_TEMP/certs.txt"
+          echo "::error::A assinatura do APK não confere"
+          exit 1
+        fi
+        cat "$RUNNER_TEMP/certs.txt"
+        # O formato da linha muda entre versões do build-tools ("Signer #1 certificate ..." ou "Signer (minSdkVersion=...) certificate ...")
+        cert="$(grep -m1 'certificate SHA-256 digest:' "$RUNNER_TEMP/certs.txt" | awk '{print $NF}')"
+        if [ -z "$cert" ]; then
+          echo "::error::Não consegui ler o certificado de assinatura na saída do apksigner (acima)"
+          exit 1
+        fi
         {
           echo "path=$FINAL"
           echo "cert=$cert"
@@ -159,9 +170,16 @@ jobs:
         if [ -n "$prev_tag" ]; then
           mkdir -p prev
           if gh release download "$prev_tag" --pattern '*.apk' --dir prev > /dev/null 2>&1 && ls prev/*.apk > /dev/null 2>&1; then
-            prev_cert="$("$BT/apksigner" verify --print-certs prev/*.apk | awk '/Signer #1 certificate SHA-256 digest/{print $NF; exit}')"
-            if [ "$prev_cert" = "$NEW_CERT" ]; then same=true; else same=false; fi
-            echo "Release anterior: $prev_tag (certificado $prev_cert)"
+            prev_cert="$("$BT/apksigner" verify --print-certs prev/*.apk | grep -m1 'certificate SHA-256 digest:' | awk '{print $NF}' || true)"
+            # Certificado ilegível nunca conta como "mesma assinatura"
+            if [ -z "$prev_cert" ] || [ -z "$NEW_CERT" ]; then
+              same=unknown
+            elif [ "$prev_cert" = "$NEW_CERT" ]; then
+              same=true
+            else
+              same=false
+            fi
+            echo "Release anterior: $prev_tag (certificado ${prev_cert:-ilegível}); APK novo: ${NEW_CERT:-ilegível}"
           fi
         fi
         echo "Mesma assinatura da release anterior: $same"
@@ -199,6 +217,7 @@ jobs:
         prev_tag="$(gh release list --exclude-drafts --limit 1 --json tagName --jq '.[0].tagName // empty' 2>/dev/null || true)"
         extra="$(gh api "repos/$GITHUB_REPOSITORY/releases/generate-notes" -f tag_name="$tag" -f target_commitish="$GITHUB_SHA" ${prev_tag:+-f previous_tag_name="$prev_tag"} --jq .body 2>/dev/null || true)"
         [ -n "$extra" ] && printf '%s\n' "$extra" >> release-notes.md
+        cat release-notes.md
         {
           echo "### APK $tag"
           echo
