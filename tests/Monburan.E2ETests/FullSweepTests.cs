@@ -50,7 +50,7 @@ public class FullSweepTests : E2ETestBase
     public async Task Sweep_Anonymous_AllPublicRoutes()
     {
         var errors = await SweepRoutesAsync(AnonymousRoutes);
-        Assert.Empty(errors);
+        AssertNoErrors(errors);
     }
 
     [Fact]
@@ -60,7 +60,7 @@ public class FullSweepTests : E2ETestBase
         await LoginOrRegisterAsync(email, TestPassword);
 
         var errors = await SweepRoutesAsync(CandidateRoutes);
-        Assert.Empty(errors);
+        AssertNoErrors(errors);
     }
 
     [Fact]
@@ -70,13 +70,19 @@ public class FullSweepTests : E2ETestBase
         await RegisterAdvertiserAsync(email);
 
         var errors = await SweepRoutesAsync(AdvertiserRoutes);
-        Assert.Empty(errors);
+        AssertNoErrors(errors);
     }
+
+    // Assert.Empty trunca o texto dos itens e escondia a causa das falhas intermitentes
+    private static void AssertNoErrors(List<string> errors) =>
+        Assert.True(errors.Count == 0,
+            $"{errors.Count} erro(s) na varredura:{Environment.NewLine}{string.Join(Environment.NewLine, errors)}");
 
     private async Task<List<string>> SweepRoutesAsync(IEnumerable<string> routes)
     {
         var errors = new List<string>();
         var failedUrls = new List<string>();
+        var currentRoute = "(antes da primeira rota)";
         Page.Response += (_, res) =>
         {
             if (res.Status >= 500)
@@ -88,12 +94,13 @@ public class FullSweepTests : E2ETestBase
             {
                 // Erros de rede transitórios (resource load) ganham contexto da URL que falhou.
                 var context = failedUrls.Count > 0 ? $" [{string.Join("; ", failedUrls)}]" : string.Empty;
-                errors.Add($"JS console error em {Page.Url}: {msg.Text}{context}");
+                errors.Add($"JS console error durante {currentRoute} (página {Page.Url}, origem {msg.Location}): {msg.Text}{context}");
             }
         };
 
         foreach (var route in routes)
         {
+            currentRoute = route;
             var response = await GotoAsync(route);
             if (response is { Status: >= 500 })
             {
