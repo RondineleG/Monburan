@@ -24,39 +24,40 @@ else
     <StatusMessage Message="@message" />
     <h3>Configurar aplicativo autenticador</h3>
     <div>
-        <p>To use an authenticator app go through the following steps:</p>
+        <p>Para usar um aplicativo autenticador, siga os passos:</p>
         <ol class="list">
             <li>
                 <p>
-                    Download a two-factor authenticator app like Microsoft Authenticator for
-                    <a href="https://go.microsoft.com/fwlink/?Linkid=825072">Android</a> and
-                    <a href="https://go.microsoft.com/fwlink/?Linkid=825073">iOS</a> or
-                    Google Authenticator for
-                    <a href="https://play.google.com/store/apps/details?id=com.google.android.apps.authenticator2&amp;hl=en">Android</a> and
-                    <a href="https://itunes.apple.com/us/app/google-authenticator/id388497605?mt=8">iOS</a>.
+                    Instale um aplicativo autenticador, como o Microsoft Authenticator
+                    (<a href="https://go.microsoft.com/fwlink/?Linkid=825072" rel="noopener" target="_blank">Android</a> e
+                    <a href="https://go.microsoft.com/fwlink/?Linkid=825073" rel="noopener" target="_blank">iOS</a>) ou o
+                    Google Authenticator
+                    (<a href="https://play.google.com/store/apps/details?id=com.google.android.apps.authenticator2&amp;hl=pt_BR" rel="noopener" target="_blank">Android</a> e
+                    <a href="https://apps.apple.com/br/app/google-authenticator/id388497605" rel="noopener" target="_blank">iOS</a>).
                 </p>
             </li>
             <li>
-                <p>Scan the QR Code or enter this key <kbd>@sharedKey</kbd> into your two factor authenticator app. Spaces and casing do not matter.</p>
-                <div class="alert alert-info">Learn how to <a href="https://go.microsoft.com/fwlink/?Linkid=852423">enable QR code generation</a>.</div>
-                <div></div>
-                <div data-url="@authenticatorUri"></div>
+                <p>No aplicativo, escolha adicionar uma conta e digite esta chave: <kbd>@sharedKey</kbd>. Espaços e maiúsculas/minúsculas não importam.</p>
+                @if (!string.IsNullOrEmpty(authenticatorUri))
+                {
+                    <p>Está no celular? <a href="@authenticatorUri">Abra direto no aplicativo autenticador</a>.</p>
+                }
             </li>
             <li>
                 <p>
-                    Once you have scanned the QR code or input the key above, your two factor authentication app will provide you
-                    with a unique code. Enter the code in the confirmation box below.
+                    Depois de adicionar a chave, o aplicativo vai exibir um código de 6 dígitos.
+                    Digite esse código no campo abaixo para concluir.
                 </p>
                 <div class="row">
                     <div class="col-md-6">
                         <EditForm Model="Input" FormName="send-code" OnValidSubmit="OnValidSubmitAsync" method="post">
                             <DataAnnotationsValidator />
                             <div class="form-floating mb-3">
-                                <InputText @bind-Value="Input.Code" class="form-control" autocomplete="off" placeholder="Please enter the code." />
-                                <label for="code" class="control-label form-label">Verification Code</label>
+                                <InputText @bind-Value="Input.Code" class="form-control" autocomplete="off" placeholder="Digite o código" />
+                                <label for="code" class="control-label form-label">Código de verificação</label>
                                 <ValidationMessage For="() => Input.Code" class="text-danger" />
                             </div>
-                            <button type="submit" class="w-100 btn btn-lg btn-primary">Verify</button>
+                            <button type="submit" class="w-100 btn btn-lg btn-primary">Verificar</button>
                             <ValidationSummary class="text-danger" role="alert" />
                         </EditForm>
                     </div>
@@ -104,7 +105,7 @@ else
 
         if (!is2faTokenValid)
         {
-            message = "Error: Verification code is invalid.";
+            message = "Erro: código de verificação inválido.";
             return;
         }
 
@@ -112,7 +113,7 @@ else
         var userId = await UserManager.GetUserIdAsync(user);
         Logger.LogInformation("User with ID '{UserId}' has enabled 2FA with an authenticator app.", userId);
 
-        message = "Your authenticator app has been verified.";
+        message = "Seu aplicativo autenticador foi verificado.";
 
         if (await UserManager.CountRecoveryCodesAsync(user) == 0)
         {
@@ -126,7 +127,7 @@ else
 
     private async ValueTask LoadSharedKeyAndQrCodeUriAsync(ApplicationUser user)
     {
-        // Load the authenticator key & QR code URI to display on the form
+        // Chave do autenticador + URI otpauth:// exibidas no formulário
         var unformattedKey = await UserManager.GetAuthenticatorKeyAsync(user);
         if (string.IsNullOrEmpty(unformattedKey))
         {
@@ -162,17 +163,17 @@ else
         return string.Format(
             CultureInfo.InvariantCulture,
             AuthenticatorUriFormat,
-            UrlEncoder.Encode("Microsoft.AspNetCore.Identity.UI"),
+            UrlEncoder.Encode("Monburan"),
             UrlEncoder.Encode(email),
             unformattedKey);
     }
 
     private sealed class InputModel
     {
-        [Required]
-        [StringLength(7, ErrorMessage = "The {0} must be at least {2} and at max {1} characters long.", MinimumLength = 6)]
+        [Required(ErrorMessage = "Informe o código gerado pelo aplicativo.")]
+        [StringLength(7, ErrorMessage = "O código deve ter entre {2} e {1} caracteres.", MinimumLength = 6)]
         [DataType(DataType.Text)]
-        [Display(Name = "Verification Code")]
+        [Display(Name = "Código de verificação")]
         public string Code { get; set; } = "";
     }
 }

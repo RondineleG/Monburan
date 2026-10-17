@@ -1,6 +1,6 @@
 @page "/jobs/edit/{JobId:guid}"
 @rendermode InteractiveServer
-@attribute [Microsoft.AspNetCore.Authorization.Authorize]
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Policy = "AdvertiserOnly")]
 @using Monburan.Core.DTOs.Request
 @using Monburan.Core.Enums
 @using Monburan.Core.UseCases.Jobs

@@ -216,14 +216,17 @@
                 Mostrando @searchResponse.Jobs.Count() de @searchResponse.TotalCount vagas
             </div>
 
-            <aside class="promo-strip" aria-label="Publicidade">
-                <span class="promo-strip__tag">Publicidade</span>
-                <div class="promo-strip__body">
-                    <p class="promo-strip__title">Sua empresa na vitrine certa</p>
-                    <p class="promo-strip__text">Destaque vagas para milhares de profissionais que estão decidindo o próximo passo.</p>
-                </div>
-                <a class="btn btn-outline-primary" href="/plans">Ver planos <span aria-hidden="true">↗</span></a>
-            </aside>
+            @if (!isCandidate)
+            {
+                <aside class="promo-strip" aria-label="Para empresas">
+                    <span class="promo-strip__tag">Para empresas</span>
+                    <div class="promo-strip__body">
+                        <p class="promo-strip__title">Sua empresa contratando por aqui</p>
+                        <p class="promo-strip__text">Publique vagas gratuitamente e receba candidaturas organizadas em um só lugar.</p>
+                    </div>
+                    <a class="btn btn-outline-primary" href="/plans">Ver planos <span aria-hidden="true">↗</span></a>
+                </aside>
+            }
         }
     }
 
@@ -268,7 +271,7 @@
                         <div><strong>@selectedJob.Views</strong><span>visualizações</span></div>
                         <div><strong>@selectedJob.Applications</strong><span>candidaturas</span></div>
                         <div><strong>@selectedJob.NumberOfOpenings</strong><span>@(selectedJob.NumberOfOpenings == 1 ? "vaga" : "vagas")</span></div>
-                        <div><strong>@selectedJob.Status</strong><span>status</span></div>
+                        <div><strong>@UiLabels.JobStatus(selectedJob.Status)</strong><span>situação</span></div>
                     </div>
                 }
 

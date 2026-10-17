@@ -2,7 +2,7 @@ using Monburan.Core.DTOs.Request;
 using Monburan.Core.DTOs.Response;
 using Monburan.Core.Entities;
 using Monburan.Core.Enums;
-using Monburan.Core.Interfaces.Repositories.Base;
+using Monburan.Core.Interfaces.Repositories;
 using Monburan.Core.Interfaces.UseCases;
 using Monburan.Core.Requests;
 
@@ -10,56 +10,32 @@ namespace Monburan.Core.UseCases.Advertisers;
 
 public sealed class ListAdvertisersUseCase : IUseCase<ListAdvertisersRequest, ListAdvertisersResponse>
 {
-    private readonly IBaseRepository<Advertiser> _advertiserRepository;
+    private readonly IAdvertiserRepository _advertiserRepository;
 
-    public ListAdvertisersUseCase(IBaseRepository<Advertiser> advertiserRepository)
+    public ListAdvertisersUseCase(IAdvertiserRepository advertiserRepository)
     {
         _advertiserRepository = advertiserRepository;
     }
 
     public async Task<RequestResult<ListAdvertisersResponse>> ExecuteAsync(ListAdvertisersRequest request)
     {
-        var result = await _advertiserRepository.GetAllAsync(request.Page, request.Size);
-        if (result.Status != EResultStatus.Success)
-            return RequestResult<ListAdvertisersResponse>.FromResult(result);
+        var page = request.Page < 1 ? 1 : request.Page;
+        var size = request.Size is < 1 or > 100 ? 20 : request.Size;
+        EAdvertiserStatus? status = Enum.TryParse<EAdvertiserStatus>(request.Status, true, out var parsed) ? parsed : null;
 
-        var advertisers = result.Data!
-            .Where(a => ShouldInclude(a, request))
-            .Select(MapToResponse)
-            .ToList();
+        var result = await _advertiserRepository.SearchAsync(request.SearchTerm, status, page, size);
+        if (result.Status != EResultStatus.Success || result.Data is null)
+            return RequestResult<ListAdvertisersResponse>.FromResult(result);
 
         var response = new ListAdvertisersResponse
         {
-            Items = advertisers,
-            TotalCount = advertisers.Count,
-            Page = request.Page,
-            Size = request.Size
+            Items = result.Data.Data.Select(MapToResponse).ToList(),
+            TotalCount = result.Data.TotalCount,
+            Page = page,
+            Size = size
         };
 
         return RequestResult<ListAdvertisersResponse>.Success(response);
-    }
-
-    private static bool ShouldInclude(Advertiser advertiser, ListAdvertisersRequest request)
-    {
-        if (!string.IsNullOrWhiteSpace(request.SearchTerm))
-        {
-            var term = request.SearchTerm.ToLower();
-            if (!advertiser.Name.Contains(term, StringComparison.OrdinalIgnoreCase) &&
-                !advertiser.Email.Contains(term, StringComparison.OrdinalIgnoreCase) &&
-                !(advertiser.TaxId?.Contains(term, StringComparison.OrdinalIgnoreCase) ?? false))
-            {
-                return false;
-            }
-        }
-
-        if (!string.IsNullOrWhiteSpace(request.Status) &&
-            Enum.TryParse<EAdvertiserStatus>(request.Status, true, out var statusFilter) &&
-            advertiser.Status != statusFilter)
-        {
-            return false;
-        }
-
-        return true;
     }
 
     private static AdvertiserResponse MapToResponse(Advertiser a) => new()

@@ -7,6 +7,7 @@
 
 @inject UserManager<ApplicationUser> UserManager
 @inject IdentityRedirectManager RedirectManager
+@inject AccountProfileService AccountProfiles
 
 <PageTitle>Confirmar e-mail - Monburan</PageTitle>
 
@@ -42,6 +43,12 @@
         {
             var code = Encoding.UTF8.GetString(WebEncoders.Base64UrlDecode(Code));
             var result = await UserManager.ConfirmEmailAsync(user, code);
+            if (result.Succeeded && !string.IsNullOrWhiteSpace(user.Email))
+            {
+                // O selo "e-mail verificado" do perfil (site e app) lê o flag do perfil
+                await AccountProfiles.MarkEmailVerifiedAsync(user.Email);
+            }
+
             statusMessage = result.Succeeded ? "E-mail confirmado com sucesso." : "Erro: não foi possível confirmar o e-mail.";
         }
     }

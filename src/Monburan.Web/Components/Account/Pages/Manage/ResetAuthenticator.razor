@@ -16,11 +16,11 @@
 <div class="alert alert-warning" role="alert">
     <p>
         <span class="glyphicon glyphicon-warning-sign"></span>
-        <strong>If you reset your authenticator key your authenticator app will not work until you reconfigure it.</strong>
+        <strong>Ao redefinir a chave, o aplicativo autenticador para de funcionar até ser configurado de novo.</strong>
     </p>
     <p>
-        This process disables 2FA until you verify your authenticator app.
-        If you do not complete your authenticator app configuration you may lose access to your account.
+        A verificação em duas etapas fica desativada até você confirmar o aplicativo com a nova chave.
+        Se não concluir a configuração, você pode perder o acesso à conta.
     </p>
 </div>
 <div>
@@ -46,7 +46,7 @@
 
         RedirectManager.RedirectToWithStatus(
             "Account/Manage/EnableAuthenticator",
-            "Your authenticator app key has been reset, you will need to configure your authenticator app using the new key.",
+            "A chave do autenticador foi redefinida. Configure o aplicativo com a nova chave.",
             HttpContext);
     }
 }

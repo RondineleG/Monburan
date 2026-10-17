@@ -8,6 +8,7 @@
 @inject UserManager<ApplicationUser> UserManager
 @inject SignInManager<ApplicationUser> SignInManager
 @inject IdentityRedirectManager RedirectManager
+@inject AccountProfileService AccountProfiles
 
 <PageTitle>Confirmar alteração de e-mail - Monburan</PageTitle>
 
@@ -45,6 +46,15 @@
             return;
         }
 
+        // Perfis têm e-mail único: se outro perfil já usa o endereço, a conta mudaria
+        // mas o perfil não acompanharia — e o login perderia o vínculo com o perfil
+        var previousEmail = user.Email;
+        if (await AccountProfiles.IsEmailUsedByAnotherProfileAsync(Email, previousEmail))
+        {
+            message = "Erro: este e-mail já está em uso por outro perfil.";
+            return;
+        }
+
         var code = Encoding.UTF8.GetString(WebEncoders.Base64UrlDecode(Code));
         var result = await UserManager.ChangeEmailAsync(user, Email, code);
         if (!result.Succeeded)
@@ -61,6 +71,9 @@
             message = "Erro: não foi possível atualizar o nome de usuário.";
             return;
         }
+
+        if (!string.IsNullOrWhiteSpace(previousEmail))
+            await AccountProfiles.ChangeEmailAsync(previousEmail, Email);
 
         await SignInManager.RefreshSignInAsync(user);
         message = "E-mail atualizado com sucesso.";

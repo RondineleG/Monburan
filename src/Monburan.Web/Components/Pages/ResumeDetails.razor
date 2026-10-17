@@ -3,9 +3,13 @@
 @attribute [Microsoft.AspNetCore.Authorization.Authorize]
 @using Monburan.Core.DTOs.Response
 @using Monburan.Core.Enums
+@using Monburan.Core.DTOs.Request
+@using Monburan.Core.UseCases.Applications
 @using Monburan.Core.UseCases.Resumes
 @inject GetResumeByIdUseCase GetResumeByIdUseCase
 @inject DeleteResumeUseCase DeleteResumeUseCase
+@inject ListApplicationsByJobUseCase ListApplicationsByJobUseCase
+@inject ICurrentUserHelper CurrentUserHelper
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
 
@@ -43,7 +47,7 @@
         <!-- Breadcrumb -->
         <nav aria-label="breadcrumb" class="mb-4">
             <ol class="breadcrumb">
-                <li class="breadcrumb-item"><a href="/resumes">Currículos</a></li>
+                <li class="breadcrumb-item"><a href="@BackHref">@(isOwner ? "Currículos" : "Candidaturas recebidas")</a></li>
                 <li class="breadcrumb-item active">@resume.Title</li>
             </ol>
         </nav>
@@ -214,15 +218,21 @@
                     <div class="card-body">
                         <h5 class="card-title">Ações</h5>
                         <div class="d-grid gap-2">
-                            <button class="btn btn-primary" @onclick="EditResume">
-                                <i class="bi bi-pencil"></i> Editar / Melhorar
-                            </button>
+                            @if (isOwner)
+                            {
+                                <button class="btn btn-primary" @onclick="EditResume">
+                                    <i class="bi bi-pencil"></i> Editar / Melhorar
+                                </button>
+                            }
                             <button class="btn btn-outline-primary" @onclick="ExportPdf" data-testid="resume-export-pdf">
-                                <i class="bi bi-file-earmark-pdf"></i> Exportar PDF
+                                <i class="bi bi-file-earmark-pdf"></i> @(isOwner ? "Exportar PDF" : "Imprimir / salvar PDF")
                             </button>
-                            <button class="btn btn-danger" @onclick="ConfirmDelete">
-                                <i class="bi bi-trash"></i> Excluir Currículo
-                            </button>
+                            @if (isOwner)
+                            {
+                                <button class="btn btn-danger" @onclick="ConfirmDelete">
+                                    <i class="bi bi-trash"></i> Excluir Currículo
+                                </button>
+                            }
                         </div>
                     </div>
                 </div>
@@ -261,7 +271,7 @@
         <!-- Botão Voltar -->
         <div class="mt-4">
             <button class="btn btn-secondary" @onclick="NavigateBackToList">
-                ← Voltar para lista de currículos
+                @(isOwner ? "← Voltar para lista de currículos" : "← Voltar para candidaturas recebidas")
             </button>
         </div>
 
@@ -295,6 +305,7 @@
     public Guid ResumeId { get; set; }
 
     private ResumeResponse? resume;
+    private bool isOwner;
     private bool isLoading = true;
     private bool showDeleteConfirm = false;
     private string? errorMessage;
@@ -303,14 +314,17 @@
     {
         errorMessage = null;
         var result = await GetResumeByIdUseCase.ExecuteAsync(ResumeId);
-        if (result.Status == EResultStatus.Success)
+        if (result.Status == EResultStatus.Success && result.Data is not null
+            && await CanViewAsync(result.Data))
         {
             resume = result.Data;
         }
-        else
+        else if (result.Status is EResultStatus.HasError or EResultStatus.EntityHasError)
         {
-            errorMessage = result.Message;
+            errorMessage = ResultMessages.GenericError;
         }
+
+        // Sem permissão cai em "Currículo não encontrado" — não revela que o id existe
         isLoading = false;
     }
 
@@ -337,6 +351,9 @@
     private async Task DeleteResumeConfirmed()
     {
         showDeleteConfirm = false;
+        if (!isOwner)
+            return;
+
         errorMessage = null;
 
         var result = await DeleteResumeUseCase.ExecuteAsync(ResumeId);
@@ -346,12 +363,39 @@
         }
         else
         {
-            errorMessage = $"Erro ao excluir currículo: {result.Message}";
+            errorMessage = ResultMessages.ToUserMessage(result, "Não foi possível excluir o currículo. Tente novamente.");
         }
     }
 
     private void NavigateBackToList()
     {
-        Navigation.NavigateTo("/resumes");
+        Navigation.NavigateTo(BackHref);
+    }
+
+    private string BackHref => isOwner ? "/resumes" : "/received-applications";
+
+    /// <summary>
+    /// Dono vê e gerencia o currículo; anunciante só lê quando o currículo foi enviado
+    /// em uma candidatura para vaga dele. Antes qualquer usuário logado lia e excluía
+    /// currículos de terceiros pelo id (IDOR).
+    /// </summary>
+    private async Task<bool> CanViewAsync(ResumeResponse candidateResume)
+    {
+        var candidateId = CurrentUserHelper.GetCandidateId();
+        isOwner = candidateId.HasValue && candidateResume.CandidateId == candidateId.Value;
+        if (isOwner)
+            return true;
+
+        var advertiserId = CurrentUserHelper.GetAdvertiserId();
+        if (!advertiserId.HasValue)
+            return false;
+
+        var received = await ListApplicationsByJobUseCase.ExecuteAsync(new ListApplicationsByJobRequest
+        {
+            AdvertiserId = advertiserId.Value
+        });
+
+        return received.Status == EResultStatus.Success
+            && received.Data!.Any(a => a.ResumeId == candidateResume.Id);
     }
 }

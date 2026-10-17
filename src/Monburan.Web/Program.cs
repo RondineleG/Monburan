@@ -76,6 +76,7 @@ builder.Services.AddOptions<JwtOptions>()
     .Validate(o => !string.IsNullOrWhiteSpace(o.Issuer) && !string.IsNullOrWhiteSpace(o.Audience), "Jwt:Issuer e Jwt:Audience são obrigatórios.")
     .ValidateOnStart();
 builder.Services.AddScoped<IIdentityService, IdentityService>();
+builder.Services.AddScoped<AccountProfileService>();
 
 builder.Services.AddAuthentication(options =>
 {
@@ -101,6 +102,13 @@ builder.Services.AddAuthentication(options =>
 
 builder.Services.AddAuthorizationBuilder()
     .AddPolicy("AdminOnly", policy => policy.RequireRole("Admin"))
+    // Páginas por papel: o perfil vem da claim user_type emitida no login
+    .AddPolicy("CandidateOnly", policy => policy
+        .RequireAuthenticatedUser()
+        .RequireClaim(ClaimsExtensions.UserTypeClaimType, "candidate"))
+    .AddPolicy("AdvertiserOnly", policy => policy
+        .RequireAuthenticatedUser()
+        .RequireClaim(ClaimsExtensions.UserTypeClaimType, "advertiser"))
     // token_use=access impede que um refresh token (JWT válido por 30 dias)
     // autentique como bearer em endpoints que só exigem RequireAuthenticatedUser
     .AddPolicy("ApiBearer", policy => policy
@@ -127,6 +135,7 @@ builder.Services.AddIdentityCore<ApplicationUser>(options =>
 .AddEntityFrameworkStores<ApplicationDbContext>()
 .AddSignInManager()
 .AddDefaultTokenProviders()
+.AddErrorDescriber<PortugueseIdentityErrorDescriber>()
 .AddClaimsPrincipalFactory<ApplicationUserClaimsPrincipalFactory>();
 
 builder.Services.AddDatabaseDeveloperPageExceptionFilter();
@@ -147,15 +156,21 @@ builder.Services.AddScoped<Microsoft.AspNetCore.Identity.IEmailSender<Applicatio
 builder.Services.AddScoped<IJobRepository, JobRepository>();
 builder.Services.AddScoped<IBaseRepository<Job>, JobRepository>(); // Para UseCases que usam IBaseRepository
 builder.Services.AddScoped<IBaseRepository<Candidate>, CandidateRepository>();
+builder.Services.AddScoped<ICandidateRepository, CandidateRepository>();
 builder.Services.AddScoped<IBaseRepository<Advertiser>, AdvertiserRepository>();
+builder.Services.AddScoped<IAdvertiserRepository, AdvertiserRepository>();
 builder.Services.AddScoped<IBaseRepository<Application>, ApplicationRepository>();
+builder.Services.AddScoped<IApplicationRepository, ApplicationRepository>();
 builder.Services.AddScoped<IBaseRepository<Resume>, ResumeRepository>();
+builder.Services.AddScoped<IResumeRepository, ResumeRepository>();
 builder.Services.AddScoped<IBaseRepository<Notification>, NotificationRepository>();
+builder.Services.AddScoped<INotificationRepository, NotificationRepository>();
 builder.Services.AddScoped<IBaseRepository<TenantConfig>, TenantConfigRepository>();
 
 // Registrar Repositórios de Assinatura
 builder.Services.AddScoped<IBaseRepository<SubscriptionPlan>, SubscriptionPlanRepository>();
 builder.Services.AddScoped<IBaseRepository<Subscription>, SubscriptionRepository>();
+builder.Services.AddScoped<ISubscriptionRepository, SubscriptionRepository>();
 builder.Services.AddScoped<SubscriptionRepository>();
 builder.Services.AddScoped<SubscriptionPlanRepository>();
 
@@ -197,6 +212,7 @@ builder.Services.AddScoped<Monburan.Core.UseCases.Advertisers.ListAdvertisersUse
 builder.Services.AddScoped<Monburan.Core.UseCases.Advertisers.GetAdvertiserByIdUseCase>();
 builder.Services.AddScoped<Monburan.Core.UseCases.Advertisers.DeleteAdvertiserUseCase>();
 builder.Services.AddScoped<Monburan.Core.UseCases.Advertisers.UpdateAdvertiserUseCase>();
+builder.Services.AddScoped<UpdateAdvertiserLogoUseCase>();
 
 // Registrar Use Cases de Resumes
 builder.Services.AddScoped<CreateResumeUseCase>();
@@ -212,6 +228,7 @@ builder.Services.AddScoped<IEntityValidator<Resume>, ResumeValidator>();
 builder.Services.AddScoped<CreateNotificationUseCase>();
 builder.Services.AddScoped<ListNotificationsByUserUseCase>();
 builder.Services.AddScoped<MarkNotificationAsReadUseCase>();
+builder.Services.AddScoped<MarkAllNotificationsAsReadUseCase>();
 builder.Services.AddScoped<Monburan.Core.UseCases.Notifications.SendEmailNotificationUseCase>();
 builder.Services.AddScoped<Monburan.Core.UseCases.Notifications.EmailConfirmationUseCase>();
 builder.Services.AddScoped<Monburan.Core.UseCases.Notifications.PasswordResetUseCase>();
@@ -311,8 +328,9 @@ if (app.Environment.IsDevelopment())
 Log.Information("Aplicação Monburan iniciada com sucesso");
 app.Run();
 }
-catch (Exception ex)
+catch (Exception ex) when (ex is not HostAbortedException)
 {
+    // HostAbortedException é o encerramento normal usado pelas ferramentas do EF (migrations)
     Log.Fatal(ex, "Aplicação Monburan falhou ao iniciar");
 }
 finally

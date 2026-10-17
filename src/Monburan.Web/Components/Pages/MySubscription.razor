@@ -1,6 +1,6 @@
 @page "/my-subscription"
 @rendermode InteractiveServer
-@attribute [Microsoft.AspNetCore.Authorization.Authorize]
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Policy = "AdvertiserOnly")]
 @using Monburan.Core.DTOs.Response
 @using Monburan.Core.UseCases.Subscriptions
 @using Monburan.Core.Interfaces.Services
@@ -59,7 +59,7 @@
                                                 _ => "bg-secondary"
                                             };
                                         }
-                                        <span class="badge @statusBadge">@availablePlans.CurrentSubscription.Status</span>
+                                        <span class="badge @statusBadge">@UiLabels.SubscriptionStatus(availablePlans.CurrentSubscription.Status)</span>
                                     </div>
                                     <div class="col-md-6">
                                         <p class="mb-1"><strong>Preço:</strong></p>
@@ -72,12 +72,12 @@
                                 <div class="row mb-3">
                                     <div class="col-md-6">
                                         <p class="mb-1"><strong>Início:</strong></p>
-                                        <p>@availablePlans.CurrentSubscription.StartDate.ToString("dd/MM/yyyy")</p>
+                                        <p>@UiLabels.FormatMomentDate(availablePlans.CurrentSubscription.StartDate)</p>
                                     </div>
                                     <div class="col-md-6">
                                         <p class="mb-1"><strong>Expiração:</strong></p>
                                         <p>
-                                            @(availablePlans.CurrentSubscription.EndDate?.ToString("dd/MM/yyyy") ?? "N/A (Plano Free)")
+                                            @(availablePlans.CurrentSubscription.EndDate.HasValue ? UiLabels.FormatMomentDate(availablePlans.CurrentSubscription.EndDate) : "Sem vencimento")
                                         </p>
                                     </div>
                                 </div>
@@ -112,24 +112,12 @@
                                     <ul class="list-unstyled">
                                         <li class="mb-2">
                                             <i class="bi @(currentPlan.MaxJobs == -1 ? "bi-infinity text-success" : "bi-briefcase text-primary")"></i>
-                                            <strong>Vagas:</strong>
-                                            @(currentPlan.MaxJobs == -1 ? "Ilimitadas" : $"{currentPlan.MaxJobs}")
+                                            <strong>Vagas ativas:</strong>
+                                            @(currentPlan.MaxJobs == -1 ? "ilimitadas" : $"até {currentPlan.MaxJobs} ao mesmo tempo")
                                         </li>
                                         <li class="mb-2">
-                                            <i class="bi @(currentPlan.HasBoost ? "bi-rocket-takeoff text-success" : "bi-x text-muted")"></i>
-                                            Boost: @(currentPlan.HasBoost ? "Sim" : "Não")
-                                        </li>
-                                        <li class="mb-2">
-                                            <i class="bi @(currentPlan.HasHighlight ? "bi-star-fill text-success" : "bi-x text-muted")"></i>
-                                            Destaque: @(currentPlan.HasHighlight ? "Sim" : "Não")
-                                        </li>
-                                        <li class="mb-2">
-                                            <i class="bi @(currentPlan.HasAnalytics ? "bi-graph-up text-success" : "bi-x text-muted")"></i>
-                                            Analytics: @(currentPlan.HasAnalytics ? "Sim" : "Não")
-                                        </li>
-                                        <li class="mb-2">
-                                            <i class="bi bi-file-earmark-text text-primary"></i>
-                                            Currículos: @currentPlan.MaxResumes
+                                            <i class="bi bi-people text-primary"></i>
+                                            Candidaturas ilimitadas
                                         </li>
                                     </ul>
                                 }

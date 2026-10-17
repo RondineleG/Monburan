@@ -1,7 +1,7 @@
 @page "/received-applications"
 @page "/jobs/{jobId:guid}/applications"
 @rendermode InteractiveServer
-@attribute [Microsoft.AspNetCore.Authorization.Authorize]
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Policy = "AdvertiserOnly")]
 @using Monburan.Core.DTOs.Request
 @using Monburan.Core.DTOs.Response
 @using Monburan.Core.Enums
@@ -71,41 +71,45 @@
                     <tbody>
                         @foreach (var app in applications)
                         {
-                            <tr>
+                            <tr data-testid="received-application-row">
                                 <td>
                                     <strong>@app.CandidateName</strong>
                                     <br />
                                     <small class="text-muted">@app.CandidateEmail</small>
+                                    @if (!string.IsNullOrWhiteSpace(app.Notes))
+                                    {
+                                        <details class="application-notes">
+                                            <summary>Mensagem do candidato</summary>
+                                            <p>@app.Notes</p>
+                                        </details>
+                                    }
+                                    @if (app.ResumeId.HasValue)
+                                    {
+                                        <a class="d-block small" href="@($"/resumes/{app.ResumeId}")">Ver currículo enviado</a>
+                                    }
+                                    else
+                                    {
+                                        <small class="d-block text-muted">Sem currículo anexado</small>
+                                    }
                                 </td>
                                 <td>@app.JobTitle</td>
                                 <td>
-                                    @switch (app.Status)
-                                    {
-                                        case "Sent":
-                                            <span class="badge bg-primary">Enviada</span>
-                                            break;
-                                        case "Viewed":
-                                            <span class="badge bg-info">Visualizada</span>
-                                            break;
-                                        case "Selected":
-                                            <span class="badge bg-success">Selecionada</span>
-                                            break;
-                                        case "Rejected":
-                                            <span class="badge bg-danger">Rejeitada</span>
-                                            break;
-                                        default:
-                                            <span class="badge bg-secondary">@app.Status</span>
-                                            break;
-                                    }
+                                    <span class="badge @UiLabels.ApplicationStatusBadge(app.Status)">@UiLabels.ApplicationStatus(app.Status)</span>
                                 </td>
-                                <td>@app.AppliedAt?.ToString("dd/MM/yyyy HH:mm")</td>
+                                <td>@UiLabels.FormatMoment(app.AppliedAt)</td>
                                 <td>
-                                    <button class="btn btn-sm btn-success" @onclick="() => UpdateStatus(app.Id, EApplicationStatus.Selected)">
-                                        <i class="bi bi-check"></i> Selecionar
-                                    </button>
-                                    <button class="btn btn-sm btn-danger" @onclick="() => UpdateStatus(app.Id, EApplicationStatus.Rejected)">
-                                        <i class="bi bi-x"></i> Rejeitar
-                                    </button>
+                                    @if (app.Status != "Selected")
+                                    {
+                                        <button class="btn btn-sm btn-success" @onclick="() => UpdateStatus(app, EApplicationStatus.Selected)">
+                                            <i class="bi bi-check"></i> Selecionar
+                                        </button>
+                                    }
+                                    @if (app.Status != "Rejected")
+                                    {
+                                        <button class="btn btn-sm btn-danger" @onclick="() => UpdateStatus(app, EApplicationStatus.Rejected)">
+                                            <i class="bi bi-x"></i> Rejeitar
+                                        </button>
+                                    }
                                 </td>
                             </tr>
                         }
@@ -155,14 +159,14 @@
             }
             else
             {
-                errorMessage = result.Message;
+                errorMessage = ResultMessages.ToUserMessage(result);
             }
         }
 
         isLoading = false;
     }
 
-    private async Task UpdateStatus(Guid applicationId, EApplicationStatus newStatus)
+    private async Task UpdateStatus(ApplicationResponse application, EApplicationStatus newStatus)
     {
         errorMessage = null;
         successMessage = null;
@@ -175,7 +179,7 @@
 
         var request = new UpdateApplicationStatusRequest
         {
-            ApplicationId = applicationId,
+            ApplicationId = application.Id,
             AdvertiserId = advertiserId.Value,
             NewStatus = newStatus
         };
@@ -184,12 +188,14 @@
 
         if (result.Status == EResultStatus.Success)
         {
-            successMessage = $"Status atualizado para {newStatus} com sucesso!";
+            successMessage = newStatus == EApplicationStatus.Selected
+                ? $"{application.CandidateName} foi selecionado(a). O candidato será avisado."
+                : $"Candidatura de {application.CandidateName} marcada como não selecionada.";
             await OnInitializedAsync();
         }
         else
         {
-            errorMessage = result.Message;
+            errorMessage = ResultMessages.ToUserMessage(result);
         }
     }
 

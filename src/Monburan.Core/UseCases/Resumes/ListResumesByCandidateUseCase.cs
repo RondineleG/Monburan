@@ -1,7 +1,7 @@
 using Monburan.Core.DTOs.Response;
 using Monburan.Core.Entities;
 using Monburan.Core.Enums;
-using Monburan.Core.Interfaces.Repositories.Base;
+using Monburan.Core.Interfaces.Repositories;
 using Monburan.Core.Interfaces.UseCases;
 using Monburan.Core.Requests;
 using Monburan.Core.ValueObjects;
@@ -10,21 +10,20 @@ namespace Monburan.Core.UseCases.Resumes;
 
 public class ListResumesByCandidateUseCase : IUseCase<Guid, IEnumerable<ResumeResponse>>
 {
-    private readonly IBaseRepository<Resume> _resumeRepository;
+    private readonly IResumeRepository _resumeRepository;
 
-    public ListResumesByCandidateUseCase(IBaseRepository<Resume> resumeRepository)
+    public ListResumesByCandidateUseCase(IResumeRepository resumeRepository)
     {
         _resumeRepository = resumeRepository;
     }
 
     public async Task<RequestResult<IEnumerable<ResumeResponse>>> ExecuteAsync(Guid request)
     {
-        var result = await _resumeRepository.GetAllAsync(1, 1000);
+        var result = await _resumeRepository.ListByCandidateAsync(request);
         if (result.Status != EResultStatus.Success)
             return RequestResult<IEnumerable<ResumeResponse>>.FromResult(result);
 
         var resumes = result.Data!
-            .Where(r => r.CandidateId.Value == request)
             .Select(MapToResponse)
             .OrderByDescending(r => r.CreatedAt);
 

@@ -1,6 +1,6 @@
 @page "/my-applications"
 @rendermode InteractiveServer
-@attribute [Microsoft.AspNetCore.Authorization.Authorize]
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Policy = "CandidateOnly")]
 @using Monburan.Core.DTOs.Response
 @using Monburan.Core.Enums
 @using Monburan.Core.UseCases.Applications
@@ -57,28 +57,11 @@
                             @foreach (var app in applications)
                             {
                                 <tr data-testid="my-application-row">
-                                    <td><strong>@app.JobTitle</strong></td>
+                                    <td><a href="@($"/jobs/{app.JobId}")"><strong>@(app.JobTitle ?? "Vaga")</strong></a></td>
                                     <td>
-                                        @switch (app.Status)
-                                        {
-                                            case "Sent":
-                                                <span class="badge bg-primary">Enviada</span>
-                                                break;
-                                            case "Viewed":
-                                                <span class="badge bg-info">Visualizada</span>
-                                                break;
-                                            case "Selected":
-                                                <span class="badge bg-success">Selecionada</span>
-                                                break;
-                                            case "Rejected":
-                                                <span class="badge bg-danger">Rejeitada</span>
-                                                break;
-                                            default:
-                                                <span class="badge bg-secondary">@app.Status</span>
-                                                break;
-                                        }
+                                        <span class="badge @UiLabels.ApplicationStatusBadge(app.Status)">@UiLabels.ApplicationStatus(app.Status)</span>
                                     </td>
-                                    <td>@app.AppliedAt?.ToString("dd/MM/yyyy HH:mm")</td>
+                                    <td>@UiLabels.FormatMoment(app.AppliedAt)</td>
                                 </tr>
                             }
                         </tbody>
@@ -119,7 +102,7 @@
             }
             else
             {
-                errorMessage = result.Message;
+                errorMessage = ResultMessages.ToUserMessage(result, "Não foi possível carregar suas candidaturas.");
             }
         }
 

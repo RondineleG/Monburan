@@ -116,16 +116,20 @@ public class JobRepository : IJobRepository
     {
         await using var context = await _contextFactory.CreateDbContextAsync();
         var query = context.Jobs
+            .AsNoTracking()
             .Include(j => j.Advertiser)
-            .Include(j => j.Location)
-            .Include(j => j.Salary)
-            .Where(j => !j.IsDeleted && j.Status == EJobStatus.Active);
+            .Where(j => !j.IsDeleted);
 
-        // Filtro por advertiserId (para MyJobs)
+        // Com advertiserId é a visão do dono (Minhas vagas, /jobs/mine): todas as situações,
+        // senão vagas expiradas/pausadas somem da gestão. Sem ele, só vagas ativas (público).
         if (advertiserId.HasValue)
         {
             var advertiserKey = Id.Create(advertiserId.Value);
             query = query.Where(j => j.AdvertiserId == advertiserKey);
+        }
+        else
+        {
+            query = query.Where(j => j.Status == EJobStatus.Active);
         }
 
         // Filtro por busca textual (aplicado no WHERE do SQL).
@@ -210,5 +214,14 @@ public class JobRepository : IJobRepository
             Page = page,
             Size = size
         });
+    }
+
+    public async Task<int> CountActiveByAdvertiserAsync(Guid advertiserId)
+    {
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        var advertiserKey = Id.Create(advertiserId);
+        return await context.Jobs
+            .AsNoTracking()
+            .CountAsync(j => !j.IsDeleted && j.AdvertiserId == advertiserKey && j.Status == EJobStatus.Active);
     }
 }

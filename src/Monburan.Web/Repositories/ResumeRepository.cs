@@ -1,13 +1,13 @@
 using Microsoft.EntityFrameworkCore;
 
 using Monburan.Core.Entities;
-using Monburan.Core.Interfaces.Repositories.Base;
+using Monburan.Core.Interfaces.Repositories;
 using Monburan.Core.Requests;
 using Monburan.Core.ValueObjects;
 
 namespace Monburan.Web.Repositories;
 
-public class ResumeRepository : IBaseRepository<Resume>
+public class ResumeRepository : IResumeRepository
 {
     private readonly IDbContextFactory<ApplicationDbContext> _contextFactory;
 
@@ -72,5 +72,18 @@ public class ResumeRepository : IBaseRepository<Resume>
         context.Resumes.Update(entity);
         await context.SaveChangesAsync();
         return RequestResult<Resume>.Success(entity);
+    }
+
+    public async Task<RequestResult<IEnumerable<Resume>>> ListByCandidateAsync(Guid candidateId)
+    {
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        var candidateKey = Id.Create(candidateId);
+        var resumes = await context.Resumes
+            .AsNoTracking()
+            .Where(r => !r.IsDeleted && r.CandidateId == candidateKey)
+            .OrderByDescending(r => r.CreatedAt)
+            .ToListAsync();
+
+        return RequestResult<IEnumerable<Resume>>.Success(resumes);
     }
 }

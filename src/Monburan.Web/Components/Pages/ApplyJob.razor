@@ -1,13 +1,16 @@
 @page "/apply/{jobId:guid}"
 @rendermode InteractiveServer
-@attribute [Microsoft.AspNetCore.Authorization.Authorize]
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Policy = "CandidateOnly")]
 @using Monburan.Core.DTOs.Request
 @using Monburan.Core.Enums
 @using Monburan.Core.UseCases.Applications
 @using Monburan.Core.UseCases.Jobs
+@using Monburan.Core.UseCases.Resumes
 @using Monburan.Web.Services
 @inject CreateApplicationUseCase CreateApplicationUseCase
 @inject GetJobByIdUseCase GetJobByIdUseCase
+@inject ListResumesByCandidateUseCase ListResumesByCandidateUseCase
+@inject ILogger<ApplyJob> Logger
 @inject ICurrentUserHelper CurrentUserHelper
 @inject NavigationManager Navigation
 
@@ -51,6 +54,13 @@
                         </button>
                     </div>
                 }
+                else if (jobUnavailableMessage is not null)
+                {
+                    <div class="alert alert-warning" role="status" data-testid="application-unavailable">
+                        @jobUnavailableMessage
+                        <a href="/jobs">Ver outras vagas</a>
+                    </div>
+                }
                 else
                 {
                     <div class="card">
@@ -70,10 +80,27 @@
                                         placeholder="Escreva uma breve mensagem ou destaque suas qualificações..." />
                                 </div>
 
-                                <div class="alert alert-info">
-                                    <i class="bi bi-info-circle"></i>
-                                    Seu currículo ativo será enviado automaticamente.
-                                </div>
+                                @if (resumes.Count > 0)
+                                {
+                                    <div class="mb-3">
+                                        <label class="form-label" for="application-resume">Currículo enviado com a candidatura</label>
+                                        <InputSelect id="application-resume" class="form-select" @bind-Value="model.ResumeId" data-testid="application-resume">
+                                            <option value="">Não anexar currículo</option>
+                                            @foreach (var resume in resumes)
+                                            {
+                                                <option value="@resume.Id">@resume.Title@(resume.IsActive ? " (ativo)" : "")</option>
+                                            }
+                                        </InputSelect>
+                                        <div class="form-text">A empresa poderá ver o currículo escolhido.</div>
+                                    </div>
+                                }
+                                else
+                                {
+                                    <div class="alert alert-info">
+                                        <i class="bi bi-info-circle"></i>
+                                        Você ainda não tem currículo cadastrado. <a href="/resumes/new">Crie um currículo</a> para enviá-lo junto com a candidatura.
+                                    </div>
+                                }
 
                                 <div class="d-grid gap-2">
                                     <button type="submit" class="btn btn-success btn-lg" disabled="@isSubmitting" data-testid="application-submit">
@@ -103,27 +130,41 @@
     private bool isSubmitting = false;
     private bool isCandidate;
     private string jobTitle = "carregando...";
+    private string? jobUnavailableMessage;
+    private List<ResumeResponse> resumes = [];
 
     protected override async Task OnInitializedAsync()
     {
-        // Obter título da vaga
         var jobResult = await GetJobByIdUseCase.ExecuteAsync(JobId);
-        if (jobResult.Status == EResultStatus.Success)
+        if (jobResult.Status == EResultStatus.Success && jobResult.Data is not null)
         {
-            jobTitle = jobResult.Data?.Title ?? $"Vaga {JobId.ToString().Substring(0, 8)}";
+            jobTitle = jobResult.Data.Title;
+            if (jobResult.Data.Status != "Active")
+                jobUnavailableMessage = "Esta vaga não está mais recebendo candidaturas.";
+        }
+        else if (jobResult.Status == EResultStatus.EntityNotFound)
+        {
+            jobUnavailableMessage = "Vaga não encontrada. Ela pode ter sido removida pela empresa.";
         }
         else
         {
-            jobTitle = $"Vaga {JobId.ToString().Substring(0, 8)}";
-            errorMessage = "Vaga não encontrada.";
+            Logger.LogFailure(jobResult, "Carregar vaga para candidatura");
+            jobUnavailableMessage = "Não foi possível carregar a vaga agora. Tente novamente em instantes.";
         }
 
-        // Obter CandidateId do usuário logado
         var candidateId = CurrentUserHelper.GetCandidateId();
         isCandidate = candidateId.HasValue;
         if (candidateId.HasValue)
         {
             model.CandidateId = candidateId.Value;
+
+            // Antes a tela prometia enviar "o currículo ativo", mas nenhum era anexado
+            var resumesResult = await ListResumesByCandidateUseCase.ExecuteAsync(candidateId.Value);
+            if (resumesResult.Status == EResultStatus.Success && resumesResult.Data is not null)
+            {
+                resumes = resumesResult.Data.ToList();
+                model.ResumeId = resumes.FirstOrDefault(r => r.IsActive)?.Id ?? resumes.FirstOrDefault()?.Id;
+            }
         }
         model.JobId = JobId;
     }
@@ -141,7 +182,9 @@
         }
         else
         {
-            errorMessage = result.Message;
+            // "Já se candidatou" (409) e validações chegavam com Message vazio — nada aparecia
+            Logger.LogFailure(result, "Enviar candidatura");
+            errorMessage = ResultMessages.ToUserMessage(result, "Não foi possível enviar sua candidatura. Tente novamente.");
         }
 
         isSubmitting = false;

@@ -1,11 +1,12 @@
 @page "/profile/candidate"
 @rendermode InteractiveServer
 @using System.ComponentModel.DataAnnotations
-@attribute [Microsoft.AspNetCore.Authorization.Authorize]
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Policy = "CandidateOnly")]
 @inject Monburan.Core.UseCases.Candidates.UpdateCandidateUseCase UpdateCandidateUseCase
 @inject Monburan.Core.Interfaces.Repositories.Base.IBaseRepository<Monburan.Core.Entities.Candidate> CandidateRepository
 @inject Monburan.Web.Services.ICurrentUserHelper CurrentUserHelper
 @inject Microsoft.AspNetCore.Components.NavigationManager Navigation
+@inject ILogger<CandidateProfile> Logger
 
 <PageTitle>Meu Perfil - Monburan</PageTitle>
 
@@ -106,10 +107,10 @@
                         <dl class="row mb-0">
                             <dt class="col-sm-5">Status</dt>
                             <dd class="col-sm-7">
-                                <span class="badge @(GetStatusBadgeClass())">@_candidate.Status</span>
+                                <span class="badge @(GetStatusBadgeClass())">@UiLabels.AccountStatus(_candidate.Status)</span>
                             </dd>
 
-                            <dt class="col-sm-5">Email Verificado</dt>
+                            <dt class="col-sm-5">E-mail verificado</dt>
                             <dd class="col-sm-7">
                                 @if (_candidate.IsEmailVerified)
                                 {
@@ -122,8 +123,21 @@
                             </dd>
 
                             <dt class="col-sm-5">Membro desde</dt>
-                            <dd class="col-sm-7">@_candidate.CreatedAt.ToString("dd/MM/yyyy")</dd>
+                            <dd class="col-sm-7">@UiLabels.FormatMomentDate(_candidate.CreatedAt)</dd>
                         </dl>
+                    </div>
+                </div>
+
+                <div class="card mt-3">
+                    <div class="card-header">
+                        <h5 class="mb-0">Atalhos</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="d-grid gap-2">
+                            <a class="btn btn-outline-primary btn-sm" href="/resumes">Meus currículos</a>
+                            <a class="btn btn-outline-primary btn-sm" href="/address/list">Meu endereço</a>
+                            <a class="btn btn-outline-primary btn-sm" href="/Account/Manage">Senha e segurança da conta</a>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -208,12 +222,15 @@
             }
             else
             {
-                _errorMessage = result.Message;
+                Logger.LogFailure(result, "Atualizar perfil do candidato");
+                _errorMessage = ResultMessages.ToUserMessage(result, "Não foi possível salvar o perfil. Tente novamente.");
             }
         }
         catch (Exception ex)
         {
-            _errorMessage = $"Erro ao salvar: {ex.Message}";
+            // Exceção nunca vai crua para a tela (pode conter SQL/caminhos internos)
+            Logger.LogError(ex, "Erro ao salvar o perfil do candidato");
+            _errorMessage = ResultMessages.GenericError;
         }
         finally
         {

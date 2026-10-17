@@ -59,7 +59,11 @@ public static class SeedData
             IsActive = true
         };
 
-        context.SubscriptionPlans.AddRange(planFree, planPremium, planEnterprise);
+        // A migration SeedDefaultSubscriptionPlans já cria os planos em bancos migrados —
+        // reaproveita os existentes (por nome) em vez de inserir duplicados
+        planFree = await GetOrAddPlanAsync(context, planFree);
+        planPremium = await GetOrAddPlanAsync(context, planPremium);
+        planEnterprise = await GetOrAddPlanAsync(context, planEnterprise);
         await context.SaveChangesAsync();
 
         var tenantConfig = new TenantConfig
@@ -361,5 +365,15 @@ public static class SeedData
 
         context.Applications.AddRange(applications);
         await context.SaveChangesAsync();
+    }
+
+    private static async Task<SubscriptionPlan> GetOrAddPlanAsync(ApplicationDbContext context, SubscriptionPlan plan)
+    {
+        var existing = await context.SubscriptionPlans.FirstOrDefaultAsync(p => p.Name == plan.Name);
+        if (existing is not null)
+            return existing;
+
+        context.SubscriptionPlans.Add(plan);
+        return plan;
     }
 }

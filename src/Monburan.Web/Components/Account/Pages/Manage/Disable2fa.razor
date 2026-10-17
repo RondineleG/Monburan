@@ -15,18 +15,18 @@
 
 <div class="alert alert-warning" role="alert">
     <p>
-        <strong>This action only disables 2FA.</strong>
+        <strong>Esta ação apenas desativa a verificação em duas etapas.</strong>
     </p>
     <p>
-        Disabling 2FA does not change the keys used in authenticator apps. If you wish to change the key
-        used in an authenticator app you should <a href="Account/Manage/ResetAuthenticator">reset your authenticator keys.</a>
+        A chave cadastrada no aplicativo autenticador continua a mesma. Para trocá-la,
+        <a href="Account/Manage/ResetAuthenticator">redefina a chave do autenticador</a>.
     </p>
 </div>
 
 <div>
     <form @formname="disable-2fa" @onsubmit="OnSubmitAsync" method="post">
         <AntiforgeryToken />
-        <button class="btn btn-danger" type="submit">Disable 2FA</button>
+        <button class="btn btn-danger" type="submit">Desativar verificação em duas etapas</button>
     </form>
 </div>
 
@@ -58,7 +58,7 @@
         Logger.LogInformation("User with ID '{UserId}' has disabled 2fa.", userId);
         RedirectManager.RedirectToWithStatus(
             "Account/Manage/TwoFactorAuthentication",
-            "2fa has been disabled. You can reenable 2fa when you setup an authenticator app",
+            "Verificação em duas etapas desativada. Você pode reativá-la configurando um aplicativo autenticador.",
             HttpContext);
     }
 }

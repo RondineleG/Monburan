@@ -92,26 +92,20 @@
                                     }
                                 </div>
 
+                                @* Só recursos aplicados pelo backend: o limite de vagas ativas (CreateJobUseCase).
+                                   Boost, destaque e analytics por plano não têm implementação — não são anunciados. *@
                                 <ul class="list-unstyled">
                                     <li>
                                         <i class="bi @(plan.MaxJobs == -1 ? "bi-infinity" : "bi-briefcase")"></i>
-                                        @(plan.MaxJobs == -1 ? "Vagas ilimitadas" : $"{plan.MaxJobs} vagas por semana")
+                                        @(plan.MaxJobs == -1 ? "Vagas ativas ilimitadas" : $"Até {plan.MaxJobs} vagas ativas ao mesmo tempo")
                                     </li>
                                     <li>
-                                        <i class="bi @(plan.HasBoost ? "bi-rocket-takeoff" : "bi-x")"></i>
-                                        Boost de vagas: @(plan.HasBoost ? "Sim" : "Não")
+                                        <i class="bi bi-people"></i>
+                                        Candidaturas ilimitadas em cada vaga
                                     </li>
                                     <li>
-                                        <i class="bi @(plan.HasHighlight ? "bi-star-fill" : "bi-x")"></i>
-                                        Destaque: @(plan.HasHighlight ? "Sim" : "Não")
-                                    </li>
-                                    <li>
-                                        <i class="bi @(plan.HasAnalytics ? "bi-graph-up" : "bi-x")"></i>
-                                        Analytics: @(plan.HasAnalytics ? "Sim" : "Não")
-                                    </li>
-                                    <li>
-                                        <i class="bi bi-file-earmark-text"></i>
-                                        @(plan.MaxResumes == -1 ? "Currículos ilimitados" : $"{plan.MaxResumes} currículos")
+                                        <i class="bi bi-graph-up"></i>
+                                        Painel com indicadores das suas vagas
                                     </li>
                                 </ul>
                             </div>
@@ -147,29 +141,6 @@
                 }
             </div>
 
-            <section class="resume-pro-card">
-                <div class="resume-pro-card__copy">
-                    <span class="page-kicker">PARA CANDIDATOS</span>
-                    <h2>Currículo Pro</h2>
-                    <p>Crie currículos ilimitados, melhore-os com o assistente Monburan, importe um PDF existente e exporte em PDF.</p>
-                    <ul>
-                        <li>Gerador de currículo assistido com validação</li>
-                        <li>Importação de PDF e melhoria do conteúdo</li>
-                        <li>Currículos ilimitados e exportação em PDF</li>
-                    </ul>
-                </div>
-                <div class="resume-pro-card__cta">
-                    <div class="resume-pro-card__price"><strong>R$ 19,90</strong><span>/ano</span></div>
-                    @if (isCandidate)
-                    {
-                        <a class="btn btn-primary" href="/resumes">Ativar no meu perfil</a>
-                    }
-                    else if (!isAdvertiser)
-                    {
-                        <a class="btn btn-primary" href="/Account/Register?AccountType=candidate">Criar conta de candidato</a>
-                    }
-                </div>
-            </section>
 
             @if (!isAdvertiser)
             {

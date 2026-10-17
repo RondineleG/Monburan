@@ -1,11 +1,11 @@
 @page "/resumes/upload"
 @rendermode InteractiveServer
-@attribute [Microsoft.AspNetCore.Authorization.Authorize]
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Policy = "CandidateOnly")]
 @using Monburan.Core.DTOs.Request
-@using Monburan.Core.Interfaces.Storage
 @using Monburan.Core.UseCases.Resumes
+@using Monburan.Core.UseCases.Storage
 @using Monburan.Web.Services
-@inject IStorageProvider StorageProvider
+@inject UploadFileUseCase UploadFileUseCase
 @inject CreateResumeUseCase CreateResumeUseCase
 @inject ICurrentUserHelper CurrentUserHelper
 @inject NavigationManager Navigation
@@ -47,8 +47,6 @@
                                         <i class="bi bi-file-earmark-pdf text-danger fs-2 me-3"></i>
                                         <div>
                                             <strong>@originalFileName</strong>
-                                            <br />
-                                            <small class="text-muted">URL: @fileUrl</small>
                                             <br />
                                             <small class="text-muted">Tamanho: @(fileSize / 1024) KB</small>
                                         </div>
@@ -154,64 +152,65 @@
             return;
         }
 
+        var candidateId = CurrentUserHelper.GetCandidateId();
+        if (!candidateId.HasValue)
+        {
+            errorMessage = "Esta área é exclusiva para candidatos.";
+            return;
+        }
+
+        isUploading = true;
+        errorMessage = null;
+        successMessage = null;
         try
         {
-            isUploading = true;
-            errorMessage = null;
-            successMessage = null;
-
             const long maxSize = 10 * 1024 * 1024;
             await using var stream = selectedFile.OpenReadStream(maxSize);
 
-            var request = new UploadFileRequest
+            // UseCase valida tipo/tamanho/assinatura do PDF antes de gravar
+            var upload = await UploadFileUseCase.ExecuteAsync(new UploadFileRequest
             {
                 FileStream = stream,
                 FileName = selectedFile.Name,
                 ContentType = selectedFile.ContentType,
                 FileType = EFileType.Pdf
-            };
+            });
+            if (upload.Status != EResultStatus.Success || upload.Data is null)
+            {
+                Logger.LogFailure(upload, "Upload de currículo em PDF");
+                errorMessage = ResultMessages.ToUserMessage(upload, "Não foi possível enviar o PDF. Tente novamente.");
+                return;
+            }
 
-            // Usar o storage provider diretamente
-            var uploadedUrl = await StorageProvider.UploadAsync(stream, selectedFile.Name, selectedFile.ContentType);
-
-            fileUrl = uploadedUrl;
+            fileUrl = upload.Data.FileUrl;
             originalFileName = selectedFile.Name;
             fileSize = selectedFile.Size;
 
-            var candidateId = CurrentUserHelper.GetCandidateId();
-            if (candidateId.HasValue)
+            var title = Path.GetFileNameWithoutExtension(selectedFile.Name);
+            var createResult = await CreateResumeUseCase.ExecuteAsync(new CreateResumeRequest
             {
-                var title = Path.GetFileNameWithoutExtension(selectedFile.Name);
-                var createResult = await CreateResumeUseCase.ExecuteAsync(new CreateResumeRequest
-                {
-                    CandidateId = candidateId.Value,
-                    Title = string.IsNullOrWhiteSpace(title) ? "Currículo importado" : title,
-                    Summary = $"Currículo importado de PDF.\nArquivo: {uploadedUrl}\n\nComplete as seções abaixo para melhorar este currículo.",
-                    IsActive = false
-                });
+                CandidateId = candidateId.Value,
+                Title = string.IsNullOrWhiteSpace(title) ? "Currículo importado" : title,
+                Summary = $"Currículo importado de PDF.\nArquivo: {upload.Data.FileUrl}\n\nComplete as seções abaixo para melhorar este currículo.",
+                IsActive = false
+            });
 
-                if (createResult.Status != EResultStatus.Success)
-                {
-                    Logger.LogWarning("PDF enviado mas currículo não foi registrado: {Message}", createResult.Message);
-                    successMessage = "PDF enviado, mas não foi possível registrá-lo na sua lista de currículos.";
-                }
-                else
-                {
-                    successMessage = "Currículo enviado e adicionado à sua lista!";
-                    importedResumeId = createResult.Data!.Id;
-                }
-            }
-            else
+            if (createResult.Status != EResultStatus.Success || createResult.Data is null)
             {
-                successMessage = "Currículo enviado com sucesso!";
+                Logger.LogFailure(createResult, "Registro do currículo importado");
+                errorMessage = "O PDF foi enviado, mas não foi possível adicioná-lo à sua lista de currículos. Tente novamente.";
+                return;
             }
 
-            Logger.LogInformation("Currículo enviado com sucesso: {FileUrl}", uploadedUrl);
+            importedResumeId = createResult.Data.Id;
+            selectedFile = null;
+            isFileSelected = false;
+            successMessage = "Currículo enviado e adicionado à sua lista!";
         }
-        catch (Exception ex)
+        catch (IOException ex)
         {
-            Logger.LogError(ex, "Erro ao fazer upload do currículo");
-            errorMessage = "Erro ao enviar currículo. Tente novamente.";
+            Logger.LogWarning(ex, "Falha ao ler o PDF enviado");
+            errorMessage = "Não foi possível ler o arquivo. Verifique se ele tem no máximo 10 MB e tente novamente.";
         }
         finally
         {

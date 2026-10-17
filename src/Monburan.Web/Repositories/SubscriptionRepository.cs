@@ -2,13 +2,13 @@ using Microsoft.EntityFrameworkCore;
 
 using Monburan.Core.Entities;
 using Monburan.Core.Enums;
-using Monburan.Core.Interfaces.Repositories.Base;
+using Monburan.Core.Interfaces.Repositories;
 using Monburan.Core.Requests;
 using Monburan.Core.ValueObjects;
 
 namespace Monburan.Web.Repositories;
 
-public class SubscriptionRepository : IBaseRepository<Subscription>
+public class SubscriptionRepository : ISubscriptionRepository
 {
     private readonly IDbContextFactory<ApplicationDbContext> _contextFactory;
 

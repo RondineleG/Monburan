@@ -338,7 +338,8 @@
                             }
                         </div>
                         <div class="card-footer bg-transparent">
-                            <a class="btn btn-outline-primary w-100" href="@($"/jobs?jobId={job.Id}")">
+                            @* Vaga do próprio anunciante pode estar pausada/expirada: o modal de /jobs só abre vagas ativas *@
+                            <a class="btn btn-outline-primary w-100" href="@(isAdvertiser ? $"/jobs/{job.Id}" : $"/jobs?jobId={job.Id}")">
                                 Ver detalhes
                             </a>
                         </div>
@@ -354,13 +355,14 @@
         </div>
     }
 
-    @if (isAuthenticated && !isLoading)
+    @if (isAdvertiser && !isLoading)
     {
-        <aside class="promo-strip" aria-label="Publicidade">
-            <span class="promo-strip__tag">Publicidade</span>
+        @* Só anuncia o que os planos entregam de fato: mais vagas ativas simultâneas *@
+        <aside class="promo-strip" aria-label="Planos">
+            <span class="promo-strip__tag">Planos</span>
             <div class="promo-strip__body">
-                <p class="promo-strip__title">Recrute com destaque</p>
-                <p class="promo-strip__text">Planos com boost de vagas, destaque nas buscas e analytics do seu funil.</p>
+                <p class="promo-strip__title">Precisa de mais vagas abertas?</p>
+                <p class="promo-strip__text">Os planos ampliam quantas vagas você mantém ativas ao mesmo tempo.</p>
             </div>
             <a class="btn btn-outline-primary" href="/plans">Conhecer planos <span aria-hidden="true">↗</span></a>
         </aside>

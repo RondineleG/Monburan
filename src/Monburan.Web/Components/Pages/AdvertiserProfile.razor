@@ -1,11 +1,12 @@
 @page "/profile/advertiser"
 @rendermode InteractiveServer
 @using System.ComponentModel.DataAnnotations
-@attribute [Microsoft.AspNetCore.Authorization.Authorize]
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Policy = "AdvertiserOnly")]
 @inject Monburan.Core.UseCases.Advertisers.UpdateAdvertiserUseCase UpdateAdvertiserUseCase
 @inject Monburan.Core.Interfaces.Repositories.Base.IBaseRepository<Monburan.Core.Entities.Advertiser> AdvertiserRepository
 @inject Monburan.Web.Services.ICurrentUserHelper CurrentUserHelper
 @inject Microsoft.AspNetCore.Components.NavigationManager Navigation
+@inject ILogger<AdvertiserProfile> Logger
 
 <PageTitle>Perfil da Empresa - Monburan</PageTitle>
 
@@ -98,8 +99,9 @@
                             </div>
 
                             <div class="mb-3">
-                                <label class="form-label" for="_editModel.LogoUrl">URL do Logo</label>
+                                <label class="form-label" for="_editModel.LogoUrl">Logo da empresa</label>
                                 <InputText @bind-Value="_editModel.LogoUrl" class="form-control" id="_editModel.LogoUrl" placeholder="https://www.suaempresa.com.br/logo.png" />
+                                <div class="form-text">Cole o endereço de uma imagem ou <a href="/advertiser/upload-logo">envie um arquivo do seu computador</a>.</div>
                                 @if (!string.IsNullOrEmpty(_editModel.LogoUrl))
                                 {
                                     <div class="mt-2">
@@ -132,15 +134,15 @@
                         <dl class="mb-0">
                             <dt>Status</dt>
                             <dd>
-                                <span class="badge @(GetStatusBadgeClass())">@_advertiser.Status</span>
+                                <span class="badge @(GetStatusBadgeClass())">@UiLabels.AccountStatus(_advertiser.Status)</span>
                             </dd>
 
                             <dt>Plano Ativo</dt>
                             <dd>
-                                <span class="badge bg-info">@(_advertiser.ActivePlan ?? "Free")</span>
+                                <a class="badge bg-info" href="/my-subscription">@(_advertiser.ActivePlan ?? "Free")</a>
                             </dd>
 
-                            <dt>Email Verificado</dt>
+                            <dt>E-mail verificado</dt>
                             <dd>
                                 @if (_advertiser.IsEmailVerified)
                                 {
@@ -153,7 +155,7 @@
                             </dd>
 
                             <dt>Membro desde</dt>
-                            <dd>@_advertiser.CreatedAt.ToString("dd/MM/yyyy")</dd>
+                            <dd>@UiLabels.FormatMomentDate(_advertiser.CreatedAt)</dd>
                         </dl>
                     </div>
                 </div>
@@ -170,6 +172,9 @@
                             <button class="btn btn-outline-primary btn-sm" @onclick="NavigateToApplications">
                                 <i class="bi bi-send"></i> Candidaturas Recebidas
                             </button>
+                            <a class="btn btn-outline-primary btn-sm" href="/advertiser/upload-logo">Enviar logo</a>
+                            <a class="btn btn-outline-primary btn-sm" href="/address/list">Endereço da empresa</a>
+                            <a class="btn btn-outline-primary btn-sm" href="/Account/Manage">Senha e segurança da conta</a>
                         </div>
                     </div>
                 </div>
@@ -261,12 +266,15 @@
             }
             else
             {
-                _errorMessage = result.Message;
+                Logger.LogFailure(result, "Atualizar perfil do anunciante");
+                _errorMessage = ResultMessages.ToUserMessage(result, "Não foi possível salvar o perfil. Tente novamente.");
             }
         }
         catch (Exception ex)
         {
-            _errorMessage = $"Erro ao salvar: {ex.Message}";
+            // Exceção nunca vai crua para a tela (pode conter SQL/caminhos internos)
+            Logger.LogError(ex, "Erro ao salvar o perfil do anunciante");
+            _errorMessage = ResultMessages.GenericError;
         }
         finally
         {

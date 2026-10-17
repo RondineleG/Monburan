@@ -1,6 +1,6 @@
 @page "/resumes/new"
 @rendermode InteractiveServer
-@attribute [Microsoft.AspNetCore.Authorization.Authorize]
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Policy = "CandidateOnly")]
 @using Monburan.Core.DTOs.Request
 @using Monburan.Core.Entities
 @using Monburan.Core.Enums

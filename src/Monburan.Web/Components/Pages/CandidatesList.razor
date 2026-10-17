@@ -109,9 +109,6 @@
                                         </td>
                                         <td>@candidate.CreatedAt.ToString("dd/MM/yyyy")</td>
                                         <td class="text-center">
-                                            <button class="btn btn-sm btn-outline-primary" @onclick="() => ViewDetails(candidate.Id)" title="Ver detalhes">
-                                                <i class="bi bi-eye"></i>
-                                            </button>
                                             <button class="btn btn-sm btn-outline-danger" @onclick="() => ConfirmDelete(candidate.Id, candidate.Name)" title="Excluir">
                                                 <i class="bi bi-trash"></i>
                                             </button>
@@ -228,11 +225,6 @@
         }
 
         isLoading = false;
-    }
-
-    private void ViewDetails(Guid candidateId)
-    {
-        Navigation.NavigateTo($"/admin/candidates/{candidateId}");
     }
 
     private void ConfirmDelete(Guid candidateId, string candidateName)

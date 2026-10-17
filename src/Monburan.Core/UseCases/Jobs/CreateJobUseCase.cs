@@ -6,6 +6,7 @@ using Monburan.Core.Interfaces.Repositories.Base;
 using Monburan.Core.Interfaces.UseCases;
 using Monburan.Core.Interfaces.Validations;
 using Monburan.Core.Requests;
+using Monburan.Core.UseCases.Subscriptions;
 using Monburan.Core.ValueObjects;
 
 namespace Monburan.Core.UseCases.Jobs;
@@ -14,11 +15,16 @@ public class CreateJobUseCase : IUseCase<CreateJobRequest, JobResponse>
 {
     private readonly IBaseRepository<Job> _jobRepository;
     private readonly IEntityValidator<Job> _jobValidator;
+    private readonly CheckJobLimitUseCase _checkJobLimit;
 
-    public CreateJobUseCase(IBaseRepository<Job> jobRepository, IEntityValidator<Job> jobValidator)
+    public CreateJobUseCase(
+        IBaseRepository<Job> jobRepository,
+        IEntityValidator<Job> jobValidator,
+        CheckJobLimitUseCase checkJobLimit)
     {
         _jobRepository = jobRepository;
         _jobValidator = jobValidator;
+        _checkJobLimit = checkJobLimit;
     }
 
     public async Task<RequestResult<JobResponse>> ExecuteAsync(CreateJobRequest request)
@@ -71,6 +77,18 @@ public class CreateJobUseCase : IUseCase<CreateJobRequest, JobResponse>
                 createResult.ValidationResult.AddError(error.Message, error.Field);
             }
             return createResult;
+        }
+
+        // Limite de vagas ativas do plano — a página de planos promete esse limite
+        var limitResult = await _checkJobLimit.ExecuteAsync(new CheckJobLimitRequest(request.AdvertiserId));
+        if (limitResult.Status != EResultStatus.Success)
+            return RequestResult<JobResponse>.FromResult(limitResult);
+
+        if (!limitResult.Data!.CanCreate)
+        {
+            return RequestResult<JobResponse>.WithDomainError(
+                $"Seu plano {limitResult.Data.PlanName} permite até {limitResult.Data.MaxJobs} vagas ativas. " +
+                "Encerre uma vaga ou mude de plano para publicar outra.");
         }
 
         var createJobResult = await _jobRepository.CreateAsync(job);

@@ -88,12 +88,25 @@ else
                                 <span>Meu perfil</span>
                             </NavLink>
                         }
-                        else
+                        else if (!IsAdmin)
                         {
                             <span class="sidebar-nav__label sidebar-nav__label--spaced">Minha conta</span>
                             <NavLink class="sidebar-link" href="/notifications" title="Notificações">
                                 <span class="sidebar-link__icon">◌</span>
                                 <span>Notificações</span>
+                            </NavLink>
+                        }
+
+                        @if (IsAdmin)
+                        {
+                            <span class="sidebar-nav__label sidebar-nav__label--spaced">Administração</span>
+                            <NavLink class="sidebar-link" href="/admin/candidates" title="Candidatos cadastrados">
+                                <span class="sidebar-link__icon">☰</span>
+                                <span>Candidatos</span>
+                            </NavLink>
+                            <NavLink class="sidebar-link" href="/admin/advertisers" title="Empresas cadastradas">
+                                <span class="sidebar-link__icon">▦</span>
+                                <span>Empresas</span>
                             </NavLink>
                         }
                     </Authorized>
@@ -103,7 +116,18 @@ else
             <div class="app-sidebar__bottom">
                 <AuthorizeView>
                     <Authorized>
-                        @if (IsAdvertiser)
+                        @if (IsAdmin && !IsAdvertiser && !IsCandidate)
+                        {
+                            <NavLink class="profile-link" href="/Account/Manage" title="Minha conta">
+                                <span class="avatar">AD</span>
+                                <span>
+                                    <strong>Minha conta</strong>
+                                    <small>Senha e segurança</small>
+                                </span>
+                                <span aria-hidden="true">→</span>
+                            </NavLink>
+                        }
+                        else if (IsAdvertiser)
                         {
                             <NavLink class="profile-link" href="/profile/advertiser" title="Perfil da empresa">
                                 <span class="avatar">EM</span>
@@ -206,6 +230,7 @@ else
 
 @code {
     private string currentUserType = string.Empty;
+    private bool isAdmin;
 
     [CascadingParameter]
     private Task<AuthenticationState>? AuthenticationStateTask { get; set; }
@@ -213,6 +238,7 @@ else
     private bool IsAccountPage => NavigationManager.Uri.Contains("/Account/", StringComparison.OrdinalIgnoreCase);
     private bool IsAdvertiser => string.Equals(currentUserType, "advertiser", StringComparison.OrdinalIgnoreCase);
     private bool IsCandidate => string.Equals(currentUserType, "candidate", StringComparison.OrdinalIgnoreCase);
+    private bool IsAdmin => isAdmin;
 
     protected override async Task OnParametersSetAsync()
     {
@@ -220,6 +246,7 @@ else
         {
             var authenticationState = await AuthenticationStateTask;
             currentUserType = authenticationState.User.FindFirst(Monburan.Web.Services.ClaimsExtensions.UserTypeClaimType)?.Value ?? string.Empty;
+            isAdmin = authenticationState.User.IsInRole("Admin");
         }
     }
 

@@ -1,30 +1,28 @@
 using Monburan.Core.DTOs.Response;
 using Monburan.Core.Entities;
 using Monburan.Core.Enums;
-using Monburan.Core.Interfaces.Repositories.Base;
+using Monburan.Core.Interfaces.Repositories;
 using Monburan.Core.Interfaces.UseCases;
 using Monburan.Core.Requests;
-using Monburan.Core.ValueObjects;
 
 namespace Monburan.Core.UseCases.Applications;
 
 public class ListApplicationsByCandidateUseCase : IUseCase<Guid, IEnumerable<ApplicationResponse>>
 {
-    private readonly IBaseRepository<Application> _applicationRepository;
+    private readonly IApplicationRepository _applicationRepository;
 
-    public ListApplicationsByCandidateUseCase(IBaseRepository<Application> applicationRepository)
+    public ListApplicationsByCandidateUseCase(IApplicationRepository applicationRepository)
     {
         _applicationRepository = applicationRepository;
     }
 
     public async Task<RequestResult<IEnumerable<ApplicationResponse>>> ExecuteAsync(Guid request)
     {
-        var result = await _applicationRepository.GetAllAsync(1, 1000);
+        var result = await _applicationRepository.ListByCandidateAsync(request);
         if (result.Status != EResultStatus.Success)
             return RequestResult<IEnumerable<ApplicationResponse>>.FromResult(result);
 
         var applications = result.Data!
-            .Where(a => a.CandidateId.Value == request)
             .Select(MapToResponse)
             .OrderByDescending(a => a.CreatedAt);
 
