@@ -15,7 +15,7 @@ on:
       - 'src/Monburan.Core/**'
       - '.github/workflows/android-release.yml'
   pull_request:
-    branches: [ main ]
+    branches: [ main, develop ]
     paths:
       - 'src/Monburan.Mobile/**'
       - 'src/Monburan.Mobile.Shared/**'

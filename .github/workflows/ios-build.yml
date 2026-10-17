@@ -14,7 +14,7 @@ on:
       - 'src/Monburan.Core/**'
       - '.github/workflows/ios-build.yml'
   pull_request:
-    branches: [ main ]
+    branches: [ main, develop ]
     paths:
       - 'src/Monburan.Mobile/**'
       - 'src/Monburan.Mobile.Shared/**'
