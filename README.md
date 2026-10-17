@@ -110,10 +110,12 @@ export Smtp__Password="sua-api-key-resend"
 ### CI/CD Pipeline
 - **Plataforma**: GitHub Actions
 - **Workflows**:
-  - `ci-cd.yml` → build + testes + coverage, security scan, build do APK/AAB Android e deploy (Azure Web App) para staging (`develop`) e produção (`main`)
+  - `ci-cd.yml` → build + testes (unit, integração e API, com coverage), E2E (Playwright + Postgres de serviço), scan de segredos e de pacotes NuGet vulneráveis; deploy no Azure (staging `develop` / produção `main`) só quando o Azure está configurado
   - `docker-ghcr.yml` → build e push da imagem Docker para `ghcr.io/rondineleg/monburan` a cada push na `main`
-- **Features**: Build, testes, security scan, health checks, artefatos (app + Android)
+  - `android-release.yml` → APK release assinado a partir da `main`; publica a release `v<versão>` quando a versão do csproj é nova
+- **Features**: Build, testes, security scan, health checks, artefatos (app + APK)
 - **Deploy VPS**: imagem do GHCR + `infra/vps` (docker compose + nginx + TLS via certbot) em `https://monburan.com.br`
+- **Como lançar uma versão e publicar a web**: [docs/CI-CD.md](docs/CI-CD.md)
 
 ---
 
@@ -367,10 +369,10 @@ dotnet build src/Monburan.Mobile -f net10.0-android -c Debug -t:Run
 # ou gerar APK autocontido:
 dotnet build src/Monburan.Mobile -f net10.0-android -c Debug -p:EmbedAssembliesIntoApk=true
 
-# 4. Release AAB (assinado quando keystore configurado)
-dotnet publish src/Monburan.Mobile -f net10.0-android -c Release \
-  -p:AndroidSigningKeyStore=<keystore> -p:AndroidSigningKeyAlias=<alias> \
-  -p:AndroidSigningStorePass=<senha> -p:AndroidSigningKeyPass=<senha>
+# 4. Release APK assinado (a esteira faz isso na main: ver docs/CI-CD.md)
+dotnet publish src/Monburan.Mobile -f net10.0-android -c Release -p:AndroidPackageFormat=apk \
+  -p:AndroidKeyStore=true -p:AndroidSigningKeyStore=<keystore> -p:AndroidSigningKeyAlias=<alias> \
+  -p:AndroidSigningStorePass=env:KEYSTORE_PASSWORD -p:AndroidSigningKeyPass=env:KEY_PASSWORD
 ```
 
 Estrutura mobile:
