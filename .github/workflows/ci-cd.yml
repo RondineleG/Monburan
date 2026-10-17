@@ -5,52 +5,71 @@ on:
     branches: [ main, develop ]
   pull_request:
     branches: [ main, develop ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Um push novo no mesmo PR cancela a execução anterior; pushes em main/develop sempre terminam
+concurrency:
+  group: ci-cd-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
   DOTNET_VERSION: '10.0.x'
   AZURE_WEBAPP_NAME: 'monburan-webapp'
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
 
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
-    
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
-      
+
     - name: Setup .NET
       uses: actions/setup-dotnet@v4
       with:
         dotnet-version: ${{ env.DOTNET_VERSION }}
-        
+
     - name: Install MAUI Android workload
       run: dotnet workload install maui-android
-      
+
     - name: Restore dependencies
       run: dotnet restore
-      
+
     - name: Build project
       run: dotnet build --configuration Release --no-restore
-      
-    - name: Run tests
-      run: dotnet test --configuration Release --no-build --verbosity normal --collect:"XPlat Code Coverage" --settings tests/coverlet.runsettings
-      
+
+    # Monburan.E2ETests precisa do app no ar com Postgres e navegador: roda no job "e2e".
+    # Roda os três projetos mesmo se um falhar, para o log mostrar tudo de uma vez.
+    - name: Run tests (unit, integration e API)
+      run: |
+        rc=0
+        for project in UnitTests IntegrationTests ApiTests; do
+          dotnet test "tests/Monburan.$project" --configuration Release --no-build --verbosity normal \
+            --collect:"XPlat Code Coverage" --settings tests/coverlet.runsettings || rc=1
+        done
+        exit $rc
+
     - name: Generate code coverage report
       run: |
         dotnet tool install -g dotnet-reportgenerator-globaltool
         reportgenerator -reports:**/coverage.cobertura.xml -targetdir:coverage-report -reporttypes:html
       continue-on-error: true
-      
+
     - name: Upload coverage reports
       uses: actions/upload-artifact@v4
       with:
         name: coverage-report
         path: coverage-report
       continue-on-error: true
-      
+
     - name: Publish application
       run: dotnet publish src/Monburan.Web/Monburan.Web.csproj --configuration Release --output ./publish --no-build
-      
+
     - name: Upload build artifacts
       uses: actions/upload-artifact@v4
       with:
@@ -58,31 +77,128 @@ jobs:
         path: ./publish
         retention-days: 7
 
-  security-scan:
+  # Suíte Playwright (55 testes): sobe o app em Development (seed) contra um Postgres de serviço.
+  # Independente dos demais jobs — falha aqui aparece no PR, mas não trava build, scan ou APK.
+  e2e:
     runs-on: ubuntu-latest
-    needs: build-and-test
-    
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: monburan
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d monburan"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      E2E_BASE_URL: http://localhost:5095
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
-      
-    - name: Run security scan
-      uses: github/super-linter@v5
-      env:
-        DEFAULT_BRANCH: main
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        
-    - name: Check for secrets
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+
+    - name: Build app and E2E tests
       run: |
-        if [ -n "$(git log --all --full-history -S "password" --oneline)" ]; then
-          echo "Potential secrets found in git history"
+        dotnet build src/Monburan.Web/Monburan.Web.csproj --configuration Release
+        dotnet build tests/Monburan.E2ETests/Monburan.E2ETests.csproj --configuration Release
+
+    - name: Install Playwright browser
+      run: pwsh tests/Monburan.E2ETests/bin/Release/net10.0/playwright.ps1 install --with-deps chromium
+
+    - name: Start app (Development + Postgres do serviço)
+      run: |
+        ASPNETCORE_ENVIRONMENT=Development APPLY_MIGRATIONS=true \
+        ConnectionStrings__DefaultConnection="Host=localhost;Port=5432;Database=monburan;Username=postgres;Password=postgres" \
+        nohup dotnet run --project src/Monburan.Web/Monburan.Web.csproj --configuration Release \
+          --no-build --no-launch-profile --urls "$E2E_BASE_URL" > app.log 2>&1 &
+        for _ in $(seq 1 60); do
+          if curl -fsS "$E2E_BASE_URL/health" > /dev/null 2>&1; then
+            echo "App no ar"
+            exit 0
+          fi
+          sleep 2
+        done
+        echo "::error::O app não respondeu em /health em 2 minutos"
+        tail -n 60 app.log
+        exit 1
+
+    # A suíte tem uma falha intermitente conhecida (Sweep_Advertiser_AllRoutes, ~1 em 6 execuções):
+    # uma retentativa evita reprovar o pipeline por ela, sem esconder uma falha real (que repete).
+    - name: Run E2E tests
+      run: |
+        for attempt in 1 2; do
+          if dotnet test tests/Monburan.E2ETests/Monburan.E2ETests.csproj --configuration Release --no-build --verbosity normal; then
+            exit 0
+          fi
+          echo "::warning::E2E falhou na tentativa $attempt"
+        done
+        exit 1
+
+    - name: Upload app log
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: e2e-app-log
+        path: app.log
+        retention-days: 7
+        if-no-files-found: ignore
+
+  security-scan:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+
+    # Formatos de token/chave de alta confiança. A checagem anterior procurava a palavra "password"
+    # no histórico, que existe em qualquer app com login — por isso sempre reprovava.
+    - name: Check for secrets in tracked files
+      run: |
+        pattern='-----BEGIN [A-Z ]*PRIVATE KEY-----|ghp_[A-Za-z0-9]{36}|gho_[A-Za-z0-9]{36}|github_pat_[A-Za-z0-9_]{50,}|AKIA[0-9A-Z]{16}|xox[baprs]-[A-Za-z0-9-]{10,}|AIza[0-9A-Za-z_-]{35}|SG\.[A-Za-z0-9_-]{16,}\.[A-Za-z0-9_-]{16,}|\bre_[A-Za-z0-9]{24,}\b|eyJ[A-Za-z0-9_-]{15,}\.[A-Za-z0-9_-]{15,}\.[A-Za-z0-9_-]{10,}'
+        if git grep -nIE -e "$pattern" -- . ':!*.png' ':!*.jpg'; then
+          echo "::error::Possível segredo versionado (linhas acima). Rotacione a credencial e remova-a do repositório."
+          exit 1
+        fi
+        echo "Nenhum segredo de formato conhecido nos arquivos versionados."
+
+    - name: Install MAUI Android workload
+      run: dotnet workload install maui-android
+
+    - name: Restore dependencies
+      run: dotnet restore Monburan.sln
+
+    - name: Check NuGet packages for known vulnerabilities
+      env:
+        DOTNET_CLI_UI_LANGUAGE: en
+      run: |
+        dotnet list Monburan.sln package --vulnerable --include-transitive 2>&1 | tee vulnerabilities.txt
+        if grep -q "has the following vulnerable packages" vulnerabilities.txt; then
+          echo "::error::Há pacotes NuGet com vulnerabilidade conhecida (veja o log acima)."
           exit 1
         fi
 
+  # Os jobs de deploy do Azure só rodam quando o Azure está configurado (variável AZURE_RESOURCE_GROUP).
+  # Hoje a produção é a VPS (imagem do GHCR, ver docker-ghcr.yml e docs/CI-CD.md).
   deploy-staging:
     runs-on: ubuntu-latest
     needs: [build-and-test, security-scan]
-    if: github.ref == 'refs/heads/develop' && github.event_name == 'push'
+    if: github.ref == 'refs/heads/develop' && github.event_name == 'push' && vars.AZURE_RESOURCE_GROUP != ''
     environment:
       name: staging
       url: https://staging.monburan.com.br
@@ -92,13 +208,13 @@ jobs:
       # JWT_SIGNING_KEY) ou ao menos verifica que o app setting já existe;
       # sem credenciais o job falha ANTES de deployar uma app quebrada.
       HAS_AZURE_CREDS: ${{ secrets.AZURE_CREDENTIALS != '' && vars.AZURE_RESOURCE_GROUP != '' }}
-    
+
     steps:
     - name: Download build artifacts
       uses: actions/download-artifact@v4
       with:
         name: monburan-app
-        
+
     - name: Provision/verify Jwt__SigningKey no App Service
       if: env.HAS_AZURE_CREDS == 'true'
       uses: azure/CLI@v2
@@ -124,13 +240,13 @@ jobs:
                 echo "::error::Jwt__SigningKey ausente no App Service e sem secret JWT_SIGNING_KEY para provisionar. Defina manualmente: az webapp config appsettings set -g <rg> -n $APP_NAME --settings Jwt__SigningKey=\$(openssl rand -base64 48)"; exit 1; }
             echo "Jwt__SigningKey já configurado no App Service"
           fi
-          
+
     - name: Bloquear deploy sem como provisionar/verificar Jwt__SigningKey
       if: env.HAS_AZURE_CREDS != 'true'
       run: |
         echo "::error::Sem AZURE_CREDENTIALS + AZURE_RESOURCE_GROUP não é possível garantir Jwt__SigningKey no App Service — o app cairia no boot (ValidateOnStart). Configure as credenciais ou documente a provisão manual antes de habilitar este job."
         exit 1
-        
+
     - name: Deploy to Azure Web App
       uses: azure/webapps-deploy@v2
       with:
@@ -141,20 +257,20 @@ jobs:
   deploy-production:
     runs-on: ubuntu-latest
     needs: [build-and-test, security-scan]
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push' && vars.AZURE_RESOURCE_GROUP != ''
     environment:
       name: production
       url: https://monburan.com.br
     env:
       # Mesma garantia do staging — app não sobe sem Jwt__SigningKey
       HAS_AZURE_CREDS: ${{ secrets.AZURE_CREDENTIALS != '' && vars.AZURE_RESOURCE_GROUP != '' }}
-    
+
     steps:
     - name: Download build artifacts
       uses: actions/download-artifact@v4
       with:
         name: monburan-app
-        
+
     - name: Provision/verify Jwt__SigningKey no App Service
       if: env.HAS_AZURE_CREDS == 'true'
       uses: azure/CLI@v2
@@ -179,78 +295,28 @@ jobs:
                 echo "::error::Jwt__SigningKey ausente no App Service e sem secret JWT_SIGNING_KEY para provisionar. Defina manualmente: az webapp config appsettings set -g <rg> -n $APP_NAME --settings Jwt__SigningKey=\$(openssl rand -base64 48)"; exit 1; }
             echo "Jwt__SigningKey já configurado no App Service"
           fi
-          
+
     - name: Bloquear deploy sem como provisionar/verificar Jwt__SigningKey
       if: env.HAS_AZURE_CREDS != 'true'
       run: |
         echo "::error::Sem AZURE_CREDENTIALS + AZURE_RESOURCE_GROUP não é possível garantir Jwt__SigningKey no App Service — o app cairia no boot (ValidateOnStart). Configure as credenciais ou documente a provisão manual antes de habilitar este job."
         exit 1
-        
+
     - name: Deploy to Azure Web App
       uses: azure/webapps-deploy@v2
       with:
         app-name: ${{ env.AZURE_WEBAPP_NAME }}
         publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
         package: .
-        
+
     - name: Run database migrations
       run: |
         # Add migration command here
         echo "Running database migrations"
-        
+
     - name: Health check
       run: |
         # Wait for deployment to complete
         sleep 30
         # Check health endpoint
         curl -f https://monburan.com.br/health || exit 1
-
-  android-build:
-    runs-on: ubuntu-latest
-    needs: build-and-test
-    env:
-      # 'secrets' não é permitido em step `if:` — expõe como env no nível do job
-      HAS_KEYSTORE: ${{ secrets.ANDROID_KEYSTORE_BASE64 != '' }}
-    
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      
-    - name: Setup .NET
-      uses: actions/setup-dotnet@v4
-      with:
-        dotnet-version: ${{ env.DOTNET_VERSION }}
-        
-    - name: Setup JDK 17
-      uses: actions/setup-java@v4
-      with:
-        distribution: 'temurin'
-        java-version: '17'
-        
-    - name: Install MAUI Android workload
-      run: dotnet workload install maui-android
-      
-    - name: Build Android APK (debug)
-      run: dotnet build src/Monburan.Mobile/Monburan.Mobile.csproj -f net10.0-android -c Debug -p:EmbedAssembliesIntoApk=true
-      
-    # Um único publish Release assinado — sem keystore o AAB sairia não-assinado e
-    # o glob de artifacts pularia silenciosamente
-    - name: Publish + sign Android AAB (release)
-      if: env.HAS_KEYSTORE == 'true'
-      run: |
-        echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > /tmp/monburan.keystore
-        dotnet publish src/Monburan.Mobile/Monburan.Mobile.csproj -f net10.0-android -c Release \
-          -p:AndroidSigningKeyStore=/tmp/monburan.keystore \
-          -p:AndroidSigningKeyAlias=${{ secrets.ANDROID_KEY_ALIAS }} \
-          -p:AndroidSigningStorePass=${{ secrets.ANDROID_KEYSTORE_PASSWORD }} \
-          -p:AndroidSigningKeyPass=${{ secrets.ANDROID_KEY_PASSWORD }}
-        
-    - name: Upload Android artifacts
-      uses: actions/upload-artifact@v4
-      with:
-        name: monburan-android
-        path: |
-          src/Monburan.Mobile/bin/Debug/net10.0-android/*Signed.apk
-          src/Monburan.Mobile/bin/Release/net10.0-android/*Signed.aab
-        retention-days: 30
-        if-no-files-found: ignore
