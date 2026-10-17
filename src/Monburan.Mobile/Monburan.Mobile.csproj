@@ -1,9 +1,10 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk.Razor">
 
     <PropertyGroup>
-        <!-- Somente Android por ora — iOS requer build em host macOS e outros TFMs
-             quebrariam dotnet build/test da solution em máquinas sem esses workloads -->
+        <!-- Android em qualquer máquina; iOS só quando o build roda em macOS (exige Xcode). Declará-lo fixo
+             quebraria dotnet build/test da solution em Linux/Windows, que não têm o workload do iOS -->
         <TargetFrameworks>net10.0-android</TargetFrameworks>
+        <TargetFrameworks Condition="$([MSBuild]::IsOSPlatform('osx'))">$(TargetFrameworks);net10.0-ios</TargetFrameworks>
 
         <!-- Cleartext HTTP só em Debug (API local) — Release usa o manifest padrão, sem networkSecurityConfig -->
         <AndroidManifest Condition="'$(Configuration)' == 'Debug'">Platforms\Android\AndroidManifest.Debug.xml</AndroidManifest>
@@ -50,6 +51,8 @@
         <SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'">24.0</SupportedOSPlatformVersion>
         <SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">10.0.17763.0</SupportedOSPlatformVersion>
         <TargetPlatformMinVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">10.0.17763.0</TargetPlatformMinVersion>
+        <!-- Keychain do iOS (SecureStorage): o entitlement vale quando o app é assinado, inclusive no simulador -->
+        <CodesignEntitlements Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios'">Platforms/iOS/Entitlements.plist</CodesignEntitlements>
     </PropertyGroup>
 
     <ItemGroup>
