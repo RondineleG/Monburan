@@ -1,6 +1,6 @@
 using Monburan.Core.DTOs.Response;
 using Monburan.Core.Enums;
-using Monburan.Core.Interfaces.Repositories.Base;
+using Monburan.Core.Interfaces.Repositories;
 using Monburan.Core.Interfaces.UseCases;
 using Monburan.Core.Requests;
 
@@ -8,9 +8,12 @@ namespace Monburan.Core.UseCases.Notifications;
 
 public class ListNotificationsByUserUseCase : IUseCase<string, List<NotificationResponse>>
 {
-    private readonly IBaseRepository<Entities.Notification> _notificationRepository;
+    // Telas mostram as mais recentes; o badge usa COUNT no banco, sem esse teto
+    public const int MaxNotifications = 200;
 
-    public ListNotificationsByUserUseCase(IBaseRepository<Entities.Notification> notificationRepository)
+    private readonly INotificationRepository _notificationRepository;
+
+    public ListNotificationsByUserUseCase(INotificationRepository notificationRepository)
     {
         _notificationRepository = notificationRepository;
     }
@@ -20,16 +23,11 @@ public class ListNotificationsByUserUseCase : IUseCase<string, List<Notification
         if (string.IsNullOrWhiteSpace(recipientId))
             return RequestResult<List<NotificationResponse>>.WithValidationError("ID do destinatário é obrigatório.", "RecipientId");
 
-        var result = await _notificationRepository.GetAllAsync(1, 1000);
+        var result = await _notificationRepository.ListByRecipientAsync(recipientId, MaxNotifications);
         if (result.Status != EResultStatus.Success)
             return RequestResult<List<NotificationResponse>>.FromResult(result);
 
-        var userNotifications = result.Data!
-            .Where(n => n.RecipientId == recipientId)
-            .OrderByDescending(n => n.CreatedAt)
-            .ToList();
-
-        var response = userNotifications.Select(MapToResponse).ToList();
+        var response = result.Data!.Select(MapToResponse).ToList();
 
         return RequestResult<List<NotificationResponse>>.Success(response);
     }

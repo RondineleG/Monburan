@@ -23,4 +23,7 @@ public interface IJobRepository : IBaseRepository<Job>
         bool? sortDescending = null);
 
     Task<PagedResponse<Job>> GetAllPagedAsync(int page, int size);
+
+    /// <summary>Quantidade de vagas ativas (não excluídas) do anunciante — base do limite do plano.</summary>
+    Task<int> CountActiveByAdvertiserAsync(Guid advertiserId);
 }

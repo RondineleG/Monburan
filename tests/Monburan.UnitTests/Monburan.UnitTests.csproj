@@ -22,6 +22,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Monburan.Core\Monburan.Core.csproj" />
+    <ProjectReference Include="..\..\src\Monburan.Web\Monburan.Web.csproj" />
+    <ProjectReference Include="..\..\src\Monburan.Mobile.Shared\Monburan.Mobile.Shared.csproj" />
   </ItemGroup>
 
 </Project>

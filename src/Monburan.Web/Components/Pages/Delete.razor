@@ -2,9 +2,12 @@
 @rendermode InteractiveServer
 @attribute [Microsoft.AspNetCore.Authorization.Authorize]
 
+@using System.Data.Common
 @inject AddressService AddressService
 @inject ICurrentUserHelper CurrentUserHelper
 @inject NavigationManager Navigation
+@inject IToastService Toast
+@inject ILogger<Delete> Logger
 @using Monburan.Core.Entities;
 @using Monburan.Web.Services;
 
@@ -87,13 +90,22 @@
 
     private async Task Remove()
     {
+        // Só existe "address" quando o endereço pertence ao perfil (checado no carregamento)
+        if (address is null || isDeleting)
+            return;
+
         isDeleting = true;
         try
         {
-            if (Monburan.Core.ValueObjects.Id.TryCreate(Id, out var key) && key is not null)
-                await AddressService.UnlinkFromOwnerAsync(key);
+            await AddressService.UnlinkFromOwnerAsync(address.Id);
             await AddressService.DeleteAsync(Id);
+            Toast.ShowSuccess("Endereço removido.");
             Navigation.NavigateTo("/address/list");
+        }
+        catch (Exception ex) when (ex is DbException or DbUpdateException or InvalidOperationException)
+        {
+            Logger.LogError(ex, "Falha ao excluir endereço {AddressId}", Id);
+            Toast.ShowError("Não foi possível remover o endereço. Tente novamente.");
         }
         finally
         {

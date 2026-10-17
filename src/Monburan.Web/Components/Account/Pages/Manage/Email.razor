@@ -84,7 +84,7 @@
     {
         if (Input.NewEmail is null || Input.NewEmail == email)
         {
-            message = "Your email is unchanged.";
+            message = "Seu e-mail continua o mesmo.";
             return;
         }
 
@@ -97,7 +97,7 @@
 
         await EmailSender.SendConfirmationLinkAsync(user, Input.NewEmail, HtmlEncoder.Default.Encode(callbackUrl));
 
-        message = "Confirmation link to change email sent. Please check your email.";
+        message = "Enviamos um link de confirmação para o novo e-mail. Verifique sua caixa de entrada.";
     }
 
     private async Task OnSendEmailVerificationAsync()
@@ -116,14 +116,14 @@
 
         await EmailSender.SendConfirmationLinkAsync(user, email, HtmlEncoder.Default.Encode(callbackUrl));
 
-        message = "Verification email sent. Please check your email.";
+        message = "E-mail de verificação enviado. Verifique sua caixa de entrada.";
     }
 
     private sealed class InputModel
     {
-        [Required]
-        [EmailAddress]
-        [Display(Name = "New email")]
+        [Required(ErrorMessage = "Informe o novo e-mail.")]
+        [EmailAddress(ErrorMessage = "Informe um e-mail válido.")]
+        [Display(Name = "Novo e-mail")]
         public string? NewEmail { get; set; }
     }
 }

@@ -1,7 +1,7 @@
 @page "/received-applications"
 @page "/jobs/{jobId:guid}/applications"
 @rendermode InteractiveServer
-@attribute [Microsoft.AspNetCore.Authorization.Authorize]
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Policy = "AdvertiserOnly")]
 @using Monburan.Core.DTOs.Request
 @using Monburan.Core.DTOs.Response
 @using Monburan.Core.Enums
@@ -11,6 +11,8 @@
 @inject UpdateApplicationStatusUseCase UpdateApplicationStatusUseCase
 @inject CurrentUserHelper CurrentUserHelper
 @inject NavigationManager Navigation
+@inject IToastService Toast
+@inject ILogger<ReceivedApplications> Logger
 
 <PageTitle>Candidaturas Recebidas - Monburan</PageTitle>
 
@@ -19,182 +21,204 @@
         <div class="page-heading__copy">
             <span class="page-kicker">ÁREA DA EMPRESA</span>
             <h1>Candidaturas recebidas</h1>
-            <p>Revise os perfis e escolha os próximos passos do processo.</p>
+            <p>
+                @if (JobId.HasValue && !string.IsNullOrEmpty(filteredJobTitle))
+                {
+                    <text>Candidatos da vaga <strong>@filteredJobTitle</strong>. <a href="/received-applications">Ver de todas as vagas</a></text>
+                }
+                else
+                {
+                    <text>Revise os perfis e escolha os próximos passos do processo.</text>
+                }
+            </p>
         </div>
-        <button class="btn btn-secondary" @onclick="NavigateToMyJobs">Voltar às vagas</button>
+        <a class="btn btn-secondary" href="/my-jobs">Voltar às vagas</a>
     </header>
-
-    @if (!string.IsNullOrEmpty(successMessage))
-    {
-        <div class="alert alert-success alert-dismissible fade show" role="alert">
-            <i class="bi bi-check-circle"></i> @successMessage
-            <button type="button" class="btn-close" @onclick="() => successMessage = null"></button>
-        </div>
-    }
-
-    @if (!string.IsNullOrEmpty(errorMessage))
-    {
-        <div class="alert alert-danger alert-dismissible fade show" role="alert">
-            <i class="bi bi-exclamation-triangle"></i> @errorMessage
-            <button type="button" class="btn-close" @onclick="() => errorMessage = null"></button>
-        </div>
-    }
 
     @if (isLoading)
     {
-        <div class="text-center py-5">
-            <div class="spinner-border text-primary" role="status"></div>
-            <p class="mt-2">Carregando candidaturas...</p>
-        </div>
+        <LoadingState Message="Carregando candidaturas..." />
     }
     else if (!isAdvertiser)
     {
-        <div class="alert alert-warning">
-            <i class="bi bi-exclamation-triangle"></i> Esta área é exclusiva para empresas.
-        </div>
+        <EmptyState Icon="!" Title="Área exclusiva para empresas" Message="Entre com uma conta de empresa para ver candidaturas recebidas.">
+            <a href="/dashboard" class="btn btn-primary">Voltar ao início</a>
+        </EmptyState>
     }
-    else if (applications != null && applications.Any())
+    else if (loadFailed)
+    {
+        <ErrorState Title="Não foi possível carregar as candidaturas"
+                    Message="Tivemos um problema ao buscar as candidaturas recebidas. Tente novamente em instantes."
+                    OnRetry="LoadAsync" />
+    }
+    else if (applications.Count > 0)
     {
         <div class="card received-applications-card">
             <div class="card-body p-0">
                 <div class="table-responsive">
                     <table class="table table-hover">
-                    <thead>
-                        <tr>
-                            <th>Candidato</th>
-                            <th>Vaga</th>
-                            <th>Status</th>
-                            <th>Data</th>
-                            <th>Ações</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach (var app in applications)
-                        {
+                        <thead>
                             <tr>
-                                <td>
-                                    <strong>@app.CandidateName</strong>
-                                    <br />
-                                    <small class="text-muted">@app.CandidateEmail</small>
-                                </td>
-                                <td>@app.JobTitle</td>
-                                <td>
-                                    @switch (app.Status)
-                                    {
-                                        case "Sent":
-                                            <span class="badge bg-primary">Enviada</span>
-                                            break;
-                                        case "Viewed":
-                                            <span class="badge bg-info">Visualizada</span>
-                                            break;
-                                        case "Selected":
-                                            <span class="badge bg-success">Selecionada</span>
-                                            break;
-                                        case "Rejected":
-                                            <span class="badge bg-danger">Rejeitada</span>
-                                            break;
-                                        default:
-                                            <span class="badge bg-secondary">@app.Status</span>
-                                            break;
-                                    }
-                                </td>
-                                <td>@app.AppliedAt?.ToString("dd/MM/yyyy HH:mm")</td>
-                                <td>
-                                    <button class="btn btn-sm btn-success" @onclick="() => UpdateStatus(app.Id, EApplicationStatus.Selected)">
-                                        <i class="bi bi-check"></i> Selecionar
-                                    </button>
-                                    <button class="btn btn-sm btn-danger" @onclick="() => UpdateStatus(app.Id, EApplicationStatus.Rejected)">
-                                        <i class="bi bi-x"></i> Rejeitar
-                                    </button>
-                                </td>
+                                <th>Candidato</th>
+                                <th>Vaga</th>
+                                <th>Situação</th>
+                                <th>Data</th>
+                                <th>Ações</th>
                             </tr>
-                        }
-                    </tbody>
-                </table>
+                        </thead>
+                        <tbody>
+                            @foreach (var app in applications)
+                            {
+                                <tr data-testid="received-application-row">
+                                    <td>
+                                        <strong>@app.CandidateName</strong>
+                                        <br />
+                                        <small class="text-muted">@app.CandidateEmail</small>
+                                        @if (!string.IsNullOrWhiteSpace(app.Notes))
+                                        {
+                                            <details class="application-notes">
+                                                <summary>Mensagem do candidato</summary>
+                                                <p>@app.Notes</p>
+                                            </details>
+                                        }
+                                        @if (app.ResumeId.HasValue)
+                                        {
+                                            <a class="d-block small" href="@($"/resumes/{app.ResumeId}")">Ver currículo enviado</a>
+                                        }
+                                        else
+                                        {
+                                            <small class="d-block text-muted">Sem currículo anexado</small>
+                                        }
+                                    </td>
+                                    <td>@app.JobTitle</td>
+                                    <td>
+                                        <span class="badge @UiLabels.ApplicationStatusBadge(app.Status)">@UiLabels.ApplicationStatus(app.Status)</span>
+                                    </td>
+                                    <td>@UiLabels.FormatMoment(app.AppliedAt)</td>
+                                    <td>
+                                        <div class="d-flex flex-wrap gap-1">
+                                            @if (app.Status != "Selected")
+                                            {
+                                                <button class="btn btn-sm btn-success" @onclick="() => SelectAsync(app)" disabled="@(updatingId == app.Id)" data-testid="application-select">
+                                                    Selecionar
+                                                </button>
+                                            }
+                                            @if (app.Status != "Rejected")
+                                            {
+                                                <button class="btn btn-sm btn-danger" @onclick="() => RejectAsync(app)" disabled="@(updatingId == app.Id)" data-testid="application-reject">
+                                                    Rejeitar
+                                                </button>
+                                            }
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </div>
     }
     else
     {
-        <div class="alert alert-info">
-            <i class="bi bi-info-circle"></i> Nenhuma candidatura recebida ainda.
-        </div>
+        <EmptyState Icon="◎"
+                    Title="Nenhuma candidatura recebida ainda"
+                    Message="Quando alguém se candidatar às suas vagas, os perfis aparecem aqui."
+                    TestId="received-applications-empty">
+            <a class="btn btn-primary" href="/my-jobs">Ver minhas vagas</a>
+        </EmptyState>
     }
 </div>
+
+<ConfirmDialog @ref="confirmDialog" />
 
 @code {
     [Parameter]
     public Guid? JobId { get; set; }
 
-    private IEnumerable<ApplicationResponse>? applications;
+    private List<ApplicationResponse> applications = [];
     private bool isLoading = true;
+    private bool loadFailed;
     private bool isAdvertiser;
     private Guid? advertiserId;
-    private string? errorMessage;
-    private string? successMessage;
+    private Guid? updatingId;
+    private string? filteredJobTitle;
+    private ConfirmDialog confirmDialog = default!;
 
-    protected override async Task OnInitializedAsync()
+    protected override async Task OnParametersSetAsync()
     {
-        errorMessage = null;
-        successMessage = null;
-
         advertiserId = CurrentUserHelper.GetAdvertiserId();
         isAdvertiser = advertiserId.HasValue;
 
         if (isAdvertiser)
-        {
-            var result = await ListApplicationsByJobUseCase.ExecuteAsync(new ListApplicationsByJobRequest
-            {
-                AdvertiserId = advertiserId!.Value,
-                JobId = JobId
-            });
-            if (result.Status == EResultStatus.Success)
-            {
-                applications = result.Data;
-            }
-            else
-            {
-                errorMessage = result.Message;
-            }
-        }
+            await LoadAsync();
 
         isLoading = false;
     }
 
-    private async Task UpdateStatus(Guid applicationId, EApplicationStatus newStatus)
+    private async Task LoadAsync()
     {
-        errorMessage = null;
-        successMessage = null;
-
-        if (!advertiserId.HasValue)
+        loadFailed = false;
+        var result = await ListApplicationsByJobUseCase.ExecuteAsync(new ListApplicationsByJobRequest
         {
-            errorMessage = "Esta área é exclusiva para empresas.";
-            return;
-        }
-
-        var request = new UpdateApplicationStatusRequest
-        {
-            ApplicationId = applicationId,
-            AdvertiserId = advertiserId.Value,
-            NewStatus = newStatus
-        };
-
-        var result = await UpdateApplicationStatusUseCase.ExecuteAsync(request);
+            AdvertiserId = advertiserId!.Value,
+            JobId = JobId
+        });
 
         if (result.Status == EResultStatus.Success)
         {
-            successMessage = $"Status atualizado para {newStatus} com sucesso!";
-            await OnInitializedAsync();
+            applications = result.Data?.ToList() ?? [];
+            filteredJobTitle = JobId.HasValue ? applications.FirstOrDefault()?.JobTitle : null;
         }
         else
         {
-            errorMessage = result.Message;
+            Logger.LogFailure(result, "Listar candidaturas recebidas");
+            loadFailed = true;
         }
     }
 
-    private void NavigateToMyJobs()
+    private Task SelectAsync(ApplicationResponse application) =>
+        UpdateStatusAsync(application, EApplicationStatus.Selected);
+
+    private async Task RejectAsync(ApplicationResponse application)
     {
-        Navigation.NavigateTo("/my-jobs");
+        var confirmed = await confirmDialog.ShowAsync(new ConfirmOptions
+        {
+            Title = "Rejeitar candidatura?",
+            Message = $"{application.CandidateName} será avisado(a) de que não seguiu no processo da vaga \"{application.JobTitle}\".",
+            ConfirmText = "Rejeitar",
+            Destructive = true
+        });
+
+        if (confirmed)
+            await UpdateStatusAsync(application, EApplicationStatus.Rejected);
+    }
+
+    private async Task UpdateStatusAsync(ApplicationResponse application, EApplicationStatus newStatus)
+    {
+        if (!advertiserId.HasValue || updatingId.HasValue)
+            return;
+
+        updatingId = application.Id;
+        var result = await UpdateApplicationStatusUseCase.ExecuteAsync(new UpdateApplicationStatusRequest
+        {
+            ApplicationId = application.Id,
+            AdvertiserId = advertiserId.Value,
+            NewStatus = newStatus
+        });
+        updatingId = null;
+
+        if (result.Status == EResultStatus.Success)
+        {
+            application.Status = newStatus.ToString();
+            Toast.ShowSuccess(newStatus == EApplicationStatus.Selected
+                ? $"{application.CandidateName} foi selecionado(a). O candidato será avisado."
+                : $"Candidatura de {application.CandidateName} marcada como não selecionada.");
+        }
+        else
+        {
+            Logger.LogFailure(result, "Atualizar situação da candidatura");
+            Toast.ShowError(ResultMessages.ToUserMessage(result, "Não foi possível atualizar a candidatura. Tente novamente."));
+        }
     }
 }

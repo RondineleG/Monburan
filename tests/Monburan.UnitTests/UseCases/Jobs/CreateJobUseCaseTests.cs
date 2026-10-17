@@ -4,10 +4,12 @@ using Monburan.Core.DTOs.Request;
 using Monburan.Core.DTOs.Response;
 using Monburan.Core.Entities;
 using Monburan.Core.Enums;
+using Monburan.Core.Interfaces.Repositories;
 using Monburan.Core.Interfaces.Repositories.Base;
 using Monburan.Core.Interfaces.Validations;
 using Monburan.Core.Requests;
 using Monburan.Core.UseCases.Jobs;
+using Monburan.Core.UseCases.Subscriptions;
 using Monburan.Core.Validations;
 using Monburan.Core.ValueObjects;
 using Xunit;
@@ -18,13 +20,31 @@ public class CreateJobUseCaseTests
 {
     private readonly IBaseRepository<Job> _mockRepository;
     private readonly IEntityValidator<Job> _mockValidator;
+    private readonly ISubscriptionRepository _mockSubscriptionRepository;
+    private readonly IBaseRepository<SubscriptionPlan> _mockPlanRepository;
+    private readonly IJobRepository _mockJobQueries;
     private readonly CreateJobUseCase _useCase;
 
     public CreateJobUseCaseTests()
     {
         _mockRepository = Substitute.For<IBaseRepository<Job>>();
         _mockValidator = Substitute.For<IEntityValidator<Job>>();
-        _useCase = new CreateJobUseCase(_mockRepository, _mockValidator);
+
+        // Sem assinatura ativa → plano Free (5 vagas ativas), nenhuma vaga publicada ainda
+        _mockSubscriptionRepository = Substitute.For<ISubscriptionRepository>();
+        _mockSubscriptionRepository.GetActiveByAdvertiserIdAsync(Arg.Any<Id>())
+            .Returns(RequestResult<Subscription?>.Success(null));
+        _mockPlanRepository = Substitute.For<IBaseRepository<SubscriptionPlan>>();
+        _mockPlanRepository.GetAllAsync(Arg.Any<int>(), Arg.Any<int>())
+            .Returns(RequestResult<IEnumerable<SubscriptionPlan>>.Success(
+                [new SubscriptionPlan { Name = CheckJobLimitUseCase.FreePlanName, MaxJobs = 5, IsActive = true }]));
+        _mockJobQueries = Substitute.For<IJobRepository>();
+        _mockJobQueries.CountActiveByAdvertiserAsync(Arg.Any<Guid>()).Returns(0);
+
+        _useCase = new CreateJobUseCase(
+            _mockRepository,
+            _mockValidator,
+            new CheckJobLimitUseCase(_mockSubscriptionRepository, _mockPlanRepository, _mockJobQueries));
     }
 
     [Fact]
@@ -155,6 +175,63 @@ public class CreateJobUseCaseTests
 
         _mockValidator.Received(1).Validate(Arg.Any<Job>());
         await _mockRepository.DidNotReceive().CreateAsync(Arg.Any<Job>());
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_WhenPlanJobLimitReached_ReturnsDomainErrorWithoutCreating()
+    {
+        // Arrange
+        var request = new CreateJobRequest
+        {
+            AdvertiserId = Guid.NewGuid(),
+            Title = "Senior Developer",
+            Description = "Test description",
+            ExpirationDate = DateTime.UtcNow.AddDays(30),
+            Type = "Remote",
+            IsRemote = true
+        };
+
+        _mockValidator.Validate(Arg.Any<Job>())
+            .Returns(ValidationResult.Success());
+        _mockJobQueries.CountActiveByAdvertiserAsync(request.AdvertiserId).Returns(5);
+
+        // Act
+        var result = await _useCase.ExecuteAsync(request);
+
+        // Assert
+        result.Status.Should().Be(EResultStatus.DomainError);
+        result.Message.Should().Contain("5 vagas ativas");
+        await _mockRepository.DidNotReceive().CreateAsync(Arg.Any<Job>());
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_WhenPlanIsUnlimited_IgnoresActiveJobCount()
+    {
+        // Arrange
+        var request = new CreateJobRequest
+        {
+            AdvertiserId = Guid.NewGuid(),
+            Title = "Senior Developer",
+            Description = "Test description",
+            ExpirationDate = DateTime.UtcNow.AddDays(30),
+            Type = "OnSite"
+        };
+
+        var enterprise = new SubscriptionPlan { Name = "Enterprise", MaxJobs = -1, IsActive = true };
+        _mockSubscriptionRepository.GetActiveByAdvertiserIdAsync(Arg.Any<Id>())
+            .Returns(RequestResult<Subscription?>.Success(new Subscription { PlanId = enterprise.Id, Plan = enterprise }));
+        _mockJobQueries.CountActiveByAdvertiserAsync(request.AdvertiserId).Returns(500);
+        _mockValidator.Validate(Arg.Any<Job>())
+            .Returns(ValidationResult.Success());
+        _mockRepository.CreateAsync(Arg.Any<Job>())
+            .Returns(call => RequestResult<Job>.Success(call.Arg<Job>()));
+
+        // Act
+        var result = await _useCase.ExecuteAsync(request);
+
+        // Assert
+        result.Status.Should().Be(EResultStatus.Success);
+        await _mockRepository.Received(1).CreateAsync(Arg.Any<Job>());
     }
 
     [Fact]

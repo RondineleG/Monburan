@@ -2,6 +2,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 using Monburan.Mobile.Shared.Api;
 using Monburan.Mobile.Shared.Auth;
+using Monburan.Mobile.Shared.Ui;
 
 namespace Monburan.Mobile.Shared;
 
@@ -33,6 +34,7 @@ public static class DependencyInjection
         services.AddSingleton<AuthStateService>();
         services.AddSingleton<MonburanApiClient>();
         services.AddSingleton<AuthApiClient>();
+        services.AddSingleton<IToastService, ToastService>();
 
         return services;
     }

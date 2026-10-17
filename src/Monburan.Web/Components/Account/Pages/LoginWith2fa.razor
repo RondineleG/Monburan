@@ -86,19 +86,19 @@
         else
         {
             Logger.LogWarning("Invalid authenticator code entered for user with ID '{UserId}'.", userId);
-            message = "Error: Invalid authenticator code.";
+            message = "Erro: código de autenticação inválido.";
         }
     }
 
     private sealed class InputModel
     {
-        [Required]
-        [StringLength(7, ErrorMessage = "The {0} must be at least {2} and at max {1} characters long.", MinimumLength = 6)]
+        [Required(ErrorMessage = "Informe o código do aplicativo autenticador.")]
+        [StringLength(7, ErrorMessage = "O código deve ter entre {2} e {1} caracteres.", MinimumLength = 6)]
         [DataType(DataType.Text)]
-        [Display(Name = "Authenticator code")]
+        [Display(Name = "Código de autenticação")]
         public string? TwoFactorCode { get; set; }
 
-        [Display(Name = "Remember this machine")]
+        [Display(Name = "Lembrar deste dispositivo")]
         public bool RememberMachine { get; set; }
     }
 }

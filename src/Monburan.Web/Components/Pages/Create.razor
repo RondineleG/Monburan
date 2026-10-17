@@ -2,11 +2,13 @@
 @rendermode InteractiveServer
 @attribute [Microsoft.AspNetCore.Authorization.Authorize]
 
+@using System.Data.Common
 @inject AddressService AddressService
 @inject ICurrentUserHelper CurrentUserHelper
 @inject NavigationManager Navigation
-@using Monburan.Core.Entities;
-@using Monburan.Web.Services;
+@inject IToastService Toast
+@inject ILogger<Create> Logger
+@using Monburan.Core.Entities
 
 <PageTitle>Novo endereço - Monburan</PageTitle>
 
@@ -20,58 +22,15 @@
     </header>
     <div class="card page-form-card">
         <div class="card-body">
-            <EditForm Model="address" OnValidSubmit="HandleValidSubmit">
+            <EditForm Model="form" OnValidSubmit="HandleValidSubmit">
                 <DataAnnotationsValidator />
-
-                <h5>Localização</h5>
-                <div class="row g-3">
-                    <div class="col-md-4">
-                        <label for="zipcode">CEP</label>
-                        <InputText class="form-control" @bind-Value="address.ZipCode" id="zipcode" placeholder="00000-000" />
-                        <ValidationMessage For="@(() => address.ZipCode)" />
-                    </div>
-                    <div class="col-md-8">
-                        <label for="street">Rua / Logradouro</label>
-                        <InputText class="form-control" @bind-Value="address.Street" id="street" />
-                        <ValidationMessage For="@(() => address.Street)" />
-                    </div>
-                    <div class="col-md-4">
-                        <label for="number">Número</label>
-                        <InputText class="form-control" @bind-Value="address.Number" id="number" />
-                        <ValidationMessage For="@(() => address.Number)" />
-                    </div>
-                    <div class="col-md-8">
-                        <label for="complement">Complemento</label>
-                        <InputText class="form-control" @bind-Value="address.Complement" id="complement" placeholder="Apto, bloco, sala..." />
-                        <ValidationMessage For="@(() => address.Complement)" />
-                    </div>
-                    <div class="col-md-4">
-                        <label for="district">Bairro</label>
-                        <InputText class="form-control" @bind-Value="address.District" id="district" />
-                        <ValidationMessage For="@(() => address.District)" />
-                    </div>
-                    <div class="col-md-4">
-                        <label for="city">Cidade</label>
-                        <InputText class="form-control" @bind-Value="address.City" id="city" />
-                        <ValidationMessage For="@(() => address.City)" />
-                    </div>
-                    <div class="col-md-4">
-                        <label for="state">Estado (UF)</label>
-                        <InputText class="form-control" @bind-Value="address.State" id="state" placeholder="SP" />
-                        <ValidationMessage For="@(() => address.State)" />
-                    </div>
-                    <div class="col-md-4">
-                        <label for="country">País</label>
-                        <InputText class="form-control" @bind-Value="address.Country" id="country" placeholder="Brasil" />
-                        <ValidationMessage For="@(() => address.Country)" />
-                    </div>
-                </div>
+                <AddressFormFields Model="form" />
 
                 <div class="d-flex gap-2 mt-4">
-                    <button type="submit" class="btn btn-primary" disabled="@isSubmitting">
+                    <button type="submit" class="btn btn-primary" disabled="@isSubmitting" data-testid="address-save">
                         @if (isSubmitting)
                         {
-                            <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                            <span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>
                         }
                         Salvar
                     </button>
@@ -83,20 +42,33 @@
 </div>
 
 @code {
-    private Address address = new();
+    private readonly AddressForm form = new();
     private bool isSubmitting;
 
     private async Task HandleValidSubmit()
     {
+        if (isSubmitting)
+            return;
+
         isSubmitting = true;
         try
         {
+            var address = new Address();
+            form.ApplyTo(address);
             await AddressService.AddAsync(address);
             await AddressService.LinkToOwnerAsync(
                 address.Id,
                 CurrentUserHelper.GetCandidateId(),
                 CurrentUserHelper.GetAdvertiserId());
+
+            Toast.ShowSuccess("Endereço adicionado ao seu perfil.");
             Navigation.NavigateTo("/address/list");
+        }
+        catch (Exception ex) when (ex is DbException or DbUpdateException or InvalidOperationException)
+        {
+            // Antes a exceção derrubava o circuito ("Algo inesperado aconteceu")
+            Logger.LogError(ex, "Falha ao salvar endereço");
+            Toast.ShowError("Não foi possível salvar o endereço. Confira os dados e tente novamente.");
         }
         finally
         {

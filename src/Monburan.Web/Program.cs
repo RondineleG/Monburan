@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 using Monburan.Core.DTOs.Request;
 using Monburan.Core.DTOs.Response;
@@ -59,6 +60,9 @@ builder.Services.AddSwaggerGen(c =>
 // Adicionar Health Checks
 builder.Services.AddHealthChecks();
 
+// ProblemDetails (RFC 7807) para toda resposta de erro da API, com títulos pt-BR
+builder.Services.AddProblemDetails(options => options.CustomizeProblemDetails = ApiProblemDetails.Localize);
+
 builder.Services.AddCascadingAuthenticationState();
 // Enums como string nas minimal APIs (ex.: UpdateApplicationStatusRequest.NewStatus
 // aceita "Selected"; NotificationResponse.Type emite "NewApplication")
@@ -76,6 +80,10 @@ builder.Services.AddOptions<JwtOptions>()
     .Validate(o => !string.IsNullOrWhiteSpace(o.Issuer) && !string.IsNullOrWhiteSpace(o.Audience), "Jwt:Issuer e Jwt:Audience são obrigatórios.")
     .ValidateOnStart();
 builder.Services.AddScoped<IIdentityService, IdentityService>();
+builder.Services.AddScoped<AccountProfileService>();
+
+// Feedback de UI: escopo por circuito (página e ToastHost do layout compartilham a instância)
+builder.Services.AddScoped<IToastService, ToastService>();
 
 builder.Services.AddAuthentication(options =>
 {
@@ -90,17 +98,26 @@ builder.Services.AddAuthentication(options =>
     {
         OnChallenge = context =>
         {
-            // API responde 401 em JSON, nunca redirect de cookie
+            // API responde 401 em ProblemDetails, nunca redirect de cookie
             context.HandleResponse();
-            context.Response.StatusCode = StatusCodes.Status401Unauthorized;
-            return context.Response.WriteAsJsonAsync(new { error = "Unauthorized" });
-        }
+            return ApiProblemDetails.WriteAsync(context.HttpContext, StatusCodes.Status401Unauthorized,
+                "Sua sessão expirou ou é inválida. Entre novamente.");
+        },
+        OnForbidden = context => ApiProblemDetails.WriteAsync(context.HttpContext, StatusCodes.Status403Forbidden,
+            "Você não tem permissão para esta ação.")
     };
 })
 .AddIdentityCookies();
 
 builder.Services.AddAuthorizationBuilder()
     .AddPolicy("AdminOnly", policy => policy.RequireRole("Admin"))
+    // Páginas por papel: o perfil vem da claim user_type emitida no login
+    .AddPolicy("CandidateOnly", policy => policy
+        .RequireAuthenticatedUser()
+        .RequireClaim(ClaimsExtensions.UserTypeClaimType, "candidate"))
+    .AddPolicy("AdvertiserOnly", policy => policy
+        .RequireAuthenticatedUser()
+        .RequireClaim(ClaimsExtensions.UserTypeClaimType, "advertiser"))
     // token_use=access impede que um refresh token (JWT válido por 30 dias)
     // autentique como bearer em endpoints que só exigem RequireAuthenticatedUser
     .AddPolicy("ApiBearer", policy => policy
@@ -127,6 +144,7 @@ builder.Services.AddIdentityCore<ApplicationUser>(options =>
 .AddEntityFrameworkStores<ApplicationDbContext>()
 .AddSignInManager()
 .AddDefaultTokenProviders()
+.AddErrorDescriber<PortugueseIdentityErrorDescriber>()
 .AddClaimsPrincipalFactory<ApplicationUserClaimsPrincipalFactory>();
 
 builder.Services.AddDatabaseDeveloperPageExceptionFilter();
@@ -147,15 +165,21 @@ builder.Services.AddScoped<Microsoft.AspNetCore.Identity.IEmailSender<Applicatio
 builder.Services.AddScoped<IJobRepository, JobRepository>();
 builder.Services.AddScoped<IBaseRepository<Job>, JobRepository>(); // Para UseCases que usam IBaseRepository
 builder.Services.AddScoped<IBaseRepository<Candidate>, CandidateRepository>();
+builder.Services.AddScoped<ICandidateRepository, CandidateRepository>();
 builder.Services.AddScoped<IBaseRepository<Advertiser>, AdvertiserRepository>();
+builder.Services.AddScoped<IAdvertiserRepository, AdvertiserRepository>();
 builder.Services.AddScoped<IBaseRepository<Application>, ApplicationRepository>();
+builder.Services.AddScoped<IApplicationRepository, ApplicationRepository>();
 builder.Services.AddScoped<IBaseRepository<Resume>, ResumeRepository>();
+builder.Services.AddScoped<IResumeRepository, ResumeRepository>();
 builder.Services.AddScoped<IBaseRepository<Notification>, NotificationRepository>();
+builder.Services.AddScoped<INotificationRepository, NotificationRepository>();
 builder.Services.AddScoped<IBaseRepository<TenantConfig>, TenantConfigRepository>();
 
 // Registrar Repositórios de Assinatura
 builder.Services.AddScoped<IBaseRepository<SubscriptionPlan>, SubscriptionPlanRepository>();
 builder.Services.AddScoped<IBaseRepository<Subscription>, SubscriptionRepository>();
+builder.Services.AddScoped<ISubscriptionRepository, SubscriptionRepository>();
 builder.Services.AddScoped<SubscriptionRepository>();
 builder.Services.AddScoped<SubscriptionPlanRepository>();
 
@@ -172,6 +196,7 @@ builder.Services.AddScoped<GetJobByIdUseCase>();
 builder.Services.AddScoped<UpdateJobUseCase>();
 builder.Services.AddScoped<DeleteJobUseCase>();
 builder.Services.AddScoped<SearchJobsUseCase>();
+builder.Services.AddScoped<ChangeJobStatusUseCase>();
 
 // Registrar Use Cases de Applications
 builder.Services.AddScoped<CreateApplicationUseCase>();
@@ -197,6 +222,7 @@ builder.Services.AddScoped<Monburan.Core.UseCases.Advertisers.ListAdvertisersUse
 builder.Services.AddScoped<Monburan.Core.UseCases.Advertisers.GetAdvertiserByIdUseCase>();
 builder.Services.AddScoped<Monburan.Core.UseCases.Advertisers.DeleteAdvertiserUseCase>();
 builder.Services.AddScoped<Monburan.Core.UseCases.Advertisers.UpdateAdvertiserUseCase>();
+builder.Services.AddScoped<UpdateAdvertiserLogoUseCase>();
 
 // Registrar Use Cases de Resumes
 builder.Services.AddScoped<CreateResumeUseCase>();
@@ -212,6 +238,7 @@ builder.Services.AddScoped<IEntityValidator<Resume>, ResumeValidator>();
 builder.Services.AddScoped<CreateNotificationUseCase>();
 builder.Services.AddScoped<ListNotificationsByUserUseCase>();
 builder.Services.AddScoped<MarkNotificationAsReadUseCase>();
+builder.Services.AddScoped<MarkAllNotificationsAsReadUseCase>();
 builder.Services.AddScoped<Monburan.Core.UseCases.Notifications.SendEmailNotificationUseCase>();
 builder.Services.AddScoped<Monburan.Core.UseCases.Notifications.EmailConfirmationUseCase>();
 builder.Services.AddScoped<Monburan.Core.UseCases.Notifications.PasswordResetUseCase>();
@@ -230,6 +257,8 @@ builder.Services.AddScoped<UploadFileUseCase>();
 
 // Registrar CurrentUserHelper
 builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<CircuitUserAccessor>();
+builder.Services.TryAddEnumerable(ServiceDescriptor.Scoped<Microsoft.AspNetCore.Components.Server.Circuits.CircuitHandler, UserCircuitHandler>());
 builder.Services.AddScoped<CurrentUserHelper>();
 builder.Services.AddScoped<ICurrentUserHelper>(services =>
     services.GetRequiredService<CurrentUserHelper>());
@@ -257,7 +286,12 @@ if (app.Environment.IsDevelopment())
 }
 else
 {
-    app.UseExceptionHandler("/Error", createScopeForErrors: true);
+    // API: exceção não tratada vira ProblemDetails (JSON) — antes o app recebia a página
+    // HTML de erro e não conseguia ler a resposta. Site continua na página /Error.
+    app.UseWhen(ctx => ctx.Request.Path.StartsWithSegments("/api"),
+        api => api.UseExceptionHandler());
+    app.UseWhen(ctx => !ctx.Request.Path.StartsWithSegments("/api"),
+        web => web.UseExceptionHandler("/Error", createScopeForErrors: true));
     app.UseHsts();
 }
 
@@ -268,9 +302,12 @@ app.UseRequestLocalization(new RequestLocalizationOptions()
     .AddSupportedUICultures("pt-BR"));
 app.UseRateLimit(100); // 100 requests per second
 app.UseSecurityHeaders();
-// Re-execute para /404 só fora da API — rotas /api/* inexistentes respondem 404 vazio, não HTML do site
+// Re-execute para /404 só fora da API; na API, respostas de erro sem corpo (rota
+// inexistente, método não permitido) ganham ProblemDetails em vez de HTML do site
 app.UseWhen(ctx => !ctx.Request.Path.StartsWithSegments("/api"),
     branch => branch.UseStatusCodePagesWithReExecute("/404"));
+app.UseWhen(ctx => ctx.Request.Path.StartsWithSegments("/api"),
+    branch => branch.UseStatusCodePages());
 app.UseStaticFiles();
 app.UseAntiforgery();
 
@@ -311,8 +348,9 @@ if (app.Environment.IsDevelopment())
 Log.Information("Aplicação Monburan iniciada com sucesso");
 app.Run();
 }
-catch (Exception ex)
+catch (Exception ex) when (ex is not HostAbortedException)
 {
+    // HostAbortedException é o encerramento normal usado pelas ferramentas do EF (migrations)
     Log.Fatal(ex, "Aplicação Monburan falhou ao iniciar");
 }
 finally

@@ -2,7 +2,7 @@ using Monburan.Core.DTOs.Request;
 using Monburan.Core.DTOs.Response;
 using Monburan.Core.Entities;
 using Monburan.Core.Enums;
-using Monburan.Core.Interfaces.Repositories.Base;
+using Monburan.Core.Interfaces.Repositories;
 using Monburan.Core.Interfaces.UseCases;
 using Monburan.Core.Requests;
 
@@ -10,56 +10,32 @@ namespace Monburan.Core.UseCases.Candidates;
 
 public sealed class ListCandidatesUseCase : IUseCase<ListCandidatesRequest, ListCandidatesResponse>
 {
-    private readonly IBaseRepository<Candidate> _candidateRepository;
+    private readonly ICandidateRepository _candidateRepository;
 
-    public ListCandidatesUseCase(IBaseRepository<Candidate> candidateRepository)
+    public ListCandidatesUseCase(ICandidateRepository candidateRepository)
     {
         _candidateRepository = candidateRepository;
     }
 
     public async Task<RequestResult<ListCandidatesResponse>> ExecuteAsync(ListCandidatesRequest request)
     {
-        var result = await _candidateRepository.GetAllAsync(request.Page, request.Size);
-        if (result.Status != EResultStatus.Success)
-            return RequestResult<ListCandidatesResponse>.FromResult(result);
+        var page = request.Page < 1 ? 1 : request.Page;
+        var size = request.Size is < 1 or > 100 ? 20 : request.Size;
+        EAccountStatus? status = Enum.TryParse<EAccountStatus>(request.Status, true, out var parsed) ? parsed : null;
 
-        var candidates = result.Data!
-            .Where(c => ShouldInclude(c, request))
-            .Select(MapToResponse)
-            .ToList();
+        var result = await _candidateRepository.SearchAsync(request.SearchTerm, status, page, size);
+        if (result.Status != EResultStatus.Success || result.Data is null)
+            return RequestResult<ListCandidatesResponse>.FromResult(result);
 
         var response = new ListCandidatesResponse
         {
-            Items = candidates,
-            TotalCount = candidates.Count,
-            Page = request.Page,
-            Size = request.Size
+            Items = result.Data.Data.Select(MapToResponse).ToList(),
+            TotalCount = result.Data.TotalCount,
+            Page = page,
+            Size = size
         };
 
         return RequestResult<ListCandidatesResponse>.Success(response);
-    }
-
-    private static bool ShouldInclude(Candidate candidate, ListCandidatesRequest request)
-    {
-        if (!string.IsNullOrWhiteSpace(request.SearchTerm))
-        {
-            var term = request.SearchTerm.ToLower();
-            if (!candidate.Name.ToLower().Contains(term) &&
-                !candidate.Email.ToLower().Contains(term) &&
-                !(candidate.Phone?.ToLower().Contains(term) ?? false))
-            {
-                return false;
-            }
-        }
-
-        if (!string.IsNullOrWhiteSpace(request.Status) &&
-            Enum.TryParse<EAccountStatus>(request.Status, true, out var statusFilter) &&
-            candidate.Status != statusFilter)
-        {
-            return false;
-        }
-
-        return true;
     }
 
     private static CandidateResponse MapToResponse(Candidate c) => new()

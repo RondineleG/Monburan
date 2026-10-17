@@ -1,6 +1,6 @@
 @page "/resumes/{resumeId:guid}/edit"
 @rendermode InteractiveServer
-@attribute [Microsoft.AspNetCore.Authorization.Authorize]
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Policy = "CandidateOnly")]
 @using Monburan.Core.DTOs.Request
 @using Monburan.Core.DTOs.Response
 @using Monburan.Core.Enums
@@ -10,6 +10,8 @@
 @inject UpdateResumeUseCase UpdateResumeUseCase
 @inject ICurrentUserHelper CurrentUserHelper
 @inject NavigationManager Navigation
+@inject IToastService Toast
+@inject ILogger<ResumeEdit> Logger
 
 <PageTitle>Editar Currículo - Monburan</PageTitle>
 
@@ -27,25 +29,26 @@
 
             @if (!string.IsNullOrEmpty(errorMessage))
             {
-                <div class="alert alert-danger">
-                    <i class="bi bi-exclamation-triangle"></i> @errorMessage
+                <div class="alert alert-danger" role="alert">
+                    @errorMessage
                 </div>
             }
 
             @if (isLoading)
             {
-                <div class="text-center py-5">
-                    <div class="spinner-border text-primary" role="status"></div>
-                    <p class="mt-2">Carregando currículo...</p>
-                </div>
+                <LoadingState Message="Carregando currículo..." />
+            }
+            else if (loadFailed)
+            {
+                <ErrorState Title="Não foi possível carregar o currículo"
+                            Message="Tivemos um problema ao abrir o currículo para edição. Tente novamente em instantes."
+                            OnRetry="LoadAsync" />
             }
             else if (!isOwner)
             {
-                <section class="auth-message-page">
-                    <h1>Currículo não disponível</h1>
-                    <p>Somente o dono do currículo pode editá-lo.</p>
+                <EmptyState Icon="!" Title="Currículo não disponível" Message="Ele não existe mais ou pertence a outra pessoa.">
                     <a class="btn btn-primary" href="/resumes">Voltar para meus currículos</a>
-                </section>
+                </EmptyState>
             }
             else
             {
@@ -53,6 +56,7 @@
                 <div class="card-body">
                     <EditForm Model="model" OnValidSubmit="SubmitForm">
                         <DataAnnotationsValidator />
+                        <ServerValidationErrors @ref="serverErrors" />
 
                         <h5 class="mb-3"><i class="bi bi-info-circle"></i> Informações Básicas</h5>
 
@@ -65,6 +69,7 @@
                         <div class="mb-3">
                             <label class="form-label" for="model.Summary">Resumo Profissional</label>
                             <InputTextArea class="form-control" @bind-Value="model.Summary" id="model.Summary" rows="5" data-testid="resume-summary-input" />
+                            <ValidationMessage class="text-danger" For="@(() => model.Summary)" />
                             <div class="form-text">Máximo 2000 caracteres</div>
                         </div>
 
@@ -270,15 +275,28 @@
     private bool isSubmitting;
     private bool isLoading = true;
     private bool isOwner;
+    private bool loadFailed;
+    private ServerValidationErrors serverErrors = default!;
 
-    protected override async Task OnInitializedAsync()
+    protected override Task OnInitializedAsync() => LoadAsync();
+
+    private async Task LoadAsync()
     {
+        isLoading = true;
+        loadFailed = false;
+
         var candidateId = CurrentUserHelper.GetCandidateId();
         var result = await GetResumeByIdUseCase.ExecuteAsync(ResumeId);
 
         if (result.Status != EResultStatus.Success || result.Data is null)
         {
-            errorMessage = "Currículo não encontrado.";
+            if (result.Status != EResultStatus.EntityNotFound)
+            {
+                Logger.LogFailure(result, "Carregar currículo para edição");
+                loadFailed = true;
+            }
+
+            isOwner = false;
             isLoading = false;
             return;
         }
@@ -343,6 +361,9 @@
 
     private async Task SubmitForm()
     {
+        if (isSubmitting)
+            return;
+
         isSubmitting = true;
         errorMessage = string.Empty;
 
@@ -355,12 +376,18 @@
 
         if (result.Status == EResultStatus.Success)
         {
+            Toast.ShowSuccess("Suas alterações foram salvas.", "Currículo atualizado");
             Navigation.NavigateTo($"/resumes/{ResumeId}");
+            return;
         }
-        else
-        {
-            errorMessage = result.Message;
-        }
+
+        Logger.LogFailure(result, "Atualizar currículo");
+        var fieldErrors = ResultMessages.FieldErrors(result);
+        var unmatched = serverErrors.Display(fieldErrors);
+        errorMessage = fieldErrors.Count > 0 && unmatched.Count == 0
+            ? "Revise os campos destacados no formulário."
+            : ResultMessages.ToUserMessage(result, "Não foi possível salvar o currículo. Tente novamente.");
+        Toast.ShowError(errorMessage);
 
         isSubmitting = false;
     }

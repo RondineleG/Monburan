@@ -19,90 +19,58 @@ public class GetDashboardAnalyticsUseCase
 
     public async Task<RequestResult<DashboardAnalyticsResponse>> ExecuteAsync(Guid? advertiserId = null)
     {
-        await using var context = await _contextFactory.CreateDbContextAsync();
         if (!advertiserId.HasValue)
             return RequestResult<DashboardAnalyticsResponse>.WithError("O painel de recrutamento exige um perfil de anunciante.");
 
-        var response = new DashboardAnalyticsResponse();
+        await using var context = await _contextFactory.CreateDbContextAsync();
         var advertiserKey = Id.Create(advertiserId.Value);
 
-        // Total de vagas e vagas ativas
-        var allJobs = await context.Jobs
+        // Agregações feitas no banco: antes todas as candidaturas (com Candidate e Job)
+        // eram materializadas em memória só para contar
+        var jobs = context.Jobs
             .AsNoTracking()
-            .Include(j => j.Advertiser)
-            .Where(j => !j.IsDeleted && j.AdvertiserId == advertiserKey)
-            .ToListAsync();
-        var jobIds = allJobs.Select(j => j.Id).ToList();
+            .Where(j => !j.IsDeleted && j.AdvertiserId == advertiserKey);
 
-        // Total de candidatos
-        response.TotalCandidates = await context.Applications
+        var applications = context.Applications
             .AsNoTracking()
-            .Where(a => !a.IsDeleted && jobIds.Contains(a.JobId))
-            .Select(a => a.CandidateId)
-            .Distinct()
-            .CountAsync();
+            .Where(a => !a.IsDeleted && a.Job != null && !a.Job.IsDeleted && a.Job.AdvertiserId == advertiserKey);
 
-        // Total de anunciantes
-        response.TotalAdvertisers = await context.Advertisers
-            .AsNoTracking()
-            .CountAsync(a => a.Id == advertiserKey && !a.IsDeleted);
-
-        response.TotalJobs = allJobs.Count;
-        response.ActiveJobs = allJobs.Count(j => j.Status == EJobStatus.Active);
-
-        // Vagas por status
-        response.JobsByStatus = allJobs
-            .GroupBy(j => j.Status.ToString())
-            .ToDictionary(g => g.Key, g => g.Count());
-
-        // Total de candidaturas
-        var allApplications = await context.Applications
-            .AsNoTracking()
-            .Include(a => a.Candidate)
-            .Include(a => a.Job)
-            .Where(a => !a.IsDeleted && jobIds.Contains(a.JobId))
+        var jobsByStatus = await jobs
+            .GroupBy(j => j.Status)
+            .Select(g => new { Status = g.Key, Count = g.Count() })
             .ToListAsync();
 
-        response.TotalApplications = allApplications.Count;
+        var applicationsByStatus = await applications
+            .GroupBy(a => a.Status)
+            .Select(g => new { Status = g.Key, Count = g.Count() })
+            .ToListAsync();
 
-        // Candidaturas por status
-        response.ApplicationsByStatus = allApplications
-            .GroupBy(a => a.Status.ToString())
-            .ToDictionary(g => g.Key, g => g.Count());
-
-        // Se advertiserId fornecido, filtrar dados do anunciante
-        if (advertiserId.HasValue)
+        var response = new DashboardAnalyticsResponse
         {
-            var advertiserJobs = allJobs.Where(j => j.AdvertiserId.Value == advertiserId.Value).ToList();
-            response.TotalJobs = advertiserJobs.Count;
-            response.ActiveJobs = advertiserJobs.Count(j => j.Status == EJobStatus.Active);
+            JobsByStatus = jobsByStatus.ToDictionary(g => g.Status.ToString(), g => g.Count),
+            ApplicationsByStatus = applicationsByStatus.ToDictionary(g => g.Status.ToString(), g => g.Count),
+            TotalAdvertisers = 1,
+            TotalCandidates = await applications.Select(a => a.CandidateId).Distinct().CountAsync()
+        };
 
-            response.JobsByStatus = advertiserJobs
-                .GroupBy(j => j.Status.ToString())
-                .ToDictionary(g => g.Key, g => g.Count());
+        response.TotalJobs = response.JobsByStatus.Values.Sum();
+        response.ActiveJobs = response.JobsByStatus.GetValueOrDefault(nameof(EJobStatus.Active));
+        response.TotalApplications = response.ApplicationsByStatus.Values.Sum();
 
-            var advertiserJobIds = advertiserJobs.Select(j => j.Id.Value).ToHashSet();
-            var advertiserApplications = allApplications.Where(a => advertiserJobIds.Contains(a.JobId.Value)).ToList();
-            response.TotalApplications = advertiserApplications.Count;
-
-            response.ApplicationsByStatus = advertiserApplications
-                .GroupBy(a => a.Status.ToString())
-                .ToDictionary(g => g.Key, g => g.Count());
-        }
-
-        // Vagas recentes (últimas 6)
-        response.RecentJobs = allJobs
+        var recentJobs = await jobs
+            .Include(j => j.Advertiser)
             .OrderByDescending(j => j.CreatedAt)
             .Take(6)
-            .Select(MapToJobResponse)
-            .ToList();
+            .ToListAsync();
+        response.RecentJobs = recentJobs.Select(MapToJobResponse).ToList();
 
-        // Candidaturas recentes (últimas 6)
-        response.RecentApplications = allApplications
+        var recentApplications = await applications
+            .Include(a => a.Candidate)
+            .Include(a => a.Job)
             .OrderByDescending(a => a.AppliedAt ?? a.CreatedAt)
             .Take(6)
-            .Select(MapToApplicationResponse)
-            .ToList();
+            .ToListAsync();
+        response.RecentApplications = recentApplications.Select(MapToApplicationResponse).ToList();
 
         return RequestResult<DashboardAnalyticsResponse>.Success(response);
     }

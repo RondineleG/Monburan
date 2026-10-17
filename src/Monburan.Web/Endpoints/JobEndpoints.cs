@@ -23,6 +23,12 @@ public static class JobEndpoints
             var result = await useCase.ExecuteAsync(BuildRequest(
                 page, size, searchTerm, city, state, isRemote, type, salaryMin, salaryMax,
                 category, sortBy, sortDescending, advertiserId: null));
+            if (result.Data is not null)
+            {
+                foreach (var job in result.Data.Jobs)
+                    HideUndisclosedSalary(job);
+            }
+
             return result.ToHttpResult();
         })
         .AllowAnonymous()
@@ -58,6 +64,9 @@ public static class JobEndpoints
             CancellationToken cancellationToken) =>
         {
             var result = await useCase.ExecuteAsync(id);
+            if (result.Data is not null)
+                HideUndisclosedSalary(result.Data);
+
             return result.ToHttpResult();
         })
         .AllowAnonymous()
@@ -134,6 +143,17 @@ public static class JobEndpoints
         .WithSummary("Remove vaga do anunciante autenticado");
 
         return api;
+    }
+
+    // Endpoints públicos: o anunciante pode ocultar a faixa salarial — o valor não deve
+    // sair na resposta (antes só o site respeitava SalaryDisplay; o app exibia o salário)
+    private static void HideUndisclosedSalary(Core.DTOs.Response.JobResponse job)
+    {
+        if (job.SalaryDisplay)
+            return;
+
+        job.SalaryMin = null;
+        job.SalaryMax = null;
     }
 
     private static ListJobsRequest BuildRequest(

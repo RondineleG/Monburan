@@ -8,17 +8,19 @@
 @inject SignInManager<ApplicationUser> SignInManager
 @inject IdentityUserAccessor UserAccessor
 @inject IdentityRedirectManager RedirectManager
+@inject AccountProfileService AccountProfiles
 @inject ILogger<DeletePersonalData> Logger
 
-<PageTitle>Excluir dados pessoais</PageTitle>
+<PageTitle>Excluir conta - Monburan</PageTitle>
 
 <StatusMessage Message="@message" />
 
-<h3>Excluir dados pessoais</h3>
+<h3>Excluir conta e dados pessoais</h3>
 
 <div class="alert alert-warning" role="alert">
     <p>
-        <strong>Deleting this data will permanently remove your account, and this cannot be recovered.</strong>
+        <strong>Esta ação é permanente.</strong> Sua conta será removida e seus dados pessoais
+        (nome, e-mail, telefone, currículos) serão apagados. Não será possível recuperá-los.
     </p>
 </div>
 
@@ -30,11 +32,11 @@
         {
             <div class="form-floating mb-3">
                 <InputText type="password" @bind-Value="Input.Password" class="form-control" autocomplete="current-password" aria-required="true" placeholder=" " />
-                <label for="password" class="form-label">Senha</label>
+                <label for="password" class="form-label">Confirme sua senha</label>
                 <ValidationMessage For="() => Input.Password" class="text-danger" />
             </div>
         }
-        <button class="w-100 btn btn-lg btn-danger" type="submit">Delete data and close my account</button>
+        <button class="w-100 btn btn-lg btn-danger" type="submit">Excluir meus dados e encerrar a conta</button>
     </EditForm>
 </div>
 
@@ -66,22 +68,39 @@
     {
         if (requirePassword && !await UserManager.CheckPasswordAsync(user, Input.Password))
         {
-            message = "Error: Incorrect password.";
+            message = "Erro: senha incorreta.";
             return;
         }
 
+        var email = user.Email;
+        var userId = await UserManager.GetUserIdAsync(user);
         var result = await UserManager.DeleteAsync(user);
         if (!result.Succeeded)
         {
-            throw new InvalidOperationException("Unexpected error occurred deleting user.");
+            Logger.LogError("Falha ao excluir a conta {UserId}: {Errors}", userId,
+                string.Join("; ", result.Errors.Select(e => e.Code)));
+            message = "Erro: não foi possível excluir sua conta agora. Tente novamente em instantes.";
+            return;
+        }
+
+        // Perfil de candidato/anunciante guarda os dados pessoais exibidos no site —
+        // sem anonimizar, nome/telefone/currículos continuavam no banco após a exclusão
+        if (!string.IsNullOrWhiteSpace(email))
+        {
+            try
+            {
+                await AccountProfiles.AnonymizeProfilesAsync(email);
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError(ex, "Conta {UserId} excluída, mas a anonimização do perfil falhou", userId);
+            }
         }
 
         await SignInManager.SignOutAsync();
+        Logger.LogInformation("Usuário {UserId} excluiu a própria conta.", userId);
 
-        var userId = await UserManager.GetUserIdAsync(user);
-        Logger.LogInformation("User with ID '{UserId}' deleted themselves.", userId);
-
-        RedirectManager.RedirectToCurrentPage();
+        RedirectManager.RedirectToWithStatus("Account/Login", "Sua conta e seus dados pessoais foram excluídos.", HttpContext);
     }
 
     private sealed class InputModel

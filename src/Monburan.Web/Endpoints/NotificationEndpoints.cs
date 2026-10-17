@@ -46,6 +46,22 @@ public static class NotificationEndpoints
         })
         .WithSummary("Contagem de notificações não lidas (badge do app)");
 
+        group.MapPut("/mine/read-all", async (
+            ICurrentUserHelper currentUser,
+            MarkAllNotificationsAsReadUseCase useCase,
+            CancellationToken cancellationToken) =>
+        {
+            var recipientId = GetRecipientId(currentUser);
+            if (recipientId is null)
+                return Results.Problem(statusCode: StatusCodes.Status403Forbidden, title: "Perfil necessário");
+
+            var result = await useCase.ExecuteAsync(recipientId);
+            return result.Status == EResultStatus.Success
+                ? Results.Ok(new { updated = result.Data })
+                : result.ToHttpResult();
+        })
+        .WithSummary("Marca todas as notificações do usuário autenticado como lidas");
+
         group.MapPut("/{id:guid}/read", async (
             Guid id,
             ICurrentUserHelper currentUser,

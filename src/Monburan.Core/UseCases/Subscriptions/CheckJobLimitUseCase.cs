@@ -1,5 +1,6 @@
 using Monburan.Core.Entities;
 using Monburan.Core.Enums;
+using Monburan.Core.Interfaces.Repositories;
 using Monburan.Core.Interfaces.Repositories.Base;
 using Monburan.Core.Interfaces.UseCases;
 using Monburan.Core.Requests;
@@ -8,71 +9,68 @@ using Monburan.Core.ValueObjects;
 namespace Monburan.Core.UseCases.Subscriptions;
 
 /// <summary>
-/// Request para verificar limite de vagas.
+/// Request para verificar limite de vagas. Sem <paramref name="CurrentActiveJobs"/>,
+/// a contagem de vagas ativas do anunciante é feita no banco.
 /// </summary>
-public record CheckJobLimitRequest(Guid AdvertiserId, int CurrentActiveJobs);
+public record CheckJobLimitRequest(Guid AdvertiserId, int? CurrentActiveJobs = null);
 
 /// <summary>
-/// Response para verificação de limite de vagas.
+/// Response para verificação de limite de vagas. <c>MaxJobs = -1</c> significa ilimitado.
 /// </summary>
-public record CheckJobLimitResponse(bool CanCreate, int MaxJobs, int CurrentJobs, int RemainingSlots);
+public record CheckJobLimitResponse(bool CanCreate, int MaxJobs, int CurrentJobs, int RemainingSlots, string PlanName);
 
 public sealed class CheckJobLimitUseCase : IUseCase<CheckJobLimitRequest, CheckJobLimitResponse>
 {
-    private readonly IBaseRepository<Subscription> _subscriptionRepository;
+    public const string FreePlanName = "Free";
+
+    private readonly ISubscriptionRepository _subscriptionRepository;
     private readonly IBaseRepository<SubscriptionPlan> _planRepository;
+    private readonly IJobRepository _jobRepository;
 
     public CheckJobLimitUseCase(
-        IBaseRepository<Subscription> subscriptionRepository,
-        IBaseRepository<SubscriptionPlan> planRepository)
+        ISubscriptionRepository subscriptionRepository,
+        IBaseRepository<SubscriptionPlan> planRepository,
+        IJobRepository jobRepository)
     {
         _subscriptionRepository = subscriptionRepository;
         _planRepository = planRepository;
+        _jobRepository = jobRepository;
     }
 
     public async Task<RequestResult<CheckJobLimitResponse>> ExecuteAsync(CheckJobLimitRequest request)
     {
-        // Buscar assinatura ativa do anunciante
-        var allSubscriptionsResult = await _subscriptionRepository.GetAllAsync(1, 100);
-        if (allSubscriptionsResult.Status != EResultStatus.Success)
-            return RequestResult<CheckJobLimitResponse>.FromResult(allSubscriptionsResult);
+        var activeResult = await _subscriptionRepository.GetActiveByAdvertiserIdAsync(Id.Create(request.AdvertiserId));
+        if (activeResult.Status != EResultStatus.Success)
+            return RequestResult<CheckJobLimitResponse>.FromResult(activeResult);
 
-        var activeSubscription = allSubscriptionsResult.Data!
-            .FirstOrDefault(s => s.AdvertiserId == Id.Create(request.AdvertiserId)
-                && s.Status == ESubscriptionStatus.Active);
-
-        // Se não tem assinatura ativa, usar plano Free
-        int maxJobs;
-
-        if (activeSubscription != null)
+        var plan = activeResult.Data?.Plan;
+        if (plan is null && activeResult.Data is { } subscription)
         {
-            var planResult = await _planRepository.GetByIdAsync(activeSubscription.PlanId);
-            maxJobs = planResult.Status == EResultStatus.Success && planResult.Data != null
-                ? planResult.Data.MaxJobs
-                : 0;
+            var planResult = await _planRepository.GetByIdAsync(subscription.PlanId);
+            plan = planResult.Status == EResultStatus.Success ? planResult.Data : null;
         }
-        else
+
+        // Sem assinatura ativa = plano Free
+        if (plan is null)
         {
-            // Sem assinatura = plano Free (buscar plano Free)
             var allPlansResult = await _planRepository.GetAllAsync(1, 100);
-            var freePlan = allPlansResult.Status == EResultStatus.Success
-                ? allPlansResult.Data!.FirstOrDefault(p => p.Name == "Free" && p.IsActive)
+            plan = allPlansResult.Status == EResultStatus.Success
+                ? allPlansResult.Data!.FirstOrDefault(p => p.Name == FreePlanName && p.IsActive)
                 : null;
-
-            maxJobs = freePlan?.MaxJobs ?? 0;
         }
 
-        // -1 significa ilimitado
-        bool canCreate = maxJobs == -1 || request.CurrentActiveJobs < maxJobs;
-        int remaining = maxJobs == -1 ? int.MaxValue : Math.Max(0, maxJobs - request.CurrentActiveJobs);
+        // Catálogo de planos ausente (ex.: banco sem seed) não pode travar a publicação
+        // de vagas de todos os anunciantes — trata como ilimitado.
+        var maxJobs = plan?.MaxJobs ?? -1;
+        var planName = plan?.Name ?? FreePlanName;
 
-        var response = new CheckJobLimitResponse(
-            CanCreate: canCreate,
-            MaxJobs: maxJobs,
-            CurrentJobs: request.CurrentActiveJobs,
-            RemainingSlots: remaining
-        );
+        var currentJobs = request.CurrentActiveJobs
+            ?? await _jobRepository.CountActiveByAdvertiserAsync(request.AdvertiserId);
 
-        return RequestResult<CheckJobLimitResponse>.Success(response);
+        var canCreate = maxJobs == -1 || currentJobs < maxJobs;
+        var remaining = maxJobs == -1 ? int.MaxValue : Math.Max(0, maxJobs - currentJobs);
+
+        return RequestResult<CheckJobLimitResponse>.Success(
+            new CheckJobLimitResponse(canCreate, maxJobs, currentJobs, remaining, planName));
     }
 }

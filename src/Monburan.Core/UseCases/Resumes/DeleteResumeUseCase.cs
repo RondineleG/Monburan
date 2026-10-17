@@ -25,10 +25,9 @@ public class DeleteResumeUseCase : IUseCase<Guid, ResumeResponse>
 
         var existingResume = existingResumeResult.Data;
 
-        // Soft delete: desativa o currículo
-        existingResume.IsActive = false;
-
-        var result = await _resumeRepository.UpdateAsync(existingResume);
+        // Exclusão lógica (IsDeleted): antes só desativava (IsActive = false) e o
+        // currículo "excluído" continuava na lista do site e do app
+        var result = await _resumeRepository.DeleteAsync(existingResume.Id);
         if (result.Status != EResultStatus.Success)
             return RequestResult<ResumeResponse>.FromResult(result);
 

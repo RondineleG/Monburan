@@ -1,13 +1,13 @@
 using Microsoft.EntityFrameworkCore;
 
 using Monburan.Core.Entities;
-using Monburan.Core.Interfaces.Repositories.Base;
+using Monburan.Core.Interfaces.Repositories;
 using Monburan.Core.Requests;
 using Monburan.Core.ValueObjects;
 
 namespace Monburan.Web.Repositories;
 
-public class NotificationRepository : IBaseRepository<Notification>
+public class NotificationRepository : INotificationRepository
 {
     private readonly IDbContextFactory<ApplicationDbContext> _contextFactory;
 
@@ -70,5 +70,36 @@ public class NotificationRepository : IBaseRepository<Notification>
         context.Notifications.Update(entity);
         await context.SaveChangesAsync();
         return RequestResult<Notification>.Success(entity);
+    }
+
+    public async Task<RequestResult<IEnumerable<Notification>>> ListByRecipientAsync(string recipientId, int take)
+    {
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        var notifications = await context.Notifications
+            .AsNoTracking()
+            .Where(n => !n.IsDeleted && n.RecipientId == recipientId)
+            .OrderByDescending(n => n.CreatedAt)
+            .Take(take)
+            .ToListAsync();
+
+        return RequestResult<IEnumerable<Notification>>.Success(notifications);
+    }
+
+    public async Task<RequestResult<int>> MarkAllAsReadAsync(string recipientId)
+    {
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        var unread = await context.Notifications
+            .Where(n => !n.IsDeleted && !n.IsRead && n.RecipientId == recipientId)
+            .ToListAsync();
+
+        var now = DateTime.UtcNow;
+        foreach (var notification in unread)
+        {
+            notification.IsRead = true;
+            notification.ReadAt = now;
+        }
+
+        await context.SaveChangesAsync();
+        return RequestResult<int>.Success(unread.Count);
     }
 }

@@ -87,8 +87,7 @@ public static class CandidateEndpoints
             IFormFile file,
             ICurrentUserHelper currentUser,
             UploadFileUseCase uploadUseCase,
-            GetAdvertiserByIdUseCase getAdvertiser,
-            UpdateAdvertiserUseCase updateAdvertiser,
+            UpdateAdvertiserLogoUseCase updateLogo,
             CancellationToken cancellationToken) =>
         {
             var advertiserId = currentUser.GetAdvertiserId();
@@ -100,7 +99,7 @@ public static class CandidateEndpoints
                 return Results.ValidationProblem(new Dictionary<string, string[]>
                 {
                     ["file"] = ["Arquivo é obrigatório"]
-                });
+                }, title: "Erro de validação");
             }
 
             await using var stream = file.OpenReadStream();
@@ -115,23 +114,9 @@ public static class CandidateEndpoints
             if (upload.Status != EResultStatus.Success || upload.Data is null)
                 return upload.ToHttpResult();
 
-            var current = await getAdvertiser.ExecuteAsync(advertiserId.Value);
-            if (current.Status != EResultStatus.Success || current.Data is null)
-                return current.ToHttpResult();
-
-            var updateResult = await updateAdvertiser.ExecuteAsync(new UpdateAdvertiserRequest
-            {
-                Id = advertiserId.Value,
-                Name = current.Data.Name,
-                Phone = current.Data.Phone ?? string.Empty,
-                TaxId = current.Data.TaxId,
-                CompanyDescription = current.Data.CompanyDescription,
-                Website = current.Data.Website,
-                LogoUrl = upload.Data.FileUrl,
-                PersonType = Enum.TryParse<EPersonType>(current.Data.PersonType, out var personType)
-                    ? personType
-                    : EPersonType.Company
-            });
+            // Só a logo muda — o upload não depende do restante do perfil estar completo
+            var updateResult = await updateLogo.ExecuteAsync(
+                new UpdateAdvertiserLogoRequest(advertiserId.Value, upload.Data.FileUrl));
 
             return updateResult.ToHttpResult();
         })

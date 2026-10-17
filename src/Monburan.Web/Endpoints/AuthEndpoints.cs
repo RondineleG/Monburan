@@ -51,7 +51,7 @@ public static class AuthEndpoints
                 return Results.ValidationProblem(new Dictionary<string, string[]>
                 {
                     ["refreshToken"] = ["Refresh token é obrigatório"]
-                });
+                }, title: "Erro de validação");
 
             var response = await identityService.RefreshToken(request.RefreshToken);
             return response.Sucesso
@@ -101,7 +101,7 @@ public static class AuthEndpoints
             errors["confirmPassword"] = ["As senhas não conferem."];
 
         if (errors.Count > 0)
-            return Results.ValidationProblem(errors);
+            return Results.ValidationProblem(errors, title: "Erro de validação");
 
         var user = new ApplicationUser
         {
@@ -125,7 +125,7 @@ public static class AuthEndpoints
             return Results.ValidationProblem(new Dictionary<string, string[]>
             {
                 [string.Empty] = identityResult.Errors.Select(e => e.Description).ToArray()
-            });
+            }, title: "Erro de validação");
         }
 
         try
@@ -227,7 +227,7 @@ public static class AuthEndpoints
             return Results.ValidationProblem(new Dictionary<string, string[]>
             {
                 ["email"] = ["Informe um e-mail válido."]
-            });
+            }, title: "Erro de validação");
         }
 
         var user = await userManager.FindByEmailAsync(request.Email.Trim());

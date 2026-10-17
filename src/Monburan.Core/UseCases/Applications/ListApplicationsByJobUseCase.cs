@@ -2,7 +2,7 @@ using Monburan.Core.DTOs.Request;
 using Monburan.Core.DTOs.Response;
 using Monburan.Core.Entities;
 using Monburan.Core.Enums;
-using Monburan.Core.Interfaces.Repositories.Base;
+using Monburan.Core.Interfaces.Repositories;
 using Monburan.Core.Interfaces.UseCases;
 using Monburan.Core.Requests;
 using Monburan.Core.ValueObjects;
@@ -11,22 +11,20 @@ namespace Monburan.Core.UseCases.Applications;
 
 public class ListApplicationsByJobUseCase : IUseCase<ListApplicationsByJobRequest, IEnumerable<ApplicationResponse>>
 {
-    private readonly IBaseRepository<Application> _applicationRepository;
+    private readonly IApplicationRepository _applicationRepository;
 
-    public ListApplicationsByJobUseCase(IBaseRepository<Application> applicationRepository)
+    public ListApplicationsByJobUseCase(IApplicationRepository applicationRepository)
     {
         _applicationRepository = applicationRepository;
     }
 
     public async Task<RequestResult<IEnumerable<ApplicationResponse>>> ExecuteAsync(ListApplicationsByJobRequest request)
     {
-        var result = await _applicationRepository.GetAllAsync(1, 1000);
+        var result = await _applicationRepository.ListByAdvertiserAsync(request.AdvertiserId, request.JobId);
         if (result.Status != EResultStatus.Success)
             return RequestResult<IEnumerable<ApplicationResponse>>.FromResult(result);
 
         var applications = result.Data!
-            .Where(a => a.Job != null && a.Job.AdvertiserId.Value == request.AdvertiserId)
-            .Where(a => !request.JobId.HasValue || a.JobId.Value == request.JobId.Value)
             .Select(MapToResponse)
             .OrderByDescending(a => a.CreatedAt);
 

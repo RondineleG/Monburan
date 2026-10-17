@@ -2,6 +2,7 @@ using Monburan.Core.DTOs.Request;
 using Monburan.Core.DTOs.Response;
 using Monburan.Core.Entities;
 using Monburan.Core.Enums;
+using Monburan.Core.Interfaces.Repositories;
 using Monburan.Core.Interfaces.Repositories.Base;
 using Monburan.Core.Interfaces.UseCases;
 using Monburan.Core.Requests;
@@ -13,12 +14,12 @@ public sealed class UpgradePlanUseCase : IUseCase<UpgradePlanRequest, Subscripti
 {
     private readonly IBaseRepository<Advertiser> _advertiserRepository;
     private readonly IBaseRepository<SubscriptionPlan> _planRepository;
-    private readonly IBaseRepository<Subscription> _subscriptionRepository;
+    private readonly ISubscriptionRepository _subscriptionRepository;
 
     public UpgradePlanUseCase(
         IBaseRepository<Advertiser> advertiserRepository,
         IBaseRepository<SubscriptionPlan> planRepository,
-        IBaseRepository<Subscription> subscriptionRepository)
+        ISubscriptionRepository subscriptionRepository)
     {
         _advertiserRepository = advertiserRepository;
         _planRepository = planRepository;
@@ -41,21 +42,22 @@ public sealed class UpgradePlanUseCase : IUseCase<UpgradePlanRequest, Subscripti
         if (!plan.IsActive)
             return RequestResult<SubscriptionResponse>.WithDomainError("O plano selecionado não está ativo.");
 
-        // Cancelar assinatura anterior se existir
-        var allSubscriptionsResult = await _subscriptionRepository.GetAllAsync(1, 100);
-        if (allSubscriptionsResult.Status == EResultStatus.Success)
-        {
-            var activeSubscription = allSubscriptionsResult.Data!
-                .FirstOrDefault(s => s.AdvertiserId == Id.Create(request.AdvertiserId)
-                    && s.Status == ESubscriptionStatus.Active);
+        // Cancelar assinatura anterior se existir (consulta direta — a busca antiga
+        // varria só as 100 primeiras assinaturas da plataforma e podia deixar duas ativas)
+        var activeResult = await _subscriptionRepository.GetActiveByAdvertiserIdAsync(Id.Create(request.AdvertiserId));
+        if (activeResult.Status != EResultStatus.Success)
+            return RequestResult<SubscriptionResponse>.FromResult(activeResult);
 
-            if (activeSubscription != null)
-            {
-                activeSubscription.Status = ESubscriptionStatus.Cancelled;
-                activeSubscription.EndDate = DateTime.UtcNow;
-                activeSubscription.CancellationReason = "Upgrade para novo plano";
-                await _subscriptionRepository.UpdateAsync(activeSubscription);
-            }
+        var activeSubscription = activeResult.Data;
+        if (activeSubscription is not null && activeSubscription.PlanId == plan.Id)
+            return RequestResult<SubscriptionResponse>.WithDomainError("Você já está neste plano.");
+
+        if (activeSubscription is not null)
+        {
+            activeSubscription.Status = ESubscriptionStatus.Cancelled;
+            activeSubscription.EndDate = DateTime.UtcNow;
+            activeSubscription.CancellationReason = "Upgrade para novo plano";
+            await _subscriptionRepository.UpdateAsync(activeSubscription);
         }
 
         // Criar nova assinatura

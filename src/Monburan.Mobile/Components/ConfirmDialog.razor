@@ -1,0 +1,49 @@
+@implements IDisposable
+
+@* Confirmação para ações destrutivas: if (!await dialog.ShowAsync(...)) return; *@
+@if (isOpen)
+{
+    <div class="sheet-backdrop" role="presentation" @onclick="Cancel">
+        <section class="sheet" role="alertdialog" aria-modal="true" aria-labelledby="confirm-title" @onclick:stopPropagation="true">
+            <h2 id="confirm-title" class="sheet-title">@options.Title</h2>
+            <p class="sheet-message">@options.Message</p>
+            <div class="sheet-actions">
+                <button type="button" class="btn @(options.Destructive ? "btn-danger-solid" : "btn-primary") btn-block" @onclick="Confirm">@options.ConfirmText</button>
+                <button type="button" class="btn btn-ghost btn-block" @onclick="Cancel">@options.CancelText</button>
+            </div>
+        </section>
+    </div>
+}
+
+@code {
+    private ConfirmOptions options = new();
+    private TaskCompletionSource<bool>? pending;
+    private bool isOpen;
+
+    /// <summary>Abre o diálogo e devolve <c>true</c> só se o usuário confirmar.</summary>
+    public Task<bool> ShowAsync(ConfirmOptions confirmOptions)
+    {
+        pending?.TrySetResult(false);
+
+        options = confirmOptions;
+        pending = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        isOpen = true;
+        StateHasChanged();
+
+        return pending.Task;
+    }
+
+    private void Confirm() => Close(true);
+
+    private void Cancel() => Close(false);
+
+    private void Close(bool confirmed)
+    {
+        isOpen = false;
+        var completion = pending;
+        pending = null;
+        completion?.TrySetResult(confirmed);
+    }
+
+    public void Dispose() => pending?.TrySetResult(false);
+}

@@ -1,10 +1,14 @@
 @page "/advertiser/upload-logo"
 @rendermode InteractiveServer
-@attribute [Microsoft.AspNetCore.Authorization.Authorize]
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Policy = "AdvertiserOnly")]
 @using Monburan.Core.DTOs.Request
-@using Monburan.Core.Interfaces.Storage
-@inject IStorageProvider StorageProvider
+@using Monburan.Core.UseCases.Advertisers
+@using Monburan.Core.UseCases.Storage
+@inject UploadFileUseCase UploadFileUseCase
+@inject UpdateAdvertiserLogoUseCase UpdateAdvertiserLogoUseCase
+@inject ICurrentUserHelper CurrentUserHelper
 @inject NavigationManager Navigation
+@inject IToastService Toast
 @inject ILogger<UploadLogo> Logger
 
 <PageTitle>Upload de Logo - Monburan</PageTitle>
@@ -40,9 +44,6 @@
                             <div class="card mt-2">
                                 <div class="card-body text-center">
                                     <img src="@logoUrl" alt="Logo da Empresa" class="img-thumbnail" style="max-width: 300px;" />
-                                    <div class="mt-2">
-                                        <small class="text-muted">URL: @logoUrl</small>
-                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -156,38 +157,65 @@
         if (selectedFile == null)
         {
             errorMessage = "Selecione um arquivo primeiro.";
+            Toast.ShowError(errorMessage);
             return;
         }
 
+        var advertiserId = CurrentUserHelper.GetAdvertiserId();
+        if (!advertiserId.HasValue)
+        {
+            errorMessage = "Esta área é exclusiva para contas de empresa.";
+            Toast.ShowError(errorMessage);
+            return;
+        }
+
+        isUploading = true;
+        errorMessage = null;
+        successMessage = null;
         try
         {
-            isUploading = true;
-            errorMessage = null;
-            successMessage = null;
-
             const long maxSize = 5 * 1024 * 1024;
             await using var stream = selectedFile.OpenReadStream(maxSize);
 
-            var request = new UploadFileRequest
+            // UseCase valida tipo/tamanho/assinatura do arquivo antes de gravar
+            var upload = await UploadFileUseCase.ExecuteAsync(new UploadFileRequest
             {
                 FileStream = stream,
                 FileName = selectedFile.Name,
                 ContentType = selectedFile.ContentType,
                 FileType = EFileType.Image
-            };
+            });
+            if (upload.Status != EResultStatus.Success || upload.Data is null)
+            {
+                Logger.LogFailure(upload, "Upload da logo");
+                errorMessage = ResultMessages.ToUserMessage(upload, "Não foi possível enviar a imagem. Tente novamente.");
+                Toast.ShowError(errorMessage);
+                return;
+            }
 
-            // Usar o storage provider diretamente (em produção, usar UploadFileUseCase)
-            var fileUrl = await StorageProvider.UploadAsync(stream, selectedFile.Name, selectedFile.ContentType);
+            // Antes o arquivo era salvo, mas o perfil nunca recebia a nova LogoUrl
+            var update = await UpdateAdvertiserLogoUseCase.ExecuteAsync(
+                new UpdateAdvertiserLogoRequest(advertiserId.Value, upload.Data.FileUrl));
+            if (update.Status != EResultStatus.Success)
+            {
+                Logger.LogFailure(update, "Atualização da logo");
+                errorMessage = ResultMessages.ToUserMessage(update, "A imagem foi enviada, mas não foi possível atualizar o perfil. Tente novamente.");
+                Toast.ShowError(errorMessage);
+                return;
+            }
 
-            logoUrl = fileUrl;
-            successMessage = "Logo enviado com sucesso!";
-
-            Logger.LogInformation("Logo enviado com sucesso: {FileUrl}", fileUrl);
+            logoUrl = upload.Data.FileUrl;
+            selectedFile = null;
+            isFileSelected = false;
+            imagePreviewUrl = null;
+            successMessage = "Logo atualizada! Ela já aparece no perfil da empresa e nas suas vagas.";
+            Toast.ShowSuccess(successMessage);
         }
-        catch (Exception ex)
+        catch (IOException ex)
         {
-            Logger.LogError(ex, "Erro ao fazer upload do logo");
-            errorMessage = "Erro ao enviar logo. Tente novamente.";
+            Logger.LogWarning(ex, "Falha ao ler o arquivo de logo enviado");
+            errorMessage = "Não foi possível ler o arquivo. Verifique se ele tem no máximo 5 MB e tente novamente.";
+            Toast.ShowError(errorMessage);
         }
         finally
         {
@@ -197,6 +225,6 @@
 
     private void Cancel()
     {
-        Navigation.NavigateTo("/advertiser/profile");
+        Navigation.NavigateTo("/profile/advertiser");
     }
 }

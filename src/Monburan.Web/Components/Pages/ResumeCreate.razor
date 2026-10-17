@@ -1,6 +1,6 @@
 @page "/resumes/new"
 @rendermode InteractiveServer
-@attribute [Microsoft.AspNetCore.Authorization.Authorize]
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Policy = "CandidateOnly")]
 @using Monburan.Core.DTOs.Request
 @using Monburan.Core.Entities
 @using Monburan.Core.Enums
@@ -13,6 +13,8 @@
 @inject IBaseRepository<Candidate> CandidateRepository
 @inject IEntityValidator<Resume> ResumeValidator
 @inject ICurrentUserHelper CurrentUserHelper
+@inject IToastService Toast
+@inject ILogger<ResumeCreate> Logger
 
 <PageTitle>Criar Currículo - Monburan</PageTitle>
 
@@ -30,20 +32,16 @@
 
             @if (!string.IsNullOrEmpty(errorMessage))
             {
-                <div class="alert alert-danger">
-                    <i class="bi bi-exclamation-triangle"></i> @errorMessage
+                <div class="alert alert-danger" role="alert">
+                    @errorMessage
                 </div>
             }
 
-            @if (successMessage)
+            @if (!isCandidate)
             {
-                <div class="alert alert-success">
-                    <i class="bi bi-check-circle"></i> Currículo criado com sucesso!
-                    <br />
-                    <button class="btn btn-primary mt-2" @onclick="ViewResumes">
-                        Ver Meus Currículos
-                    </button>
-                </div>
+                <EmptyState Icon="!" Title="Área exclusiva para candidatos" Message="Entre com uma conta de candidato para criar currículos.">
+                    <a class="btn btn-primary" href="/dashboard">Voltar ao início</a>
+                </EmptyState>
             }
             else
             {
@@ -51,6 +49,7 @@
                     <div class="card-body">
                         <EditForm Model="model" OnValidSubmit="SubmitForm">
                             <DataAnnotationsValidator />
+                            <ServerValidationErrors @ref="serverErrors" />
 
                             <!-- Assistente -->
                             <div class="resume-assistant">
@@ -83,6 +82,7 @@
                                 <label class="form-label" for="model.Title">Título do Currículo *</label>
                                 <InputText class="form-control" @bind-Value="model.Title" id="model.Title"
                                     placeholder="Ex: Desenvolvedor Full Stack Pleno" />
+                                <ValidationMessage class="text-danger" For="@(() => model.Title)" />
                                 <div class="form-text">Um título claro ajuda os recrutadores a entenderem seu perfil</div>
                             </div>
 
@@ -90,6 +90,7 @@
                                 <label class="form-label" for="model.Summary">Resumo Profissional</label>
                                 <InputTextArea class="form-control" @bind-Value="model.Summary" id="model.Summary" rows="4"
                                     placeholder="Escreva um breve resumo sobre sua experiência e objetivos profissionais..." />
+                                <ValidationMessage class="text-danger" For="@(() => model.Summary)" />
                                 <div class="form-text">Máximo 2000 caracteres</div>
                             </div>
 
@@ -98,7 +99,7 @@
                                 <label class="form-check-label" for="model.IsActive">
                                     <strong>Definir como currículo ativo</strong>
                                     <br />
-                                    <small class="text-muted">Este currículo será usado automaticamente nas candidaturas</small>
+                                    <small class="text-muted">Ele vem selecionado por padrão quando você se candidatar</small>
                                 </label>
                             </div>
 
@@ -139,7 +140,8 @@
         IsActive = true
     };
     private string errorMessage = string.Empty;
-    private bool successMessage = false;
+    private bool isCandidate;
+    private ServerValidationErrors serverErrors = default!;
     private bool isSubmitting = false;
     private bool isGenerating = false;
     private List<string> validationHints = [];
@@ -148,6 +150,7 @@
     protected override async Task OnInitializedAsync()
     {
         var candidateId = CurrentUserHelper.GetCandidateId();
+        isCandidate = candidateId.HasValue;
         if (candidateId.HasValue)
         {
             model.CandidateId = candidateId.Value;
@@ -214,29 +217,33 @@
 
     private async Task SubmitForm()
     {
+        if (isSubmitting)
+            return;
+
         isSubmitting = true;
         errorMessage = string.Empty;
 
         var result = await CreateResumeUseCase.ExecuteAsync(model);
 
-        if (result.Status == EResultStatus.Success)
+        if (result.Status == EResultStatus.Success && result.Data is not null)
         {
-            successMessage = true;
+            Toast.ShowSuccess("Agora complete experiências, formação e habilidades.", "Currículo criado");
+            Navigation.NavigateTo($"/resumes/{result.Data.Id}");
+            return;
         }
-        else
-        {
-            errorMessage = result.Message;
-        }
+
+        Logger.LogFailure(result, "Criar currículo");
+        var fieldErrors = ResultMessages.FieldErrors(result);
+        var unmatched = serverErrors.Display(fieldErrors);
+        errorMessage = fieldErrors.Count > 0 && unmatched.Count == 0
+            ? "Revise os campos destacados no formulário."
+            : ResultMessages.ToUserMessage(result, "Não foi possível criar o currículo. Tente novamente.");
+        Toast.ShowError(errorMessage);
 
         isSubmitting = false;
     }
 
     private void Cancel()
-    {
-        Navigation.NavigateTo("/resumes");
-    }
-
-    private void ViewResumes()
     {
         Navigation.NavigateTo("/resumes");
     }

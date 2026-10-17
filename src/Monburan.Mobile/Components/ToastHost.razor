@@ -1,0 +1,35 @@
+@implements IDisposable
+@inject IToastService ToastService
+
+<div class="toast-stack" role="region" aria-live="polite" aria-label="Avisos">
+    @foreach (var toast in ToastService.Toasts)
+    {
+        <div @key="toast.Id" class="toast-card toast-@LevelClass(toast.Level)" role="@(toast.Level == ToastLevel.Error ? "alert" : "status")">
+            <div class="toast-body">
+                @if (!string.IsNullOrWhiteSpace(toast.Title))
+                {
+                    <strong>@toast.Title</strong>
+                }
+                <span>@toast.Message</span>
+            </div>
+            <button type="button" class="toast-close" aria-label="Fechar aviso" @onclick="() => ToastService.Dismiss(toast.Id)">×</button>
+        </div>
+    }
+</div>
+
+@code {
+    protected override void OnInitialized() => ToastService.Changed += OnToastsChanged;
+
+    // Auto-dismiss e chamadas HTTP disparam fora do contexto de renderização
+    private void OnToastsChanged() => _ = InvokeAsync(StateHasChanged);
+
+    private static string LevelClass(ToastLevel level) => level switch
+    {
+        ToastLevel.Success => "ok",
+        ToastLevel.Error => "er",
+        ToastLevel.Warning => "warn",
+        _ => "info"
+    };
+
+    public void Dispose() => ToastService.Changed -= OnToastsChanged;
+}

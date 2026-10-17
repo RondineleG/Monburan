@@ -7,6 +7,7 @@
 @inject GetJobByIdUseCase GetJobByIdUseCase
 @inject ICurrentUserHelper CurrentUserHelper
 @inject NavigationManager Navigation
+@inject ILogger<JobDetails> Logger
 
 <PageTitle>@(job?.Title ?? "Detalhes da Vaga") - Monburan</PageTitle>
 
@@ -15,7 +16,7 @@
     {
         <meta name="description" content="@job.Title - @(job.AdvertiserName ?? "Empresa confidencial") em @(!string.IsNullOrEmpty(job.City) ? $"{job.City}, {job.State}" : "Localização a combinar")" />
         <meta property="og:title" content="@job.Title - Monburan" />
-        <meta property="og:description" content="@job.Description.Substring(0, Math.Min(160, job.Description.Length))..." />
+        <meta property="og:description" content="@(string.IsNullOrEmpty(job.Description) ? job.Title : job.Description[..Math.Min(160, job.Description.Length)])" />
         <meta property="og:type" content="article" />
         <meta property="og:url" content="@Navigation.Uri" />
     }
@@ -31,21 +32,19 @@
 <div class="container job-detail-page">
     @if (isLoading)
     {
-        <div class="text-center py-5">
-            <div class="spinner-border text-primary" role="status">
-                <span class="visually-hidden">Carregando...</span>
-            </div>
-            <p class="mt-2">Carregando detalhes da vaga...</p>
-        </div>
+        <LoadingState Message="Carregando detalhes da vaga..." />
+    }
+    else if (loadFailed)
+    {
+        <ErrorState Title="Não foi possível carregar a vaga"
+                    Message="Tivemos um problema ao abrir esta oportunidade. Tente novamente em instantes."
+                    OnRetry="LoadJobAsync" />
     }
     else if (job == null)
     {
-        <div class="alert alert-danger">
-            <i class="bi bi-exclamation-triangle"></i> Vaga não encontrada.
-        </div>
-        <button class="btn btn-primary" @onclick="NavigateBackToList">
-            ← Voltar para lista de vagas
-        </button>
+        <EmptyState Icon="?" Title="Vaga não encontrada" Message="Ela pode ter sido encerrada ou removida pela empresa.">
+            <a class="btn btn-primary" href="/jobs">Ver vagas abertas</a>
+        </EmptyState>
     }
     else
     {
@@ -98,7 +97,7 @@
 
                             <div class="col-md-6 mb-2">
                                 <strong><i class="bi bi-tag"></i> Tipo:</strong><br />
-                                @(job.Type == "OnSite" ? "Presencial" : job.Type == "Remote" ? "Remoto" : "Híbrido")
+                                @UiLabels.JobType(job.Type)
                             </div>
 
                             <div class="col-md-6 mb-2">
@@ -179,8 +178,8 @@
                         }
 
                         <div class="text-muted small">
-                            <i class="bi bi-calendar"></i> Publicada em: @job.CreatedAt.ToString("dd/MM/yyyy")<br />
-                            <i class="bi bi-clock-history"></i> Expira em: @job.ExpirationDate.ToString("dd/MM/yyyy")<br />
+                            <i class="bi bi-calendar"></i> Publicada em: @UiLabels.FormatMomentDate(job.CreatedAt)<br />
+                            <i class="bi bi-clock-history"></i> Expira em: @UiLabels.FormatDate(job.ExpirationDate)<br />
                             <i class="bi bi-eye"></i> @job.Views visualizações | 
                             <i class="bi bi-people"></i> @job.Applications candidaturas
                         </div>
@@ -193,6 +192,23 @@
                 <!-- Card de Candidatura -->
                 <div class="card mb-3 job-apply-card">
                     <div class="card-body">
+                        @if (isOwner)
+                        {
+                            <h5 class="card-title">Sua vaga</h5>
+                            <p class="card-text">Situação: <span class="badge @UiLabels.JobStatusBadge(job.Status)">@UiLabels.JobStatus(job.Status)</span></p>
+                            <div class="d-grid gap-2">
+                                <a class="btn btn-primary" href="@($"/jobs/{JobId}/applications")">Ver candidaturas</a>
+                                <a class="btn btn-outline-primary" href="@($"/jobs/edit/{JobId}")">Editar vaga</a>
+                            </div>
+                        }
+                        else if (job.Status != "Active")
+                        {
+                            <h5 class="card-title">Vaga encerrada</h5>
+                            <p class="card-text">Esta vaga não está mais recebendo candidaturas.</p>
+                            <a class="btn btn-outline-primary w-100" href="/jobs">Ver outras vagas</a>
+                        }
+                        else
+                        {
                         <h5 class="card-title">Interessado nesta vaga?</h5>
                         <p class="card-text">Candidate-se agora e demonstre seu interesse!</p>
                         @if (isCandidate)
@@ -208,6 +224,7 @@
                         {
                             <p class="text-muted">A candidatura está disponível para perfis de candidato.</p>
                         }
+                        }
                     </div>
                 </div>
 
@@ -222,9 +239,6 @@
                                 <img src="@job.AdvertiserLogoUrl" alt="Logo" class="img-fluid mb-2" style="max-height: 80px;" />
                             }
                             <p class="card-text"><strong>@job.AdvertiserName</strong></p>
-                            <button class="btn btn-outline-primary btn-sm w-100">
-                                Ver perfil da empresa
-                            </button>
                         </div>
                     </div>
                 }
@@ -246,8 +260,10 @@
 
     private JobResponse? job;
     private bool isLoading = true;
+    private bool loadFailed;
     private bool isAuthenticated;
     private bool isCandidate;
+    private bool isOwner;
 
     protected override async Task OnInitializedAsync()
     {
@@ -260,11 +276,28 @@
             return;
         }
 
+        await LoadJobAsync();
+    }
+
+    private async Task LoadJobAsync()
+    {
+        isLoading = true;
+        loadFailed = false;
+
         var result = await GetJobByIdUseCase.ExecuteAsync(JobId);
         if (result.Status == EResultStatus.Success)
         {
             job = result.Data;
+            var advertiserId = CurrentUserHelper.GetAdvertiserId();
+            isOwner = job is not null && advertiserId.HasValue && job.AdvertiserId == advertiserId.Value;
         }
+        else if (result.Status != EResultStatus.EntityNotFound)
+        {
+            // Falha de banco não é "vaga não encontrada": oferece tentar de novo
+            Logger.LogFailure(result, "Carregar detalhes da vaga");
+            loadFailed = true;
+        }
+
         isLoading = false;
     }
 

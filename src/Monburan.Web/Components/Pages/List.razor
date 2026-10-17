@@ -2,9 +2,12 @@
 @rendermode InteractiveServer
 @attribute [Microsoft.AspNetCore.Authorization.Authorize]
 
+@using System.Data.Common
 @inject AddressService AddressService
 @inject ICurrentUserHelper CurrentUserHelper
 @inject NavigationManager Navigation
+@inject IToastService Toast
+@inject ILogger<List> Logger
 @using Monburan.Core.Entities;
 @using Monburan.Web.Services;
 
@@ -22,10 +25,13 @@
 
     @if (isLoading)
     {
-        <div class="loading-state">
-            <span class="spinner-border" aria-hidden="true"></span>
-            <span>Carregando endereços...</span>
-        </div>
+        <LoadingState Message="Carregando endereços..." />
+    }
+    else if (loadFailed)
+    {
+        <ErrorState Title="Não foi possível carregar os endereços"
+                    Message="Tivemos um problema ao buscar seus endereços. Tente novamente em instantes."
+                    OnRetry="LoadAsync" />
     }
     else if (Addresses.Count == 0)
     {
@@ -68,7 +74,8 @@
                                                 @onclick="() => Edit(address.Id)"
                                                 aria-label="@($"Editar endereço {address.Street}, {address.Number}")">Editar</button>
                                         <button class="btn btn-outline-danger btn-sm"
-                                                @onclick="() => Delete(address.Id)"
+                                                @onclick="() => DeleteAsync(address)"
+                                                disabled="@(deletingId == address.Id.Value)"
                                                 aria-label="@($"Excluir endereço {address.Street}, {address.Number}")">Excluir</button>
                                     </div>
                                 </td>
@@ -81,21 +88,72 @@
     }
 </div>
 
+<ConfirmDialog @ref="confirmDialog" />
+
 @code {
     private List<Address> Addresses = new();
     private bool isLoading = true;
+    private bool loadFailed;
+    private Guid? deletingId;
+    private ConfirmDialog confirmDialog = default!;
 
-    protected override async Task OnInitializedAsync()
+    protected override Task OnInitializedAsync() => LoadAsync();
+
+    private async Task LoadAsync()
     {
-        Addresses = await AddressService.GetOwnedAsync(
-            CurrentUserHelper.GetCandidateId(),
-            CurrentUserHelper.GetAdvertiserId());
-        isLoading = false;
+        isLoading = true;
+        loadFailed = false;
+        try
+        {
+            Addresses = await AddressService.GetOwnedAsync(
+                CurrentUserHelper.GetCandidateId(),
+                CurrentUserHelper.GetAdvertiserId());
+        }
+        catch (Exception ex) when (ex is DbException or DbUpdateException or InvalidOperationException)
+        {
+            Logger.LogError(ex, "Falha ao listar endereços");
+            loadFailed = true;
+        }
+        finally
+        {
+            isLoading = false;
+        }
     }
 
     private void Create() => Navigation.NavigateTo("/address/create");
 
     private void Edit(Guid id) => Navigation.NavigateTo($"/address/edit/{id}");
 
-    private void Delete(Guid id) => Navigation.NavigateTo($"/address/delete/{id}");
+    private async Task DeleteAsync(Address address)
+    {
+        var description = string.Join(", ", new[] { address.Street, address.Number, address.City }.Where(p => !string.IsNullOrWhiteSpace(p)));
+        var confirmed = await confirmDialog.ShowAsync(new ConfirmOptions
+        {
+            Title = "Excluir endereço?",
+            Message = $"O endereço \"{description}\" será removido do seu perfil.",
+            ConfirmText = "Excluir endereço",
+            Destructive = true
+        });
+        if (!confirmed)
+            return;
+
+        deletingId = address.Id.Value;
+        try
+        {
+            // Só remove endereço que pertence ao perfil (a lista já é filtrada por dono)
+            await AddressService.UnlinkFromOwnerAsync(address.Id);
+            await AddressService.DeleteAsync(address.Id.Value);
+            Addresses.Remove(address);
+            Toast.ShowSuccess("Endereço removido.");
+        }
+        catch (Exception ex) when (ex is DbException or DbUpdateException or InvalidOperationException)
+        {
+            Logger.LogError(ex, "Falha ao excluir endereço {AddressId}", address.Id.Value);
+            Toast.ShowError("Não foi possível remover o endereço. Tente novamente.");
+        }
+        finally
+        {
+            deletingId = null;
+        }
+    }
 }

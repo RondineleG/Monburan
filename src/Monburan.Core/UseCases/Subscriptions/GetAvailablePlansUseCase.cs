@@ -1,23 +1,22 @@
 using Monburan.Core.DTOs.Response;
 using Monburan.Core.Entities;
 using Monburan.Core.Enums;
+using Monburan.Core.Interfaces.Repositories;
 using Monburan.Core.Interfaces.Repositories.Base;
 using Monburan.Core.Interfaces.UseCases;
 using Monburan.Core.Requests;
 using Monburan.Core.ValueObjects;
-
-using Microsoft.EntityFrameworkCore;
 
 namespace Monburan.Core.UseCases.Subscriptions;
 
 public sealed class GetAvailablePlansUseCase : IUseCase<Guid, AvailablePlansResponse>
 {
     private readonly IBaseRepository<SubscriptionPlan> _planRepository;
-    private readonly IBaseRepository<Subscription> _subscriptionRepository;
+    private readonly ISubscriptionRepository _subscriptionRepository;
 
     public GetAvailablePlansUseCase(
         IBaseRepository<SubscriptionPlan> planRepository,
-        IBaseRepository<Subscription> subscriptionRepository)
+        ISubscriptionRepository subscriptionRepository)
     {
         _planRepository = planRepository;
         _subscriptionRepository = subscriptionRepository;
@@ -37,27 +36,23 @@ public sealed class GetAvailablePlansUseCase : IUseCase<Guid, AvailablePlansResp
 
         // Buscar assinatura atual do anunciante (ignorado para visitantes sem conta)
         SubscriptionResponse? currentSubscription = null;
-        var subscriptionsResult = advertiserId == Guid.Empty
+        var subscriptionResult = advertiserId == Guid.Empty
             ? null
-            : await _subscriptionRepository.GetAllAsync(1, 100);
-        if (subscriptionsResult?.Status == EResultStatus.Success)
-        {
-            var activeSubscription = subscriptionsResult.Data!
-                .FirstOrDefault(s => s.AdvertiserId == Id.Create(advertiserId)
-                    && s.Status == ESubscriptionStatus.Active);
+            : await _subscriptionRepository.GetActiveByAdvertiserIdAsync(Id.Create(advertiserId));
+        if (subscriptionResult is { Status: not EResultStatus.Success })
+            return RequestResult<AvailablePlansResponse>.FromResult(subscriptionResult);
 
-            if (activeSubscription != null)
+        if (subscriptionResult?.Data is { } activeSubscription)
+        {
+            currentSubscription = new SubscriptionResponse
             {
-                currentSubscription = new SubscriptionResponse
-                {
-                    Id = activeSubscription.Id.Value,
-                    PlanName = activeSubscription.Plan?.Name ?? "Desconhecido",
-                    Status = activeSubscription.Status.ToString(),
-                    StartDate = activeSubscription.StartDate,
-                    EndDate = activeSubscription.EndDate,
-                    Price = activeSubscription.Plan?.Price ?? 0
-                };
-            }
+                Id = activeSubscription.Id.Value,
+                PlanName = activeSubscription.Plan?.Name ?? "Desconhecido",
+                Status = activeSubscription.Status.ToString(),
+                StartDate = activeSubscription.StartDate,
+                EndDate = activeSubscription.EndDate,
+                Price = activeSubscription.Plan?.Price ?? 0
+            };
         }
 
         var response = new AvailablePlansResponse

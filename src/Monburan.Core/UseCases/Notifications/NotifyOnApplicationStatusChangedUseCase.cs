@@ -21,6 +21,7 @@ public sealed class NotifyOnApplicationStatusChangedUseCase : IUseCase<NotifyOnA
     private readonly IBaseRepository<Candidate> _candidateRepository;
     private readonly IBaseRepository<Job> _jobRepository;
     private readonly SendEmailNotificationUseCase _sendEmailUseCase;
+    private readonly CreateNotificationUseCase _createNotificationUseCase;
     private readonly ILogger<NotifyOnApplicationStatusChangedUseCase> _logger;
 
     public NotifyOnApplicationStatusChangedUseCase(
@@ -28,12 +29,14 @@ public sealed class NotifyOnApplicationStatusChangedUseCase : IUseCase<NotifyOnA
         IBaseRepository<Candidate> candidateRepository,
         IBaseRepository<Job> jobRepository,
         SendEmailNotificationUseCase sendEmailUseCase,
+        CreateNotificationUseCase createNotificationUseCase,
         ILogger<NotifyOnApplicationStatusChangedUseCase> logger)
     {
         _applicationRepository = applicationRepository;
         _candidateRepository = candidateRepository;
         _jobRepository = jobRepository;
         _sendEmailUseCase = sendEmailUseCase;
+        _createNotificationUseCase = createNotificationUseCase;
         _logger = logger;
     }
 
@@ -71,8 +74,11 @@ public sealed class NotifyOnApplicationStatusChangedUseCase : IUseCase<NotifyOnA
 
             var job = jobResult.Data!;
 
-            // Preparar template de email
-            var statusText = application.Status.ToString();
+            // Notificação in-app independe do e-mail (que pode não estar configurado)
+            await CreateInAppNotificationAsync(candidate, job, application.Status);
+
+            // Preparar template de email — status em pt-BR (antes ia "Selected"/"Rejected")
+            var statusText = StatusLabel(application.Status);
             var (subject, html) = EmailTemplates.ApplicationStatusChangedEmail(candidate.Name, job.Title, statusText);
 
             // Enviar email
@@ -110,6 +116,45 @@ public sealed class NotifyOnApplicationStatusChangedUseCase : IUseCase<NotifyOnA
             _logger.LogError(ex, "Erro inesperado ao enviar notificação de status mudado: {ApplicationId}",
                 request.ApplicationId);
             return RequestResult<bool>.WithError($"Erro ao enviar notificação: {ex.Message}");
+        }
+    }
+
+    public static string StatusLabel(EApplicationStatus status) => status switch
+    {
+        EApplicationStatus.Sent => "Enviada",
+        EApplicationStatus.Viewed => "Visualizada pela empresa",
+        EApplicationStatus.Selected => "Selecionada",
+        EApplicationStatus.Rejected => "Não selecionada",
+        EApplicationStatus.Archived => "Arquivada",
+        _ => "Em análise"
+    };
+
+    private async Task CreateInAppNotificationAsync(Candidate candidate, Job job, EApplicationStatus status)
+    {
+        var (title, message) = status switch
+        {
+            EApplicationStatus.Selected => ("Você foi selecionado(a)!", $"Sua candidatura para a vaga \"{job.Title}\" foi selecionada. A empresa deve entrar em contato."),
+            EApplicationStatus.Rejected => ("Atualização da sua candidatura", $"Sua candidatura para a vaga \"{job.Title}\" não seguiu no processo. Continue buscando novas oportunidades."),
+            EApplicationStatus.Viewed => ("Candidatura visualizada", $"A empresa visualizou sua candidatura para a vaga \"{job.Title}\"."),
+            _ => ("Atualização da sua candidatura", $"Sua candidatura para a vaga \"{job.Title}\" agora está: {StatusLabel(status)}.")
+        };
+
+        try
+        {
+            var result = await _createNotificationUseCase.ExecuteAsync(new CreateNotificationRequest
+            {
+                RecipientId = candidate.Id.Value.ToString(),
+                Type = ENotificationType.ApplicationStatus,
+                Title = title,
+                Message = message
+            });
+
+            if (result.Status != EResultStatus.Success)
+                _logger.LogWarning("Notificação in-app de status não criada: {Detail}", result.Message);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Falha ao criar notificação in-app de status para o candidato {CandidateId}", candidate.Id.Value);
         }
     }
 }

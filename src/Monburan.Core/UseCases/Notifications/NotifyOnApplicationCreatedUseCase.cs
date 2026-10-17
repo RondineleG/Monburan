@@ -13,7 +13,7 @@ using Monburan.Core.ValueObjects;
 namespace Monburan.Core.UseCases.Notifications;
 
 /// <summary>
-/// UseCase para enviar email ao anunciante quando uma candidatura é criada.
+/// Avisa o anunciante quando uma candidatura é criada: notificação no app/site e e-mail.
 /// </summary>
 public sealed class NotifyOnApplicationCreatedUseCase : IUseCase<NotifyOnApplicationCreatedRequest, bool>
 {
@@ -21,6 +21,7 @@ public sealed class NotifyOnApplicationCreatedUseCase : IUseCase<NotifyOnApplica
     private readonly IBaseRepository<Job> _jobRepository;
     private readonly IBaseRepository<Advertiser> _advertiserRepository;
     private readonly SendEmailNotificationUseCase _sendEmailUseCase;
+    private readonly CreateNotificationUseCase _createNotificationUseCase;
     private readonly ILogger<NotifyOnApplicationCreatedUseCase> _logger;
 
     public NotifyOnApplicationCreatedUseCase(
@@ -28,12 +29,14 @@ public sealed class NotifyOnApplicationCreatedUseCase : IUseCase<NotifyOnApplica
         IBaseRepository<Job> jobRepository,
         IBaseRepository<Advertiser> advertiserRepository,
         SendEmailNotificationUseCase sendEmailUseCase,
+        CreateNotificationUseCase createNotificationUseCase,
         ILogger<NotifyOnApplicationCreatedUseCase> logger)
     {
         _applicationRepository = applicationRepository;
         _jobRepository = jobRepository;
         _advertiserRepository = advertiserRepository;
         _sendEmailUseCase = sendEmailUseCase;
+        _createNotificationUseCase = createNotificationUseCase;
         _logger = logger;
     }
 
@@ -70,6 +73,9 @@ public sealed class NotifyOnApplicationCreatedUseCase : IUseCase<NotifyOnApplica
             }
 
             var advertiser = advertiserResult.Data!;
+
+            // Notificação in-app independe do e-mail (que pode não estar configurado)
+            await CreateInAppNotificationAsync(advertiser, job, application);
 
             // Preparar template de email
             var (subject, html) = EmailTemplates.ApplicationReceivedEmail(advertiser.Name, job.Title);
@@ -109,6 +115,28 @@ public sealed class NotifyOnApplicationCreatedUseCase : IUseCase<NotifyOnApplica
             _logger.LogError(ex, "Erro inesperado ao enviar notificação de candidatura criada: {ApplicationId}",
                 request.ApplicationId);
             return RequestResult<bool>.WithError($"Erro ao enviar notificação: {ex.Message}");
+        }
+    }
+
+    private async Task CreateInAppNotificationAsync(Advertiser advertiser, Job job, Application application)
+    {
+        try
+        {
+            var candidateName = string.IsNullOrWhiteSpace(application.Candidate?.Name) ? "Um candidato" : application.Candidate.Name;
+            var result = await _createNotificationUseCase.ExecuteAsync(new CreateNotificationRequest
+            {
+                RecipientId = advertiser.Id.Value.ToString(),
+                Type = ENotificationType.ApplicationStatus,
+                Title = "Nova candidatura",
+                Message = $"{candidateName} se candidatou à vaga \"{job.Title}\"."
+            });
+
+            if (result.Status != EResultStatus.Success)
+                _logger.LogWarning("Notificação in-app de nova candidatura não criada: {Detail}", result.Message);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Falha ao criar notificação in-app de nova candidatura {ApplicationId}", application.Id.Value);
         }
     }
 }

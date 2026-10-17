@@ -2,14 +2,15 @@
 @page "/jobs"
 @inject MonburanApiClient Api
 @inject NavigationManager Nav
+@inject IToastService Toast
 
 <h1 class="page-title">Oportunidades</h1>
 <p class="page-subtitle">Encontre a vaga ideal para você</p>
 
-<div class="search-row">
-    <input class="input" placeholder="Buscar cargo, empresa..." @bind="_searchTerm" @bind:event="oninput" @onkeydown="OnSearchKey" />
-    <button class="btn btn-primary" @onclick="Search">Buscar</button>
-</div>
+<form class="search-row" role="search" @onsubmit="Search">
+    <input class="input" type="search" aria-label="Buscar vagas" placeholder="Buscar cargo, empresa..." @bind="_searchTerm" @bind:event="oninput" />
+    <button type="submit" class="btn btn-primary">Buscar</button>
+</form>
 
 <div class="filter-chips">
     <button class="filter-chip @(_isRemote == null ? "active" : "")" @onclick="() => SetRemote(null)">Todas</button>
@@ -56,9 +57,9 @@ else
                     {
                         <span class="meta-chip">📍 @job.City@(job.State is not null ? $"/{job.State}" : "")</span>
                     }
-                    @if (job.SalaryMin.HasValue || job.SalaryMax.HasValue)
+                    @if (Formatters.Salary(job) is { } salary)
                     {
-                        <span class="salary">@FormatSalary(job)</span>
+                        <span class="salary">@salary</span>
                     }
                     @if (!string.IsNullOrEmpty(job.Category))
                     {
@@ -86,12 +87,16 @@ else
     private bool _hasMore;
     private bool _loading = true;
     private bool _loadingMore;
+    private int _loadVersion;
     private ApiException? _error;
 
     protected override Task OnInitializedAsync() => LoadAsync();
 
     private async Task LoadAsync()
     {
+        // Só a busca mais recente preenche a lista: buscar ou filtrar com a carga anterior
+        // ainda em andamento somava as duas respostas (cards duplicados e fora do filtro)
+        var version = ++_loadVersion;
         _loading = true;
         _error = null;
         _page = 1;
@@ -99,34 +104,44 @@ else
 
         try
         {
-            var result = await Api.GetJobsAsync(BuildRequest());
+            var result = await Api.GetJobsAsync(BuildRequest(1));
+            if (version != _loadVersion)
+                return;
+
             _jobs.AddRange(result.Jobs);
             _hasMore = result.HasNextPage;
         }
         catch (ApiException ex)
         {
-            _error = ex;
+            if (version == _loadVersion)
+                _error = ex;
         }
         finally
         {
-            _loading = false;
+            if (version == _loadVersion)
+                _loading = false;
         }
     }
 
     private async Task LoadMoreAsync()
     {
+        var version = _loadVersion;
         _loadingMore = true;
         try
         {
+            var result = await Api.GetJobsAsync(BuildRequest(_page + 1));
+            if (version != _loadVersion)
+                return;
+
             _page++;
-            var result = await Api.GetJobsAsync(BuildRequest());
             _jobs.AddRange(result.Jobs);
             _hasMore = result.HasNextPage;
         }
         catch (ApiException ex)
         {
-            _error = ex;
-            _page--;
+            // Mantém as vagas já carregadas; só avisa que a próxima página falhou
+            if (version == _loadVersion)
+                Toast.ShowError(ex.Message);
         }
         finally
         {
@@ -134,9 +149,9 @@ else
         }
     }
 
-    private ListJobsRequest BuildRequest() => new()
+    private ListJobsRequest BuildRequest(int page) => new()
     {
-        Page = _page,
+        Page = page,
         Size = PageSize,
         SearchTerm = string.IsNullOrWhiteSpace(_searchTerm) ? null : _searchTerm,
         IsRemote = _isRemote,
@@ -149,24 +164,5 @@ else
     {
         _isRemote = value;
         return LoadAsync();
-    }
-
-    private async Task OnSearchKey(KeyboardEventArgs e)
-    {
-        if (e.Key == "Enter")
-            await LoadAsync();
-    }
-
-    private static string FormatSalary(JobResponse job)
-    {
-        var min = job.SalaryMin?.ToString("N0");
-        var max = job.SalaryMax?.ToString("N0");
-        return (min, max) switch
-        {
-            (not null, not null) => $"R$ {min} – {max}",
-            (not null, null) => $"a partir de R$ {min}",
-            (null, not null) => $"até R$ {max}",
-            _ => ""
-        };
     }
 }
