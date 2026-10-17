@@ -356,6 +356,11 @@ jobs:
           echo "::error::O executável deveria ser só arm64, mas é: $archs"
           exit 1
         fi
+        # O Blazor Hybrid do MAUI exige iOS 16.4 ou superior: um mínimo menor deixaria instalar onde o app não abre
+        if [ "$(printf '%s\n%s\n' 16.4 "$minos" | sort -V | head -1)" != "16.4" ]; then
+          echo "::error::MinimumOSVersion $minos é menor que 16.4, o mínimo do Blazor Hybrid do MAUI"
+          exit 1
+        fi
         # Sem assinatura de propósito: o codesign precisa dizer isso, para ninguém tomar o arquivo por distribuível
         if codesign -dv "$APP" 2>&1 | grep -q "not signed at all"; then
           echo "Sem assinatura, como esperado"
@@ -406,7 +411,7 @@ jobs:
             echo '<!-- ios-sem-assinatura -->'
             echo '### iOS (sem assinatura)'
             echo
-            echo "O arquivo \`$(basename "$IPA")\` **não é assinado** (o projeto não tem conta Apple Developer), então não instala direto. Para testar num iPhone, use um assinador com Apple ID gratuito, como AltStore ou Sideloadly, que assina na hora. Limites do Apple ID gratuito: a assinatura vale 7 dias (precisa renovar), no máximo 3 apps ativos e o iPhone precisa estar com o Modo Desenvolvedor ligado. Não serve para distribuir ao público."
+            echo "O arquivo \`$(basename "$IPA")\` **não é assinado** (o projeto não tem conta Apple Developer), então não instala direto. Para testar num iPhone, use um assinador com Apple ID gratuito, como AltStore ou Sideloadly, que assina na hora. O app exige iOS 16.4 ou superior. Limites do Apple ID gratuito: a assinatura vale 7 dias (precisa renovar), no máximo 3 apps ativos e o iPhone precisa estar com o Modo Desenvolvedor ligado. Não serve para distribuir ao público."
             echo
             echo "- SHA-256 do .ipa: \`$SHA256\`"
           } > ios-notes.md

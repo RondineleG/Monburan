@@ -75,8 +75,10 @@ Sem conta Apple Developer não há assinatura, TestFlight nem App Store. O que a
 Cada execução leva cerca de 20 minutos (os dois jobs rodam em paralelo; só o build do simulador gasta cerca de 14).
 
 **Instalar o `.ipa` sem assinatura:** o arquivo não instala direto. Use AltStore ou Sideloadly com um Apple ID gratuito,
-que assinam na hora. Limites do Apple ID gratuito: a assinatura vale 7 dias (é preciso renovar), no máximo 3 apps ativos
-e o iPhone precisa estar com o Modo Desenvolvedor ligado. Serve para você e poucos testadores, não para o público.
+que assinam na hora. O app exige iOS 16.4 ou superior (requisito do Blazor Hybrid do MAUI; o job `ipa` falha se o
+mínimo do pacote ficar abaixo disso). Limites do Apple ID gratuito: a assinatura vale 7 dias (é preciso renovar), no
+máximo 3 apps ativos e o iPhone precisa estar com o Modo Desenvolvedor ligado. Serve para você e poucos testadores, não
+para o público.
 
 **Quando houver conta Apple Developer** (US$ 99/ano), a próxima fase é assinar na esteira e enviar ao TestFlight. Seriam
 necessários: certificado de distribuição (`.p12` e senha), perfil de provisionamento do `com.monburan.app` e a chave da
