@@ -39,8 +39,17 @@ preciso desinstalar a versão anterior uma vez.
 
 ## Publicar a web (VPS)
 
-A imagem `latest` é construída e publicada pelo `docker-ghcr.yml` a cada push na `main`. A VPS baixa a imagem
-manualmente (não há deploy automático por SSH, que exigiria secrets de acesso ao servidor):
+A imagem `latest` é construída e publicada pelo `docker-ghcr.yml` a cada push na `main`.
+
+> **Pré-requisito (uma vez):** o pacote `monburan` do GHCR foi criado manualmente, então o `GITHUB_TOKEN` do workflow
+> só consegue publicar nele se o repositório tiver acesso de escrita. Abra
+> <https://github.com/users/RondineleG/packages/container/monburan/settings>, em *Manage Actions access* use
+> *Add Repository*, escolha `Monburan` e o papel **Write**. Sem isso o passo "Build and push" falha com
+> `denied: permission_denied: write_package` (visto em 17/10/2026; o build da imagem em si passa no runner).
+> Para conferir depois de ajustar: `gh workflow run docker-ghcr.yml --ref develop` publica só a tag do sha, porque o
+> `latest` só é movido na `main`.
+
+A VPS baixa a imagem manualmente (não há deploy automático por SSH, que exigiria secrets de acesso ao servidor):
 
 ```bash
 cd /opt/monburan
