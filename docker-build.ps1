@@ -77,8 +77,8 @@ switch ($args[0]) {
     }
     "db" {
         Write-Host "🗄️  Apenas banco de dados..." -ForegroundColor Yellow
-        docker-compose up -d sqlserver
-        Write-Host "✅ SQL Server iniciado na porta 1433" -ForegroundColor Green
+        docker-compose up -d postgres
+        Write-Host "✅ PostgreSQL iniciado na porta 5432" -ForegroundColor Green
     }
     default {
         Write-Host "Uso: .\docker-build.ps1 [comando]" -ForegroundColor Cyan

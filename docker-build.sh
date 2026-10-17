@@ -61,8 +61,8 @@ case "$1" in
         ;;
     "db")
         echo "🗄️  Apenas banco de dados..."
-        docker-compose up -d sqlserver
-        echo "✅ SQL Server iniciado na porta 1433"
+        docker-compose up -d postgres
+        echo "✅ PostgreSQL iniciado na porta 5432"
         ;;
     *)
         echo "Uso: ./docker-build.sh [comando]"

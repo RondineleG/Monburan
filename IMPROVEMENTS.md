@@ -467,3 +467,36 @@ O projeto Monburan foi transformado de um MVP funcional com problemas de seguran
 - **Funcionalidades 100% operacionais** sem TODOs pendentes
 
 O projeto agora está pronto para **deploy em produção** com confiança e segurança.
+
+---
+
+## 🔄 Atualizações Posteriores — 16/10/2026
+
+Desde a data original deste documento, as seguintes entregas foram implementadas:
+
+### API REST + App Mobile
+- API REST sob `/api/auth/*` e `/api/v1/*` (JWT Bearer com access/refresh token) para o app mobile — `src/Monburan.Web/Endpoints`
+- App Android `.NET MAUI Blazor Hybrid` (`src/Monburan.Mobile`, pacote `com.monburan.app`) com páginas do candidato e branding MONBURAN
+- Camada compartilhada `src/Monburan.Mobile.Shared` (ApiClient tipado, refresh transparente em 401, SecureStorage)
+
+### Qualidade (160 testes automatizados)
+- `tests/Monburan.ApiTests` — 38 testes de API com `WebApplicationFactory` + EF InMemory
+- `tests/Monburan.E2ETests` — 52 testes E2E com Playwright (saíram do status "configurado, não implementado")
+- Totais atuais: 63 unitários + 7 integração + 38 API + 52 E2E
+
+### Infraestrutura e Deploy
+- **Banco oficial: PostgreSQL** (`postgres:16-alpine` nos composes; Npgsql no EF Core)
+- Imagem Docker publicada no **GHCR** (`ghcr.io/rondineleg/monburan`) via workflow `docker-ghcr.yml` e `infra/vps/build-push.sh` + `docker-bake.hcl`
+- **Deploy em produção na VPS** (`infra/vps/`): docker compose + nginx reverse proxy + TLS Let's Encrypt (certbot) em `https://monburan.com.br`
+- Job `android-build` no CI (APK debug + AAB release assinado via secrets)
+
+### E-mail e Domínio
+- Envio de e-mail transacional via **SMTP (Resend)** — `SmtpEmailSender` (MailKit), ativado quando `Smtp:Host` está configurado; `SendGridEmailSender` permanece como fallback
+- Domínio corrigido para **monburan.com.br** (app, e-mail, mobile API base URL, nginx)
+
+### UI/UX
+- Renovação do design system (dark) da web (`wwwroot/ui.css`) e do app mobile (`wwwroot/app.css`), novos ícones/splash, remoção das side-stripes
+
+### ⚠️ Correções sobre este documento
+- Os health checks registrados são básicos (`AddHealthChecks()` + `/health`) — **não** há checks de banco/SendGrid como sugerido na seção 14
+- As seções de testes (17–19) refletem o estado de maio/2026 — ver `TEST_STRATEGY.md` para os números atuais

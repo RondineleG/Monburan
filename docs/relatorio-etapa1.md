@@ -61,10 +61,10 @@
 [Descreva o que foi feito. Sugestão de parágrafos curtos por frente:]
 - **Modelagem de domínio e camada de dados:** entidades, repositórios, migrações de banco (PostgreSQL/EF Core).
 - **Backend e API:** casos de uso, autenticação JWT (access/refresh), endpoints REST, upload de arquivos, paginação.
-- **Interface web:** shell do aplicativo, sistema de design, páginas públicas e áreas do anunciante e do candidato.
+- **Interface web:** shell do aplicativo, design system próprio (dark), páginas públicas e áreas do anunciante e do candidato.
 - **App mobile:** projeto MAUI Blazor Hybrid com páginas de candidato, cliente HTTP tipado e SecureStorage.
-- **Qualidade:** suíte de testes (unitários, integração, API e E2E).
-- **Infraestrutura:** Docker, CI/CD (GitHub Actions), health checks e logging estruturado.
+- **Qualidade:** suíte de testes (unitários, integração, API e E2E) — 160 testes automatizados.
+- **Infraestrutura:** Docker, CI/CD (GitHub Actions), imagem publicada no GHCR, deploy na VPS com nginx + TLS (certbot), e-mail transacional via SMTP (Resend), health checks e logging estruturado.
 
 #### 4.1.6 Ferramentas de Desenvolvimento e Teste
 
@@ -75,10 +75,11 @@
 | Mobile | .NET MAUI Blazor Hybrid (Android) |
 | Banco de dados | PostgreSQL + Entity Framework Core |
 | Autenticação | JWT (access/refresh), ASP.NET Identity |
-| E-mail | SendGrid |
-| Testes | xUnit, NSubstitute, FluentAssertions, Playwright, Testcontainers |
-| Contêineres | Docker / Docker Compose |
+| E-mail | SMTP via MailKit (Resend), SendGrid como fallback |
+| Testes | xUnit, NSubstitute, FluentAssertions, WebApplicationFactory (EF InMemory), Playwright |
+| Contêineres | Docker / Docker Compose, imagem no GHCR |
 | CI/CD | GitHub Actions |
+| Produção | VPS + nginx + TLS (Let's Encrypt/certbot), domínio monburan.com.br |
 | Logs / saúde | Serilog, Health Checks |
 | Gestão | GitHub Projects, GitHub Issues |
 
@@ -103,7 +104,7 @@
 | 13/10/2026 | Notificações e migrações de banco |
 | 14/10/2026 | Testes unitários, de integração e E2E |
 | 15/10/2026 | Docker, deploy e utilitários |
-| 16/10/2026 | API REST, app mobile e documentação |
+| 16/10/2026 | API REST, app mobile, documentação, deploy na VPS (imagem no GHCR + nginx/TLS), domínio monburan.com.br, e-mail via SMTP (Resend) e renovação de UI/UX (web e mobile) |
 
 **Recursos:** [descreva recursos humanos (membros do grupo e papéis), materiais (estação de trabalho, contas de serviço) e de infraestrutura (GitHub, Docker, banco de dados).]
 
@@ -133,11 +134,11 @@
 - Desenvolvedores: [nomes]
 
 **Artefatos:**
-- **Product Backlog:** [GitHub Issues — https://github.com/RondineleG/Monburan/issues, com 12 itens priorizados]
+- **Product Backlog:** [GitHub Issues — https://github.com/RondineleG/Monburan/issues, com 24 itens priorizados]
 - **Sprint Backlog:** [itens atribuídos às sprints no GitHub Projects]
 - **Incremento:** [entrega funcional por sprint]
 
-**Quadro (board) configurado:** [GitHub Projects #14 — https://github.com/users/RondineleG/projects/14, com colunas *Todo / In Progress / Done*, campos personalizados *Fase* (Etapa 1 / Etapa 2) e *Prioridade* (Alta / Média / Baixa).]
+**Quadro (board) configurado:** [GitHub Projects #14 — https://github.com/users/RondineleG/projects/14, com fluxo de 6 colunas — *Backlog / Ready for Dev / In Progress / In Review / In QA / Done* — e campos personalizados *Fase* (Etapa 1 / Etapa 2) e *Prioridade* (Alta / Média / Baixa).]
 
 **Definição de "Feito":** [ex.: código revisado, testes aprovados, build sem erros, documentação atualizada.]
 

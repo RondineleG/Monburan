@@ -1,19 +1,16 @@
 <svg width="456" height="456" viewBox="0 0 456 456" xmlns="http://www.w3.org/2000/svg">
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="456" y2="456" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#1a0f00"/>
-      <stop offset="1" stop-color="#2d1a00"/>
+      <stop offset="0" stop-color="#fefaf3"/>
+      <stop offset="1" stop-color="#f2ebd9"/>
     </linearGradient>
     <linearGradient id="gold" x1="128" y1="128" x2="328" y2="328" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#e8c96a"/>
-      <stop offset="0.5" stop-color="#c9a84c"/>
+      <stop offset="0" stop-color="#c9a84c"/>
       <stop offset="1" stop-color="#8a5500"/>
     </linearGradient>
   </defs>
   <rect width="456" height="456" fill="url(#bg)"/>
-  <!-- Estrela Monburan -->
   <path d="M228 108 L252 196 L340 228 L252 260 L228 348 L204 260 L116 228 L204 196 Z" fill="url(#gold)"/>
-  <circle cx="228" cy="228" r="14" fill="#1a0f00"/>
-  <!-- Wordmark -->
-  <text x="228" y="400" text-anchor="middle" font-family="Georgia, serif" font-size="36" font-weight="600" fill="#c9a84c" letter-spacing="6">MONBURAN</text>
+  <circle cx="228" cy="228" r="14" fill="#fefaf3"/>
+  <text x="228" y="400" text-anchor="middle" font-family="Georgia, serif" font-size="36" font-weight="600" fill="#5a3200" letter-spacing="6">MONBURAN</text>
 </svg>

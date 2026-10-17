@@ -27,7 +27,7 @@ public class AuthApiTests : IClassFixture<MonburanApiFactory>
     {
         var response = await _client.PostAsJsonAsync("/api/auth/login", new UserLoginRequest
         {
-            Email = "admin@monburan.com",
+            Email = "admin@monburan.com.br",
             Password = "Monburan123"
         });
 
@@ -45,7 +45,7 @@ public class AuthApiTests : IClassFixture<MonburanApiFactory>
     {
         var response = await _client.PostAsJsonAsync("/api/auth/login", new UserLoginRequest
         {
-            Email = "admin@monburan.com",
+            Email = "admin@monburan.com.br",
             Password = "senha-errada"
         });
 
@@ -64,7 +64,7 @@ public class AuthApiTests : IClassFixture<MonburanApiFactory>
     public async Task ProtectedEndpoint_WithRefreshToken_Returns403()
     {
         // Refresh token é um JWT válido, mas sem token_use=access — não deve autenticar
-        var login = await LoginAsAsync("admin@monburan.com");
+        var login = await LoginAsAsync("admin@monburan.com.br");
 
         using var request = new HttpRequestMessage(HttpMethod.Get, "/api/v1/applications/mine");
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", login.RefreshToken);
@@ -88,7 +88,7 @@ public class AuthApiTests : IClassFixture<MonburanApiFactory>
     [Fact]
     public async Task Refresh_WithValidRefreshToken_ReturnsNewTokenPair()
     {
-        var login = await LoginAsAsync("admin@monburan.com");
+        var login = await LoginAsAsync("admin@monburan.com.br");
 
         var response = await _client.PostAsJsonAsync("/api/auth/refresh", new RefreshTokenRequest
         {
@@ -106,7 +106,7 @@ public class AuthApiTests : IClassFixture<MonburanApiFactory>
     public async Task Refresh_WithAccessToken_Returns401()
     {
         // Access token não pode ser trocado por um novo par (falta claim token_use=refresh)
-        var login = await LoginAsAsync("admin@monburan.com");
+        var login = await LoginAsAsync("admin@monburan.com.br");
 
         var response = await _client.PostAsJsonAsync("/api/auth/refresh", new RefreshTokenRequest
         {

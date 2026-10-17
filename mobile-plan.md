@@ -5,6 +5,35 @@
 > consumindo uma **nova camada de API REST** exposta pelo `Monburan.Web`.
 >
 > Gerado em: 2026-10-15
+>
+> ---
+>
+> ## ✅ Status de implementação (atualizado em 2026-10-16)
+>
+> **Fases 0, 1 e 2 estão implementadas** — os checkboxes abaixo permanecem como
+> o plano original; este resumo reflete o que já existe no repositório:
+>
+> - **Fase 0 (API):** endpoints `/api/auth/*` (login, refresh, register,
+>   forgot-password) e `/api/v1/*` (jobs, applications, candidates, resumes,
+>   files, notifications, advertisers, dashboard, plans) em
+>   `src/Monburan.Web/Endpoints`, com JWT Bearer (`token_use=access`) e
+>   `IdentityService` registrado no DI — inclui os endpoints do "lado anunciante"
+>   da Fase 0.4
+> - **Fase 1 (testes):** `tests/Monburan.ApiTests` com 38 testes via
+>   `WebApplicationFactory` + EF InMemory
+> - **Fase 2 (app):** `src/Monburan.Mobile` (MAUI Blazor Hybrid,
+>   `com.monburan.app`) + `src/Monburan.Mobile.Shared` (`MonburanApiClient`,
+>   `AuthApiClient`, `TokenService`, `AuthHeaderHandler`, `SecureStorageTokenStore`)
+>   — páginas de candidato implementadas (Login, Register, ForgotPassword, Jobs,
+>   JobDetails, Apply, MyApplications, Profile, Resumes, Notifications) e
+>   branding MONBURAN; `MobileApiConfig` aponta para `https://monburan.com.br`
+>   em Release e `127.0.0.1:5095` (via `adb reverse`) em Debug
+> - **Fase 5 (parcial):** job `android-build` no CI gera APK debug e AAB release
+>   assinado quando os secrets do keystore existem
+> - **Pendente:** publicação nas stores (Fases 3/4 — Google Play, iOS/TestFlight
+>   que exige macOS), push notifications, cache offline e demais itens da Fase 6
+>
+> ---
 
 ---
 

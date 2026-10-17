@@ -7,6 +7,20 @@
     "FromEmail": "noreply@monburan.com.br",
     "FromName": "Monburan"
   },
+  "Smtp": {
+    "Host": "smtp.resend.com",
+    "Port": 465,
+    "User": "resend",
+    "Password": "YOUR_RESEND_API_KEY",
+    "FromEmail": "noreply@monburan.com.br",
+    "FromName": "Monburan"
+  },
+  "Jwt": {
+    "SigningKey": "GENERATE_WITH_openssl_rand_-base64_48"
+  },
+  "App": {
+    "PublicBaseUrl": "https://monburan.com.br"
+  },
   "Logging": {
     "LogLevel": {
       "Default": "Warning",

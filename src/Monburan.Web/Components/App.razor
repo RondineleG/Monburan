@@ -27,8 +27,20 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;900&family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Share+Tech+Mono&display=swap" rel="stylesheet" />
-    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
-    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" id="favicon-32" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" id="favicon-16" />
+    <script>
+        // Troca favicon + theme-color conforme o tema ativo.
+        (function () {
+            var isDark = (document.documentElement.getAttribute('data-theme') || 'dark') === 'dark';
+            var meta = document.querySelector('meta[name="theme-color"]');
+            if (meta) meta.setAttribute('content', isDark ? '#0A0806' : '#F2EBD9');
+            var f32 = document.getElementById('favicon-32');
+            var f16 = document.getElementById('favicon-16');
+            if (f32) f32.href = isDark ? '/favicon-dark-32x32.png' : '/favicon-32x32.png';
+            if (f16) f16.href = isDark ? '/favicon-dark-16x16.png' : '/favicon-16x16.png';
+        })();
+    </script>
     <base href="/" />
     <link rel="stylesheet" href="app.css?v=ds-v2" />
     <link rel="stylesheet" href="Monburan.Web.styles.css" />
@@ -98,6 +110,10 @@
                     setUiCookie('monburan-theme', next);
                     var meta = document.querySelector('meta[name="theme-color"]');
                     if (meta) meta.setAttribute('content', next === 'dark' ? '#0A0806' : '#F2EBD9');
+                    var f32 = document.getElementById('favicon-32');
+                    var f16 = document.getElementById('favicon-16');
+                    if (f32) f32.href = next === 'dark' ? '/favicon-dark-32x32.png' : '/favicon-32x32.png';
+                    if (f16) f16.href = next === 'dark' ? '/favicon-dark-16x16.png' : '/favicon-16x16.png';
                     return;
                 }
                 var pinBtn = e.target.closest('[data-action="sidebar-pin"]');

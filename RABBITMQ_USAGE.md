@@ -1,5 +1,17 @@
 # RabbitMQ Integration Guide
 
+> ⚠️ **STATUS: NOT IMPLEMENTED**
+>
+> This document is a **reference guide for a future integration** — RabbitMQ is
+> **not wired into the Monburan codebase** as of 2026-10-16. There is no
+> `Monburan.Core.Messaging` namespace, no `IRabbitMQBus` implementation, no
+> `RabbitMQ` section in `appsettings.json`, and no `rabbitmq` service in the
+> Docker Compose files. A local `RoggoR.RabbitMq` package exists under
+> `nuget-packages/`, but it is not referenced by the application.
+>
+> Keep this guide as the blueprint for when messaging is added (see backlog
+> issues #6/#9/#10 in `docs/scrum.md` for related planned work).
+
 ## Overview
 
 The Monburan application now includes RabbitMQ integration for messaging. This guide explains how to use the RabbitMQ service in the application.

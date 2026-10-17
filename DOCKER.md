@@ -1,6 +1,6 @@
 # 🐳 Docker Setup - Monburan
 
-Este documento fornece instruções detalhadas para configurar e executar o projeto Monburan usando Docker.
+Este documento fornece instruções detalhadas para configurar e executar o projeto Monburan usando Docker, tanto em desenvolvimento quanto em produção (VPS com nginx + TLS).
 
 ## 📋 Pré-requisitos
 
@@ -16,8 +16,9 @@ Este documento fornece instruções detalhadas para configurar e executar o proj
 # Copiar arquivo de exemplo
 cp .env.example .env
 
-# Editar .env com suas configurações (opcional para desenvolvimento)
-# A senha padrão já está configurada
+# Editar .env com suas configurações.
+# OBRIGATÓRIO para subir a app completa: JWT_SIGNING_KEY
+# Gere uma com: openssl rand -base64 48
 ```
 
 ### 2. Iniciar com Script (Recomendado)
@@ -59,47 +60,67 @@ chmod +x docker-build.sh
 
 ```bash
 # Desenvolvimento
-docker-compose -f docker-compose.dev.yml up -d
+docker compose -f docker-compose.dev.yml up -d
 
-# Produção
-docker-compose up -d
+# Produção local
+docker compose up -d
 
-# Apenas banco de dados
-docker-compose up -d sqlserver
+# Apenas banco de dados (para rodar a app com dotnet run)
+docker compose up -d postgres
 ```
 
 ## 🗄️ Serviços Docker
 
-### SQL Server
-- **Imagem**: mcr.microsoft.com/mssql/server:2022-latest
-- **Porta**: 1433
-- **Senha Padrão**: YourStrong@Passw0rd
-- **Volume Persistente**: sqlserver_data
+### PostgreSQL
+- **Imagem**: `postgres:16-alpine`
+- **Porta**: 5432
+- **Credenciais padrão (dev)**: `postgres`/`postgres`, database `monburan`
+- **Volume Persistente**: `postgres_data`
+- **Health Check**: `pg_isready` (a app só sobe depois do banco ficar saudável)
 
 ### Aplicação Monburan
-- **Build**: Multi-stage build (SDK + Runtime)
-- **Porta**: 8080 (HTTP)
-- **Volume Uploads**: app_uploads
-- **Health Check**: Configurado para `/`
+- **Build**: Multi-stage build (SDK + Runtime) — `src/Monburan.Web/Dockerfile`
+- **Porta**: 8080 → 80 (HTTP)
+- **Volume Uploads**: `app_uploads` (`/app/wwwroot/uploads`)
+- **Health Check**: endpoint `/health`
+- **Migrations**: aplicadas no boot quando `APPLY_MIGRATIONS=true`
 
 ## 🔧 Configuração
 
 ### Variáveis de Ambiente (.env)
 
 ```bash
-# Senha do SQL Server (obrigatório para Docker)
-DB_PASSWORD=YourStrong@Passw0rd
+# Banco PostgreSQL (Docker)
+DB_NAME=monburan
+DB_USER=postgres
+DB_PASSWORD=postgres   # troque em produção!
 
-# API Key do SendGrid (opcional)
+# JWT — obrigatório, a app falha no boot sem chave de assinatura
+# Gere com: openssl rand -base64 48
+JWT_SIGNING_KEY=
+
+# URL pública da app — usada em links de e-mail (confirmação/reset).
+# Vazio = usa scheme/host da request (não funciona atrás de proxy TLS).
+APP_PUBLIC_BASE_URL=https://monburan.com.br
+
+# E-mail — opção 1: SMTP (usado em produção com Resend)
+SMTP_HOST=smtp.resend.com
+SMTP_PORT=465
+SMTP_USER=resend
+SMTP_PASSWORD=
+SMTP_FROM_EMAIL=noreply@monburan.com.br
+SMTP_FROM_NAME=Monburan
+
+# E-mail — opção 2 (fallback quando Smtp:Host está vazio): SendGrid
 SENDGRID_API_KEY=
 ```
 
 ### Connection String Docker
 
-A connection string para Docker é automaticamente configurada no docker-compose.yml:
+A connection string para Docker é configurada automaticamente no `docker-compose.yml`:
 
 ```
-Server=sqlserver,1433;Database=MonburanDB;User Id=sa;Password=${DB_PASSWORD};TrustServerCertificate=True;MultipleActiveResultSets=true
+Host=postgres;Port=5432;Database=${DB_NAME};Username=${DB_USER};Password=${DB_PASSWORD}
 ```
 
 ## 📱 Acessar a Aplicação
@@ -107,104 +128,165 @@ Server=sqlserver,1433;Database=MonburanDB;User Id=sa;Password=${DB_PASSWORD};Tru
 Após iniciar os containers:
 
 - **Aplicação**: http://localhost:8080
-- **Swagger**: http://localhost:8080/swagger
+- **Swagger** (só em Development): http://localhost:8080/swagger
 - **Health Check**: http://localhost:8080/health
 
 ## 🛠️ Comandos Úteis
 
 ### Ver Status dos Containers
 ```bash
-docker-compose ps
-docker-compose -f docker-compose.dev.yml ps
+docker compose ps
+docker compose -f docker-compose.dev.yml ps
 ```
 
 ### Ver Logs
 ```bash
 # Todos os serviços
-docker-compose logs -f
+docker compose logs -f
 
 # Apenas aplicação
-docker-compose logs -f app
+docker compose logs -f app
 
 # Apenas banco de dados
-docker-compose logs -f sqlserver
+docker compose logs -f postgres
 ```
 
 ### Executar Migrations
+
+A imagem final é runtime-only (sem SDK/`dotnet ef`). Opções:
+
 ```bash
-# Entrar no container da aplicação
-docker-compose exec app bash
+# 1. Automático no boot (recomendado)
+#    Defina APPLY_MIGRATIONS=true no environment da app
+#    (já é o padrão no docker-compose.prod.yml)
 
-# Executar migrations
-dotnet ef database update
-
-# Sair do container
-exit
+# 2. A partir da máquina host (com .NET SDK instalado)
+dotnet ef database update --project src/Monburan.Web \
+  --connection "Host=localhost;Port=5432;Database=monburan;Username=postgres;Password=postgres"
 ```
 
-### Acessar SQL Server
+### Acessar o PostgreSQL
 ```bash
-# Entrar no container do SQL Server
-docker-compose exec sqlserver bash
+# Entrar no container do Postgres
+docker compose exec postgres bash
 
-# Conectar ao SQL Server
-/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P 'YourStrong@Passw0rd'
+# Conectar ao banco
+psql -U postgres -d monburan
+
+# Ou direto, sem entrar no container:
+docker compose exec postgres psql -U postgres -d monburan
 ```
 
 ### Reiniciar Serviços
 ```bash
-docker-compose restart app
-docker-compose restart sqlserver
+docker compose restart app
+docker compose restart postgres
 ```
 
 ### Limpar Tudo
 ```bash
 # Parar e remover containers
-docker-compose down
+docker compose down
 
 # Remover volumes (cuidado: remove dados!)
-docker-compose down -v
+docker compose down -v
 
 # Limpar sistema Docker
 docker system prune -a
 ```
 
+## 🚀 Produção na VPS (GHCR + nginx + TLS)
+
+A stack de produção fica em `infra/vps/` e serve `https://monburan.com.br`:
+
+```
+infra/vps/
+├── docker-compose.prod.yml  # app (imagem GHCR) + postgres, app só em 127.0.0.1:8080
+├── nginx.conf               # reverse proxy: 80→443, WebSocket p/ Blazor Server
+├── deploy.sh                # provisiona a VPS: deps, stack, nginx, certbot
+├── build-push.sh            # build + push da imagem no GHCR (roda na VPS)
+├── docker-bake.hcl          # alvo do docker buildx bake
+└── env.example              # template do .env de produção
+```
+
+### Fluxo de publicação
+
+1. **CI**: o workflow `.github/workflows/docker-ghcr.yml` faz build + push de
+   `ghcr.io/rondineleg/monburan:latest` (e tag por SHA) a cada push na `main`.
+2. **Build manual na VPS** (alternativa, quando o Actions está indisponível):
+   ```bash
+   export GHCR_TOKEN=ghp_xxx   # PAT com write:packages + read:packages
+   bash infra/vps/build-push.sh
+   ```
+3. **Deploy** (como root, na VPS):
+   ```bash
+   cd /opt/monburan
+   cp infra/vps/env.example .env   # preencher DB_PASSWORD, JWT_SIGNING_KEY, SMTP_*
+   bash infra/vps/deploy.sh
+   ```
+
+O `deploy.sh` instala `nginx`, `certbot` e `curl`, sobe a stack com
+`docker compose -f docker-compose.prod.yml up -d`, configura o site no nginx e
+emite o TLS quando o DNS de `monburan.com.br` aponta para a VPS.
+
+### Arquitetura de produção
+
+```
+Internet → nginx (host, :443 TLS certbot)
+            └── proxy → 127.0.0.1:8080 → container monburan-app (:80)
+                                             └── postgres (rede interna)
+```
+
+- O app **não** expõe porta pública — só `127.0.0.1:8080`.
+- Uploads persistem no volume `app_uploads`; banco no volume `postgres_data`.
+- `APPLY_MIGRATIONS=true` aplica migrations no boot.
+- E-mail sai via SMTP (Resend) usando as variáveis `Smtp__*`.
+
+### Deploy alternativo (sem Docker)
+
+`deploy/deploy.sh` + `deploy/monburan.service` instalam a app publicada
+(`dotnet publish`) como serviço systemd em `/opt/monburan`, com segredos em
+`/opt/monburan/monburan.env` (chmod 600). Usa Postgres local ou via Docker.
+
 ## 🐛 Solução de Problemas
 
-### Porta 1433 já em uso
-Se você já tiver o SQL Server instalado localmente, altere a porta no docker-compose.yml:
+### Porta 5432 já em uso
+Se você já tiver o PostgreSQL instalado localmente, altere a porta no compose:
 
 ```yaml
 ports:
-  - "1434:1433"  # Mapear para porta 1434
+  - "5433:5432"  # Mapear para porta 5433
 ```
 
 ### Erro de permissão no Linux/Mac
 ```bash
-# Dar permissão ao script
 chmod +x docker-build.sh
 ```
 
 ### Containers não iniciam
 ```bash
 # Ver logs para diagnóstico
-docker-compose logs
+docker compose logs
 
 # Reconstruir imagens
-docker-compose build --no-cache
+docker compose build --no-cache
 
 # Limpar e tentar novamente
-docker-compose down -v
-docker-compose up -d
+docker compose down -v
+docker compose up -d
 ```
 
+### App falha no boot com erro de `Jwt:SigningKey`
+A aplicação exige `Jwt__SigningKey` (`ValidateOnStart`). Defina `JWT_SIGNING_KEY`
+no `.env` (gere com `openssl rand -base64 48`) e suba a stack novamente.
+
 ### Erro de conexão com banco de dados
-1. Verifique se o SQL Server está healthy:
+1. Verifique se o Postgres está healthy:
    ```bash
-   docker-compose ps
+   docker compose ps
    ```
-2. Aguarde o health check completar (pode levar 30-40s)
-3. Verifique a senha no arquivo .env
+2. Aguarde o health check completar (pode levar 15-30s)
+3. Verifique as credenciais no arquivo `.env` (`DB_USER`/`DB_PASSWORD`/`DB_NAME`)
 
 ### Build falha
 ```bash
@@ -212,15 +294,21 @@ docker-compose up -d
 docker system prune -a
 
 # Reconstruir sem cache
-docker-compose build --no-cache
+docker compose build --no-cache
 ```
+
+### E-mail não está sendo enviado
+- Com `Smtp__Host` configurado: verifique `SMTP_PASSWORD` (API key do Resend) e
+  os logs do app — falhas de SMTP são logadas como `Error ao enviar email via SMTP`.
+- Sem `Smtp__Host`: verifique `SENDGRID_API_KEY`.
+- Sem nenhum dos dois: o envio é ignorado com `LogWarning` (dev é assim mesmo).
 
 ## 📊 Monitoramento
 
 ### Health Checks
 ```bash
 # Ver health status
-docker-compose ps
+docker compose ps
 
 # Testar health check manual
 curl http://localhost:8080/health
@@ -237,28 +325,25 @@ docker system df
 
 ## 🔐 Segurança
 
-### Senhas
-- **Nunca** use a senha padrão em produção
-- Altere `DB_PASSWORD` no arquivo .env
-- Use senhas fortes (mínimo 8 caracteres, maiúsculas, minúsculas, números, caracteres especiais)
+### Senhas e Segredos
+- **Nunca** use as senhas padrão em produção
+- Altere `DB_PASSWORD` e defina `JWT_SIGNING_KEY` no `.env`
+- O `.env` de produção deve ter `chmod 600` (o `infra/vps/deploy.sh` já aplica)
+- Use senhas fortes (mínimo 12 caracteres com letras, números e símbolos)
 
-### Certificados SSL
-Para produção, configure certificados SSL:
-```bash
-# Adicionar ao docker-compose.yml
-ports:
-  - "8443:443"
-volumes:
-  - ./certs:/app/certs:ro
-```
+### TLS
+Em produção na VPS, o TLS é terminado no **nginx** do host com certificados do
+Let's Encrypt (certbot) — veja `infra/vps/nginx.conf` e `deploy.sh`. O container
+da app expõe apenas HTTP interno (`127.0.0.1:8080`).
 
 ## 📈 Performance
 
 ### Otimizações Implementadas
 - Multi-stage build para reduzir tamanho da imagem
-- .dockerignore para excluir arquivos desnecessários
-- Health checks para auto-recuperação
-- Volume persistente para dados do banco
+- `.dockerignore` para excluir arquivos desnecessários
+- Health check no Postgres (app só sobe com o banco pronto)
+- Volumes persistentes para dados do banco e uploads
+- Cache de camadas do build no GHCR (`cache-from/to: type=gha`)
 
 ### Tamanho das Imagens
 - **Build Stage**: ~1.5GB (SDK)
@@ -269,15 +354,22 @@ volumes:
 
 ### Atualizar Imagens
 ```bash
-docker-compose pull
-docker-compose up -d
+docker compose pull
+docker compose up -d
 ```
 
 ### Rebuild após mudanças
 ```bash
-docker-compose down
-docker-compose build
-docker-compose up -d
+docker compose down
+docker compose build
+docker compose up -d
+```
+
+### Deploy de nova versão na VPS
+```bash
+# Na VPS: puxa a imagem nova do GHCR e reinicia
+docker compose -f docker-compose.prod.yml pull app
+docker compose -f docker-compose.prod.yml up -d
 ```
 
 ## 📝 Notas Importantes
@@ -287,12 +379,13 @@ docker-compose up -d
 3. **Network**: Containers usam network bridge isolada
 4. **Performance**: Docker pode ter overhead de 2-5% em performance
 5. **Windows**: No Windows, use WSL2 para melhor performance
+6. **Compose v2**: use `docker compose` (plugin) — `docker-compose` v1 está descontinuado, mas os scripts `docker-build.sh`/`.ps1` ainda o invocam por compatibilidade
 
 ## 🆘 Suporte
 
 Se encontrar problemas:
 
-1. Verifique os logs: `docker-compose logs`
+1. Verifique os logs: `docker compose logs`
 2. Consulte este documento
 3. Verifique o README principal
 4. Abra uma issue no GitHub
@@ -302,4 +395,5 @@ Se encontrar problemas:
 - [Docker Documentation](https://docs.docker.com/)
 - [Docker Compose Documentation](https://docs.docker.com/compose/)
 - [.NET in Docker](https://docs.microsoft.com/en-us/dotnet/core/docker/)
-- [SQL Server in Docker](https://docs.microsoft.com/en-us/sql/linux/sql-server-linux-docker-container-deployment)
+- [PostgreSQL in Docker](https://hub.docker.com/_/postgres)
+- [GitHub Container Registry (GHCR)](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry)

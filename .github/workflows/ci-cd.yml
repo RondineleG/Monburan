@@ -85,7 +85,7 @@ jobs:
     if: github.ref == 'refs/heads/develop' && github.event_name == 'push'
     environment:
       name: staging
-      url: https://staging.monburan.com
+      url: https://staging.monburan.com.br
     env:
       # O app falha no boot sem Jwt__SigningKey (ValidateOnStart). Com
       # AZURE_CREDENTIALS + AZURE_RESOURCE_GROUP o pipeline provisiona (secret
@@ -144,7 +144,7 @@ jobs:
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     environment:
       name: production
-      url: https://monburan.com
+      url: https://monburan.com.br
     env:
       # Mesma garantia do staging — app não sobe sem Jwt__SigningKey
       HAS_AZURE_CREDS: ${{ secrets.AZURE_CREDENTIALS != '' && vars.AZURE_RESOURCE_GROUP != '' }}

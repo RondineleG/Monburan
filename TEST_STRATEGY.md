@@ -2,11 +2,11 @@
 
 ## Visão Geral
 
-Este documento descreve a estratégia de testes implementada para o projeto Monburan, uma plataforma de recrutamento desenvolvida em .NET 9.0 com Blazor.
+Este documento descreve a estratégia de testes implementada para o projeto Monburan, uma plataforma de recrutamento desenvolvida em .NET 10 com Blazor (web) e .NET MAUI Blazor Hybrid (mobile).
 
 ## Estrutura de Testes
 
-O projeto está organizado em três camadas de testes:
+O projeto está organizado em quatro camadas de testes, totalizando **160 testes automatizados**:
 
 ### 1. Testes Unitários (Monburan.UnitTests)
 
@@ -28,7 +28,7 @@ O projeto está organizado em três camadas de testes:
 - **Value Objects:** Testes para objetos de valor
   - IdTests
 
-**Total de Testes:** 79 testes
+**Total:** 63 testes
 
 ### 2. Testes de Integração (Monburan.IntegrationTests)
 
@@ -42,12 +42,35 @@ O projeto está organizado em três camadas de testes:
 - **Repositories:** Testes para repositórios de dados
   - JobRepositoryTests
 
+**Total:** 7 testes
+
 **Observações:**
-- Os testes de integração foram criados mas estão enfrentando problemas de dependência de recursos (resources) que precisam ser resolvidos
 - Utiliza banco de dados em memória para isolamento
 - Testa operações CRUD completas
 
-### 3. Testes E2E (Monburan.E2ETests)
+### 3. Testes de API (Monburan.ApiTests)
+
+**Objetivo:** Testar os endpoints REST `/api/auth/*` e `/api/v1/*` de ponta a ponta, subindo a aplicação real em memória.
+
+**Localização:** `tests/Monburan.ApiTests/`
+
+**Framework:** xUnit + `Microsoft.AspNetCore.Mvc.Testing` (WebApplicationFactory) + EF Core InMemory
+
+**Infraestrutura:**
+- `MonburanApiFactory` substitui o PostgreSQL por EF InMemory e roda em
+  `Development` para manter o seed de dados (vagas, planos, usuários)
+- Cada factory usa um banco InMemory exclusivo (seed não é idempotente)
+
+**Cobertura:**
+- `AuthApiTests` — login, refresh token, 401 sem token
+- `JobsApiTests` — listagem pública paginada, detalhe, CRUD de anunciante
+- `ApplicationsApiTests` — candidatura end-to-end
+- `FilesApiTests` — upload multipart (válido/inválido)
+- `SubscriptionsApiTests` — planos e assinaturas
+
+**Total:** 38 testes
+
+### 4. Testes E2E (Monburan.E2ETests)
 
 **Objetivo:** Testar o fluxo completo do usuário através da interface.
 
@@ -55,7 +78,16 @@ O projeto está organizado em três camadas de testes:
 
 **Framework:** xUnit + Playwright
 
-**Status:** Projeto configurado mas testes não implementados
+**Cobertura:**
+- `PublicPagesTests` — páginas públicas (home, listagem, detalhe de vaga)
+- `AuthenticationTests` — registro, login, logout
+- `CandidateFlowTests` — fluxo do candidato (busca, candidatura, currículos)
+- `AdvertiserFlowTests` — fluxo do anunciante (criar/gerir vagas, candidaturas)
+- `ShellInteractionTests` — navegação e shell do app
+- `FullSweepTests` — varredura de rotas principais
+- `E2ETestBase` — infraestrutura compartilhada (browser, base URL)
+
+**Total:** 52 testes
 
 ## Ferramentas Utilizadas
 
@@ -63,6 +95,11 @@ O projeto está organizado em três camadas de testes:
 - **xUnit:** Framework de testes unitários para .NET
 - **NSubstitute:** Biblioteca para mocking de objetos
 - **FluentAssertions:** Biblioteca para assertions mais legíveis
+
+### Testes de API
+- **Microsoft.AspNetCore.Mvc.Testing:** `WebApplicationFactory<Program>` sobe a app inteira em memória
+- **EF Core InMemory:** banco isolado por factory, sem dependência de PostgreSQL
+  (a migração para Testcontainers/PostgreSQL real está planejada — issue #4)
 
 ### Cobertura de Código
 - **Coverlet:** Ferramenta de coleta de cobertura de código
@@ -73,34 +110,43 @@ O projeto está organizado em três camadas de testes:
 
 ## Execução de Testes
 
-### Executar Todos os Testes Unitários
+### Executar Todos os Testes
 ```bash
-cd tests/Monburan.UnitTests
 dotnet test
 ```
+
+> ⚠️ O restore/build da solution exige o workload MAUI Android instalado
+> (`dotnet workload install maui-android`), porque o projeto `Monburan.Mobile`
+> faz parte da `Monburan.sln`. O CI já instala o workload no job `build-and-test`.
 
 ### Executar Testes com Cobertura
 ```bash
-dotnet test --collect:"XPlat Code Coverage" --settings coverlet.runsettings
+dotnet test --collect:"XPlat Code Coverage" --settings tests/coverlet.runsettings
 ```
 
-### Executar Testes de Integração
+### Executar por Projeto
 ```bash
-cd tests/Monburan.IntegrationTests
-dotnet test
+dotnet test tests/Monburan.UnitTests
+dotnet test tests/Monburan.IntegrationTests
+dotnet test tests/Monburan.ApiTests
+dotnet test tests/Monburan.E2ETests
 ```
 
 ### Executar Testes E2E
+Os testes E2E usam Playwright e sobem a aplicação real. Na primeira execução:
+
 ```bash
 cd tests/Monburan.E2ETests
+dotnet build
+pwsh bin/Debug/net10.0/playwright.ps1 install   # baixa os browsers
 dotnet test
 ```
 
 ## CI/CD e Cobertura
 
-O pipeline de CI/CD está configurado para:
+O pipeline de CI/CD (`.github/workflows/ci-cd.yml`) está configurado para:
 
-1. Executar testes automaticamente em cada push/PR
+1. Executar testes automaticamente em cada push/PR (`main` e `develop`)
 2. Coletar cobertura de código usando Coverlet
 3. Gerar relatórios HTML usando ReportGenerator
 4. Upload dos relatórios de cobertura como artefatos
@@ -142,13 +188,12 @@ public void MetodoTestado_ComVariosInputs_RetornaEsperado(string input, bool exp
 ## Próximos Passos
 
 ### Curto Prazo
-1. Resolver problemas de dependência de recursos nos testes de integração
-2. Implementar testes E2E críticos para fluxos principais
-3. Aumentar cobertura de testes unitários para outros Use Cases
+1. Executar os testes E2E no pipeline de CI (issue #3)
+2. Aumentar cobertura de testes unitários para outros Use Cases
 
 ### Médio Prazo
-1. Adicionar testes de performance para operações críticas
-2. Implementar testes de carga para APIs
+1. Migrar testes de API/integração para Testcontainers com PostgreSQL real (issue #4)
+2. Adicionar testes de performance para operações críticas
 3. Adicionar testes de segurança
 
 ### Longo Prazo
@@ -158,8 +203,15 @@ public void MetodoTestado_ComVariosInputs_RetornaEsperado(string input, bool exp
 
 ## Métricas Atuais
 
-- **Testes Unitários:** 79 testes passando
-- **Cobertura de Código:** Configurada mas não medida
+| Projeto | Testes | Framework principal |
+|---|---|---|
+| Monburan.UnitTests | 63 | xUnit + NSubstitute |
+| Monburan.IntegrationTests | 7 | xUnit + EF InMemory |
+| Monburan.ApiTests | 38 | WebApplicationFactory |
+| Monburan.E2ETests | 52 | Playwright |
+| **Total** | **160** | |
+
+- **Cobertura de Código:** Coletada no CI (Coverlet + ReportGenerator, artefato `coverage-report`)
 - **Tempo de Execução:** < 1 segundo para testes unitários
 
 ## Melhores Práticas
@@ -170,12 +222,7 @@ public void MetodoTestado_ComVariosInputs_RetornaEsperado(string input, bool exp
 4. **Mocking:** Usar mocks para dependências externas em testes unitários
 5. **Testes Rápidos:** Testes unitários devem ser rápidos (< 100ms)
 6. **Testes Determinísticos:** Evitar aleatoriedade nos testes
-
-## Problemas Conhecidos
-
-1. **Dependência de Recursos:** Alguns Value Objects dependem de arquivos de recursos que não estão configurados corretamente, causando falhas em testes que tentam validar exceções
-2. **Testes de Integração:** Problemas com EF Core e ValueComparer causando falhas ao tentar rastrear entidades
-3. **Health Checks:** Implementação de health checks precisa ser revisada para usar a API correta
+7. **API Tests:** usar `MonburanApiFactory` — banco InMemory isolado por factory, seed de Development
 
 ## Referências
 
@@ -184,3 +231,4 @@ public void MetodoTestado_ComVariosInputs_RetornaEsperado(string input, bool exp
 - [FluentAssertions Documentation](https://fluentassertions.com/)
 - [Coverlet Documentation](https://github.com/coverlet-coverage/coverlet)
 - [Playwright Documentation](https://playwright.dev/)
+- [WebApplicationFactory — ASP.NET Core integration tests](https://learn.microsoft.com/aspnet/core/test/integration-tests)

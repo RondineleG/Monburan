@@ -53,7 +53,7 @@ O quadro segue o fluxo de trabalho abaixo, com critério de sucesso definido par
 
 O quadro está distribuído em 2 grupos: **trabalho já implementado** (issues #13–#24, criadas para registrar as entregas concluídas) e **melhorias pendentes** (issues #1–#12, planejadas para as etapas).
 
-#### Coluna `Done` — implementado, integrado e verificado (7)
+#### Coluna `Done` — implementado, integrado e verificado (8)
 
 | Issue | Título | Fase | Prioridade |
 |---|---|---|---|
@@ -64,13 +64,13 @@ O quadro está distribuído em 2 grupos: **trabalho já implementado** (issues #
 | #17 | feat: espaço do candidato e gestão de currículos | Etapa 1 | Média |
 | #18 | feat: sistema de planos e assinaturas | Etapa 1 | Baixa |
 | #19 | feat: API REST para o fluxo de candidato | Etapa 1 | Alta |
+| #21 | chore: empacotamento Docker e compose de deploy | Etapa 1 | Média |
 
-#### Coluna `In QA` — implementado, aguardando validação funcional (3)
+#### Coluna `In QA` — implementado, aguardando validação funcional (2)
 
 | Issue | Título | Fase | Prioridade |
 |---|---|---|---|
 | #20 | test: suíte E2E com Playwright | Etapa 1 | Média |
-| #21 | chore: empacotamento Docker e compose de deploy | Etapa 1 | Média |
 | #22 | feat: health checks, logging estruturado e Swagger | Etapa 1 | Baixa |
 
 #### Coluna `In Review` — implementado, aguardando revisão de código (2)
@@ -108,6 +108,8 @@ O quadro está distribuído em 2 grupos: **trabalho já implementado** (issues #
 | #10 | feat: observabilidade com OpenTelemetry | Etapa 2 | Baixa |
 
 > **Nota de transparência:** os cards nas colunas `Done`, `In QA` e `In Review` representam trabalho já desenvolvido e presente no repositório. Como o projeto foi construído com commits diretos na `main` (sem fluxo de PR), essas colunas refletem o estado de implementação/validação real de cada entregável, e não a passagem por PRs abertos — o que aconteceria ao adotar o fluxo de PR completo.
+
+> **Entregas recentes (16/10) ainda sem card próprio no board:** deploy em produção na VPS (imagem `ghcr.io/rondineleg/monburan` + nginx + TLS via certbot em `monburan.com.br`), workflow `docker-ghcr.yml` e `infra/vps/build-push.sh` para build/push da imagem, envio de e-mail transacional via SMTP (Resend), correção do domínio para `monburan.com.br`, renovação de UI/UX do design system (web e mobile) e correção do branding para MONBURAN no app Android. A issue #21 foi movida para `Done` por cobrir o empacotamento Docker/compose de deploy.
 
 ## 5. Milestones (etapas da avaliação)
 

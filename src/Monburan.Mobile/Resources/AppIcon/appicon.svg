@@ -1,18 +1,15 @@
 <svg width="456" height="456" viewBox="0 0 456 456" xmlns="http://www.w3.org/2000/svg">
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="456" y2="456" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#1a0f00"/>
-      <stop offset="1" stop-color="#2d1a00"/>
+      <stop offset="0" stop-color="#fefaf3"/>
+      <stop offset="1" stop-color="#f2ebd9"/>
     </linearGradient>
     <linearGradient id="gold" x1="128" y1="128" x2="328" y2="328" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#e8c96a"/>
-      <stop offset="0.5" stop-color="#c9a84c"/>
+      <stop offset="0" stop-color="#c9a84c"/>
       <stop offset="1" stop-color="#8a5500"/>
     </linearGradient>
   </defs>
   <rect width="456" height="456" rx="92" fill="url(#bg)"/>
-  <!-- Estrela de 4 pontas — marca Monburan (talento que brilha) -->
   <path d="M228 108 L252 196 L340 228 L252 260 L228 348 L204 260 L116 228 L204 196 Z" fill="url(#gold)"/>
-  <!-- Ponto central -->
-  <circle cx="228" cy="228" r="14" fill="#1a0f00"/>
+  <circle cx="228" cy="228" r="14" fill="#fefaf3"/>
 </svg>
