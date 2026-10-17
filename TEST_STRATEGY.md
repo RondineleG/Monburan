@@ -146,7 +146,7 @@ dotnet test
 
 O pipeline de CI/CD (`.github/workflows/ci-cd.yml`) está configurado para:
 
-1. Executar testes automaticamente em cada push/PR (`main` e `develop`)
+1. Executar testes automaticamente em cada push/PR (`main` e `dev`)
 2. Coletar cobertura de código usando Coverlet
 3. Gerar relatórios HTML usando ReportGenerator
 4. Upload dos relatórios de cobertura como artefatos

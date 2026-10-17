@@ -110,7 +110,7 @@ export Smtp__Password="sua-api-key-resend"
 ### CI/CD Pipeline
 - **Plataforma**: GitHub Actions
 - **Workflows**:
-  - `ci-cd.yml` → build + testes (unit, integração e API, com coverage), E2E (Playwright + Postgres de serviço), scan de segredos e de pacotes NuGet vulneráveis; deploy no Azure (staging `develop` / produção `main`) só quando o Azure está configurado
+  - `ci-cd.yml` → build + testes (unit, integração e API, com coverage), E2E (Playwright + Postgres de serviço), scan de segredos e de pacotes NuGet vulneráveis; deploy no Azure (staging `dev` / produção `main`) só quando o Azure está configurado
   - `docker-ghcr.yml` → build e push da imagem Docker para `ghcr.io/rondineleg/monburan` a cada push na `main`
   - `android-release.yml` → APK release assinado a partir da `main`; publica a release `v<versão>` quando a versão do csproj é nova
   - `ios-build.yml` → em macOS: build do app para o simulador (com print) e `.ipa` sem assinatura anexado à release; sem conta Apple Developer não há TestFlight nem App Store

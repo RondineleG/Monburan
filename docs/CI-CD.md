@@ -4,7 +4,7 @@
 
 | Workflow | Quando roda | O que faz |
 |---|---|---|
-| `ci-cd.yml` | push e PR em `main`/`develop`, manual | build Release da solução (inclui o app Android), testes unitários, de integração e de API com coverage, **E2E** (Playwright contra o app em Development + Postgres de serviço, com 1 retentativa), scan de segredos, auditoria de pacotes NuGet vulneráveis e `dotnet publish` da web como artefato |
+| `ci-cd.yml` | push e PR em `main`/`dev`, manual | build Release da solução (inclui o app Android), testes unitários, de integração e de API com coverage, **E2E** (Playwright contra o app em Development + Postgres de serviço, com 1 retentativa), scan de segredos, auditoria de pacotes NuGet vulneráveis e `dotnet publish` da web como artefato |
 | `docker-ghcr.yml` | push na `main` com mudança em `src/**`, manual | constrói a imagem Docker e publica em `ghcr.io/rondineleg/monburan` (`latest` + tag com o sha do commit) |
 | `android-release.yml` | push na `main` com mudança no app/Core, PR para a `main`, manual | compila, assina e confere o APK; na `main`, publica a release `v<versão>` com o APK |
 | `ios-build.yml` | push na `main` e PR com mudança no app/Core, manual | em macOS: compila o app para o simulador, abre e tira print; gera o `.ipa` sem assinatura (anexado à release na `main`) |
@@ -76,7 +76,7 @@ A imagem `latest` é construída e publicada pelo `docker-ghcr.yml` a cada push 
 > <https://github.com/users/RondineleG/packages/container/monburan/settings>, em *Manage Actions access* use
 > *Add Repository*, escolha `Monburan` e o papel **Write**. Sem isso o passo "Build and push" falha com
 > `denied: permission_denied: write_package` (visto em 17/10/2026; o build da imagem em si passa no runner).
-> Para conferir depois de ajustar: `gh workflow run docker-ghcr.yml --ref develop` publica só a tag do sha, porque o
+> Para conferir depois de ajustar: `gh workflow run docker-ghcr.yml --ref dev` publica só a tag do sha, porque o
 > `latest` só é movido na `main`.
 
 A VPS baixa a imagem manualmente (não há deploy automático por SSH, que exigiria secrets de acesso ao servidor):
