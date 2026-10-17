@@ -8,6 +8,11 @@ on:
       - '.github/workflows/docker-ghcr.yml'
   workflow_dispatch:
 
+# Dois pushes seguidos na main não podem inverter a ordem: o build mais novo é o último a publicar o `latest`
+concurrency:
+  group: docker-ghcr
+  cancel-in-progress: false
+
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
@@ -38,17 +43,18 @@ jobs:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
             type=sha,prefix=
-            type=raw,value=latest,enable={{is_default_branch}}
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
+      # Só a main publica: em disparo manual de outra branch o workflow apenas constrói a imagem, sem enviá-la
       - name: Build and push
         uses: docker/build-push-action@v6
         with:
           context: .
           file: src/Monburan.Web/Dockerfile
-          push: true
+          push: ${{ github.ref == 'refs/heads/main' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha

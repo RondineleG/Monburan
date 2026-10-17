@@ -48,6 +48,8 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
+      with:
+        persist-credentials: false
 
     # Publicar sem keystore geraria um APK assinado com a chave de debug do runner, que muda a
     # cada execução (ninguém conseguiria atualizar por cima) — melhor falhar cedo e avisar.
