@@ -380,7 +380,12 @@ jobs:
           echo "::warning::A release $tag não existe (o android-release.yml não a publicou); o .ipa fica só como artefato do run"
           exit 0
         fi
-        gh release upload "$tag" "$IPA" --clobber
+        # Como no Android, o que já foi publicado numa versão não é trocado: suba a versão no csproj para publicar outro
+        if gh release view "$tag" --json assets --jq '.assets[].name' | grep -qxF "$(basename "$IPA")"; then
+          echo "O $(basename "$IPA") já está anexado a $tag; nada a fazer."
+          exit 0
+        fi
+        gh release upload "$tag" "$IPA"
 
         # Instruções de instalação nas notas, uma vez só (marcador no comentário HTML)
         body="$(gh release view "$tag" --json body --jq .body)"

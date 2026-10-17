@@ -43,19 +43,33 @@ preciso desinstalar a versão anterior uma vez.
 O iOS só compila em macOS, então o `ios-build.yml` usa runner `macos-latest` (grátis em repositório público). O projeto
 declara o alvo `net10.0-ios26.0` apenas quando o build roda em macOS; no Linux, no Windows e no APK nada muda.
 
-O alvo é o SDK do iOS 26 (Xcode 26.0): o workload do .NET 10 traz também o do iOS 27, que exige o Xcode 27, ainda
-ausente dos runners do GitHub. Para mirar o 27, troque `IosSdkVersion` no csproj e `IOS_SDK` no `ios-build.yml`.
+O alvo é o SDK do iOS 26 do .NET (pacote 26.0): o workload do .NET 10 traz também o do iOS 27, que exige o Xcode 27,
+ainda ausente dos runners do GitHub. Para mirar o 27, troque `IosSdkVersion` no csproj e `IOS_SDK` no `ios-build.yml`.
 A esteira usa `-p:IosOnly=true` para o app declarar só o alvo iOS e não exigir o workload do Android no macOS.
+
+**Xcode do runner.** O compilador de assets do Xcode (`actool`) precisa de um runtime de simulador da mesma versão do
+iOS que o SDK do Xcode em uso, e o runner só guarda runtimes do 26.2 em diante. O passo "Selecionar o Xcode" escolhe o
+Xcode mais antigo, a partir do SDK alvo, que tenha esse runtime (hoje o 26.2). Como o pacote 26.0 do .NET pede o
+Xcode 26.0, os builds passam `-p:ValidateXcodeVersion=false`, que desliga só essa checagem de versão.
+
+**Keychain.** `Platforms/iOS/Entitlements.plist` (grupo de Keychain do SecureStorage) só entra no build com
+`-p:IosKeychain=true`, porque exige uma identidade de assinatura, que a esteira não tem. Fica para quando houver conta
+Apple.
 
 Sem conta Apple Developer não há assinatura, TestFlight nem App Store. O que a esteira entrega:
 
-- **Job `simulator`:** compila em Release para o simulador, abre o app, espera 25 s, confirma que ele continua em
-  execução e guarda o print (`ios-simulador-print`) como artefato. O app de Release lê a lista de vagas de
-  `https://monburan.com.br/` (leitura pública).
+- **Job `simulator`:** compila em Release para o simulador, dá ao app uma assinatura ad hoc (o simulador em Mac arm64
+  só executa binário assinado; ela não usa certificado nem identifica ninguém), abre no iPhone do simulador, espera
+  25 s, confirma que o app continua em execução e guarda o print (`ios-simulador-print`) como artefato. O app de
+  Release lê a lista de vagas de `https://monburan.com.br/` (leitura pública). Se o app cair, o log traz o resumo do
+  relatório de crash e o diagnóstico vai como artefato (`ios-simulador-diagnostico`).
 - **Job `ipa`:** compila para aparelho (`ios-arm64`) sem assinar, monta o `.ipa` (um zip com o `.app` em `Payload/`) e
   confere identificador (`com.monburan.app`), versão e build contra o csproj, a arquitetura e a ausência de assinatura.
   Em PR vira artefato do run; na `main` é anexado à release `v<versão>` (criada pelo `android-release.yml`, que o job
-  espera existir), com as instruções de instalação nas notas.
+  espera existir), com as instruções de instalação nas notas. Como no Android, o que já foi anexado a uma versão não
+  é trocado: para publicar outro `.ipa`, suba a versão no csproj.
+
+Cada execução leva cerca de 20 minutos (os dois jobs rodam em paralelo; só o build do simulador gasta cerca de 14).
 
 **Instalar o `.ipa` sem assinatura:** o arquivo não instala direto. Use AltStore ou Sideloadly com um Apple ID gratuito,
 que assinam na hora. Limites do Apple ID gratuito: a assinatura vale 7 dias (é preciso renovar), no máximo 3 apps ativos
