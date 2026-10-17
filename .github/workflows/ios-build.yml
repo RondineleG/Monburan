@@ -346,9 +346,14 @@ jobs:
         exe="$(plutil -extract CFBundleExecutable raw "$PLIST")"
         minos="$(plutil -extract MinimumOSVersion raw "$PLIST")"
         echo "Identificador: $id | versão: $short | build: $build | iOS mínimo: $minos"
-        echo "Arquitetura: $(lipo -info "$APP/$exe")"
+        archs="$(lipo -archs "$APP/$exe")"
+        echo "Arquitetura: $archs"
         if [ "$id" != "com.monburan.app" ] || [ "$short" != "$VERSION_NAME" ] || [ "$build" != "$VERSION_CODE" ]; then
           echo "::error::O pacote não tem a identidade esperada (com.monburan.app / $VERSION_NAME / $VERSION_CODE)"
+          exit 1
+        fi
+        if [ "$archs" != "arm64" ]; then
+          echo "::error::O executável deveria ser só arm64, mas é: $archs"
           exit 1
         fi
         # Sem assinatura de propósito: o codesign precisa dizer isso, para ninguém tomar o arquivo por distribuível

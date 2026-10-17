@@ -64,7 +64,8 @@ Sem conta Apple Developer não há assinatura, TestFlight nem App Store. O que a
   Release lê a lista de vagas de `https://monburan.com.br/` (leitura pública). Se o app cair, o log traz o resumo do
   relatório de crash e o diagnóstico vai como artefato (`ios-simulador-diagnostico`).
 - **Job `ipa`:** compila para aparelho (`ios-arm64`) sem assinar, monta o `.ipa` (um zip com o `.app` em `Payload/`) e
-  confere identificador (`com.monburan.app`), versão e build contra o csproj, a arquitetura e a ausência de assinatura.
+  confere identificador (`com.monburan.app`), versão e build contra o csproj e a arquitetura (só `arm64`), e avisa se o
+  pacote vier assinado.
   Em PR vira artefato do run; na `main` é anexado à release `v<versão>` (criada pelo `android-release.yml`, que o job
   espera existir), com as instruções de instalação nas notas. Como no Android, o que já foi anexado a uma versão não
   é trocado: para publicar outro `.ipa`, suba a versão no csproj.
