@@ -49,20 +49,30 @@ jobs:
       with:
         dotnet-version: ${{ env.DOTNET_VERSION }}
 
-    # O workload iOS do .NET 10 trabalha com o Xcode 26: escolhe o mais novo da série 26 instalado no runner
-    - name: Selecionar o Xcode
+    - name: Install MAUI iOS workload
+      run: dotnet workload install maui-ios
+
+    # O workload iOS do .NET exige o Xcode da versão do SDK de iOS que ele traz (hoje o iOS 27, que pede o Xcode 27).
+    # A versão sai do nome do pacote instalado (Microsoft.iOS.Sdk.net10.0_<versão>), então a esteira acompanha o
+    # workload sem número fixo: escolhe o Xcode instalado no runner que casa com ela.
+    - name: Selecionar o Xcode exigido pelo workload
       run: |
-        XCODE="$(find /Applications -maxdepth 1 -name 'Xcode_26*.app' | sort -V | tail -1)"
+        PACK="$(find "${DOTNET_ROOT:-$HOME/.dotnet}/packs" -maxdepth 1 -name 'Microsoft.iOS.Sdk.net10.0_*' | sort -V | tail -1)"
+        REQ="${PACK##*_}"
+        MAJOR="${REQ%%.*}"
+        echo "macOS: $(sw_vers -productVersion) | o workload iOS exige o Xcode $REQ"
+        echo "Xcodes instalados no runner:"
+        find /Applications -maxdepth 1 -name 'Xcode*.app' | sort -V
+        XCODE="$(find /Applications -maxdepth 1 -name "Xcode_${REQ}*.app" | sort -V | tail -1)"
         if [ -z "$XCODE" ]; then
-          echo "::error::Nenhum Xcode 26 instalado neste runner"
-          ls -d /Applications/Xcode* || true
+          XCODE="$(find /Applications -maxdepth 1 -name "Xcode_${MAJOR}*.app" | sort -V | tail -1)"
+        fi
+        if [ -z "$XCODE" ]; then
+          echo "::error::Nenhum Xcode ${REQ} (nem ${MAJOR}.x) instalado neste runner; veja a lista acima"
           exit 1
         fi
         sudo xcode-select -s "$XCODE/Contents/Developer"
         xcodebuild -version
-
-    - name: Install MAUI iOS workload
-      run: dotnet workload install maui-ios
 
     - name: Build para o simulador (Release, sem assinatura)
       run: |
@@ -141,19 +151,30 @@ jobs:
       with:
         dotnet-version: ${{ env.DOTNET_VERSION }}
 
-    - name: Selecionar o Xcode
+    - name: Install MAUI iOS workload
+      run: dotnet workload install maui-ios
+
+    # O workload iOS do .NET exige o Xcode da versão do SDK de iOS que ele traz (hoje o iOS 27, que pede o Xcode 27).
+    # A versão sai do nome do pacote instalado (Microsoft.iOS.Sdk.net10.0_<versão>), então a esteira acompanha o
+    # workload sem número fixo: escolhe o Xcode instalado no runner que casa com ela.
+    - name: Selecionar o Xcode exigido pelo workload
       run: |
-        XCODE="$(find /Applications -maxdepth 1 -name 'Xcode_26*.app' | sort -V | tail -1)"
+        PACK="$(find "${DOTNET_ROOT:-$HOME/.dotnet}/packs" -maxdepth 1 -name 'Microsoft.iOS.Sdk.net10.0_*' | sort -V | tail -1)"
+        REQ="${PACK##*_}"
+        MAJOR="${REQ%%.*}"
+        echo "macOS: $(sw_vers -productVersion) | o workload iOS exige o Xcode $REQ"
+        echo "Xcodes instalados no runner:"
+        find /Applications -maxdepth 1 -name 'Xcode*.app' | sort -V
+        XCODE="$(find /Applications -maxdepth 1 -name "Xcode_${REQ}*.app" | sort -V | tail -1)"
         if [ -z "$XCODE" ]; then
-          echo "::error::Nenhum Xcode 26 instalado neste runner"
-          ls -d /Applications/Xcode* || true
+          XCODE="$(find /Applications -maxdepth 1 -name "Xcode_${MAJOR}*.app" | sort -V | tail -1)"
+        fi
+        if [ -z "$XCODE" ]; then
+          echo "::error::Nenhum Xcode ${REQ} (nem ${MAJOR}.x) instalado neste runner; veja a lista acima"
           exit 1
         fi
         sudo xcode-select -s "$XCODE/Contents/Developer"
         xcodebuild -version
-
-    - name: Install MAUI iOS workload
-      run: dotnet workload install maui-ios
 
     - name: Ler a versão do csproj
       id: version
