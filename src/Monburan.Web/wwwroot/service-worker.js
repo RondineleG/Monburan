@@ -1,8 +1,8 @@
 // Monburan Service Worker - PWA Support
 // Network First Strategy with basic offline caching
 
-const CACHE_NAME = 'monburan-v7-ux-feedback';
-const RUNTIME_CACHE = 'monburan-runtime-v7-ux-feedback';
+const CACHE_NAME = 'monburan-v8-vagas';
+const RUNTIME_CACHE = 'monburan-runtime-v8-vagas';
 
 // Assets to cache on install
 const PRECACHE_ASSETS = [

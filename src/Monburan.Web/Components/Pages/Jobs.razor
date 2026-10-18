@@ -1,524 +1,390 @@
 @page "/jobs"
-@rendermode InteractiveServer
-@using Monburan.Core.DTOs.Request
-@using Monburan.Core.DTOs.Response
+@using System.Globalization
 @using Monburan.Core.Enums
-@using Monburan.Core.UseCases.Jobs
-@using Monburan.Web.Services
 @inject SearchJobsUseCase SearchJobsUseCase
-@inject GetJobByIdUseCase GetJobByIdUseCase
 @inject ICurrentUserHelper CurrentUserHelper
 @inject NavigationManager Navigation
 @inject ILogger<Jobs> Logger
 
-<PageTitle>Vagas Disponíveis - Monburan</PageTitle>
+@* Página pública, renderizada no servidor: a busca inteira vive na URL (?q=&local=&modo=&salario=&ordem=&pagina=),
+   então o botão Voltar, o compartilhamento e o recarregamento reproduzem a mesma lista. O formulário é GET e o
+   Blazor o trata como navegação melhorada (data-enhance); os filtros enviam o formulário ao mudar (monburan-ui.js).
+   O endereço não leva âncora (#): com ela o Blazor entende o Voltar como mudança só de âncora e não recarrega a lista. *@
+
+<PageTitle>@TitleText</PageTitle>
 
 <HeadContent>
-    <meta name="description" content="Encontre as melhores vagas de emprego no Monburan. Filtre por localização, categoria e tipo de vaga." />
-    <meta property="og:title" content="Monburan - Vagas de Emprego" />
-    <meta property="og:description" content="Encontre a vaga ideal para você. Centenas de vagas disponíveis gratuitamente." />
+    <meta name="description" content="Encontre vagas de emprego por cargo, cidade e modalidade de trabalho. Candidate-se gratuitamente no Monburan." />
+    <meta property="og:title" content="Vagas de emprego - Monburan" />
+    <meta property="og:description" content="Busque por cargo, cidade e modalidade de trabalho e candidate-se gratuitamente." />
     <meta property="og:type" content="website" />
+    @if (isFiltered || page > 1)
+    {
+        @* Cada combinação de filtros é uma página nova: só a lista sem filtros entra no índice *@
+        <meta name="robots" content="noindex, follow" />
+    }
 </HeadContent>
 
 <div class="container jobs-page">
-    <div class="jobs-hero">
+    <header class="jobs-header">
         <div>
             <span class="page-kicker">OPORTUNIDADES ABERTAS</span>
-            <h1 class="jobs-hero__title">Encontre sua próxima oportunidade</h1>
-            <p class="jobs-hero__subtitle">Pesquise por uma vaga que combine com seu momento, suas habilidades e o jeito que você quer trabalhar.</p>
+            <h1 class="jobs-header__title">Encontre sua próxima vaga</h1>
         </div>
-        <div class="jobs-hero__action">
-            @if (isAdvertiser)
-            {
-                <a class="btn btn-primary" href="/jobs/create">Publicar uma vaga <span aria-hidden="true">↗</span></a>
-            }
-            else if (isAnonymous)
-            {
-                <a class="btn btn-outline-primary" href="/Account/Register?AccountType=advertiser">Sou recrutador <span aria-hidden="true">↗</span></a>
-            }
-        </div>
-    </div>
+        @if (isAdvertiser)
+        {
+            <a class="btn btn-outline-primary" href="/jobs/create">Publicar uma vaga <span aria-hidden="true">↗</span></a>
+        }
+        else if (!isAuthenticated)
+        {
+            <a class="btn btn-outline-primary" href="/Account/Register?AccountType=advertiser">Sou recrutador <span aria-hidden="true">↗</span></a>
+        }
+    </header>
 
-    <div class="card jobs-search-panel mb-4">
-        <div class="jobs-search-panel__intro">
-            <div>
-                <span class="jobs-search-panel__icon">⌕</span>
-                <div>
-                    <strong>Encontre pelo que importa</strong>
-                    <span>Combine palavras-chave, local e modelo de trabalho.</span>
-                </div>
-            </div>
-            <span class="jobs-search-panel__hint">Busca por critérios</span>
+    <form id="jobs-search-form" class="jobs-search" method="get" action="/jobs" role="search"
+          aria-label="Buscar vagas" data-enhance data-clean-query data-scroll-results data-testid="jobs-search-form">
+        <div class="jobs-search__bar">
+            <label class="search-field">
+                <Icon Name="search" Size="20" />
+                <span class="visually-hidden">Cargo, habilidade ou palavra-chave</span>
+                <input id="job-search" name="q" type="search" value="@searchTerm" maxlength="100" autocomplete="off"
+                       enterkeyhint="search" placeholder="Cargo, habilidade ou palavra-chave" data-testid="job-search" />
+            </label>
+            <label class="search-field">
+                <Icon Name="map-pin" Size="20" />
+                <span class="visually-hidden">Cidade ou estado</span>
+                <input id="job-location" name="local" type="text" value="@locationText" maxlength="80" autocomplete="off"
+                       enterkeyhint="search" placeholder="Cidade ou estado" data-testid="job-location" />
+            </label>
+            <button type="submit" class="btn btn-primary btn-cta jobs-search__submit" data-testid="job-search-submit">Buscar vagas</button>
         </div>
-        <div class="card-body">
-            <div class="row g-3">
-                <div class="col-md-6">
-                    <label class="form-label" for="job-search">O que você procura?</label>
-                    <input id="job-search" type="text" class="form-control jobs-search-input" @bind="searchTerm" @onkeydown="OnSearchKeyDown" placeholder="Cargo, habilidade ou palavra-chave" data-testid="job-search" />
-                </div>
-                <div class="col-md-3">
-                    <label class="form-label" for="job-city">Cidade</label>
-                    <input id="job-city" type="text" class="form-control" @bind="city" @onkeydown="OnSearchKeyDown" placeholder="Cidade..." />
-                </div>
-                <div class="col-md-3">
-                    <label class="form-label" for="job-state">Estado</label>
-                    <input id="job-state" type="text" class="form-control" @bind="state" @onkeydown="OnSearchKeyDown" placeholder="UF..." maxlength="2" />
-                </div>
-                <div class="col-md-3">
-                    <label class="form-label" for="job-salary-min">Salário Mínimo</label>
-                    <input id="job-salary-min" type="number" class="form-control" @bind="salaryMin" placeholder="R$ ..." />
-                </div>
-                <div class="col-md-3">
-                    <label class="form-label" for="job-salary-max">Salário Máximo</label>
-                    <input id="job-salary-max" type="number" class="form-control" @bind="salaryMax" placeholder="R$ ..." />
-                </div>
-                <div class="col-md-3">
-                    <label class="form-label" for="job-type">Tipo</label>
-                    <select id="job-type" class="form-select" @bind="jobType">
-                        <option value="">Todos</option>
-                        <option value="OnSite">Presencial</option>
-                        <option value="Remote">Remoto</option>
-                        <option value="Hybrid">Híbrido</option>
-                    </select>
-                </div>
-                <div class="col-md-3 d-flex align-items-end">
-                    <button class="btn btn-primary w-100" @onclick="Search" disabled="@isLoading" data-testid="job-search-submit">Buscar vagas <span aria-hidden="true">↗</span></button>
-                </div>
-            </div>
-        </div>
-    </div>
 
-    @if (isLoading)
+        <div class="jobs-filters">
+            <fieldset class="chip-group">
+                <legend class="visually-hidden">Modalidade de trabalho</legend>
+                <label class="chip" data-testid="filter-mode-all">
+                    <input type="radio" name="modo" value="" checked="@(jobType.Length == 0)" data-autosubmit data-default="" />
+                    <span>Todas</span>
+                </label>
+                @foreach (var mode in Modes)
+                {
+                    <label class="chip" data-testid="@($"filter-mode-{mode.Value}")">
+                        <input type="radio" name="modo" value="@mode.Value" checked="@(jobType == mode.Value)" data-autosubmit data-default="" />
+                        <span><Icon Name="@mode.Icon" Size="15" />@mode.Label</span>
+                    </label>
+                }
+            </fieldset>
+
+            <label class="chip-select@(salaryFloor.Length > 0 ? " is-active" : string.Empty)">
+                <span class="visually-hidden">Salário mínimo</span>
+                <select name="salario" data-autosubmit data-default="" data-testid="filter-salary">
+                    <option value="">Qualquer salário</option>
+                    @foreach (var floor in SalaryFloors)
+                    {
+                        var value = floor.ToString(CultureInfo.InvariantCulture);
+                        <option value="@value" selected="@(salaryFloor == value)">A partir de R$ @JobDisplay.Money(floor)</option>
+                    }
+                </select>
+                <Icon Name="chevron-down" Size="14" />
+            </label>
+
+            @if (isFiltered)
+            {
+                @* Navegação completa de propósito: recarrega a página e esvazia os campos do formulário *@
+                <a class="chip-clear" href="/jobs" data-enhance-nav="false" data-testid="filters-clear">
+                    <Icon Name="rotate-ccw" Size="14" />Limpar filtros
+                </a>
+            }
+        </div>
+    </form>
+
+    @if (loadFailed)
     {
-        <LoadingState Message="Carregando vagas..." />
-    }
-    else if (loadFailed)
-    {
-        <ErrorState Title="Não foi possível carregar as vagas"
-                    Message="Tivemos um problema ao buscar as oportunidades. Tente novamente em instantes."
-                    OnRetry="() => LoadPageAsync(currentPage)" />
+        <section class="empty-state error-state" role="alert" data-testid="error-state">
+            <span class="empty-state__icon error-state__icon" aria-hidden="true">!</span>
+            <h2>Não foi possível carregar as vagas</h2>
+            <p>Tivemos um problema ao buscar as oportunidades. Tente novamente em instantes.</p>
+            <a class="btn btn-primary" href="@Navigation.Uri" data-enhance-nav="false" data-testid="error-retry">Tentar novamente</a>
+        </section>
     }
     else
-        {
-            <div class="jobs-results-bar">
+    {
+        <section id="jobs-results" class="jobs-results" aria-labelledby="jobs-results-title"
+                 data-testid="jobs-results" data-sort="@sortKey" data-mode="@jobType" data-page="@(page)">
+            <div class="jobs-results__bar">
                 <div>
-                    <span class="page-kicker">RESULTADOS</span>
-                    <h2>Vagas para você</h2>
+                    <h2 id="jobs-results-title" class="jobs-results__title" data-testid="jobs-count">@CountText</h2>
+                    @if (ContextText is not null)
+                    {
+                        <p class="jobs-results__context" data-testid="jobs-context">@ContextText</p>
+                    }
                 </div>
-                <span class="jobs-count">@searchResponse.TotalCount @(searchResponse.TotalCount == 1 ? "oportunidade encontrada" : "oportunidades encontradas")</span>
+                <label class="chip-select chip-select--sort">
+                    <span class="chip-select__label">Ordenar por</span>
+                    <select name="ordem" form="jobs-search-form" data-autosubmit data-default="@DefaultSort" data-testid="jobs-sort">
+                        <option value="recentes" selected="@(sortKey == "recentes")">Mais recentes</option>
+                        <option value="salario" selected="@(sortKey == "salario")">Maior salário</option>
+                        <option value="titulo" selected="@(sortKey == "titulo")">Título (A–Z)</option>
+                    </select>
+                    <Icon Name="chevron-down" Size="14" />
+                </label>
             </div>
 
-            @if (searchResponse?.Jobs == null || !searchResponse.Jobs.Any())
+            @if (!results.Jobs.Any())
             {
                 <EmptyState Icon="⌕"
                             Title="Nenhuma vaga encontrada"
                             Message="Tente outras palavras-chave, remova algum filtro ou volte mais tarde — novas vagas são publicadas todos os dias."
                             TestId="jobs-empty">
-                    <button type="button" class="btn btn-outline-primary" @onclick="ClearFiltersAsync">Limpar filtros</button>
+                    @if (isFiltered)
+                    {
+                        <a class="btn btn-outline-primary" href="/jobs" data-enhance-nav="false">Limpar filtros</a>
+                    }
                 </EmptyState>
             }
             else
             {
-            <div class="row g-3 jobs-grid">
-                @foreach (var job in searchResponse.Jobs)
+                <div class="jobs-grid" data-testid="jobs-grid">
+                    @foreach (var job in results.Jobs)
+                    {
+                        <JobCard @key="job.Id" Job="job" IsOwner="@(advertiserId.HasValue && job.AdvertiserId == advertiserId.Value)" />
+                    }
+                </div>
+
+                @if (results.TotalPages > 1)
                 {
-                    <div class="col-md-6 col-lg-4">
-                        <article class="card h-100 job-card job-card--detailed @(job.IsRemote ? "job-card--remote" : "")" data-testid="job-card">
-                            <div class="card-body job-card__body">
-                                <div class="job-card__top">
-                                    <span class="job-company-mark">@(string.IsNullOrEmpty(job.AdvertiserName) ? "R" : job.AdvertiserName![..1].ToUpperInvariant())</span>
-                                    @if (job.IsRemote)
-                                    {
-                                        <span class="badge bg-success">Remoto</span>
-                                    }
-                                </div>
-                                <h3 class="card-title job-card__title">@job.Title</h3>
-                                @if (!string.IsNullOrEmpty(job.AdvertiserName))
-                                {
-                                    <p class="job-card__company">@job.AdvertiserName</p>
-                                }
-                                <div class="job-card__meta">
-                                    @if (!string.IsNullOrEmpty(job.City))
-                                    {
-                                        <span><span aria-hidden="true">⌖</span> @job.City, @job.State</span>
-                                    }
-                                    <span><span aria-hidden="true">◷</span> @(job.Type == "OnSite" ? "Presencial" : job.Type == "Remote" ? "Remoto" : "Híbrido")</span>
-                                    <span><span aria-hidden="true">▤</span> @job.NumberOfOpenings @(job.NumberOfOpenings == 1 ? "vaga" : "vagas")</span>
-                                    @if (job.ExpirationDate != default)
-                                    {
-                                        <span><span aria-hidden="true">◷</span> Até @job.ExpirationDate.ToString("dd/MM/yyyy")</span>
-                                    }
-                                </div>
-
-                                @if (job.SalaryDisplay && job.SalaryMin.HasValue && job.SalaryMax.HasValue)
-                                {
-                                    <p class="job-card__salary">
-                                        @GetCurrencySymbol(job.SalaryCurrency) @job.SalaryMin.Value.ToString("N2") – @GetCurrencySymbol(job.SalaryCurrency) @job.SalaryMax.Value.ToString("N2")
-                                    </p>
-                                }
-
-                                @if (!string.IsNullOrEmpty(job.Category))
-                                {
-                                    <span class="badge bg-info job-card__category">@job.Category</span>
-                                }
-
-                                @if (!string.IsNullOrWhiteSpace(job.Description))
-                                {
-                                    <p class="job-card__description">
-                                        @(job.Description.Length > 190 ? $"{job.Description[..190]}..." : job.Description)
-                                    </p>
-                                }
-
-                                @if (advertiserId.HasValue && job.AdvertiserId == advertiserId.Value)
-                                {
-                                    <div class="job-card__stats">
-                                        <span>@job.Views visualizações</span>
-                                        <span>@job.Applications candidaturas</span>
-                                    </div>
-                                }
-                            </div>
-                            <div class="card-footer bg-transparent job-card__footer">
-                                <button class="btn btn-outline-primary w-100" @onclick="() => OpenJobDetails(job)" data-testid="job-card-details">
-                                    Ver detalhes da vaga <span aria-hidden="true">↗</span>
-                                </button>
-                            </div>
-                        </article>
-                    </div>
-                }
-            </div>
-
-            <!-- Paginação -->
-            @if (searchResponse.TotalPages > 1)
-            {
-                <nav class="mt-4" aria-label="Paginação das vagas">
-                    <ul class="pagination justify-content-center">
-                        @if (searchResponse.HasPreviousPage)
-                        {
-                            <li class="page-item">
-                                <button class="page-link" @onclick="() => GoToPage(searchResponse.Page - 1)">Anterior</button>
-                            </li>
-                        }
-                        
-                        @foreach (var pageNumber in VisiblePages())
-                        {
-                            <li class="page-item @(pageNumber == searchResponse.Page ? "active" : "")">
-                                <button class="page-link" @onclick="() => GoToPage(pageNumber)" aria-current="@(pageNumber == searchResponse.Page ? "page" : null)">@pageNumber</button>
-                            </li>
-                        }
-
-                        @if (searchResponse.HasNextPage)
-                        {
-                            <li class="page-item">
-                                <button class="page-link" @onclick="() => GoToPage(searchResponse.Page + 1)">Próximo</button>
-                            </li>
-                        }
-                    </ul>
-                </nav>
-            }
-
-            <div class="text-muted text-center mt-3">
-                Mostrando @searchResponse.Jobs.Count() de @searchResponse.TotalCount vagas
-            </div>
-
-            @if (!isCandidate)
-            {
-                <aside class="promo-strip" aria-label="Para empresas">
-                    <span class="promo-strip__tag">Para empresas</span>
-                    <div class="promo-strip__body">
-                        <p class="promo-strip__title">Sua empresa contratando por aqui</p>
-                        <p class="promo-strip__text">Publique vagas gratuitamente e receba candidaturas organizadas em um só lugar.</p>
-                    </div>
-                    <a class="btn btn-outline-primary" href="/plans">Ver planos <span aria-hidden="true">↗</span></a>
-                </aside>
-            }
-        }
-    }
-
-    @if (selectedJob != null)
-    {
-        <div class="job-modal-backdrop" @onclick="CloseJobDetails" role="presentation">
-            <section class="job-modal" role="dialog" aria-modal="true" aria-labelledby="job-modal-title" @onclick:stopPropagation="true" data-testid="job-details-modal">
-                <div class="job-modal__header">
-                    <div class="job-modal__identity">
-                        <span class="job-company-mark">@(string.IsNullOrEmpty(selectedJob.AdvertiserName) ? "R" : selectedJob.AdvertiserName![..1].ToUpperInvariant())</span>
-                        <div>
-                            <span class="page-kicker">@(isJobOwner ? "SUA VAGA PUBLICADA" : "DETALHES DA OPORTUNIDADE")</span>
-                            <h2 id="job-modal-title">@selectedJob.Title</h2>
-                            @if (!string.IsNullOrEmpty(selectedJob.AdvertiserName) && !isJobOwner)
+                    <nav class="jobs-pagination" aria-label="Paginação das vagas">
+                        <ul class="pagination justify-content-center">
+                            @if (results.HasPreviousPage)
                             {
-                                <p>@selectedJob.AdvertiserName</p>
+                                <li class="page-item"><a class="page-link" href="@PageUrl(page - 1)" rel="prev" data-scroll-results>Anterior</a></li>
                             }
-                        </div>
-                    </div>
-                    <button type="button" class="job-modal__close" @onclick="CloseJobDetails" aria-label="Fechar detalhes">×</button>
-                </div>
-
-                <div class="job-modal__meta">
-                    @if (!string.IsNullOrEmpty(selectedJob.City))
-                    {
-                        <span>⌖ @selectedJob.City, @selectedJob.State</span>
-                    }
-                    <span>◷ @(selectedJob.Type == "OnSite" ? "Presencial" : selectedJob.Type == "Remote" ? "Remoto" : "Híbrido")</span>
-                    @if (selectedJob.ExpirationDate != default)
-                    {
-                        <span>◔ Até @selectedJob.ExpirationDate.ToString("dd/MM/yyyy")</span>
-                    }
-                    @if (selectedJob.SalaryDisplay && selectedJob.SalaryMin.HasValue && selectedJob.SalaryMax.HasValue)
-                    {
-                        <strong>@GetCurrencySymbol(selectedJob.SalaryCurrency) @selectedJob.SalaryMin.Value.ToString("N2") – @GetCurrencySymbol(selectedJob.SalaryCurrency) @selectedJob.SalaryMax.Value.ToString("N2")</strong>
-                    }
-                </div>
-
-                @if (isJobOwner)
-                {
-                    <div class="job-modal__owner-stats">
-                        <div><strong>@selectedJob.Views</strong><span>visualizações</span></div>
-                        <div><strong>@selectedJob.Applications</strong><span>candidaturas</span></div>
-                        <div><strong>@selectedJob.NumberOfOpenings</strong><span>@(selectedJob.NumberOfOpenings == 1 ? "vaga" : "vagas")</span></div>
-                        <div><strong>@UiLabels.JobStatus(selectedJob.Status)</strong><span>situação</span></div>
-                    </div>
+                            @foreach (var number in VisiblePages())
+                            {
+                                <li class="page-item @(number == page ? "active" : string.Empty)">
+                                    <a class="page-link" href="@PageUrl(number)" aria-current="@(number == page ? "page" : null)" data-scroll-results>@number</a>
+                                </li>
+                            }
+                            @if (results.HasNextPage)
+                            {
+                                <li class="page-item"><a class="page-link" href="@PageUrl(page + 1)" rel="next" data-scroll-results>Próxima</a></li>
+                            }
+                        </ul>
+                    </nav>
                 }
 
-                <div class="job-modal__body">
-                    @if (!string.IsNullOrWhiteSpace(selectedJob.Description))
-                    {
-                        <section>
-                            <h3>Sobre a vaga</h3>
-                            <p>@selectedJob.Description</p>
-                        </section>
-                    }
-                    @if (!string.IsNullOrWhiteSpace(selectedJob.Requirements))
-                    {
-                        <details class="job-modal__section">
-                            <summary>Requisitos</summary>
-                            <p>@selectedJob.Requirements</p>
-                        </details>
-                    }
-                    @if (!string.IsNullOrWhiteSpace(selectedJob.Responsibilities))
-                    {
-                        <details class="job-modal__section">
-                            <summary>Responsabilidades</summary>
-                            <p>@selectedJob.Responsibilities</p>
-                        </details>
-                    }
-                    @if (!string.IsNullOrWhiteSpace(selectedJob.Benefits))
-                    {
-                        <details class="job-modal__section">
-                            <summary>Benefícios</summary>
-                            <p>@selectedJob.Benefits</p>
-                        </details>
-                    }
-                    @if (!string.IsNullOrWhiteSpace(selectedJob.Observations))
-                    {
-                        <details class="job-modal__section">
-                            <summary>Observações</summary>
-                            <p>@selectedJob.Observations</p>
-                        </details>
-                    }
+                <p class="jobs-footnote">Mostrando @RangeStart–@RangeEnd de @results.TotalCount.ToString("N0", PtBr) @(results.TotalCount == 1 ? "vaga" : "vagas")</p>
+            }
+        </section>
 
-                    @if (!isJobOwner)
-                    {
-                        @if (!string.IsNullOrWhiteSpace(selectedJob.ApplicationInstructions))
-                        {
-                            <details class="job-modal__section job-modal__section--howto" open>
-                                <summary>Como se candidatar</summary>
-                                <p>@selectedJob.ApplicationInstructions</p>
-                            </details>
-                        }
-
-                        <p class="job-modal__notice">Nunca pague para participar de um processo seletivo e não envie dados bancários ou documentos por canais desconhecidos.</p>
-                    }
+        @if (!isCandidate)
+        {
+            <aside class="promo-strip" aria-label="Para empresas">
+                <span class="promo-strip__tag">Para empresas</span>
+                <div class="promo-strip__body">
+                    <p class="promo-strip__title">Sua empresa contratando por aqui</p>
+                    <p class="promo-strip__text">Publique vagas gratuitamente e receba candidaturas organizadas em um só lugar.</p>
                 </div>
-
-                <div class="job-modal__footer">
-                    @if (isJobOwner)
-                    {
-                        <a class="btn btn-secondary" href="@($"/jobs/{selectedJob.Id}/applications")">
-                            Ver candidaturas <span aria-hidden="true">↗</span>
-                        </a>
-                        <a class="btn btn-primary" href="@($"/jobs/edit/{selectedJob.Id}")">
-                            Editar vaga <span aria-hidden="true">↗</span>
-                        </a>
-                    }
-                    else
-                    {
-                        <button type="button" class="btn btn-secondary" @onclick="CloseJobDetails">Continuar buscando</button>
-                        @if (isCandidate)
-                        {
-                            <a class="btn btn-primary" href="@($"/apply/{selectedJob.Id}")" data-testid="job-modal-apply">
-                                Quero me candidatar <span aria-hidden="true">↗</span>
-                            </a>
-                        }
-                        else if (isAnonymous)
-                        {
-                            var returnUrl = Uri.EscapeDataString($"/jobs?jobId={selectedJob.Id}");
-                            <a class="btn btn-outline-primary" href="@($"/Account/Register?AccountType=candidate&ReturnUrl={returnUrl}")">Criar conta de candidato</a>
-                            <a class="btn btn-primary" href="@($"/Account/Login?ReturnUrl={returnUrl}")" data-testid="job-modal-apply">Entrar para se candidatar</a>
-                        }
-                        else
-                        {
-                            <span class="job-modal__account-note">A candidatura está disponível para perfis de candidato.</span>
-                        }
-                    }
-                </div>
-            </section>
-        </div>
+                <a class="btn btn-outline-primary" href="/plans">Ver planos <span aria-hidden="true">↗</span></a>
+            </aside>
+        }
     }
 </div>
 
 @code {
-    private string searchTerm = string.Empty;
-    private string city = string.Empty;
-    private string state = string.Empty;
-    private decimal? salaryMin;
-    private decimal? salaryMax;
-    private string jobType = string.Empty;
-    
     private const int PageSize = 20;
+    private const string DefaultSort = "recentes";
 
-    private ListJobsResponse searchResponse = new();
-    private bool isLoading = true;
+    private static readonly CultureInfo PtBr = CultureInfo.GetCultureInfo("pt-BR");
+
+    private static readonly (string Value, string Label, string Icon)[] Modes =
+    [
+        ("Remote", "Remoto", "home"),
+        ("Hybrid", "Híbrido", "shuffle"),
+        ("OnSite", "Presencial", "building")
+    ];
+
+    private static readonly decimal[] SalaryFloors = [1500, 2500, 4000, 6000, 8000, 12000, 20000];
+
+    [SupplyParameterFromQuery(Name = "q")]
+    private string? QueryTerm { get; set; }
+
+    [SupplyParameterFromQuery(Name = "local")]
+    private string? QueryLocation { get; set; }
+
+    [SupplyParameterFromQuery(Name = "modo")]
+    private string? QueryMode { get; set; }
+
+    [SupplyParameterFromQuery(Name = "salario")]
+    private string? QuerySalary { get; set; }
+
+    [SupplyParameterFromQuery(Name = "ordem")]
+    private string? QuerySort { get; set; }
+
+    [SupplyParameterFromQuery(Name = "pagina")]
+    private int? QueryPage { get; set; }
+
+    // Links antigos (/jobs?jobId=...) abriam um modal; hoje a vaga tem página própria
+    [SupplyParameterFromQuery(Name = "jobId")]
+    private Guid? LegacyJobId { get; set; }
+
+    private string searchTerm = string.Empty;
+    private string locationText = string.Empty;
+    private string jobType = string.Empty;
+    private string salaryFloor = string.Empty;
+    private string sortKey = DefaultSort;
+    private int page = 1;
+
+    private ListJobsResponse results = new();
     private bool loadFailed;
-    private int currentPage = 1;
-    private int searchVersion;
     private bool isAuthenticated;
     private bool isAdvertiser;
     private bool isCandidate;
-    private bool isAnonymous => !isAuthenticated;
     private Guid? advertiserId;
-    private JobResponse? selectedJob;
-    private Guid? lastOpenedJobId;
-    private bool isJobOwner => selectedJob is not null && advertiserId.HasValue && selectedJob.AdvertiserId == advertiserId.Value;
 
-    [SupplyParameterFromQuery(Name = "jobId")]
-    private Guid? RequestedJobId { get; set; }
+    private bool isFiltered =>
+        searchTerm.Length > 0 || locationText.Length > 0 || jobType.Length > 0 || salaryFloor.Length > 0;
+
+    private string TitleText => searchTerm.Length > 0
+        ? $"Vagas de {searchTerm} - Monburan"
+        : "Vagas de emprego - Monburan";
+
+    private string CountText => results.TotalCount switch
+    {
+        0 => "Nenhuma vaga encontrada",
+        1 => "1 vaga encontrada",
+        var total => $"{total.ToString("N0", PtBr)} vagas encontradas"
+    };
+
+    private int RangeStart => (page - 1) * PageSize + 1;
+
+    private int RangeEnd => RangeStart + results.Jobs.Count() - 1;
+
+    private string? ContextText
+    {
+        get
+        {
+            var parts = new List<string>();
+
+            var what = new List<string>();
+            if (searchTerm.Length > 0)
+                what.Add($"para “{searchTerm}”");
+            if (locationText.Length > 0)
+                what.Add($"em {locationText}");
+            if (what.Count > 0)
+                parts.Add(string.Join(' ', what));
+
+            if (jobType.Length > 0)
+                parts.Add(UiLabels.JobType(jobType));
+            if (decimal.TryParse(salaryFloor, NumberStyles.Number, CultureInfo.InvariantCulture, out var floor))
+                parts.Add($"A partir de R$ {JobDisplay.Money(floor)}");
+
+            return parts.Count == 0 ? null : string.Join(" · ", parts);
+        }
+    }
 
     protected override async Task OnParametersSetAsync()
     {
+        if (LegacyJobId.HasValue)
+        {
+            Navigation.NavigateTo($"/jobs/{LegacyJobId.Value}", replace: true);
+            return;
+        }
+
         isAuthenticated = CurrentUserHelper.IsAuthenticated();
         advertiserId = CurrentUserHelper.GetAdvertiserId();
         isAdvertiser = advertiserId.HasValue;
         isCandidate = CurrentUserHelper.GetCandidateId().HasValue;
 
-        await Search();
+        ReadFilters();
 
-        if (RequestedJobId.HasValue && RequestedJobId != lastOpenedJobId)
+        var result = await SearchJobsUseCase.ExecuteAsync(BuildRequest());
+        if (result.Status != EResultStatus.Success)
         {
-            lastOpenedJobId = RequestedJobId;
-
-            if (!isAuthenticated)
-            {
-                var returnUrl = Uri.EscapeDataString($"/jobs?jobId={RequestedJobId.Value}");
-                Navigation.NavigateTo($"/Account/Login?ReturnUrl={returnUrl}");
-                return;
-            }
-
-            var job = searchResponse?.Jobs.FirstOrDefault(item => item.Id == RequestedJobId.Value);
-            if (job is null)
-            {
-                var result = await GetJobByIdUseCase.ExecuteAsync(RequestedJobId.Value);
-                if (result.Status == EResultStatus.Success)
-                    job = result.Data;
-            }
-
-            if (job?.Status == "Active")
-                selectedJob = job;
+            // Antes uma falha virava "Nenhuma vaga encontrada"
+            Logger.LogFailure(result, "Buscar vagas");
+            loadFailed = true;
+            return;
         }
-        else if (!RequestedJobId.HasValue)
+
+        results = result.Data ?? new ListJobsResponse();
+
+        // Filtros novos podem deixar a página pedida além do fim: volta para a primeira
+        if (page > 1 && !results.Jobs.Any() && results.TotalCount > 0)
+            Navigation.NavigateTo(PageUrl(1), replace: true);
+    }
+
+    private void ReadFilters()
+    {
+        searchTerm = (QueryTerm ?? string.Empty).Trim();
+        locationText = (QueryLocation ?? string.Empty).Trim();
+        jobType = QueryMode is "OnSite" or "Remote" or "Hybrid" ? QueryMode : string.Empty;
+        salaryFloor = decimal.TryParse(QuerySalary, NumberStyles.Number, CultureInfo.InvariantCulture, out var floor) && floor > 0
+            ? floor.ToString(CultureInfo.InvariantCulture)
+            : string.Empty;
+        sortKey = QuerySort is "salario" or "titulo" ? QuerySort : DefaultSort;
+        page = Math.Max(1, QueryPage ?? 1);
+
+        // "Remoto" no campo de local é o mesmo que o filtro de modalidade
+        if (JobSearch.IsRemoteKeyword(locationText))
         {
-            lastOpenedJobId = null;
+            locationText = string.Empty;
+            jobType = "Remote";
         }
     }
 
-    private Task Search() => LoadPageAsync(1);
-
-    private async Task LoadPageAsync(int page)
+    private ListJobsRequest BuildRequest()
     {
-        // Só a busca mais recente atualiza a lista; uma resposta atrasada não sobrescreve a nova
-        var version = ++searchVersion;
-        isLoading = true;
-        loadFailed = false;
+        JobSearch.ParseLocation(locationText, out var city, out var state);
+        var (sortBy, descending) = sortKey switch
+        {
+            "salario" => ("salary", true),
+            "titulo" => ("title", false),
+            _ => ("createdAt", true)
+        };
 
-        var request = new ListJobsRequest
+        return new ListJobsRequest
         {
             Page = page,
             Size = PageSize,
             SearchTerm = searchTerm,
             City = city,
             State = state,
-            SalaryMin = salaryMin,
-            SalaryMax = salaryMax,
-            Type = string.IsNullOrEmpty(jobType) ? null : jobType
+            Type = jobType.Length == 0 ? null : jobType,
+            SalaryMin = decimal.TryParse(salaryFloor, NumberStyles.Number, CultureInfo.InvariantCulture, out var floor) ? floor : null,
+            SortBy = sortBy,
+            SortDescending = descending
         };
-
-        var result = await SearchJobsUseCase.ExecuteAsync(request);
-        if (version != searchVersion)
-            return;
-
-        if (result.Status == EResultStatus.Success)
-        {
-            searchResponse = result.Data ?? new ListJobsResponse();
-            currentPage = page;
-        }
-        else
-        {
-            // Antes uma falha virava "Nenhuma vaga encontrada"
-            Logger.LogFailure(result, "Buscar vagas");
-            loadFailed = true;
-        }
-
-        isLoading = false;
     }
 
-    private async Task OnSearchKeyDown(KeyboardEventArgs e)
+    private string PageUrl(int target)
     {
-        if (e.Key == "Enter")
-            await Search();
-    }
+        var parts = new List<string>();
 
-    private Task ClearFiltersAsync()
-    {
-        searchTerm = string.Empty;
-        city = string.Empty;
-        state = string.Empty;
-        salaryMin = null;
-        salaryMax = null;
-        jobType = string.Empty;
-        return Search();
+        void Add(string key, string value)
+        {
+            if (value.Length > 0)
+                parts.Add($"{key}={Uri.EscapeDataString(value)}");
+        }
+
+        Add("q", searchTerm);
+        Add("local", locationText);
+        Add("modo", jobType);
+        Add("salario", salaryFloor);
+        if (sortKey != DefaultSort)
+            Add("ordem", sortKey);
+        if (target > 1)
+            Add("pagina", target.ToString(CultureInfo.InvariantCulture));
+
+        return "/jobs" + (parts.Count > 0 ? "?" + string.Join('&', parts) : string.Empty);
     }
 
     private IEnumerable<int> VisiblePages()
     {
-        // Até 5 páginas ao redor da atual — antes só 1 a 5 apareciam
-        var total = searchResponse.TotalPages;
-        var first = Math.Max(1, Math.Min(searchResponse.Page - 2, total - 4));
+        // Até 5 páginas ao redor da atual
+        var total = results.TotalPages;
+        var first = Math.Max(1, Math.Min(page - 2, total - 4));
         var last = Math.Min(total, first + 4);
         return Enumerable.Range(first, last - first + 1);
     }
-
-    private void OpenJobDetails(JobResponse job)
-    {
-        if (!isAuthenticated)
-        {
-            var returnUrl = Uri.EscapeDataString($"/jobs?jobId={job.Id}");
-            Navigation.NavigateTo($"/Account/Login?ReturnUrl={returnUrl}");
-            return;
-        }
-
-        selectedJob = job;
-    }
-
-    private void CloseJobDetails()
-    {
-        selectedJob = null;
-    }
-
-    private static string GetCurrencySymbol(string currency) => currency switch
-    {
-        "USD" => "US$",
-        "EUR" => "€",
-        _ => "R$"
-    };
-
-    private Task GoToPage(int page) => LoadPageAsync(page);
 }
