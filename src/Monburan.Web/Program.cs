@@ -420,7 +420,9 @@ app.UseAntiforgery();
 
 app.MapStaticAssets();
 app.MapRazorComponents<App>()
-    .AddInteractiveServerRenderMode()
+    // O Blazor acrescentaria um segundo Content-Security-Policy (frame-ancestors 'self'); a política única, com
+    // frame-ancestors 'none', vem do SecurityHeadersMiddleware
+    .AddInteractiveServerRenderMode(options => options.ContentSecurityFrameAncestorsPolicy = null)
     .AddInteractiveWebAssemblyRenderMode()
     .AddAdditionalAssemblies(typeof(Monburan.Web.Client._Imports).Assembly);
 

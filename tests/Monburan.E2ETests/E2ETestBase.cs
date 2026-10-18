@@ -49,6 +49,15 @@ public abstract class E2ETestBase : IAsyncLifetime
 
     protected IBrowserContext Context = null!;
     protected IPage Page = null!;
+
+    // O navegador relata no console tudo o que o Content-Security-Policy bloqueou; qualquer teste que provoque isso falha
+    protected readonly List<string> CspViolations = [];
+
+    /// <summary>
+    /// O Playwright avalia os predicados de <c>WaitForFunctionAsync</c> com eval na página, e o CSP do site (sem unsafe-eval)
+    /// bloqueia isso. Por isso a suíte roda com o CSP ignorado; só <c>CspEnforcementTests</c> o aplica de verdade.
+    /// </summary>
+    protected virtual bool BypassCsp => true;
     protected static string BaseUrl => PlaywrightFixture.BaseUrl;
 
     protected const string CandidateEmail = "joao.silva@email.com";
@@ -61,16 +70,25 @@ public abstract class E2ETestBase : IAsyncLifetime
     {
         Context = await Fixture.Browser.NewContextAsync(new BrowserNewContextOptions
         {
-            IgnoreHTTPSErrors = true
+            IgnoreHTTPSErrors = true,
+            BypassCSP = BypassCsp
         });
         Page = await Context.NewPageAsync();
         Page.SetDefaultTimeout(20000);
+        Page.Console += (_, message) =>
+        {
+            if (message.Text.Contains("Content Security Policy", StringComparison.OrdinalIgnoreCase))
+                CspViolations.Add(message.Text);
+        };
     }
 
     public async Task DisposeAsync()
     {
         if (Context != null)
             await Context.CloseAsync();
+
+        Assert.True(CspViolations.Count == 0,
+            "O Content-Security-Policy bloqueou algo nesta página:\n" + string.Join("\n", CspViolations.Distinct()));
     }
 
     protected async Task<IResponse?> GotoAsync(string path) =>

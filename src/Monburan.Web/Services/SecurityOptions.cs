@@ -5,6 +5,12 @@ public sealed class SecurityOptions
 {
     public const string SectionName = "Security";
 
+    /// <summary>
+    /// Política de conteúdo (CSP) só em modo de aviso: o navegador registra as violações no console, mas não bloqueia.
+    /// Válvula de emergência para uma política nova que quebre alguma página; o normal é <c>false</c> (bloqueia).
+    /// </summary>
+    public bool CspReportOnly { get; set; }
+
     public RateLimitSettings RateLimit { get; set; } = new();
 
     public sealed class RateLimitSettings
