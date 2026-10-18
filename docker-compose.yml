@@ -40,6 +40,11 @@ services:
       - "Jwt__SigningKey=${JWT_SIGNING_KEY:?Defina JWT_SIGNING_KEY no .env — gere com: openssl rand -base64 48}"
       # URL pública usada em links de e-mail (vazio = scheme/host da request)
       - "App__PublicBaseUrl=${APP_PUBLIC_BASE_URL:-}"
+      # IA das sugestões de currículo (protocolo OpenAI). Sem AI_API_KEY o recurso fica desligado.
+      - "Ai__BaseUrl=${AI_BASE_URL:-https://token-plan-sgp.xiaomimimo.com/v1}"
+      - "Ai__Model=${AI_MODEL:-mimo-v2.6-pro}"
+      - "Ai__ProviderName=${AI_PROVIDER_NAME:-Xiaomi MiMo}"
+      - "Ai__ApiKey=${AI_API_KEY:-}"
     ports:
       - "8080:80"
     volumes:
