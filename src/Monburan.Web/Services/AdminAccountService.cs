@@ -292,7 +292,7 @@ public sealed class AdminAccountService
         if (!string.IsNullOrWhiteSpace(user.Email))
             await _profiles.MarkEmailVerifiedAsync(user.Email);
 
-        await RecordAsync(AdminAuditActions.AccountEmailConfirmed, actor, user);
+        await RecordAsync(AdminAuditActions.AccountConfirmedByAdmin, actor, user);
         return RequestResult.Success();
     }
 

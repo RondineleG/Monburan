@@ -127,7 +127,7 @@ public class AdminAuditLogTests : IDisposable
         var failing = new AdminAuditLog(new ThrowingContextFactory(), logger);
 
         await working.RecordAsync(new AdminAuditRecord(
-            AdminAuditActions.AccountEmailConfirmed, actor, AdminAuditActions.AccountTarget, "42", "alvo.da.acao@exemplo.com"));
+            AdminAuditActions.AccountConfirmedByAdmin, actor, AdminAuditActions.AccountTarget, "42", "alvo.da.acao@exemplo.com"));
         await failing.RecordAsync(new AdminAuditRecord(
             AdminAuditActions.AccountDeactivated, actor, AdminAuditActions.AccountTarget, "43", "outro.alvo@exemplo.com"));
 

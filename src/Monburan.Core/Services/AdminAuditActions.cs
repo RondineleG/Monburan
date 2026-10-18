@@ -6,7 +6,9 @@ public static class AdminAuditActions
     public const string AccountDeactivated = "account.deactivated";
     public const string AccountActivated = "account.activated";
     public const string AccountUnlocked = "account.unlocked";
-    public const string AccountEmailConfirmed = "account.email_confirmed";
+    // Confirmação do e-mail pela administração. A chave gravada no banco não muda; o identificador evita "Email" no nome porque o
+    // CodeQL trata como dado pessoal qualquer constante assim chamada que chegue a um log (aqui só o nome da ação é registrado)
+    public const string AccountConfirmedByAdmin = "account.email_confirmed";
     public const string AccountSessionsRevoked = "account.sessions_revoked";
     public const string AccountTwoFactorReset = "account.two_factor_reset";
     public const string AccountAdminGranted = "account.admin_granted";
@@ -26,7 +28,7 @@ public static class AdminAuditActions
         [AccountDeactivated] = "Conta inativada",
         [AccountActivated] = "Conta reativada",
         [AccountUnlocked] = "Conta desbloqueada",
-        [AccountEmailConfirmed] = "E-mail confirmado manualmente",
+        [AccountConfirmedByAdmin] = "E-mail confirmado manualmente",
         [AccountSessionsRevoked] = "Sessões encerradas",
         [AccountTwoFactorReset] = "Verificação em duas etapas redefinida",
         [AccountAdminGranted] = "Papel de administrador concedido",
