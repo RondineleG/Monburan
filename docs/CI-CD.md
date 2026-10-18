@@ -109,9 +109,16 @@ docker compose pull app && docker compose up -d app    # as migrations rodam no 
 curl -s http://127.0.0.1:8080/health
 ```
 
-Para ativar as sugestões de currículo com IA depois do deploy, a imagem nova precisa estar no ar e o `.env` da VPS
-precisa ter `AI_API_KEY`. O `docker-compose.yml` da VPS é uma cópia de `infra/vps/docker-compose.prod.yml`: copie a
-versão nova do repositório antes (ela passa `AI_API_KEY` ao app). Veja [IA-CURRICULO.md](IA-CURRICULO.md).
+Para ativar as sugestões de currículo com IA depois do deploy (detalhes em [IA-PROVEDORES.md](IA-PROVEDORES.md)):
+
+1. O `docker-compose.yml` da VPS é uma cópia de `infra/vps/docker-compose.prod.yml`: copie a versão nova do repositório
+   (ela carrega o `ai-keys.env` e passa `ADMIN_EMAILS` ao app). Exige Docker Compose 2.24+ (`docker compose version`).
+2. Coloque `ADMIN_EMAILS=<seu e-mail>` no `.env` e as chaves, uma linha `AI_KEY_<NOME>=<chave>` por provedor, no
+   `ai-keys.env` (modelo em `infra/vps/ai-keys.env.example`). Os dois arquivos com permissão `600`.
+3. `docker compose up -d --force-recreate app`. Cadastre-se no site com o e-mail de `ADMIN_EMAILS` e confirme o e-mail
+   pelo link recebido: a conta vira administradora.
+4. Em **Administração → Provedores de IA** confira que a chave aparece como "definida no servidor", use **Testar** e, se
+   quiser outro provedor como padrão, **Tornar padrão**. O Xiaomi MiMo já vem cadastrado como padrão na primeira execução.
 
 Para voltar à versão anterior: `docker tag ghcr.io/rondineleg/monburan:rollback-<data-hora> ghcr.io/rondineleg/monburan:latest && docker compose up -d app`.
 
