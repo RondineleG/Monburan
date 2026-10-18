@@ -9,6 +9,7 @@
 | `android-release.yml` | push na `main` com mudança no app/Core, PR para a `main`, manual | compila, assina e confere o APK; na `main`, publica a release `v<versão>` com o APK |
 | `ios-build.yml` | push na `main` com mudança no app/Core, PR para a `main`, manual | em macOS: compila o app para o simulador, abre e tira print; gera o `.ipa` sem assinatura (anexado à release na `main`) |
 | `codeql.yml` | push e PR em `main`/`dev`, toda segunda-feira, manual | análise estática de segurança (C#, JavaScript e os próprios workflows); alertas em *Security → Code scanning*. Não publica nada |
+| `main-only-from-dev.yml` | PR para a `main` | reprova o PR que não vem da `dev` (a `main` só recebe a promoção); o nome da branch chega por variável de ambiente, nunca interpolado no script. Não publica nada |
 | `infra-scripts.yml` | push e PR em `main`/`dev` que mudam `infra/vps/**`, manual | ShellCheck e testes de verdade, em contêineres, do endurecimento da VPS, do backup com restauração e do `nginx.conf` (`infra/vps/tests`). Não publica nada |
 
 Os jobs `deploy-staging` e `deploy-production` (Azure Web App) só rodam quando existe a variável de repositório
