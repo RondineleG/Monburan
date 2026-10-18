@@ -31,11 +31,15 @@ services:
       - "Smtp__Password=${SMTP_PASSWORD:-}"
       - "Smtp__FromEmail=${SMTP_FROM_EMAIL:-noreply@monburan.com.br}"
       - "Smtp__FromName=${SMTP_FROM_NAME:-Monburan}"
-      # IA das sugestões de melhoria de currículo (protocolo OpenAI). Sem AI_API_KEY o recurso fica desligado.
-      - "Ai__BaseUrl=${AI_BASE_URL:-https://token-plan-sgp.xiaomimimo.com/v1}"
-      - "Ai__Model=${AI_MODEL:-mimo-v2.6-pro}"
-      - "Ai__ProviderName=${AI_PROVIDER_NAME:-Xiaomi MiMo}"
-      - "Ai__ApiKey=${AI_API_KEY:-}"
+      # Administradores por e-mail (separados por vírgula): valem só com o e-mail da conta CONFIRMADO. É assim que o primeiro
+      # administrador aparece em produção (o usuário administrador do seed só existe em Development).
+      - "Admin__Emails=${ADMIN_EMAILS:-}"
+    # Chaves dos provedores de IA (variáveis AI_KEY_*): ficam no arquivo ai-keys.env (chmod 600), fora do .env principal e
+    # do repositório. O administrador cadastra cada provedor na tela "Provedores de IA" informando só o NOME da variável.
+    # "required: false" exige Docker Compose 2.24+ (docker compose version); sem o arquivo o app sobe com a IA desligada.
+    env_file:
+      - path: ./ai-keys.env
+        required: false
     volumes:
       - app_uploads:/app/wwwroot/uploads
     networks:

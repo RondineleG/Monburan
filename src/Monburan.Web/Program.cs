@@ -1,14 +1,17 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Options;
 
 using Monburan.Core.DTOs.Request;
 using Monburan.Core.DTOs.Response;
 using Monburan.Core.Entities;
 using Monburan.Core.Interfaces.Repositories;
 using Monburan.Core.Interfaces.Repositories.Base;
+using Monburan.Core.Interfaces.Services;
 using Monburan.Core.Interfaces.Storage;
 using Monburan.Core.Interfaces.UseCases;
 using Monburan.Core.Interfaces.Validations;
+using Monburan.Core.UseCases.Ai;
 using Monburan.Core.UseCases.Jobs;
 using Monburan.Core.UseCases.Applications;
 using Monburan.Core.UseCases.Candidates;
@@ -161,14 +164,46 @@ builder.Services.AddScoped<Monburan.Core.Interfaces.Services.IEmailSender>(sp =>
 });
 builder.Services.AddScoped<Microsoft.AspNetCore.Identity.IEmailSender<ApplicationUser>, IdentityEmailSender>();
 
-// IA para sugestões de melhoria de currículo: qualquer serviço compatível com o protocolo de chat completions da
-// OpenAI. URL, chave e modelo vêm da seção Ai; sem chave o recurso fica desligado (não aparece no site nem no app).
+// IA (sugestões de melhoria de currículo): os provedores são cadastrados pelo administrador na tela "Provedores de IA".
+// O banco guarda endereço, modelo, protocolo e o NOME da variável de ambiente da chave; a chave vem do ambiente do
+// servidor e nunca é guardada. Sem provedor padrão ativo e com chave, o recurso fica desligado (não aparece no site nem no app).
 builder.Services.AddOptions<AiOptions>().Bind(builder.Configuration.GetSection(AiOptions.SectionName));
 builder.Services.AddSingleton(TimeProvider.System);
-builder.Services.AddSingleton<Monburan.Core.Interfaces.Services.IAiUsageLimiter, MemoryAiUsageLimiter>();
-// O tempo limite de cada chamada é controlado pelo cliente (AiOptions.TimeoutSeconds), não pelo HttpClient
-builder.Services.AddHttpClient<Monburan.Core.Interfaces.Services.IAiTextClient, OpenAiCompatibleClient>(
-    client => client.Timeout = Timeout.InfiniteTimeSpan);
+builder.Services.AddSingleton<IAiUsageLimiter, MemoryAiUsageLimiter>();
+builder.Services.AddSingleton<IAiSecretReader, AiSecretReader>();
+builder.Services.AddSingleton<IAiProviderCatalog, AiProviderCatalog>();
+builder.Services.AddHostedService<AiProviderCatalogRefresher>();
+
+// Cliente HTTP dos provedores: o tempo limite é de cada provedor (não do HttpClient), sem redirecionamentos, resposta
+// limitada e uma conexão que recusa rede interna e reservada (o endereço do provedor é editável pelo administrador)
+builder.Services.AddHttpClient(AiHttp.ClientName, client =>
+    {
+        client.Timeout = Timeout.InfiniteTimeSpan;
+        client.MaxResponseContentBufferSize = 2 * 1024 * 1024;
+    })
+    .ConfigurePrimaryHttpMessageHandler(serviceProvider =>
+    {
+        var options = serviceProvider.GetRequiredService<IOptionsMonitor<AiOptions>>();
+        return new SocketsHttpHandler
+        {
+            AllowAutoRedirect = false,
+            UseCookies = false,
+            // Sem proxy: com ele a conexão iria para o proxy e a guarda de rede não veria o destino de verdade
+            UseProxy = false,
+            AutomaticDecompression = System.Net.DecompressionMethods.GZip | System.Net.DecompressionMethods.Deflate,
+            PooledConnectionLifetime = TimeSpan.FromMinutes(2),
+            ConnectTimeout = TimeSpan.FromSeconds(15),
+            ConnectCallback = (context, cancellationToken) =>
+                AiNetworkGuard.ConnectAsync(context, options.CurrentValue.AllowPrivateNetworks, cancellationToken)
+        };
+    });
+builder.Services.AddSingleton<IAiProtocol>(serviceProvider => new OpenAiProtocol(
+    serviceProvider.GetRequiredService<IHttpClientFactory>().CreateClient(AiHttp.ClientName),
+    serviceProvider.GetRequiredService<ILogger<OpenAiProtocol>>()));
+builder.Services.AddSingleton<IAiProtocol>(serviceProvider => new AnthropicProtocol(
+    serviceProvider.GetRequiredService<IHttpClientFactory>().CreateClient(AiHttp.ClientName),
+    serviceProvider.GetRequiredService<ILogger<AnthropicProtocol>>()));
+builder.Services.AddSingleton<IAiTextClient, AiTextClient>();
 
 // Registrar Repositórios
 builder.Services.AddScoped<IJobRepository, JobRepository>();
@@ -181,6 +216,7 @@ builder.Services.AddScoped<IBaseRepository<Application>, ApplicationRepository>(
 builder.Services.AddScoped<IApplicationRepository, ApplicationRepository>();
 builder.Services.AddScoped<IBaseRepository<Resume>, ResumeRepository>();
 builder.Services.AddScoped<IResumeRepository, ResumeRepository>();
+builder.Services.AddScoped<IAiProviderRepository, AiProviderRepository>();
 builder.Services.AddScoped<IBaseRepository<Notification>, NotificationRepository>();
 builder.Services.AddScoped<INotificationRepository, NotificationRepository>();
 builder.Services.AddScoped<IBaseRepository<TenantConfig>, TenantConfigRepository>();
@@ -240,6 +276,14 @@ builder.Services.AddScoped<DeleteResumeUseCase>();
 builder.Services.AddScoped<ListResumesByCandidateUseCase>();
 builder.Services.AddScoped<GetResumeByIdUseCase>();
 builder.Services.AddScoped<ImproveResumeUseCase>();
+
+// Provedores de IA (administração)
+builder.Services.AddScoped<ListAiProvidersUseCase>();
+builder.Services.AddScoped<SaveAiProviderUseCase>();
+builder.Services.AddScoped<SetDefaultAiProviderUseCase>();
+builder.Services.AddScoped<DeleteAiProviderUseCase>();
+builder.Services.AddScoped<TestAiProviderUseCase>();
+builder.Services.AddScoped<SeedAiProvidersUseCase>();
 
 // Registrar Validadores
 builder.Services.AddScoped<IEntityValidator<Resume>, ResumeValidator>();
@@ -353,6 +397,22 @@ if (app.Environment.IsDevelopment())
     var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
     var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole<Guid>>>();
     await DevelopmentIdentitySeedData.InitializeAsync(userManager, roleManager);
+}
+
+// Provedores de IA: cadastra os modelos iniciais na primeira execução e carrega o catálogo em memória. Uma falha aqui
+// não pode impedir o site de subir: a IA só fica desligada até a próxima releitura.
+try
+{
+    using var scope = app.Services.CreateScope();
+    var seeded = await scope.ServiceProvider.GetRequiredService<SeedAiProvidersUseCase>().ExecuteAsync();
+    if (seeded > 0)
+        Log.Information("IA: {Count} provedores iniciais cadastrados", seeded);
+
+    await app.Services.GetRequiredService<IAiProviderCatalog>().ReloadAsync();
+}
+catch (Exception ex)
+{
+    Log.Warning(ex, "IA: não foi possível preparar os provedores no início; o recurso fica desligado até a próxima releitura");
 }
 
 Log.Information("Aplicação Monburan iniciada com sucesso");

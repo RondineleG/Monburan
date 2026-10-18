@@ -451,11 +451,12 @@ Testes de API: `tests/Monburan.ApiTests` (WebApplicationFactory + EF InMemory).
 > feito via SMTP — em produção usamos o **Resend** (`smtp.resend.com:465`,
 > usuário `resend`, senha = API key). Sem `Smtp:Host`, cai no SendGrid.
 
-> **IA (sugestões de melhoria de currículo):** qualquer serviço compatível com o protocolo de
-> "chat completions" da OpenAI. URL, modelo e provedor ficam em `appsettings.json` (seção `Ai`) e a
-> chave só em segredo: `dotnet user-secrets set "Ai:ApiKey" "<chave>" --project src/Monburan.Web` em
-> desenvolvimento e `AI_API_KEY` no `.env` da VPS. Sem chave o recurso fica desligado. Detalhes,
-> privacidade e limites em [docs/IA-CURRICULO.md](docs/IA-CURRICULO.md).
+> **IA (sugestões de melhoria de currículo):** o administrador cadastra os provedores (OpenAI, OpenRouter, DeepSeek,
+> Anthropic, Xiaomi ou qualquer serviço compatível) na tela **Provedores de IA** (`/admin/ai-providers`), escolhe o padrão e
+> informa o nome da variável de ambiente da chave (`AI_KEY_*`). A chave fica só no servidor:
+> `dotnet user-secrets set "AI_KEY_OPENROUTER" "<chave>" --project src/Monburan.Web` em desenvolvimento e
+> `ai-keys.env` na VPS. Sem provedor padrão e chave, o recurso fica desligado. Guia da tela, segurança e erros em
+> [docs/IA-PROVEDORES.md](docs/IA-PROVEDORES.md); privacidade e limites em [docs/IA-CURRICULO.md](docs/IA-CURRICULO.md).
 
 ### User Secrets (Desenvolvimento)
 

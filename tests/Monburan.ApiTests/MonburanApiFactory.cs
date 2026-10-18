@@ -31,11 +31,11 @@ public class MonburanApiFactory : WebApplicationFactory<Program>
     {
         builder.UseEnvironment("Development");
 
-        // Os testes nunca falam com um provedor de IA de verdade, nem com segredo de usuário na máquina de quem roda
+        // O cliente de IA é trocado por um falso logo abaixo: os testes nunca falam com um provedor de verdade, mesmo
+        // que a máquina de quem roda tenha chaves nos segredos de usuário
         builder.ConfigureAppConfiguration((_, configuration) =>
             configuration.AddInMemoryCollection(new Dictionary<string, string?>
             {
-                ["Ai:ApiKey"] = string.Empty,
                 ["Ai:MaxRequestsPerHour"] = "100"
             }));
 
