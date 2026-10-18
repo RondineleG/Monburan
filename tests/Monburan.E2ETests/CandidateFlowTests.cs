@@ -164,13 +164,17 @@ public class CandidateFlowTests : E2ETestBase
         await WaitForBlazorAsync();
     }
 
+    // Plano e assinatura são da conta da empresa (AdvertiserOnly): o candidato cai na tela de acesso restrito
     [Fact]
-    public async Task Candidate_MySubscription_ShouldLoad()
+    public async Task Candidate_MySubscription_IsRestrictedToAdvertisers()
     {
         await LoginAsCandidateAsync();
 
-        var response = await GotoAsync("/my-subscription");
-        Assert.True(response!.Ok, $"MySubscription retornou {response.Status}");
+        await GotoAsync("/my-subscription");
         await WaitForBlazorAsync();
+
+        Assert.Contains("/Account/AccessDenied", Page.Url, StringComparison.OrdinalIgnoreCase);
+        var body = await Page.Locator("body").InnerTextAsync();
+        Assert.Contains("Esta área é restrita", body, StringComparison.OrdinalIgnoreCase);
     }
 }

@@ -21,11 +21,12 @@ public class FullSweepTests : E2ETestBase
         "/404"
     ];
 
+    // Sem /my-subscription: é só de empresa (AdvertiserOnly); a restrição é testada em CandidateFlowTests
     private static readonly string[] CandidateRoutes =
     [
         "/dashboard", "/profile/candidate", "/jobs", "/my-applications",
         "/resumes", "/resumes/new", "/resumes/upload", "/notifications",
-        "/my-subscription", "/address/list", "/address/create",
+        "/address/list", "/address/create",
         "/plans", "/privacy", "/terms",
         "/Account/Manage", "/Account/Manage/ChangePassword",
         "/Account/Manage/Email", "/Account/Manage/PersonalData",
@@ -78,6 +79,14 @@ public class FullSweepTests : E2ETestBase
         Assert.True(errors.Count == 0,
             $"{errors.Count} erro(s) na varredura:{Environment.NewLine}{string.Join(Environment.NewLine, errors)}");
 
+    // Marcas de página de erro no texto visível. "Erro interno" e "Não foi possível concluir esta ação" são telas do app;
+    // "An unhandled exception" é a página de exceção do ASP.NET em Development; "Esta área é restrita" aparece quando a
+    // conta está logada mas sem o perfil exigido pela rota.
+    private static readonly string[] ErrorMarkers =
+    [
+        "Erro interno", "An unhandled exception", "Não foi possível concluir esta ação", "Esta área é restrita"
+    ];
+
     private async Task<List<string>> SweepRoutesAsync(IEnumerable<string> routes)
     {
         var errors = new List<string>();
@@ -97,12 +106,15 @@ public class FullSweepTests : E2ETestBase
                 errors.Add($"JS console error durante {currentRoute} (página {Page.Url}, origem {msg.Location}): {msg.Text}{context}");
             }
         };
+        // Exceção JavaScript não capturada chega como pageerror, e não como mensagem de console
+        Page.PageError += (_, message) =>
+            errors.Add($"Exceção JS durante {currentRoute} (página {Page.Url}): {message}");
 
         // A página de chegada (depois do login ou do registro) pode ainda estar negociando o circuito Blazor. Navegar
         // antes disso aborta a negociação, e o navegador registra "Failed to fetch" como erro de console sem haver
         // defeito no app.
         if (Page.Url != "about:blank")
-            await WaitForBlazorAsync();
+            await TryWaitForBlazorAsync("(página de chegada)", errors);
 
         foreach (var route in routes)
         {
@@ -114,16 +126,46 @@ public class FullSweepTests : E2ETestBase
                 continue;
             }
 
-            await WaitForBlazorAsync();
+            if (!await TryWaitForBlazorAsync(route, errors))
+                continue;
+
+            // Cair no login, ser redirecionada ou parar em outra URL é falha: a tela da rota não chegou a abrir
+            var path = new Uri(Page.Url).AbsolutePath;
+            if (!string.Equals(path, route, StringComparison.OrdinalIgnoreCase))
+                errors.Add($"{route}: a página terminou em {path}");
 
             var body = await Page.Locator("body").InnerTextAsync();
-            if (body.Contains("Um erro inesperado", StringComparison.OrdinalIgnoreCase) ||
-                body.Contains("An unhandled exception", StringComparison.OrdinalIgnoreCase) ||
-                body.Contains("Erro interno", StringComparison.OrdinalIgnoreCase))
-                errors.Add($"{route}: página de erro renderizada");
+            foreach (var marker in ErrorMarkers)
+            {
+                if (body.Contains(marker, StringComparison.OrdinalIgnoreCase))
+                    errors.Add($"{route}: página de erro renderizada (\"{marker}\")");
+            }
+
+            // Falha de carga tratada pelo app vira ErrorState em HTML puro, sem 5xx nem erro de console
+            if (await Page.GetByTestId("error-state").CountAsync() > 0)
+                errors.Add($"{route}: componente de erro (error-state) visível");
+            if (await Page.Locator("#blazor-error-ui").IsVisibleAsync())
+                errors.Add($"{route}: faixa de erro do Blazor (#blazor-error-ui) visível");
         }
 
         return errors;
+    }
+
+    // Se a espera estourar, a exceção sairia do método e jogaria fora os erros já coletados (que mostram a causa)
+    private async Task<bool> TryWaitForBlazorAsync(string route, List<string> errors)
+    {
+        try
+        {
+            await WaitForBlazorAsync();
+            return true;
+        }
+        catch (PlaywrightException ex)
+        {
+            // Primeira linha da mensagem do Playwright (ex.: "Timeout 20000ms exceeded.")
+            var reason = ex.Message.Split('\n')[0].Trim();
+            errors.Add($"{route}: a página não ficou pronta ({reason}; URL atual: {Page.Url})");
+            return false;
+        }
     }
 
     // ------------------------------------------------------------------
