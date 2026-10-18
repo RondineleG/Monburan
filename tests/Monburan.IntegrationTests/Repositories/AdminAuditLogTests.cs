@@ -2,6 +2,7 @@ using FluentAssertions;
 
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 
 using Monburan.Core.Interfaces.Services;
@@ -118,6 +119,27 @@ public class AdminAuditLogTests : IDisposable
     }
 
     [Fact]
+    public async Task ApplicationLog_CarriesIdentifiersAndTheActionName_NeverEmailsOrNames()
+    {
+        var logger = new CapturingLogger();
+        var actor = new AdminActor(Guid.NewGuid().ToString(), "quem.agiu@exemplo.com");
+        var working = new AdminAuditLog(_serviceProvider.GetRequiredService<IDbContextFactory<ApplicationDbContext>>(), logger);
+        var failing = new AdminAuditLog(new ThrowingContextFactory(), logger);
+
+        await working.RecordAsync(new AdminAuditRecord(
+            AdminAuditActions.AccountEmailConfirmed, actor, AdminAuditActions.AccountTarget, "42", "alvo.da.acao@exemplo.com"));
+        await failing.RecordAsync(new AdminAuditRecord(
+            AdminAuditActions.AccountDeactivated, actor, AdminAuditActions.AccountTarget, "43", "outro.alvo@exemplo.com"));
+
+        // a ação que grava (1 linha) e a que falha ao gravar (a linha da ação e a do erro)
+        logger.Messages.Should().HaveCount(3);
+        logger.Messages.Should().OnlyContain(message => message.Contains(actor.Id));
+        logger.Messages.Should().OnlyContain(message =>
+            !message.Contains("exemplo.com") && !message.Contains("quem.agiu") && !message.Contains("alvo"));
+        logger.Messages[0].Should().Contain("E-mail confirmado manualmente").And.Contain("account 42");
+    }
+
+    [Fact]
     public async Task List_ClampsStrangePageNumbers()
     {
         await RecordAsync(AdminAuditActions.AccountActivated, AdminAuditActions.AccountTarget, "ana@exemplo.com");
@@ -127,6 +149,18 @@ public class AdminAuditLogTests : IDisposable
         page.Page.Should().Be(1);
         page.Size.Should().Be(25);
         page.Data.Should().ContainSingle();
+    }
+
+    private sealed class CapturingLogger : ILogger<AdminAuditLog>
+    {
+        public List<string> Messages { get; } = [];
+
+        public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
+
+        public bool IsEnabled(LogLevel logLevel) => true;
+
+        public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter) =>
+            Messages.Add(formatter(state, exception));
     }
 
     private sealed class ThrowingContextFactory : IDbContextFactory<ApplicationDbContext>

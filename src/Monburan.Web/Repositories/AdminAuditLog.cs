@@ -1,6 +1,7 @@
 using Monburan.Core.DTOs.Response;
 using Monburan.Core.Entities;
 using Monburan.Core.Interfaces.Services;
+using Monburan.Core.Services;
 using Monburan.Core.ValueObjects;
 
 namespace Monburan.Web.Repositories;
@@ -22,10 +23,11 @@ public sealed class AdminAuditLog : IAdminAuditLog
 
     public async Task RecordAsync(AdminAuditRecord record, CancellationToken cancellationToken = default)
     {
-        // Também no log da aplicação: se o banco falhar, a ação ainda fica registrada em algum lugar
+        // Também no log da aplicação: se o banco falhar, a ação ainda fica registrada em algum lugar. Só identificadores e o
+        // nome da ação: e-mail e nome das pessoas ficam na tabela de auditoria, não nos arquivos de log
         _logger.LogInformation(
-            "Auditoria: {Actor} fez {Action} em {TargetType} {TargetId} ({TargetLabel})",
-            record.Actor.Email, record.Action, record.TargetType, record.TargetId, record.TargetLabel);
+            "Auditoria: {ActorId} fez {Action} em {TargetType} {TargetId}",
+            record.Actor.Id, AdminAuditActions.Label(record.Action), record.TargetType, record.TargetId);
 
         try
         {
@@ -47,7 +49,7 @@ public sealed class AdminAuditLog : IAdminAuditLog
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
-            _logger.LogError(exception, "Auditoria: não foi possível gravar {Action} de {Actor}", record.Action, record.Actor.Email);
+            _logger.LogError(exception, "Auditoria: não foi possível gravar {Action} de {ActorId}", AdminAuditActions.Label(record.Action), record.Actor.Id);
         }
     }
 

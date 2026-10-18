@@ -72,6 +72,18 @@ public class RateLimitingTests
     [Fact]
     public void ClientKey_HasAFallbackWhenThereIsNoAddress() => RateLimiting.ClientKey(null).Should().Be("desconhecido");
 
+    [Theory]
+    [InlineData("/Account/Login", "/Account/Login")]
+    [InlineData("/x\r\nWARN forjado: tudo certo", "/xWARN forjado: tudo certo")]
+    [InlineData("/x\ny", "/xy")]
+    [InlineData(null, "")]
+    [InlineData("", "")]
+    public void ForLog_RemovesLineBreaksSoNobodyCanForgeALogLine(string? value, string expected) =>
+        RateLimiting.ForLog(value).Should().Be(expected);
+
+    [Fact]
+    public void ForLog_LimitsTheLength() => RateLimiting.ForLog(new string('a', 500)).Should().HaveLength(200);
+
     [Fact]
     public void Login_IsLimitedPerIp_AfterTheConfiguredAttempts()
     {

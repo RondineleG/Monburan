@@ -93,6 +93,16 @@ public static class RateLimiting
         });
     }
 
+    /// <summary>Método e caminho vêm do cliente: sem quebra de linha, ninguém forja uma linha de log; e com tamanho limitado.</summary>
+    public static string ForLog(string? value)
+    {
+        if (string.IsNullOrEmpty(value))
+            return string.Empty;
+
+        var cleaned = value.Replace("\r", string.Empty).Replace("\n", string.Empty);
+        return cleaned.Length <= 200 ? cleaned : cleaned[..200];
+    }
+
     private static async ValueTask RejectAsync(OnRejectedContext context, CancellationToken cancellationToken)
     {
         var http = context.HttpContext;
@@ -102,7 +112,7 @@ public static class RateLimiting
 
         var logger = http.RequestServices.GetService<ILoggerFactory>()?.CreateLogger("Monburan.RateLimit");
         logger?.LogWarning("Limite de requisições: {Metodo} {Rota} de {Cliente} recusado (tente de novo em {Segundos}s)",
-            http.Request.Method, http.Request.Path, ClientKey(http.Connection.RemoteIpAddress), seconds);
+            ForLog(http.Request.Method), ForLog(http.Request.Path.Value), ClientKey(http.Connection.RemoteIpAddress), seconds);
 
         const string message = "Muitas tentativas em pouco tempo. Aguarde um instante e tente de novo.";
         if (http.Request.Path.StartsWithSegments("/api"))
