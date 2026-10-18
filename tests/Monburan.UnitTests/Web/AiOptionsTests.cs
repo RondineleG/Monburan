@@ -35,7 +35,7 @@ public class AiOptionsTests
     [InlineData("https://api.exemplo.com/v1", "https://api.exemplo.com/v1/chat/completions")]
     [InlineData("https://api.exemplo.com/v1/", "https://api.exemplo.com/v1/chat/completions")]
     [InlineData("  https://api.exemplo.com/v1//  ", "https://api.exemplo.com/v1/chat/completions")]
-    [InlineData("https://token-plan-sgp.xiaomimimo.com/v1", "https://token-plan-sgp.xiaomimimo.com/v1/chat/completions")]
+    [InlineData("https://gateway.exemplo.com/openai/v1", "https://gateway.exemplo.com/openai/v1/chat/completions")]
     [InlineData("http://localhost:11434/v1", "http://localhost:11434/v1/chat/completions")]
     [InlineData("http://127.0.0.1:8080/v1", "http://127.0.0.1:8080/v1/chat/completions")]
     public void ChatCompletionsUri_AppendsThePathToTheBaseUrl(string baseUrl, string expected)
