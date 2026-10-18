@@ -1,0 +1,198 @@
+@implements IDisposable
+@using Monburan.Core.Enums
+@using Monburan.Core.Interfaces.Services
+@using Monburan.Core.UseCases.Resumes
+@inject IAiTextClient Ai
+@inject ICurrentUserHelper CurrentUser
+@inject ImproveResumeUseCase ImproveResumeUseCase
+@inject IJSRuntime JS
+@inject IToastService Toast
+
+@* Sugestões de melhoria do currículo com IA. Só aparece quando a IA está configurada. Nada é gravado: o resultado
+   existe só na tela e a pessoa decide o que aproveitar. O envio do conteúdo ao provedor exige autorização expressa
+   a cada uso (a caixa de seleção abaixo). *@
+@if (Ai.IsConfigured)
+{
+    <section class="card mb-4 ai-panel" aria-labelledby="ai-panel-title" data-testid="resume-ai-panel">
+        <div class="card-body">
+            <h2 id="ai-panel-title" class="ai-panel__title"><span aria-hidden="true">✦</span> Sugestões de melhoria com IA</h2>
+            <p class="ai-panel__lead">
+                A IA lê o conteúdo profissional do currículo (título, resumo, experiências, formação, habilidades e idiomas)
+                e sugere como deixá-lo mais claro e forte. Você decide o que aproveitar: nada é alterado nem guardado.
+            </p>
+
+            <div class="ai-panel__consent">
+                <input id="ai-consent" type="checkbox" @bind="consent" data-testid="resume-ai-consent" />
+                <label for="ai-consent">
+                    Autorizo enviar o conteúdo profissional deste currículo, sem nome, e-mail, telefone nem endereço, ao serviço
+                    de IA externo <strong>@Ai.ProviderName</strong>, só para gerar as sugestões.
+                    <a href="/privacy" target="_blank" rel="noopener">Como tratamos seus dados</a>.
+                </label>
+            </div>
+
+            <button type="button" class="btn btn-primary" @onclick="GenerateAsync" disabled="@(!consent || isRunning)" data-testid="resume-ai-generate">
+                @(isRunning ? "Analisando..." : improvement is null ? "Gerar sugestões" : "Gerar novamente")
+            </button>
+
+            <div aria-live="polite">
+                @if (isRunning)
+                {
+                    <LoadingState Compact="true" Message="Analisando seu currículo… pode levar até um minuto." />
+                }
+
+                @if (!string.IsNullOrEmpty(errorMessage))
+                {
+                    <div class="alert alert-warning mt-3 mb-0" role="alert" data-testid="resume-ai-error">@errorMessage</div>
+                }
+            </div>
+
+            @if (improvement is not null)
+            {
+                <div class="ai-result" data-testid="resume-ai-result">
+                    @if (!string.IsNullOrWhiteSpace(improvement.Summary))
+                    {
+                        <section class="ai-result__block" data-testid="resume-ai-summary">
+                            <div class="ai-result__head">
+                                <h3>Resumo profissional sugerido</h3>
+                                <button type="button" class="btn btn-outline-primary btn-sm" @onclick="() => CopyAsync(improvement.Summary)">Copiar</button>
+                            </div>
+                            <p class="ai-result__text">@improvement.Summary</p>
+                        </section>
+                    }
+
+                    @if (improvement.Experiences.Count > 0)
+                    {
+                        <section class="ai-result__block" data-testid="resume-ai-experiences">
+                            <h3>Experiências: frases de destaque</h3>
+                            @foreach (var experience in improvement.Experiences)
+                            {
+                                <article class="ai-result__experience">
+                                    <h4>@experience.Position @if (!string.IsNullOrWhiteSpace(experience.Company)) { <small>· @experience.Company</small> }</h4>
+                                    <ul>
+                                        @foreach (var suggestion in experience.Suggestions)
+                                        {
+                                            <li>
+                                                <span>@suggestion</span>
+                                                <button type="button" class="btn btn-outline-primary btn-sm" @onclick="() => CopyAsync(suggestion)">Copiar</button>
+                                            </li>
+                                        }
+                                    </ul>
+                                </article>
+                            }
+                        </section>
+                    }
+
+                    @if (improvement.SkillsToAdd.Count > 0)
+                    {
+                        <section class="ai-result__block" data-testid="resume-ai-skills">
+                            <h3>Habilidades que valem destacar</h3>
+                            <ul class="ai-result__chips">
+                                @foreach (var skill in improvement.SkillsToAdd)
+                                {
+                                    <li>@skill</li>
+                                }
+                            </ul>
+                        </section>
+                    }
+
+                    @if (improvement.MissingSections.Count > 0)
+                    {
+                        <section class="ai-result__block" data-testid="resume-ai-missing">
+                            <h3>O que falta no currículo</h3>
+                            <ul>
+                                @foreach (var section in improvement.MissingSections)
+                                {
+                                    <li>@section</li>
+                                }
+                            </ul>
+                        </section>
+                    }
+
+                    @if (improvement.Tips.Count > 0)
+                    {
+                        <section class="ai-result__block" data-testid="resume-ai-tips">
+                            <h3>Dicas gerais</h3>
+                            <ul>
+                                @foreach (var tip in improvement.Tips)
+                                {
+                                    <li>@tip</li>
+                                }
+                            </ul>
+                        </section>
+                    }
+
+                    <p class="ai-result__foot">
+                        Gerado por @(improvement.Model ?? "IA") em @UiLabels.FormatMoment(improvement.GeneratedAt). É um ponto de partida: revise
+                        e só use o que for verdadeiro e você puder comprovar. Onde aparecer algo como [X%], preencha com o seu número real.
+                    </p>
+                </div>
+            }
+        </div>
+    </section>
+}
+
+@code {
+    private readonly CancellationTokenSource cancellation = new();
+
+    private bool consent;
+    private bool isRunning;
+    private string? errorMessage;
+    private ResumeImprovementResponse? improvement;
+
+    [Parameter, EditorRequired]
+    public Guid ResumeId { get; set; }
+
+    private async Task GenerateAsync()
+    {
+        var candidateId = CurrentUser.GetCandidateId();
+        if (!consent || isRunning || candidateId is null)
+            return;
+
+        isRunning = true;
+        errorMessage = null;
+
+        try
+        {
+            var result = await ImproveResumeUseCase.ExecuteAsync(
+                new ImproveResumeRequest
+                {
+                    ResumeId = ResumeId,
+                    CandidateId = candidateId.Value,
+                    AcceptsExternalProcessing = consent
+                },
+                cancellation.Token);
+
+            if (result.Status == EResultStatus.Success && result.Data is not null)
+                improvement = result.Data;
+            else
+                errorMessage = ResultMessages.ToUserMessage(result, "Não foi possível gerar as sugestões agora. Tente novamente em instantes.");
+        }
+        catch (OperationCanceledException)
+        {
+            // A pessoa saiu da página: nada a mostrar
+        }
+        finally
+        {
+            isRunning = false;
+        }
+    }
+
+    private async Task CopyAsync(string text)
+    {
+        try
+        {
+            await JS.InvokeVoidAsync("navigator.clipboard.writeText", text);
+            Toast.ShowSuccess("Texto copiado.");
+        }
+        catch (JSException)
+        {
+            Toast.ShowError("Não foi possível copiar. Selecione o texto e copie manualmente.");
+        }
+    }
+
+    public void Dispose()
+    {
+        cancellation.Cancel();
+        cancellation.Dispose();
+    }
+}
