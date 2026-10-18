@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.DataProtection.KeyManagement;
 using Microsoft.AspNetCore.DataProtection.Repositories;
 using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
 
@@ -163,6 +164,11 @@ builder.Services.AddIdentityCore<ApplicationUser>(options =>
 .AddClaimsPrincipalFactory<ApplicationUserClaimsPrincipalFactory>();
 
 builder.Services.AddDatabaseDeveloperPageExceptionFilter();
+
+// Limites de requisição por IP (geral e, mais rígido, nos envios de login, cadastro e recuperação de senha)
+builder.Services.AddOptions<SecurityOptions>().Bind(builder.Configuration.GetSection(SecurityOptions.SectionName));
+builder.Services.AddRateLimiter(_ => { });
+builder.Services.AddOptions<RateLimiterOptions>().Configure<IOptionsMonitor<SecurityOptions>>(RateLimiting.Configure);
 
 // Atrás do nginx: IP real e https vêm dos cabeçalhos X-Forwarded-* (só de proxy local ou da rede interna)
 builder.Services.Configure<ForwardedHeadersOptions>(ForwardedHeadersSetup.Apply);
@@ -401,7 +407,7 @@ app.UseRequestLocalization(new RequestLocalizationOptions()
     .SetDefaultCulture("pt-BR")
     .AddSupportedCultures("pt-BR")
     .AddSupportedUICultures("pt-BR"));
-app.UseRateLimit(100); // 100 requests per second
+app.UseRateLimiter();
 app.UseSecurityHeaders();
 // Re-execute para /404 só fora da API; na API, respostas de erro sem corpo (rota
 // inexistente, método não permitido) ganham ProblemDetails em vez de HTML do site
