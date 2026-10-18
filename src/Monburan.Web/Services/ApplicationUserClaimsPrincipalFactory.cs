@@ -27,6 +27,12 @@ public class ApplicationUserClaimsPrincipalFactory(UserManager<ApplicationUser> 
             identity.AddClaim(new Claim(identity.RoleClaimType, AdminRole));
         }
 
+        // Quem tem a verificação em duas etapas ligada: a política de administrador confere esta claim
+        if (user.TwoFactorEnabled)
+        {
+            identity.AddClaim(new Claim(ClaimsExtensions.TwoFactorEnabledClaimType, "true"));
+        }
+
         var email = user.Email;
         if (!string.IsNullOrEmpty(email))
         {

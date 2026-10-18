@@ -11,6 +11,13 @@ public sealed class SecurityOptions
     /// </summary>
     public bool CspReportOnly { get; set; }
 
+    /// <summary>
+    /// Administradores só abrem as áreas de administração com a verificação em duas etapas (2FA) ligada na conta; sem ela são
+    /// levados à tela de configuração. Desligado só em desenvolvimento. Se o único administrador perder o aparelho e os códigos
+    /// de recuperação, <c>Security__RequireTwoFactorForAdmins=false</c> reabre o acesso até ele reconfigurar.
+    /// </summary>
+    public bool RequireTwoFactorForAdmins { get; set; } = true;
+
     public RateLimitSettings RateLimit { get; set; } = new();
 
     public sealed class RateLimitSettings

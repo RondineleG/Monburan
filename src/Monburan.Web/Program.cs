@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.DataProtection.KeyManagement;
 using Microsoft.AspNetCore.DataProtection.Repositories;
@@ -88,6 +89,7 @@ builder.Services.AddOptions<JwtOptions>()
     .Validate(o => System.Text.Encoding.UTF8.GetByteCount(o.SigningKey) >= 32, "Jwt:SigningKey precisa de pelo menos 32 bytes (HMAC-SHA256).")
     .Validate(o => !string.IsNullOrWhiteSpace(o.Issuer) && !string.IsNullOrWhiteSpace(o.Audience), "Jwt:Issuer e Jwt:Audience são obrigatórios.")
     .ValidateOnStart();
+builder.Services.AddSingleton<IAuthorizationHandler, AdminTwoFactorHandler>();
 builder.Services.AddScoped<IIdentityService, IdentityService>();
 builder.Services.AddScoped<AccountProfileService>();
 
@@ -119,7 +121,10 @@ builder.Services.AddAuthentication(options =>
 .AddIdentityCookies();
 
 builder.Services.AddAuthorizationBuilder()
-    .AddPolicy("AdminOnly", policy => policy.RequireRole("Admin"))
+    // Administrador: papel Admin e, fora do desenvolvimento, verificação em duas etapas ligada na conta
+    .AddPolicy("AdminOnly", policy => policy
+        .RequireRole("Admin")
+        .AddRequirements(new AdminTwoFactorRequirement()))
     // Páginas por papel: o perfil vem da claim user_type emitida no login
     .AddPolicy("CandidateOnly", policy => policy
         .RequireAuthenticatedUser()
@@ -194,6 +199,24 @@ builder.Services.AddSingleton<IConfigureOptions<KeyManagementOptions>>(services 
         if (!string.IsNullOrWhiteSpace(keysPath))
             options.XmlRepository = new FileSystemXmlRepository(new DirectoryInfo(keysPath), loggerFactory);
     });
+});
+
+// Administrador sem 2FA que tenta abrir uma área de administração não vê "acesso negado": vai para a tela de configuração
+builder.Services.ConfigureApplicationCookie(options =>
+{
+    var accessDenied = options.Events.OnRedirectToAccessDenied;
+    options.Events.OnRedirectToAccessDenied = context =>
+    {
+        var security = context.HttpContext.RequestServices.GetRequiredService<IOptionsMonitor<SecurityOptions>>().CurrentValue;
+        var user = context.HttpContext.User;
+        if (security.RequireTwoFactorForAdmins && user.IsInRole("Admin") && !AdminTwoFactorHandler.HasTwoFactor(user))
+        {
+            context.Response.Redirect("/Account/Manage/TwoFactorAuthentication?adminRequired=true");
+            return Task.CompletedTask;
+        }
+
+        return accessDenied(context);
+    };
 });
 
 // A sessão é revalidada no banco a cada 2 minutos (padrão: 30): conta desativada, senha trocada ou 2FA ligado valem logo
