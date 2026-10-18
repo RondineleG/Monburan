@@ -23,7 +23,7 @@ só mostra se a variável existe no servidor ("definida no servidor" ou "não de
 
 Só o papel **Admin** (política `AdminOnly`); candidatos e empresas recebem acesso negado e visitantes vão para o login.
 
-- **Desenvolvimento:** o seed cria `admin@monburan.com.br` (senha de desenvolvimento do próprio seed).
+- **Desenvolvimento:** o seed cria `admin@monburan.com.br` e `adm@monburan.com.br` (senhas de desenvolvimento do próprio seed).
 - **Produção:** não existe usuário administrador pronto. Defina `ADMIN_EMAILS` no `.env` da VPS (e-mails separados por
   vírgula), cadastre-se no site com um desses e-mails e **confirme o e-mail** pelo link recebido. A conta só vira administradora
   com o e-mail confirmado: sem isso, bastaria cadastrar o e-mail de outra pessoa. Tirar o e-mail da lista tira o acesso no

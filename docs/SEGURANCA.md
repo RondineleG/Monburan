@@ -66,6 +66,16 @@ do Google Fonts; sem plugins; formulários só para o próprio site; a página n
 Só o papel **Admin** abre as telas abaixo. Em produção, o primeiro administrador vem de `ADMIN_EMAILS` (veja
 [IA-PROVEDORES.md](IA-PROVEDORES.md#quem-pode-abrir-a-tela)).
 
+**Primeiro administrador em produção.** O seed que cria administradores só roda em desenvolvimento (`admin@monburan.com.br` e
+`adm@monburan.com.br`, com as senhas do próprio seed; o repositório é público, então essas senhas nunca servem fora do ambiente
+local). Em produção:
+
+1. Coloque o e-mail em `ADMIN_EMAILS` no `.env` da VPS e reinicie o app.
+2. Cadastre-se no site com esse e-mail e uma senha que cumpra a regra (10 ou mais caracteres, com maiúscula, minúscula e número).
+3. Confirme o e-mail pelo link recebido; sem e-mail configurado, o comando de confirmação direto no banco está em
+   [IA-PROVEDORES.md](IA-PROVEDORES.md#quem-pode-abrir-a-tela).
+4. No primeiro acesso, ligue o 2FA (veja abaixo).
+
 **Verificação em duas etapas (2FA) obrigatória.** Quem é administrador só abre a administração com o 2FA ligado na conta;
 sem ele vê um aviso com o botão para a configuração (`/Account/Manage/TwoFactorAuthentication`). Perdeu o aparelho e os
 códigos de recuperação:
@@ -133,8 +143,9 @@ Faça nesta ordem. Os arquivos citados estão em `infra/vps/` e são copiados pa
 
 ### 2. nginx
 
-Copie o `nginx.conf` novo (o `deploy.sh` faz isso, ou `cp nginx.conf /etc/nginx/sites-available/monburan.com.br`), rode
-`nginx -t` e `systemctl reload nginx`. Ele esconde a versão, descarta acessos por IP ou por domínio de terceiros (resposta
+Copie o `nginx.conf` novo para o arquivo do site que `/etc/nginx/sites-enabled/` aponta (`ls -l /etc/nginx/sites-enabled/`: o
+`deploy.sh` usa `/etc/nginx/sites-available/monburan.com.br`, mas uma instalação feita à mão pode ter outro nome; guarde uma
+cópia do arquivo antigo fora do `sites-enabled`), rode `nginx -t` e `systemctl reload nginx`. Ele esconde a versão, descarta acessos por IP ou por domínio de terceiros (resposta
 vazia), envia só o IP visto pelo nginx e encurta os tempos de cabeçalho e corpo. Se o `nginx -t` reclamar de
 `default_server` duplicado, tire esse `default_server` do outro site.
 
@@ -152,7 +163,8 @@ sessão), 80 e 443. O SSH passa a aceitar **só chave**. Travas: só mexe no SSH
 recarregar e desfaz o que escreveu se algo não bater. **Depois de aplicar, não feche a sessão: abra outra e confirme que
 entra por chave.** O fail2ban bloqueia por 1 hora quem erra o SSH 4 vezes em 10 minutos
 (`FAIL2BAN_IGNOREIP="seu.ip.fixo"` evita bloquear você). As atualizações de segurança do sistema entram sozinhas, **sem
-reinício automático**: de vez em quando confira `/var/run/reboot-required` e reinicie numa hora calma.
+reinício automático**: de vez em quando confira `/var/run/reboot-required` e reinicie numa hora calma. Isso só protege um
+sistema que ainda recebe correções: confira a versão (`cat /etc/os-release`) e veja o fim de "O que ainda não está coberto".
 
 Para desfazer o SSH: apague `/etc/ssh/sshd_config.d/00-monburan-hardening.conf` e recarregue o `ssh`. O Docker publica
 portas pelo iptables e **ignora** o ufw: o compose só publica o app em `127.0.0.1:8080` e não publica o Postgres; qualquer
@@ -291,6 +303,10 @@ docker exec monburan-postgres sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" 
 
 ## O que ainda não está coberto
 
+- **Sistema operacional sem suporte:** o Debian 11 (bullseye) saiu do suporte de segurança e seus pacotes vêm de
+  `archive.debian.org`: kernel, OpenSSH, OpenSSL e o resto não recebem mais correção. O firewall, o SSH só por chave e o
+  fail2ban reduzem a exposição, mas não substituem trocar para uma versão suportada (Debian 12 ou 13, Ubuntu LTS), de
+  preferência em um servidor novo restaurado a partir do backup desta página. Confira com `cat /etc/os-release`.
 - **Contêiner sem root:** o app roda como root dentro do contêiner. Mudar exige ajustar o dono dos volumes que já existem.
 - **WAF ou CDN** (por exemplo Cloudflare) na frente: o nginx e os limites tratam abuso simples, não ataque volumétrico. Se
   colocar um proxy na frente, o `nginx.conf` e a confiança em `X-Forwarded-For` precisam ser revistos.
