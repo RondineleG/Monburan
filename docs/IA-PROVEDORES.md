@@ -31,6 +31,8 @@ Só o papel **Admin** (política `AdminOnly`); candidatos e empresas recebem ace
   confirmação não chega; nesse caso confirme uma vez direto no banco:
   `UPDATE "Identity"."Users" SET "EmailConfirmed" = true WHERE "NormalizedEmail" = 'SEU@EMAIL.COM';`
   (o e-mail normalizado é em maiúsculas)
+- **2FA obrigatório:** administradores só abrem as telas de administração com a verificação em duas etapas ligada na conta;
+  sem ela, a tela explica e leva à configuração. Detalhes e a saída de emergência em [SEGURANCA.md](SEGURANCA.md#administração-do-site).
 
 ## A tela
 

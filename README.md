@@ -66,6 +66,7 @@ Monburan é uma aplicação web completa para gestão de vagas, candidaturas e c
 - ✅ Multi-tenant ready
 - ✅ Design system próprio (dark) para web e mobile
 - ✅ App Android (.NET MAUI Blazor Hybrid)
+- ✅ Administração: contas (inativar, reativar, desbloquear, 2FA, papéis), moderação das vagas de todas as empresas, trilha de auditoria e provedores de IA
 - ✅ Seed Data para desenvolvimento
 - ✅ Migrations automáticas (`APPLY_MIGRATIONS=true`)
 
@@ -74,13 +75,20 @@ Monburan é uma aplicação web completa para gestão de vagas, candidaturas e c
 ## 🔒 Segurança
 
 ### Medidas de Segurança Implementadas
-- ✅ **Security Headers**: X-Content-Type-Options, X-Frame-Options, CSP, etc.
-- ✅ **Rate Limiting**: Proteção contra DDoS (100 req/s)
+- ✅ **Senhas**: mínimo de 10 caracteres, lista de senhas comuns recusadas e **bloqueio da conta** após 5 erros (15 minutos)
+- ✅ **Rate Limiting por IP**: 50 req/s no site todo e 20 envios/min em login, cadastro e recuperação de senha
+- ✅ **Sessão**: cookies `Secure`/`HttpOnly` mesmo atrás do nginx, chaves de sessão persistidas (o deploy não desloga ninguém)
+- ✅ **Security Headers**: CSP sem `unsafe-inline` nem `unsafe-eval` nos scripts, HSTS, X-Content-Type-Options, X-Frame-Options, etc.
+- ✅ **Administração protegida**: 2FA obrigatório para administradores e trilha de auditoria de toda ação administrativa
+- ✅ **VPS**: firewall só com SSH/80/443, SSH só por chave, fail2ban, atualizações automáticas e backup criptografado fora do servidor
+- ✅ **Repositório**: Dependabot, CodeQL, secret scanning com bloqueio de push e branches protegidas
 - ✅ **Credenciais Seguras**: Variáveis de ambiente (sem hardcoded)
 - ✅ **Anti-Forgery**: Proteção CSRF habilitada
 - ✅ **HTTPS Redirection**: Forçado em produção
 - ✅ **Identity**: Autenticação robusta com claims
 - ✅ **Input Validation**: Validação rigorosa em todos os inputs
+
+Detalhes, configuração e passo a passo para produção: [docs/SEGURANCA.md](docs/SEGURANCA.md).
 
 ### Configuração de Segurança
 ```bash
@@ -194,8 +202,14 @@ Monburan/
 │   ├── docker-compose.prod.yml # Stack app + Postgres (imagem do GHCR)
 │   ├── nginx.conf              # Reverse proxy + TLS (certbot)
 │   ├── deploy.sh               # Provisiona VPS: deps, stack, nginx, TLS
+│   ├── harden.sh               # Endurece a VPS: firewall, SSH por chave, fail2ban, atualizações
+│   ├── backup.sh               # Backup criptografado (age) do banco e dos uploads, enviado com rclone
+│   ├── restore-test.sh         # Restaura o backup em um Postgres descartável e confere os dados
+│   ├── systemd/                # Timer diário do backup
+│   ├── tests/                  # Testes dos scripts acima, em contêineres (CI: infra-scripts.yml)
 │   ├── build-push.sh           # Build + push da imagem no GHCR (na VPS)
 │   ├── docker-bake.hcl         # Alvo buildx bake da imagem
+│   ├── backup.env.example      # Configuração do backup
 │   └── env.example             # Variáveis de produção
 │
 ├── deploy/                     # Deploy alternativo (systemd, sem Docker)
