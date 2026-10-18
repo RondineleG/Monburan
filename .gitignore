@@ -11,6 +11,9 @@
 # Chaves de IA da VPS (segredos): só o ai-keys.env.example é versionado
 ai-keys.env
 
+# Configuração do backup da VPS (segredos do armazenamento remoto): só o backup.env.example é versionado
+backup.env
+
 # User-specific files
 *.rsuser
 *.suo
