@@ -69,6 +69,7 @@ public static class DevelopmentIdentitySeedData
 
                 await userManager.SetLockoutEndDateAsync(user, null).ConfigureAwait(false);
                 await userManager.ResetAccessFailedCountAsync(user).ConfigureAwait(false);
+                await userManager.SetLockoutEnabledAsync(user, false).ConfigureAwait(false);
                 continue;
             }
 

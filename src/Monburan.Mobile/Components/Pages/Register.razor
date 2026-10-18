@@ -1,4 +1,5 @@
 @page "/register"
+@using Monburan.Core.Validations
 @inject AuthApiClient AuthApi
 @inject AuthStateService Auth
 @inject NavigationManager Nav
@@ -38,8 +39,8 @@
 
     <div class="form-field">
         <label for="register-password">Senha</label>
-        <input id="register-password" class="input" type="password" @bind="_password" placeholder="Mínimo 6 caracteres" autocomplete="new-password" />
-        <div class="text-dim">Use ao menos 6 caracteres, com letra maiúscula, minúscula e número.</div>
+        <input id="register-password" class="input" type="password" @bind="_password" placeholder="Mínimo @(PasswordPolicy.MinLength) caracteres" autocomplete="new-password" />
+        <div class="text-dim">Use ao menos @(PasswordPolicy.MinLength) caracteres, com letra maiúscula, minúscula e número.</div>
         @if (FieldError("password") is { } passwordError)
         {
             <div class="field-error">@passwordError</div>
@@ -94,8 +95,8 @@
             _fieldErrors["name"] = "Informe seu nome.";
         if (string.IsNullOrWhiteSpace(_email) || !_email.Contains('@'))
             _fieldErrors["email"] = "Informe um e-mail válido.";
-        if (_password.Length < 6)
-            _fieldErrors["password"] = "A senha precisa de pelo menos 6 caracteres.";
+        if (_password.Length < PasswordPolicy.MinLength)
+            _fieldErrors["password"] = PasswordPolicy.MinLengthMessage;
         else if (_password != _confirm)
             _fieldErrors["confirmPassword"] = "As senhas não conferem.";
 

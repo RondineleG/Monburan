@@ -1,4 +1,5 @@
 @page "/Account/Register"
+@using Monburan.Core.Validations
 
 @using System.ComponentModel.DataAnnotations
 @using System.Text
@@ -37,6 +38,15 @@
     <div class="auth-form-grid auth-form-grid--single">
         <section class="auth-form-card">
         <StatusMessage Message="@Message" />
+        @if (identityErrors is not null)
+        {
+            <ul class="auth-error-list text-danger" data-testid="register-errors">
+                @foreach (var error in identityErrors)
+                {
+                    <li>@error.Description</li>
+                }
+            </ul>
+        }
         @if (!string.IsNullOrWhiteSpace(profileCreationError))
         {
             <div class="alert alert-danger" role="alert">@profileCreationError</div>
@@ -278,7 +288,7 @@
         public string Email { get; set; } = "";
 
         [Required(ErrorMessage = "Informe uma senha.")]
-        [StringLength(100, ErrorMessage = "A senha precisa ter pelo menos {2} caracteres.", MinimumLength = 6)]
+        [StringLength(PasswordPolicy.MaxLength, ErrorMessage = "A senha precisa ter pelo menos {2} caracteres.", MinimumLength = PasswordPolicy.MinLength)]
         [DataType(DataType.Password)]
         [Display(Name = "Senha")]
         public string Password { get; set; } = "";

@@ -141,13 +141,20 @@ builder.Services.AddIdentityCore<ApplicationUser>(options =>
     options.Password.RequireLowercase = true;
     options.Password.RequireNonAlphanumeric = false;
     options.Password.RequireUppercase = true;
-    options.Password.RequiredLength = 6;
+    options.Password.RequiredLength = PasswordPolicy.MinLength;
+
+    // Bloqueio por tentativas: depois de 5 senhas erradas seguidas a conta fica 15 minutos sem aceitar login (a API e a web
+    // contam as falhas; o acerto zera a contagem)
+    options.Lockout.AllowedForNewUsers = true;
+    options.Lockout.MaxFailedAccessAttempts = 5;
+    options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(15);
 })
 .AddRoles<IdentityRole<Guid>>()
 .AddEntityFrameworkStores<ApplicationDbContext>()
 .AddSignInManager()
 .AddDefaultTokenProviders()
 .AddErrorDescriber<PortugueseIdentityErrorDescriber>()
+.AddPasswordValidator<CommonPasswordValidator>()
 .AddClaimsPrincipalFactory<ApplicationUserClaimsPrincipalFactory>();
 
 builder.Services.AddDatabaseDeveloperPageExceptionFilter();

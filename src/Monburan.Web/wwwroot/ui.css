@@ -329,6 +329,7 @@ h1[tabindex="-1"]:focus { outline: none; }
 .auth-message-page { display: flex; width: min(100%, 34rem); min-height: 16rem; flex-direction: column; align-items: flex-start; justify-content: center; gap: 0.7rem; margin-inline: auto; }
 .auth-message-page h1 { margin: 0; font-family: var(--f-display); font-size: clamp(1.7rem, 4vw, 2.4rem); font-weight: 600; }
 .auth-message-page p { margin: 0 0 0.5rem; color: var(--tx-2); }
+.auth-error-list { margin: 0 0 1rem; padding-left: 1.2rem; color: var(--er); font-size: 0.88rem; line-height: 1.5; }
 .auth-message-page .error-reference { color: var(--tx-3); font-family: var(--f-mono); font-size: 0.7rem; }
 .manage-heading { margin-bottom: 1.25rem; }
 .manage-heading h1 { margin: 0.35rem 0; font-family: var(--f-display); font-size: clamp(1.5rem, 3vw, 2.1rem); }
