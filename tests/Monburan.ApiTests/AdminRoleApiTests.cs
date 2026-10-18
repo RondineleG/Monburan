@@ -146,6 +146,12 @@ public class LastAdminApiTests : IClassFixture<MonburanApiFactory>
     {
         var seeded = await SeededAdminAsync();
 
+        // O seed de desenvolvimento tem dois administradores: o segundo sai de cena para a trava ser exercitada
+        var secondSeeded = await AdminRoleApiTests.WithServicesAsync(_factory, async services =>
+            (await services.GetRequiredService<UserManager<ApplicationUser>>().FindByEmailAsync("adm@monburan.com.br"))!);
+        (await AdminRoleApiTests.RunAsync(_factory, service => service.DeactivateAsync(secondSeeded.Id, "só o primeiro deve restar", Moderator)))
+            .Status.Should().Be(EResultStatus.Success);
+
         // Só o administrador do seed: nada pode tirá-lo
         (await AdminRoleApiTests.RunAsync(_factory, service => service.DeactivateAsync(seeded.Id, "teste da trava", Moderator))).Message.Should().Contain("última conta de administrador");
         (await AdminRoleApiTests.RunAsync(_factory, service => service.SetAdminAsync(seeded.Id, false, Moderator))).Message.Should().Contain("última conta de administrador");
@@ -159,8 +165,9 @@ public class LastAdminApiTests : IClassFixture<MonburanApiFactory>
         (await AdminRoleApiTests.RunAsync(_factory, service => service.DeactivateAsync(second.Id, "não pode", Moderator))).Message.Should().Contain("última conta de administrador");
         (await AdminRoleApiTests.RunAsync(_factory, service => service.SetAdminAsync(second.Id, false, Moderator))).Message.Should().Contain("última conta de administrador");
 
-        // Devolve o estado: reativa o primeiro
+        // Devolve o estado: reativa o primeiro e o segundo do seed
         (await AdminRoleApiTests.RunAsync(_factory, service => service.ActivateAsync(seeded.Id, Moderator))).Status.Should().Be(EResultStatus.Success);
+        (await AdminRoleApiTests.RunAsync(_factory, service => service.ActivateAsync(secondSeeded.Id, Moderator))).Status.Should().Be(EResultStatus.Success);
         (await AdminRoleApiTests.RunAsync(_factory, service => service.DeactivateAsync(second.Id, "agora o primeiro está de volta", Moderator))).Status.Should().Be(EResultStatus.Success);
     }
 

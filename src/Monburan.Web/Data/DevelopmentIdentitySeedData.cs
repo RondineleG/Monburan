@@ -6,6 +6,12 @@ public static class DevelopmentIdentitySeedData
     private const string AdminRole = "Admin";
     private const string AdminEmail = "admin@monburan.com.br";
 
+    // Segunda conta de administração de desenvolvimento, com a senha escolhida pelo dono do projeto. A senha não passa na política
+    // de produção (falta um dígito), então é gravada direto pelo hasher em vez de por CreateAsync(usuário, senha). Este seed só
+    // roda em Development (Program.cs) e o repositório é público: nunca reutilize esta senha fora do ambiente local.
+    private const string SecondAdminEmail = "adm@monburan.com.br";
+    private const string SecondAdminPassword = "Adm@monburan@norando";
+
     private static readonly string[] Emails =
     [
         "contato@techsolutions.com",
@@ -51,6 +57,8 @@ public static class DevelopmentIdentitySeedData
             await userManager.AddToRoleAsync(admin, AdminRole).ConfigureAwait(false);
         }
 
+        await EnsureSecondAdminAsync(userManager).ConfigureAwait(false);
+
         foreach (var email in Emails)
         {
             var user = await userManager.FindByEmailAsync(email).ConfigureAwait(false);
@@ -91,6 +99,38 @@ public static class DevelopmentIdentitySeedData
             }
 
             await userManager.SetLockoutEnabledAsync(user, false).ConfigureAwait(false);
+        }
+    }
+
+    private static async Task EnsureSecondAdminAsync(UserManager<ApplicationUser> userManager)
+    {
+        var admin = await userManager.FindByEmailAsync(SecondAdminEmail).ConfigureAwait(false);
+        if (admin is null)
+        {
+            admin = new ApplicationUser
+            {
+                UserName = SecondAdminEmail,
+                Email = SecondAdminEmail,
+                EmailConfirmed = true,
+                CreatedAt = DateTime.UtcNow,
+                IsActive = true
+            };
+            admin.PasswordHash = userManager.PasswordHasher.HashPassword(admin, SecondAdminPassword);
+
+            var result = await userManager.CreateAsync(admin).ConfigureAwait(false);
+            if (!result.Succeeded)
+            {
+                var errors = string.Join(", ", result.Errors.Select(error => error.Description));
+                throw new InvalidOperationException(
+                    $"Não foi possível criar o usuário administrador de desenvolvimento {SecondAdminEmail}: {errors}");
+            }
+        }
+
+        await userManager.SetLockoutEnabledAsync(admin, false).ConfigureAwait(false);
+
+        if (!await userManager.IsInRoleAsync(admin, AdminRole).ConfigureAwait(false))
+        {
+            await userManager.AddToRoleAsync(admin, AdminRole).ConfigureAwait(false);
         }
     }
 }

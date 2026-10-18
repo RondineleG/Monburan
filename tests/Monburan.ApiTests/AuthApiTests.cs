@@ -41,6 +41,27 @@ public class AuthApiTests : IClassFixture<MonburanApiFactory>
     }
 
     [Fact]
+    public async Task Login_AsTheSecondDevelopmentAdmin_Works_AndTheAccountIsAnAdministrator()
+    {
+        // O seed de desenvolvimento grava esta senha direto pelo hasher (ela não passa na política de produção)
+        var response = await _client.PostAsJsonAsync("/api/auth/login", new UserLoginRequest
+        {
+            Email = "adm@monburan.com.br",
+            Password = "Adm@monburan@norando"
+        });
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        (await response.Content.ReadFromJsonAsync<UserLoginResponse>())!.AccessToken.Should().NotBeNullOrEmpty();
+
+        using var scope = _factory.Services.CreateScope();
+        var users = scope.ServiceProvider.GetRequiredService<Microsoft.AspNetCore.Identity.UserManager<Monburan.Web.Models.ApplicationUser>>();
+        var admin = await users.FindByEmailAsync("adm@monburan.com.br");
+        admin.Should().NotBeNull();
+        admin!.EmailConfirmed.Should().BeTrue();
+        (await users.IsInRoleAsync(admin, "Admin")).Should().BeTrue();
+    }
+
+    [Fact]
     public async Task Login_WithWrongPassword_Returns401()
     {
         var response = await _client.PostAsJsonAsync("/api/auth/login", new UserLoginRequest
