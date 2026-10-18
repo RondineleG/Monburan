@@ -3,7 +3,8 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:local="clr-namespace:Monburan.Mobile"
              xmlns:components="clr-namespace:Monburan.Mobile.Components"
-             x:Class="Monburan.Mobile.MainPage">
+             x:Class="Monburan.Mobile.MainPage"
+             BackgroundColor="{AppThemeBinding Light=#F2EBD9, Dark=#0A0806}">
 
     <BlazorWebView x:Name="blazorWebView" HostPage="wwwroot/index.html">
         <BlazorWebView.RootComponents>
