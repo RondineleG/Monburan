@@ -13,7 +13,6 @@ set -euo pipefail
 DOMAIN="monburan.com.br"
 APP_PORT=8080
 INSTALL_DIR="/opt/monburan"
-GHCR_IMAGE="ghcr.io/rondineleg/monburan:latest"
 
 echo "==> [1/7] Dependências do sistema"
 apt-get update -y
