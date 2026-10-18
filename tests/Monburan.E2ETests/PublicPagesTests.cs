@@ -112,7 +112,7 @@ public class PublicPagesTests : E2ETestBase
         var layoutFits = await Page.EvaluateAsync<bool>("""
             () => {
                 const width = document.documentElement.clientWidth;
-                const selectors = [".app-topbar", ".jobs-page", ".jobs-search-panel", ".jobs-grid", ".job-card"];
+                const selectors = [".app-topbar", ".jobs-page", ".jobs-search__bar", ".jobs-grid", ".job-card"];
                 return selectors.every(selector => Array.from(document.querySelectorAll(selector)).every(element => {
                     const bounds = element.getBoundingClientRect();
                     return bounds.left >= -1 && bounds.right <= width + 1;
@@ -156,34 +156,48 @@ public class PublicPagesTests : E2ETestBase
     }
 
     [Fact]
-    public async Task JobDetails_Anonymous_ShouldRedirectToLogin_WithReturnUrl()
+    public async Task JobDetails_Anonymous_ShouldOpenPublicPage_WithoutLogin()
     {
         await GotoAsync("/jobs");
         await WaitForBlazorAsync();
 
-        var detailsButton = Page.GetByTestId("job-card-details").First;
-        await detailsButton.WaitForAsync(new LocatorWaitForOptions
+        await Page.GetByTestId("job-card").First.ClickAsync();
+        await Page.GetByTestId("job-detail-title").WaitForAsync(new LocatorWaitForOptions
         {
             State = WaitForSelectorState.Visible
         });
-        await detailsButton.ClickAsync();
 
+        Assert.Matches("^/jobs/[0-9a-f-]{36}$", new Uri(Page.Url).AbsolutePath);
+        Assert.True(await Page.GetByTestId("job-apply").IsVisibleAsync(),
+            "O visitante deveria ver o botão para se candidatar");
+    }
+
+    [Fact]
+    public async Task JobDetails_Anonymous_Apply_ShouldRedirectToLogin_WithReturnUrl()
+    {
+        await GotoAsync("/jobs");
+        await WaitForBlazorAsync();
+        await Page.GetByTestId("job-card").First.ClickAsync();
+        await Page.GetByTestId("job-detail-title").WaitForAsync();
+        var jobId = new Uri(Page.Url).AbsolutePath.Split('/').Last();
+
+        await Page.GetByTestId("job-apply").ClickAsync();
         await Page.WaitForFunctionAsync(
             "() => location.pathname === '/Account/Login'",
             null,
             new PageWaitForFunctionOptions { Timeout = 30000 });
 
-        Assert.Contains("ReturnUrl=", Page.Url, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("jobId", Page.Url, StringComparison.OrdinalIgnoreCase);
+        // Depois do login a pessoa volta direto para o formulário de candidatura
+        Assert.Contains($"ReturnUrl=%2Fapply%2F{jobId}", Page.Url, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
-    public async Task JobDetails_Anonymous_AfterLogin_ShouldOpenModal()
+    public async Task JobDetails_Anonymous_AfterLogin_ShouldOpenApplyPage()
     {
         await GotoAsync("/jobs");
         await WaitForBlazorAsync();
-
-        await Page.GetByTestId("job-card-details").First.ClickAsync();
+        await Page.GetByTestId("job-card").First.ClickAsync();
+        await Page.GetByTestId("job-apply").ClickAsync();
         await Page.WaitForFunctionAsync(
             "() => location.pathname === '/Account/Login'",
             null,
@@ -194,12 +208,12 @@ public class PublicPagesTests : E2ETestBase
         await Page.GetByTestId("login-submit").ClickAsync();
 
         await Page.WaitForFunctionAsync(
-            "() => location.pathname === '/jobs' && location.search.includes('jobId')",
+            "() => location.pathname.startsWith('/apply/')",
             null,
             new PageWaitForFunctionOptions { Timeout = 45000 });
         await WaitForBlazorAsync();
 
-        await Page.GetByTestId("job-details-modal").WaitForAsync(new LocatorWaitForOptions
+        await Page.GetByTestId("application-submit").WaitForAsync(new LocatorWaitForOptions
         {
             State = WaitForSelectorState.Visible,
             Timeout = 30000

@@ -69,27 +69,15 @@ public class CandidateFlowTests : E2ETestBase
         await GotoAsync("/jobs");
         await WaitForBlazorAsync();
 
-        var detailsButton = Page.GetByTestId("job-card-details").First;
-        await detailsButton.ClickAsync();
-        await Page.GetByTestId("job-details-modal").WaitForAsync();
+        // A vaga tem página própria: o cartão leva a ela e de lá o candidato segue para o formulário
+        await Page.GetByTestId("job-card").First.ClickAsync();
+        await Page.GetByTestId("job-detail-title").WaitForAsync();
 
-        await Page.GetByTestId("job-modal-apply").ClickAsync();
-        try
-        {
-            await Page.WaitForFunctionAsync(
-                "() => location.pathname.startsWith('/apply/')",
-                null,
-                new PageWaitForFunctionOptions { Timeout = 30000 });
-        }
-        catch (TimeoutException)
-        {
-            var modalOpen = await Page.GetByTestId("job-details-modal").CountAsync();
-            var applyVisible = await Page.GetByTestId("job-modal-apply").IsVisibleAsync();
-            var ready = await Page.EvaluateAsync<string?>(
-                "() => document.querySelector('[data-testid=\"app-shell\"]')?.getAttribute('data-blazor-ready')");
-            throw new Exception(
-                $"Navegação para /apply falhou. url={Page.Url} modalOpen={modalOpen} applyVisible={applyVisible} blazorReady={ready}");
-        }
+        await Page.GetByTestId("job-apply").ClickAsync();
+        await Page.WaitForFunctionAsync(
+            "() => location.pathname.startsWith('/apply/')",
+            null,
+            new PageWaitForFunctionOptions { Timeout = 30000 });
         await WaitForBlazorAsync();
 
         var submit = Page.GetByTestId("application-submit");
@@ -119,9 +107,8 @@ public class CandidateFlowTests : E2ETestBase
         await Page.GetByTestId("job-search-submit").ClickAsync();
         await Page.WaitForFunctionAsync("() => document.querySelector('.job-card__title')?.textContent?.trim() === 'Desenvolvedor Full Stack Pleno'")
             ;
-        await Page.GetByTestId("job-card-details").First.ClickAsync();
-        await Page.GetByTestId("job-details-modal").WaitForAsync();
-        await Page.GetByTestId("job-modal-apply").ClickAsync();
+        await Page.GetByTestId("job-card").First.ClickAsync();
+        await Page.GetByTestId("job-apply").ClickAsync();
         await Page.WaitForFunctionAsync("() => location.pathname.startsWith('/apply/')");
         await WaitForBlazorAsync();
         await Page.GetByTestId("application-submit").ClickAsync();
