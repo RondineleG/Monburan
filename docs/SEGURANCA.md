@@ -237,11 +237,12 @@ vez. Isso é esperado.
   verdade em contêineres descartáveis (`infra/vps/tests`): o endurecimento (incluindo as travas contra ficar sem acesso),
   o backup com a restauração e o `nginx.conf`. Para rodar na sua máquina (só precisa de Docker):
   `bash infra/vps/tests/harden-smoke.sh`, `backup-restore-smoke.sh` e `nginx-smoke.sh`.
-- **Proteção das branches `dev` e `main`:** exige que `build-and-test`, `e2e` e `security-scan` passem antes de mesclar, e
-  bloqueia push forçado e exclusão da branch. Não exige aprovação de revisão (o repositório tem uma pessoa só) e não vale
-  para administradores do repositório, que continuam podendo agir numa emergência. A regra "a `main` só recebe PR vindo da
-  `dev`" continua sendo de processo (veja `AGENTS.md`). Para desfazer: *Settings → Branches*, ou
-  `gh api -X DELETE repos/RondineleG/Monburan/branches/<branch>/protection`.
+- **Proteção das branches `dev` e `main`:** as mudanças entram por pull request, com `build-and-test`, `e2e` e
+  `security-scan` passando, e a branch não aceita push forçado nem exclusão. Não exige aprovação de revisão (o repositório
+  tem uma pessoa só) e não vale para administradores do repositório, que continuam podendo agir numa emergência (é o botão
+  "mesclar sem esperar os requisitos"). A regra "a `main` só recebe PR vindo da `dev`" continua sendo de processo (veja
+  `AGENTS.md`). Os testes de `infra/vps` não são exigidos: o workflow só roda quando `infra/vps` muda. Para desfazer:
+  *Settings → Branches*, ou `gh api -X DELETE repos/RondineleG/Monburan/branches/<branch>/protection`.
 
 ## Banco de dados: local ou gerenciado?
 
