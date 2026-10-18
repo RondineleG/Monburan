@@ -47,19 +47,21 @@
         <ApplicationId>com.monburan.app</ApplicationId>
 
         <!-- Versions -->
-        <ApplicationDisplayVersion>1.3.0</ApplicationDisplayVersion>
-        <ApplicationVersion>2</ApplicationVersion>
+        <ApplicationDisplayVersion>1.4.0</ApplicationDisplayVersion>
+        <ApplicationVersion>3</ApplicationVersion>
 
         <!-- To develop, package, and publish an app to the Microsoft Store, see: https://aka.ms/MauiTemplateUnpackaged -->
         <WindowsPackageType>None</WindowsPackageType>
 
-        <SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios'">15.0</SupportedOSPlatformVersion>
+        <!-- Apps MAUI Blazor exigem iOS 16.4 ou superior (https://learn.microsoft.com/dotnet/maui/supported-platforms) -->
+        <SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios'">16.4</SupportedOSPlatformVersion>
         <SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'maccatalyst'">17.0</SupportedOSPlatformVersion>
         <SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'">24.0</SupportedOSPlatformVersion>
         <SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">10.0.17763.0</SupportedOSPlatformVersion>
         <TargetPlatformMinVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">10.0.17763.0</TargetPlatformMinVersion>
-        <!-- Keychain do SecureStorage no iOS: o entitlement só existe num app assinado (no simulador, assinatura ad hoc com
-             -p:CodesignKey=-), então fica desligado por padrão para o build sem certificado funcionar. Ligue com -p:IosKeychain=true -->
+        <!-- Keychain do SecureStorage no iOS: o entitlement só existe num app assinado com identidade. A esteira compila
+             sem certificado e só dá assinatura ad hoc, sem entitlements, ao .app do simulador, então fica desligado por
+             padrão. Ligue com -p:IosKeychain=true quando houver conta Apple Developer -->
         <CodesignEntitlements Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios' And '$(IosKeychain)' == 'true'">Platforms/iOS/Entitlements.plist</CodesignEntitlements>
     </PropertyGroup>
 

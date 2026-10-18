@@ -323,7 +323,7 @@ Escopo consciente: **só candidato no MVP**; anunciante continua no site respons
 
 ## FASE 5 — CI/CD mobile
 
-- [ ] Estender pipeline GitHub Actions existente (`develop`/`main`):
+- [ ] Estender pipeline GitHub Actions existente (`dev`/`main`):
   - [ ] Job Android (`ubuntu-latest` ou `windows-latest`):
         `dotnet workload install maui-android` → build AAB assinado → artifact
         → upload Play (fastlane supply ou action de terceiros)

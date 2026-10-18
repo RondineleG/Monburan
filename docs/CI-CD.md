@@ -4,22 +4,24 @@
 
 | Workflow | Quando roda | O que faz |
 |---|---|---|
-| `ci-cd.yml` | push e PR em `main`/`develop`, manual | build Release da solução (inclui o app Android), testes unitários, de integração e de API com coverage, **E2E** (Playwright contra o app em Development + Postgres de serviço, com 1 retentativa), scan de segredos, auditoria de pacotes NuGet vulneráveis e `dotnet publish` da web como artefato |
-| `docker-ghcr.yml` | push na `main` com mudança em `src/**`, manual | constrói a imagem Docker e publica em `ghcr.io/rondineleg/monburan` (`latest` + tag com o sha do commit) |
+| `ci-cd.yml` | push e PR em `main`/`dev`, manual | build Release da solução (inclui o app Android), testes unitários, de integração e de API com coverage, **E2E** (Playwright contra o app em Development + Postgres de serviço, com 1 retentativa), scan de segredos, auditoria de pacotes NuGet vulneráveis e `dotnet publish` da web como artefato |
+| `docker-ghcr.yml` | push na `main` com mudança em `src/**`, manual | constrói a imagem Docker e, na `main`, publica em `ghcr.io/rondineleg/monburan` (`latest` + tag com o sha do commit); em disparo manual de outra branch só constrói, sem enviar |
 | `android-release.yml` | push na `main` com mudança no app/Core, PR para a `main`, manual | compila, assina e confere o APK; na `main`, publica a release `v<versão>` com o APK |
-| `ios-build.yml` | push na `main` e PR com mudança no app/Core, manual | em macOS: compila o app para o simulador, abre e tira print; gera o `.ipa` sem assinatura (anexado à release na `main`) |
+| `ios-build.yml` | push na `main` com mudança no app/Core, PR para a `main`, manual | em macOS: compila o app para o simulador, abre e tira print; gera o `.ipa` sem assinatura (anexado à release na `main`) |
 
 Os jobs `deploy-staging` e `deploy-production` (Azure Web App) só rodam quando existe a variável de repositório
 `AZURE_RESOURCE_GROUP` (mais os secrets do Azure). A produção atual é a VPS (abaixo), então eles ficam ignorados.
 
 ## Lançar uma nova versão do app (APK)
 
-1. No PR, suba `ApplicationDisplayVersion` (nome, ex.: `1.4.0`) e `ApplicationVersion` (versionCode, inteiro que só
-   cresce) em `src/Monburan.Mobile/Monburan.Mobile.csproj`.
-2. O PR roda o `android-release.yml` em modo ensaio: compila, assina, confere versão e assinatura, mostra as notas no
-   resumo do run e deixa o APK como artefato. Nada é publicado.
+1. Num PR para a `dev`, suba `ApplicationDisplayVersion` (nome, ex.: `1.5.0`) e `ApplicationVersion` (versionCode,
+   inteiro que só cresce) em `src/Monburan.Mobile/Monburan.Mobile.csproj`.
+2. O PR de promoção `dev` → `main` roda o `android-release.yml` em modo ensaio (os PRs para a `dev` não rodam o
+   workflow): compila, assina, confere versão e assinatura, mostra as notas no resumo do run e deixa o APK como
+   artefato. Nada é publicado.
 3. Ao mesclar na `main`, o workflow repete o processo e cria a release `v<versão>` com `Monburan-v<versão>.apk`, o
-   SHA-256 do APK e o certificado de assinatura. Se a tag já existir, só gera o artefato (não republica).
+   SHA-256 do APK e o certificado de assinatura. Se a tag já existir, só gera o artefato (não republica). Enquanto a
+   `dev` não é promovida, a versão publicada continua a antiga.
 
 O APK de release usa `https://monburan.com.br/` como API. Por isso, **publique a web antes de distribuir o APK**.
 
@@ -43,23 +45,40 @@ preciso desinstalar a versão anterior uma vez.
 O iOS só compila em macOS, então o `ios-build.yml` usa runner `macos-latest` (grátis em repositório público). O projeto
 declara o alvo `net10.0-ios26.0` apenas quando o build roda em macOS; no Linux, no Windows e no APK nada muda.
 
-O alvo é o SDK do iOS 26 (Xcode 26.0): o workload do .NET 10 traz também o do iOS 27, que exige o Xcode 27, ainda
-ausente dos runners do GitHub. Para mirar o 27, troque `IosSdkVersion` no csproj e `IOS_SDK` no `ios-build.yml`.
+O alvo é o SDK do iOS 26 do .NET (pacote 26.0): o workload do .NET 10 traz também o do iOS 27, que exige o Xcode 27,
+ainda ausente dos runners do GitHub. Para mirar o 27, troque `IosSdkVersion` no csproj e `IOS_SDK` no `ios-build.yml`.
 A esteira usa `-p:IosOnly=true` para o app declarar só o alvo iOS e não exigir o workload do Android no macOS.
+
+**Xcode do runner.** O compilador de assets do Xcode (`actool`) precisa de um runtime de simulador da mesma versão do
+iOS que o SDK do Xcode em uso, e o runner só guarda runtimes do 26.2 em diante. O passo "Selecionar o Xcode" escolhe o
+Xcode mais antigo, a partir do SDK alvo, que tenha esse runtime (hoje o 26.2). Como o pacote 26.0 do .NET pede o
+Xcode 26.0, os builds passam `-p:ValidateXcodeVersion=false`, que desliga só essa checagem de versão.
+
+**Keychain.** `Platforms/iOS/Entitlements.plist` (grupo de Keychain do SecureStorage) só entra no build com
+`-p:IosKeychain=true`, porque exige uma identidade de assinatura, que a esteira não tem. Fica para quando houver conta
+Apple.
 
 Sem conta Apple Developer não há assinatura, TestFlight nem App Store. O que a esteira entrega:
 
-- **Job `simulator`:** compila em Release para o simulador, abre o app, espera 25 s, confirma que ele continua em
-  execução e guarda o print (`ios-simulador-print`) como artefato. O app de Release lê a lista de vagas de
-  `https://monburan.com.br/` (leitura pública).
+- **Job `simulator`:** compila em Release para o simulador, dá ao app uma assinatura ad hoc (o simulador em Mac arm64
+  só executa binário assinado; ela não usa certificado nem identifica ninguém), abre no iPhone do simulador, espera
+  25 s, confirma que o app continua em execução e guarda o print (`ios-simulador-print`) como artefato. O app de
+  Release lê a lista de vagas de `https://monburan.com.br/` (leitura pública). Se o app cair, o log traz o resumo do
+  relatório de crash e o diagnóstico vai como artefato (`ios-simulador-diagnostico`).
 - **Job `ipa`:** compila para aparelho (`ios-arm64`) sem assinar, monta o `.ipa` (um zip com o `.app` em `Payload/`) e
-  confere identificador (`com.monburan.app`), versão e build contra o csproj, a arquitetura e a ausência de assinatura.
+  confere identificador (`com.monburan.app`), versão e build contra o csproj e a arquitetura (só `arm64`), e avisa se o
+  pacote vier assinado.
   Em PR vira artefato do run; na `main` é anexado à release `v<versão>` (criada pelo `android-release.yml`, que o job
-  espera existir), com as instruções de instalação nas notas.
+  espera existir), com as instruções de instalação nas notas. Como no Android, o que já foi anexado a uma versão não
+  é trocado: para publicar outro `.ipa`, suba a versão no csproj.
+
+Cada execução leva cerca de 20 minutos (os dois jobs rodam em paralelo; só o build do simulador gasta cerca de 14).
 
 **Instalar o `.ipa` sem assinatura:** o arquivo não instala direto. Use AltStore ou Sideloadly com um Apple ID gratuito,
-que assinam na hora. Limites do Apple ID gratuito: a assinatura vale 7 dias (é preciso renovar), no máximo 3 apps ativos
-e o iPhone precisa estar com o Modo Desenvolvedor ligado. Serve para você e poucos testadores, não para o público.
+que assinam na hora. O app exige iOS 16.4 ou superior (requisito do Blazor Hybrid do MAUI; o job `ipa` falha se o
+mínimo do pacote ficar abaixo disso). Limites do Apple ID gratuito: a assinatura vale 7 dias (é preciso renovar), no
+máximo 3 apps ativos e o iPhone precisa estar com o Modo Desenvolvedor ligado. Serve para você e poucos testadores, não
+para o público.
 
 **Quando houver conta Apple Developer** (US$ 99/ano), a próxima fase é assinar na esteira e enviar ao TestFlight. Seriam
 necessários: certificado de distribuição (`.p12` e senha), perfil de provisionamento do `com.monburan.app` e a chave da
@@ -76,21 +95,24 @@ A imagem `latest` é construída e publicada pelo `docker-ghcr.yml` a cada push 
 > <https://github.com/users/RondineleG/packages/container/monburan/settings>, em *Manage Actions access* use
 > *Add Repository*, escolha `Monburan` e o papel **Write**. Sem isso o passo "Build and push" falha com
 > `denied: permission_denied: write_package` (visto em 17/10/2026; o build da imagem em si passa no runner).
-> Para conferir depois de ajustar: `gh workflow run docker-ghcr.yml --ref develop` publica só a tag do sha, porque o
-> `latest` só é movido na `main`.
+> Para conferir depois de ajustar, rode o workflow na `main` (`gh workflow run docker-ghcr.yml --ref main`): fora da
+> `main` o disparo manual só constrói a imagem e não envia nada.
 
 A VPS baixa a imagem manualmente (não há deploy automático por SSH, que exigiria secrets de acesso ao servidor):
 
 ```bash
 cd /opt/monburan
-docker tag ghcr.io/rondineleg/monburan:latest ghcr.io/rondineleg/monburan:rollback-$(date +%Y%m%d)   # imagem para voltar atrás
+docker tag ghcr.io/rondineleg/monburan:latest ghcr.io/rondineleg/monburan:rollback-$(date +%Y%m%d-%H%M)   # imagem para voltar atrás
 docker exec monburan-postgres pg_dump -U "$(docker exec monburan-postgres printenv POSTGRES_USER)" \
   -d "$(docker exec monburan-postgres printenv POSTGRES_DB)" | gzip > backups/monburan-$(date +%Y%m%d-%H%M).sql.gz
 docker compose pull app && docker compose up -d app    # as migrations rodam no boot (APPLY_MIGRATIONS=true)
 curl -s http://127.0.0.1:8080/health
 ```
 
-Para voltar à versão anterior: `docker tag ghcr.io/rondineleg/monburan:rollback-<data> ghcr.io/rondineleg/monburan:latest && docker compose up -d app`.
+Para voltar à versão anterior: `docker tag ghcr.io/rondineleg/monburan:rollback-<data-hora> ghcr.io/rondineleg/monburan:latest && docker compose up -d app`.
+
+Voltar a imagem não desfaz migrations (elas rodam no boot da imagem nova): se a versão nova alterou o esquema, restaure antes
+o backup do `pg_dump` acima.
 
 Atenção: o `infra/vps/build-push.sh` constrói a imagem a partir da `main` da VPS; rodá-lo antes de mesclar um PR
 republica o `latest` com o código antigo.
@@ -105,7 +127,8 @@ republica o `latest` com o código antigo.
   dotnet test tests/Monburan.E2ETests          # E2E_BASE_URL muda a URL do app
   ```
 
-  A suíte tem uma falha intermitente conhecida (`FullSweepTests.Sweep_Advertiser_AllRoutes`, cerca de 1 em 6 execuções);
-  por isso o job repete a execução uma vez antes de reprovar.
+  As varreduras (`FullSweepTests`) já falharam de forma intermitente por navegarem enquanto a página de chegada ainda
+  negociava o circuito Blazor, e hoje esperam esse circuito antes da primeira rota. O job ainda repete a execução uma
+  vez antes de reprovar, como proteção até a esteira acumular execuções verdes sem a retentativa.
 - **Segurança**: o job `security-scan` procura formatos conhecidos de chave/token nos arquivos versionados e reprova se
   `dotnet list package --vulnerable --include-transitive` apontar algum pacote com vulnerabilidade.

@@ -66,6 +66,7 @@
 
     private void ApplyTheme()
     {
+        Monburan.Mobile.Services.NativeTheme.Apply(_isDark);
         _ = JS.InvokeVoidAsync("monburan.applyTheme", _isDark ? "dark" : "light").AsTask();
     }
 

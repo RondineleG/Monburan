@@ -329,7 +329,7 @@ Transformar o projeto Monburan de um MVP funcional (~70% completude) para uma ap
 **Solução**: Criado pipeline completo com:
 - Build e testes automatizados
 - Security scan
-- Deploy automático para staging (branch develop)
+- Deploy automático para staging (branch dev)
 - Deploy automático para produção (branch main)
 - Health checks pós-deploy
 
