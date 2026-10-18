@@ -32,8 +32,8 @@ RUN dotnet publish "Monburan.Web.csproj" -c Release -o /app/publish \
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
 WORKDIR /app
 
-# Criar diretório para uploads
-RUN mkdir -p /app/wwwroot/uploads
+# Criar diretório para uploads e a pasta das chaves do DataProtection (volume em produção; só o dono acessa)
+RUN mkdir -p /app/wwwroot/uploads /app/keys && chmod 700 /app/keys
 
 # Copiar published output do stage de build
 COPY --from=build /app/publish .

@@ -1,5 +1,8 @@
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.DataProtection.KeyManagement;
+using Microsoft.AspNetCore.DataProtection.Repositories;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
@@ -170,6 +173,21 @@ builder.Services.AddAntiforgery(options =>
 {
     options.Cookie.HttpOnly = true;
     options.Cookie.SecurePolicy = CookieSecuritySetup.SecurePolicyFor(builder.Environment);
+});
+
+// Chaves do DataProtection (cookie de login, antiforgery e tokens dos links de e-mail). Em produção ficam numa pasta
+// persistente (volume do contêiner); sem ela, cada deploy recria o contêiner, gera chaves novas e desloga todo mundo.
+// A pasta é lida só quando o serviço é criado, com a configuração final (variável de ambiente ou appsettings).
+builder.Services.AddDataProtection().SetApplicationName("Monburan");
+builder.Services.AddSingleton<IConfigureOptions<KeyManagementOptions>>(services =>
+{
+    var keysPath = services.GetRequiredService<IConfiguration>()["DataProtection:KeysPath"];
+    var loggerFactory = services.GetService<ILoggerFactory>() ?? Microsoft.Extensions.Logging.Abstractions.NullLoggerFactory.Instance;
+    return new ConfigureOptions<KeyManagementOptions>(options =>
+    {
+        if (!string.IsNullOrWhiteSpace(keysPath))
+            options.XmlRepository = new FileSystemXmlRepository(new DirectoryInfo(keysPath), loggerFactory);
+    });
 });
 
 // A sessão é revalidada no banco a cada 2 minutos (padrão: 30): conta desativada, senha trocada ou 2FA ligado valem logo
@@ -353,6 +371,9 @@ var app = builder.Build();
 
 // Antes de tudo (HSTS, redirecionamento para https, autenticação, limites): esquema e IP reais do cliente
 app.UseForwardedHeaders();
+
+if (!app.Environment.IsDevelopment() && string.IsNullOrWhiteSpace(app.Configuration["DataProtection:KeysPath"]))
+    Log.Warning("DataProtection:KeysPath não definido: as chaves de sessão não sobrevivem ao contêiner e cada deploy desloga todos");
 
 if (app.Environment.IsDevelopment())
 {

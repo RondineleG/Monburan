@@ -37,6 +37,8 @@ services:
       # Hosts aceitos (separados por ponto e vírgula). Em produção restrinja ao domínio, por exemplo
       # "monburan.com.br;www.monburan.com.br;127.0.0.1" (o 127.0.0.1 deixa o curl /health local funcionar).
       - "AllowedHosts=${ALLOWED_HOSTS:-*}"
+      # Chaves de sessão (DataProtection) persistidas no volume app_keys: o deploy não desloga mais ninguém
+      - "DataProtection__KeysPath=/app/keys"
     # Chaves dos provedores de IA (variáveis AI_KEY_*): ficam no arquivo ai-keys.env (chmod 600), fora do .env principal e
     # do repositório. O administrador cadastra cada provedor na tela "Provedores de IA" informando só o NOME da variável.
     # "required: false" exige Docker Compose 2.24+ (docker compose version); sem o arquivo o app sobe com a IA desligada.
@@ -45,6 +47,7 @@ services:
         required: false
     volumes:
       - app_uploads:/app/wwwroot/uploads
+      - app_keys:/app/keys
     networks:
       - monburan-net
     # Só o nginx do host acessa (via 127.0.0.1:8080 -> container 80)
@@ -74,6 +77,8 @@ volumes:
   postgres_data:
     driver: local
   app_uploads:
+    driver: local
+  app_keys:
     driver: local
 
 networks:

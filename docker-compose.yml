@@ -45,6 +45,7 @@ services:
       # Hosts aceitos (separados por ponto e vírgula). Em produção restrinja ao domínio, por exemplo
       # "monburan.com.br;www.monburan.com.br;127.0.0.1" (o 127.0.0.1 deixa o curl /health local funcionar).
       - "AllowedHosts=${ALLOWED_HOSTS:-*}"
+      - "DataProtection__KeysPath=/app/keys"
     # Chaves dos provedores de IA (AI_KEY_*) no arquivo ai-keys.env (veja infra/vps/ai-keys.env.example); sem ele a IA fica desligada.
     env_file:
       - path: ./ai-keys.env
@@ -53,6 +54,7 @@ services:
       - "8080:80"
     volumes:
       - app_uploads:/app/wwwroot/uploads
+      - app_keys:/app/keys
     depends_on:
       postgres:
         condition: service_healthy
@@ -64,6 +66,8 @@ volumes:
   postgres_data:
     driver: local
   app_uploads:
+    driver: local
+  app_keys:
     driver: local
 
 networks:
