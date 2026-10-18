@@ -201,6 +201,11 @@
                         </div>
                     </div>
                 </div>
+
+                @if (isOwner)
+                {
+                    <ResumeAiPanel ResumeId="resume.Id" />
+                }
             </div>
 
             <!-- Sidebar -->

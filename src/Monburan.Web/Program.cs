@@ -161,6 +161,15 @@ builder.Services.AddScoped<Monburan.Core.Interfaces.Services.IEmailSender>(sp =>
 });
 builder.Services.AddScoped<Microsoft.AspNetCore.Identity.IEmailSender<ApplicationUser>, IdentityEmailSender>();
 
+// IA para sugestões de melhoria de currículo: qualquer serviço compatível com o protocolo de chat completions da
+// OpenAI. URL, chave e modelo vêm da seção Ai; sem chave o recurso fica desligado (não aparece no site nem no app).
+builder.Services.AddOptions<AiOptions>().Bind(builder.Configuration.GetSection(AiOptions.SectionName));
+builder.Services.AddSingleton(TimeProvider.System);
+builder.Services.AddSingleton<Monburan.Core.Interfaces.Services.IAiUsageLimiter, MemoryAiUsageLimiter>();
+// O tempo limite de cada chamada é controlado pelo cliente (AiOptions.TimeoutSeconds), não pelo HttpClient
+builder.Services.AddHttpClient<Monburan.Core.Interfaces.Services.IAiTextClient, OpenAiCompatibleClient>(
+    client => client.Timeout = Timeout.InfiniteTimeSpan);
+
 // Registrar Repositórios
 builder.Services.AddScoped<IJobRepository, JobRepository>();
 builder.Services.AddScoped<IBaseRepository<Job>, JobRepository>(); // Para UseCases que usam IBaseRepository
@@ -230,6 +239,7 @@ builder.Services.AddScoped<UpdateResumeUseCase>();
 builder.Services.AddScoped<DeleteResumeUseCase>();
 builder.Services.AddScoped<ListResumesByCandidateUseCase>();
 builder.Services.AddScoped<GetResumeByIdUseCase>();
+builder.Services.AddScoped<ImproveResumeUseCase>();
 
 // Registrar Validadores
 builder.Services.AddScoped<IEntityValidator<Resume>, ResumeValidator>();
