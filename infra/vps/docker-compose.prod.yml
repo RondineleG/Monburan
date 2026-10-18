@@ -34,6 +34,9 @@ services:
       # Administradores por e-mail (separados por vírgula): valem só com o e-mail da conta CONFIRMADO. É assim que o primeiro
       # administrador aparece em produção (o usuário administrador do seed só existe em Development).
       - "Admin__Emails=${ADMIN_EMAILS:-}"
+      # Hosts aceitos (separados por ponto e vírgula). Em produção restrinja ao domínio, por exemplo
+      # "monburan.com.br;www.monburan.com.br;127.0.0.1" (o 127.0.0.1 deixa o curl /health local funcionar).
+      - "AllowedHosts=${ALLOWED_HOSTS:-*}"
     # Chaves dos provedores de IA (variáveis AI_KEY_*): ficam no arquivo ai-keys.env (chmod 600), fora do .env principal e
     # do repositório. O administrador cadastra cada provedor na tela "Provedores de IA" informando só o NOME da variável.
     # "required: false" exige Docker Compose 2.24+ (docker compose version); sem o arquivo o app sobe com a IA desligada.

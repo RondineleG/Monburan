@@ -42,6 +42,9 @@ services:
       - "App__PublicBaseUrl=${APP_PUBLIC_BASE_URL:-}"
       # Administradores por e-mail (separados por vírgula): valem só com o e-mail da conta confirmado.
       - "Admin__Emails=${ADMIN_EMAILS:-}"
+      # Hosts aceitos (separados por ponto e vírgula). Em produção restrinja ao domínio, por exemplo
+      # "monburan.com.br;www.monburan.com.br;127.0.0.1" (o 127.0.0.1 deixa o curl /health local funcionar).
+      - "AllowedHosts=${ALLOWED_HOSTS:-*}"
     # Chaves dos provedores de IA (AI_KEY_*) no arquivo ai-keys.env (veja infra/vps/ai-keys.env.example); sem ele a IA fica desligada.
     env_file:
       - path: ./ai-keys.env

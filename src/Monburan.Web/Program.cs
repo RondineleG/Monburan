@@ -1,4 +1,6 @@
+using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
 
@@ -158,6 +160,20 @@ builder.Services.AddIdentityCore<ApplicationUser>(options =>
 .AddClaimsPrincipalFactory<ApplicationUserClaimsPrincipalFactory>();
 
 builder.Services.AddDatabaseDeveloperPageExceptionFilter();
+
+// Atrás do nginx: IP real e https vêm dos cabeçalhos X-Forwarded-* (só de proxy local ou da rede interna)
+builder.Services.Configure<ForwardedHeadersOptions>(ForwardedHeadersSetup.Apply);
+
+// Cookies de sessão e antiforgery: Secure sempre fora do desenvolvimento, HttpOnly, SameSite=Lax
+builder.Services.AddSingleton<IPostConfigureOptions<CookieAuthenticationOptions>, CookieSecuritySetup>();
+builder.Services.AddAntiforgery(options =>
+{
+    options.Cookie.HttpOnly = true;
+    options.Cookie.SecurePolicy = CookieSecuritySetup.SecurePolicyFor(builder.Environment);
+});
+
+// A sessão é revalidada no banco a cada 2 minutos (padrão: 30): conta desativada, senha trocada ou 2FA ligado valem logo
+builder.Services.Configure<SecurityStampValidatorOptions>(options => options.ValidationInterval = TimeSpan.FromMinutes(2));
 
 // Registrar EmailSender: SMTP (Resend) quando Smtp:Host está configurado, senão SendGrid.
 builder.Services.AddScoped<Monburan.Web.Services.SmtpEmailSender>();
@@ -334,6 +350,9 @@ builder.Services.AddHostedService<JobExpirationBackgroundService>();
 builder.Services.AddScoped<AddressRepository>();
 builder.Services.AddScoped<AddressService>();
 var app = builder.Build();
+
+// Antes de tudo (HSTS, redirecionamento para https, autenticação, limites): esquema e IP reais do cliente
+app.UseForwardedHeaders();
 
 if (app.Environment.IsDevelopment())
 {
