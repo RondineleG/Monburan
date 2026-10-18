@@ -88,4 +88,22 @@ public class JobsApiTests : IClassFixture<MonburanApiFactory>
         var titles = body!.Jobs.Select(j => j.Title).ToList();
         titles.Should().BeInAscendingOrder();
     }
+
+    [Fact]
+    public async Task ListJobs_SortBySalary_ListsHigherSalariesFirst_AndJobsWithoutSalaryLast()
+    {
+        var response = await _client.GetAsync("/api/v1/jobs?page=1&size=100&sortBy=salary&sortDescending=true");
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var body = await response.Content.ReadFromJsonAsync<ListJobsResponse>();
+        var jobs = body!.Jobs.ToList();
+
+        var withSalary = jobs.TakeWhile(j => j.SalaryMax.HasValue).ToList();
+        withSalary.Should().NotBeEmpty("o seed cria vagas com faixa salarial");
+        withSalary.Select(j => j.SalaryMax!.Value).Should().BeInDescendingOrder();
+
+        // Depois da primeira vaga sem faixa salarial não pode aparecer nenhuma com faixa (no PostgreSQL o NULL
+        // vem primeiro em ordem decrescente, então a consulta ordena explicitamente)
+        jobs.Skip(withSalary.Count).Should().OnlyContain(j => !j.SalaryMax.HasValue);
+    }
 }

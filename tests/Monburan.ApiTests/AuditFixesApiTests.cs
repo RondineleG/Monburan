@@ -81,6 +81,30 @@ public class AuditFixesApiTests : IClassFixture<MonburanApiFactory>
     }
 
     [Fact]
+    public async Task SalaryFilterAndSort_IgnoreHiddenSalaries_AndUseTheFloorWhenThereIsNoCeiling()
+    {
+        var token = await LoginAsync("contato@techsolutions.com");
+        var hidden = await CreateJobAsync(token, "Vaga com salário oculto no filtro", salaryDisplay: false);
+        var floorOnly = await CreateJobAsync(token, "Vaga a partir de 9 mil", salaryMin: 9000, salaryMax: null);
+
+        // Filtro: o teto oculto (7.000) alcançaria 6.500, mas valor oculto não entra na conta
+        var atLeast6500 = await _client.GetFromJsonAsync<ListJobsResponse>("/api/v1/jobs?size=100&salaryMin=6500");
+        atLeast6500!.Jobs.Should().NotContain(j => j.Id == hidden.Id);
+
+        // Sem teto, vale o piso: "a partir de 9.000" paga ao menos 8.000
+        var atLeast8000 = await _client.GetFromJsonAsync<ListJobsResponse>("/api/v1/jobs?size=100&salaryMin=8000");
+        atLeast8000!.Jobs.Should().Contain(j => j.Id == floorOnly.Id);
+
+        // Ordenação: o valor de referência decide; a vaga com salário oculto fica depois de todas as que o exibem
+        var sorted = await _client.GetFromJsonAsync<ListJobsResponse>("/api/v1/jobs?size=100&sortBy=salary&sortDescending=true");
+        var jobs = sorted!.Jobs.ToList();
+        var hiddenIndex = jobs.FindIndex(j => j.Id == hidden.Id);
+        hiddenIndex.Should().BeGreaterThanOrEqualTo(0);
+        jobs.Skip(hiddenIndex).Should().OnlyContain(j => !j.SalaryMin.HasValue && !j.SalaryMax.HasValue);
+        jobs.FindIndex(j => j.Id == floorOnly.Id).Should().BeLessThan(hiddenIndex);
+    }
+
+    [Fact]
     public async Task MineJobs_IncludesPausedJobs_WhilePublicListDoesNot()
     {
         var token = await LoginAsync("contato@techsolutions.com");
@@ -232,7 +256,7 @@ public class AuditFixesApiTests : IClassFixture<MonburanApiFactory>
         unread.GetProperty("count").GetInt32().Should().Be(0);
     }
 
-    private static CreateJobRequest NewJob(string title, bool salaryDisplay = true) => new()
+    private static CreateJobRequest NewJob(string title, bool salaryDisplay = true, decimal? salaryMin = 5000, decimal? salaryMax = 7000) => new()
     {
         Title = title,
         Description = "Descrição da vaga criada pelos testes da auditoria.",
@@ -240,17 +264,18 @@ public class AuditFixesApiTests : IClassFixture<MonburanApiFactory>
         NumberOfOpenings = 1,
         Type = "Remote",
         IsRemote = true,
-        SalaryMin = 5000,
-        SalaryMax = 7000,
+        SalaryMin = salaryMin,
+        SalaryMax = salaryMax,
         SalaryCurrency = "BRL",
         SalaryDisplay = salaryDisplay
     };
 
-    private async Task<JobResponse> CreateJobAsync(string token, string title, bool salaryDisplay = true)
+    private async Task<JobResponse> CreateJobAsync(
+        string token, string title, bool salaryDisplay = true, decimal? salaryMin = 5000, decimal? salaryMax = 7000)
     {
         using var request = new HttpRequestMessage(HttpMethod.Post, "/api/v1/jobs")
         {
-            Content = JsonContent.Create(NewJob(title, salaryDisplay))
+            Content = JsonContent.Create(NewJob(title, salaryDisplay, salaryMin, salaryMax))
         };
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
         var response = await _client.SendAsync(request);
