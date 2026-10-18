@@ -5,6 +5,7 @@
 # O que vai: o banco PostgreSQL (pg_dump) e a pasta de uploads do app. Tudo é criptografado com age ANTES de tocar o
 # disco (o dump nunca existe em texto claro na VPS) e enviado ao armazenamento remoto com rclone. A chave privada do age
 # fica FORA da VPS: quem invadir o servidor, ou o armazenamento remoto, só encontra arquivos que não consegue abrir.
+# Sem BACKUP_REMOTE o backup fica só no disco da VPS (protege de erro e de dado apagado, não da perda do servidor) e o script avisa.
 #
 # Configuração: /opt/monburan/backup.env (modelo em backup.env.example; permissão 600). Uso:
 #   bash backup.sh            # um backup agora
@@ -29,7 +30,7 @@ if [[ -f "$CONFIG" ]]; then
 fi
 
 : "${BACKUP_AGE_RECIPIENT:?Defina BACKUP_AGE_RECIPIENT (chave PÚBLICA age, começa com age1) em $CONFIG}"
-: "${BACKUP_REMOTE:?Defina BACKUP_REMOTE (ex.: b2:monburan-backups/vps1) em $CONFIG}"
+BACKUP_REMOTE="${BACKUP_REMOTE:-}"
 BACKUP_DIR="${BACKUP_DIR:-/opt/monburan/backups}"
 KEEP_LOCAL_DAYS="${KEEP_LOCAL_DAYS:-7}"
 KEEP_REMOTE_DAYS="${KEEP_REMOTE_DAYS:-30}"
@@ -64,7 +65,9 @@ require() {
 
 require docker
 require age
-require rclone
+if [[ -n "$BACKUP_REMOTE" ]]; then
+    require rclone
+fi
 
 [[ "$BACKUP_AGE_RECIPIENT" == age1* ]] || { log "ERRO: BACKUP_AGE_RECIPIENT precisa ser uma chave pública age (age1...)"; exit 1; }
 docker inspect -f '{{.State.Running}}' "$POSTGRES_CONTAINER" 2>/dev/null | grep -q true \
@@ -102,22 +105,28 @@ if [[ "$BACKUP_UPLOADS" == "true" ]]; then
     fi
 fi
 
-log "Enviando para $BACKUP_REMOTE"
-for file in "${files[@]}"; do
-    rclone copy "$file" "$BACKUP_REMOTE" --checksum --retries 3
-done
+if [[ -n "$BACKUP_REMOTE" ]]; then
+    log "Enviando para $BACKUP_REMOTE"
+    for file in "${files[@]}"; do
+        rclone copy "$file" "$BACKUP_REMOTE" --checksum --retries 3
+    done
+else
+    log "AVISO: BACKUP_REMOTE não está configurado: o backup ficou só no disco da VPS (não protege contra a perda do servidor)"
+fi
 
 # Só apaga o antigo depois de um envio bem-sucedido
 log "Retenção local: ${KEEP_LOCAL_DAYS} dias"
 find "$BACKUP_DIR" -maxdepth 1 -type f -name 'monburan-*.age' -mtime +"$KEEP_LOCAL_DAYS" -print -delete
-if [[ "$KEEP_REMOTE_DAYS" -gt 0 ]]; then
-    log "Retenção remota: ${KEEP_REMOTE_DAYS} dias"
-    # A falha aqui não invalida o backup que acabou de subir, mas fica registrada
-    if ! rclone delete "$BACKUP_REMOTE" --include 'monburan-*.age' --min-age "${KEEP_REMOTE_DAYS}d" -v 2>&1 | sed 's/^/    /'; then
-        log "aviso: não consegui limpar os backups antigos do remoto"
+if [[ -n "$BACKUP_REMOTE" ]]; then
+    if [[ "$KEEP_REMOTE_DAYS" -gt 0 ]]; then
+        log "Retenção remota: ${KEEP_REMOTE_DAYS} dias"
+        # A falha aqui não invalida o backup que acabou de subir, mas fica registrada
+        if ! rclone delete "$BACKUP_REMOTE" --include 'monburan-*.age' --min-age "${KEEP_REMOTE_DAYS}d" -v 2>&1 | sed 's/^/    /'; then
+            log "aviso: não consegui limpar os backups antigos do remoto"
+        fi
+    else
+        log "Retenção remota: desligada (KEEP_REMOTE_DAYS=0); a limpeza fica por conta do armazenamento"
     fi
-else
-    log "Retenção remota: desligada (KEEP_REMOTE_DAYS=0); a limpeza fica por conta do armazenamento"
 fi
 
 log "Backup concluído"

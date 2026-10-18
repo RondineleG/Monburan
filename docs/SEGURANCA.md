@@ -194,6 +194,9 @@ systemctl list-timers monburan-backup.timer          # próxima execução (todo
 journalctl -u monburan-backup -n 30 --no-pager       # resultado da última
 ```
 
+Enquanto `BACKUP_REMOTE` estiver vazio, o backup roda e fica **só no disco da VPS**, com um aviso a cada execução: protege de erro
+e de dado apagado, não da perda do servidor. Preencha o destino assim que tiver o `rclone` configurado.
+
 Retenção: 7 dias no disco da VPS e 30 dias no remoto (`KEEP_LOCAL_DAYS`, `KEEP_REMOTE_DAYS`). **Quem rouba a VPS leva a
 credencial do remoto junto**: prefira uma credencial que só envia e lista (sem apagar) e deixe a retenção por conta do
 armazenamento (regra de ciclo de vida do bucket); nesse caso use `KEEP_REMOTE_DAYS=0`. Opcional: `HEALTHCHECK_URL` com um

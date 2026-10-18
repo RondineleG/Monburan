@@ -65,10 +65,12 @@ wait_for_pg() {
     [[ $ready -eq 1 ]]
 }
 
+# write_config [dias no remoto] [destino remoto]; o destino padrão é uma pasta local, e um valor vazio desliga o envio
 write_config() {
+    local remote=${2-$WORK/remote}
     cat >"$WORK/backup.env" <<CONFIG
 BACKUP_AGE_RECIPIENT=$RECIPIENT
-BACKUP_REMOTE=$WORK/remote
+BACKUP_REMOTE=$remote
 BACKUP_DIR=$WORK/local
 POSTGRES_CONTAINER=$PG
 APP_CONTAINER=$APP
@@ -203,7 +205,18 @@ expect "KEEP_REMOTE_DAYS=0 não apaga nada do remoto" test -e "$WORK/remote/monb
 write_config 30
 
 echo
-echo "5. Configuração"
+echo "5. Sem destino remoto (BACKUP_REMOTE vazio)"
+before=$(remote_count)
+write_config 30 ""
+backup
+expect "termina sem erro" test "$status" -eq 0
+expect "avisa que o backup ficou só no disco" grep -q 'AVISO: BACKUP_REMOTE não está configurado' "$OUT"
+expect "o backup novo existe no disco e abre com a chave" bash -c "age -d -i $WORK/key.txt '$(db_file)' | head -c 5 | grep -aq PGDMP"
+expect "nada foi enviado ao remoto" test "$(remote_count)" -eq "$before"
+write_config 30
+
+echo
+echo "6. Configuração"
 chmod 666 "$WORK/backup.env"
 backup
 expect "arquivo de configuração gravável por outros é recusado" grep -q 'sem escrita para grupo/outros' "$OUT"
