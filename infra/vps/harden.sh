@@ -116,7 +116,7 @@ install_packages() {
     if [[ $APPLY -eq 1 ]]; then
         export DEBIAN_FRONTEND=noninteractive
         apt-get update -y
-        # python3-systemd: o fail2ban lê os registros do SSH direto do journal
+        # python3-systemd: as versões novas do fail2ban leem o registro do SSH direto do journal
         apt-get install -y ufw fail2ban unattended-upgrades python3-systemd
     else
         echo "    [plano] apt-get install -y ufw fail2ban unattended-upgrades python3-systemd"
@@ -128,6 +128,8 @@ configure_fail2ban() {
     local ignore_ips="127.0.0.1/8 ::1${FAIL2BAN_IGNOREIP:+ $FAIL2BAN_IGNOREIP}"
     local config=/etc/fail2ban/jail.d/monburan.local
     log "fail2ban: bloqueia por 1 hora quem erra o SSH 4 vezes em 10 minutos"
+    # De onde ler o registro do SSH (arquivo ou journal) fica com o padrão da distribuição: forçar o journal não casa com o nome
+    # da unidade em todas (no Debian 11 ela é ssh.service e o filtro do fail2ban 0.11 procura sshd.service)
     write_file "$config" 644 <<EOF
 # Gerado por infra/vps/harden.sh (Monburan)
 [DEFAULT]
@@ -139,7 +141,6 @@ ignoreip = ${ignore_ips}
 [sshd]
 enabled = true
 port    = ${ports}
-backend = systemd
 EOF
 
     if [[ $APPLY -eq 1 ]]; then

@@ -147,6 +147,7 @@ expect "teclado-interativo desligado" effective 'kbdinteractiveauthentication no
 expect "root só por chave" effective 'permitrootlogin without-password'
 expect "pubkey ligada" effective 'pubkeyauthentication yes'
 expect "o jail do fail2ban usa a porta 22" grep -q '^port    = 22$' "$JAIL"
+expect "o jail não força de onde ler o registro (vale o padrão da distribuição)" bash -c "! grep -q '^backend' $JAIL"
 expect "o fail2ban aceita a configuração" fail2ban-client -t
 expect "ligou as atualizações automáticas" grep -q 'Unattended-Upgrade "1"' /etc/apt/apt.conf.d/20auto-upgrades
 expect "sem reinício automático" grep -q 'Automatic-Reboot "false"' /etc/apt/apt.conf.d/52monburan-unattended-upgrades
