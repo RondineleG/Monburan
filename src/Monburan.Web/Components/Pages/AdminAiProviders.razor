@@ -7,6 +7,7 @@
 @using Monburan.Core.DTOs.Request
 @using Monburan.Core.DTOs.Response
 @using Monburan.Core.Enums
+@using Monburan.Core.Interfaces.Services
 @using Monburan.Core.Services
 @using Monburan.Core.UseCases.Ai
 @using Monburan.Core.Validations
@@ -16,6 +17,7 @@
 @inject DeleteAiProviderUseCase DeleteUseCase
 @inject TestAiProviderUseCase TestUseCase
 @inject AuthenticationStateProvider AuthenticationState
+@inject IAdminAuditLog AuditLog
 @inject IToastService Toast
 @inject ILogger<AdminAiProviders> Logger
 
@@ -294,6 +296,7 @@
     private bool isSaving;
     private Guid? busyId;
     private string admin = "administrador";
+    private AdminActor actor = new(string.Empty, "administrador");
     private ProviderForm? form;
     private ServerValidationErrors serverErrors = default!;
     private ConfirmDialog confirmDialog = default!;
@@ -310,6 +313,7 @@
     {
         var state = await AuthenticationState.GetAuthenticationStateAsync();
         admin = state.User.Identity?.Name ?? admin;
+        actor = state.User.ToAdminActor();
         await LoadAsync();
     }
 
@@ -377,6 +381,10 @@
             if (result.Status == EResultStatus.Success && result.Data is not null)
             {
                 Logger.LogInformation("IA: provedor {Provider} salvo por {Admin}", result.Data.Name, admin);
+                await AuditLog.RecordAsync(new AdminAuditRecord(
+                    AdminAuditActions.AiProviderSaved, actor, AdminAuditActions.AiProviderTarget, result.Data.Id.ToString(), result.Data.Name,
+                    $"{ProtocolLabel(result.Data.Protocol)}, modelo {result.Data.Model}, variável {result.Data.ApiKeyEnvVar}"
+                    + (result.Data.IsDefault ? ", padrão" : string.Empty) + (result.Data.IsEnabled ? string.Empty : ", desativado")));
                 Toast.ShowSuccess($"Provedor “{result.Data.Name}” salvo.");
                 form = null;
                 await LoadAsync();
@@ -406,6 +414,9 @@
             if (result.Status == EResultStatus.Success)
             {
                 Logger.LogInformation("IA: provedor {Provider} virou o padrão por {Admin}", provider.Name, admin);
+                await AuditLog.RecordAsync(new AdminAuditRecord(
+                    AdminAuditActions.AiProviderDefaultChanged, actor, AdminAuditActions.AiProviderTarget, provider.Id.ToString(), provider.Name,
+                    "passou a ser o provedor padrão"));
                 Toast.ShowSuccess($"“{provider.Name}” agora é o provedor padrão.");
                 await LoadAsync();
             }
@@ -433,6 +444,9 @@
             if (result.Status == EResultStatus.Success)
             {
                 Logger.LogInformation("IA: provedor {Provider} {Action} por {Admin}", provider.Name, request.IsEnabled ? "ativado" : "desativado", admin);
+                await AuditLog.RecordAsync(new AdminAuditRecord(
+                    AdminAuditActions.AiProviderSaved, actor, AdminAuditActions.AiProviderTarget, provider.Id.ToString(), provider.Name,
+                    request.IsEnabled ? "ativado" : "desativado"));
                 await LoadAsync();
             }
             else
@@ -465,6 +479,8 @@
             if (result.Status == EResultStatus.Success)
             {
                 Logger.LogInformation("IA: provedor {Provider} excluído por {Admin}", provider.Name, admin);
+                await AuditLog.RecordAsync(new AdminAuditRecord(
+                    AdminAuditActions.AiProviderDeleted, actor, AdminAuditActions.AiProviderTarget, provider.Id.ToString(), provider.Name));
                 testResults.Remove(provider.Id);
                 Toast.ShowSuccess($"Provedor “{provider.Name}” excluído.");
                 await LoadAsync();
