@@ -1,6 +1,6 @@
 name: Scripts da VPS
 
-# Os scripts de infra/vps (endurecimento, backup, restauração e nginx) mexem em firewall, SSH e backup: um erro neles tranca
+# Os scripts de infra/vps (preparo do servidor, deploy, endurecimento, backup, restauração e nginx) mexem em firewall, SSH e backup: um erro neles tranca
 # você para fora do servidor ou deixa o backup inútil sem ninguém perceber. Por isso rodam de verdade em contêineres descartáveis.
 # Só dispara quando algo de infra/vps muda.
 on:
@@ -41,10 +41,18 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        script: [ harden-smoke, backup-restore-smoke, nginx-smoke ]
+        include:
+          - { script: harden-smoke, image: 'ubuntu:24.04' }
+          - { script: harden-smoke, image: 'debian:trixie' }
+          - { script: backup-restore-smoke, image: '' }
+          - { script: nginx-smoke, image: '' }
+          - { script: deploy-smoke, image: '' }
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
 
-    - name: Run ${{ matrix.script }}
+    # image vazia = o teste usa a imagem padrão dele
+    - name: Run ${{ matrix.script }} ${{ matrix.image }}
+      env:
+        TEST_IMAGE: ${{ matrix.image }}
       run: bash infra/vps/tests/${{ matrix.script }}.sh
