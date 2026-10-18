@@ -40,9 +40,12 @@ services:
       - "Jwt__SigningKey=${JWT_SIGNING_KEY:?Defina JWT_SIGNING_KEY no .env — gere com: openssl rand -base64 48}"
       # URL pública usada em links de e-mail (vazio = scheme/host da request)
       - "App__PublicBaseUrl=${APP_PUBLIC_BASE_URL:-}"
-      # IA das sugestões de currículo: só a chave vem do ambiente (segredo). URL, modelo e provedor ficam num único
-      # lugar, o appsettings.json (seção Ai). Sem AI_API_KEY o recurso fica desligado.
-      - "Ai__ApiKey=${AI_API_KEY:-}"
+      # Administradores por e-mail (separados por vírgula): valem só com o e-mail da conta confirmado.
+      - "Admin__Emails=${ADMIN_EMAILS:-}"
+    # Chaves dos provedores de IA (AI_KEY_*) no arquivo ai-keys.env (veja infra/vps/ai-keys.env.example); sem ele a IA fica desligada.
+    env_file:
+      - path: ./ai-keys.env
+        required: false
     ports:
       - "8080:80"
     volumes:
