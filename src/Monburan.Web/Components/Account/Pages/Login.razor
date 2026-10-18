@@ -101,6 +101,12 @@
             Logger.LogWarning("User account locked out.");
             RedirectManager.RedirectTo("Account/Lockout");
         }
+        else if (result.IsNotAllowed)
+        {
+            // Só chega aqui quem acertou a senha: a conta foi inativada pela administração
+            Logger.LogWarning("Login recusado: conta inativa.");
+            errorMessage = "Erro: sua conta está inativa. Entre em contato com o suporte para reativá-la.";
+        }
         else
         {
             errorMessage = "Erro: e-mail ou senha inválidos.";

@@ -100,6 +100,10 @@ else
                         @if (IsAdmin)
                         {
                             <span class="sidebar-nav__label sidebar-nav__label--spaced">Administração</span>
+                            <NavLink class="sidebar-link" href="/admin/accounts" data-testid="nav-admin-accounts" title="Contas: ativar, inativar e desbloquear">
+                                <span class="sidebar-link__icon">◉</span>
+                                <span>Contas</span>
+                            </NavLink>
                             <NavLink class="sidebar-link" href="/admin/candidates" title="Candidatos cadastrados">
                                 <span class="sidebar-link__icon">☰</span>
                                 <span>Candidatos</span>

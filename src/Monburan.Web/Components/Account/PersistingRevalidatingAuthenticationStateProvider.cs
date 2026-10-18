@@ -14,7 +14,7 @@ using System.Security.Claims;
 namespace Monburan.Web.Components.Account
 {
     // This is a server-side AuthenticationStateProvider that revalidates the security stamp for the
-    // connected user every 30 minutes an interactive circuit is connected. It also uses
+    // connected user every 2 minutes an interactive circuit is connected (and drops inactive accounts). It also uses
     // PersistentComponentState to flow the authentication state to the client which is then fixed
     // for the lifetime of the WebAssembly application.
     internal sealed class PersistingRevalidatingAuthenticationStateProvider : RevalidatingServerAuthenticationStateProvider
@@ -44,7 +44,7 @@ namespace Monburan.Web.Components.Account
 
         private Task<AuthenticationState>? authenticationStateTask;
 
-        protected override TimeSpan RevalidationInterval => TimeSpan.FromMinutes(30);
+        protected override TimeSpan RevalidationInterval => TimeSpan.FromMinutes(2);
 
         protected override void Dispose(bool disposing)
         {
@@ -96,7 +96,7 @@ namespace Monburan.Web.Components.Account
         private async Task<bool> ValidateSecurityStampAsync(UserManager<ApplicationUser> userManager, ClaimsPrincipal principal)
         {
             var user = await userManager.GetUserAsync(principal);
-            if (user is null)
+            if (user is null || !user.IsActive)
             {
                 return false;
             }

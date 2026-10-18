@@ -9,6 +9,8 @@ using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
 
+using System.Security.Claims;
+
 using Monburan.Core.DTOs.Request;
 using Monburan.Core.DTOs.Response;
 using Monburan.Core.Entities;
@@ -90,8 +92,11 @@ builder.Services.AddOptions<JwtOptions>()
     .Validate(o => !string.IsNullOrWhiteSpace(o.Issuer) && !string.IsNullOrWhiteSpace(o.Audience), "Jwt:Issuer e Jwt:Audience são obrigatórios.")
     .ValidateOnStart();
 builder.Services.AddSingleton<IAuthorizationHandler, AdminTwoFactorHandler>();
+builder.Services.AddMemoryCache();
+builder.Services.AddSingleton<ActiveAccountChecker>();
 builder.Services.AddScoped<IIdentityService, IdentityService>();
 builder.Services.AddScoped<AccountProfileService>();
+builder.Services.AddScoped<AdminAccountService>();
 
 // Feedback de UI: escopo por circuito (página e ToastHost do layout compartilham a instância)
 builder.Services.AddScoped<IToastService, ToastService>();
@@ -107,6 +112,15 @@ builder.Services.AddAuthentication(options =>
     options.TokenValidationParameters = jwt.ToTokenValidationParameters();
     options.Events = new JwtBearerEvents
     {
+        // O token vale até expirar; uma conta inativada pela administração deixa de usar a API em até 1 minuto
+        OnTokenValidated = async context =>
+        {
+            var userId = context.Principal?.FindFirstValue(System.IdentityModel.Tokens.Jwt.JwtRegisteredClaimNames.Sub)
+                ?? context.Principal?.FindFirstValue(System.Security.Claims.ClaimTypes.NameIdentifier);
+            var checker = context.HttpContext.RequestServices.GetRequiredService<ActiveAccountChecker>();
+            if (userId is null || !await checker.IsActiveAsync(userId))
+                context.Fail("Conta inativa ou inexistente.");
+        },
         OnChallenge = context =>
         {
             // API responde 401 em ProblemDetails, nunca redirect de cookie
@@ -162,7 +176,7 @@ builder.Services.AddIdentityCore<ApplicationUser>(options =>
 })
 .AddRoles<IdentityRole<Guid>>()
 .AddEntityFrameworkStores<ApplicationDbContext>()
-.AddSignInManager()
+.AddSignInManager<ApplicationSignInManager>()
 .AddDefaultTokenProviders()
 .AddErrorDescriber<PortugueseIdentityErrorDescriber>()
 .AddPasswordValidator<CommonPasswordValidator>()

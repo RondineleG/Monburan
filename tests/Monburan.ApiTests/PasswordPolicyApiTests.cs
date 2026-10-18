@@ -86,7 +86,7 @@ public class PasswordPolicyApiTests : IClassFixture<MonburanApiFactory>
 
         locked.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
         var problem = await locked.Content.ReadFromJsonAsync<JsonElement>();
-        problem.GetProperty("detail").GetString().Should().Contain("blocked");
+        problem.GetProperty("detail").GetString().Should().Contain("bloqueada");
     }
 
     [Fact]
