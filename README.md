@@ -201,7 +201,8 @@ Monburan/
 ├── infra/vps/                  # Deploy de produção na VPS
 │   ├── docker-compose.prod.yml # Stack app + Postgres (imagem do GHCR)
 │   ├── nginx.conf              # Reverse proxy + TLS (certbot)
-│   ├── deploy.sh               # Provisiona VPS: deps, stack, nginx, TLS
+│   ├── provision.sh            # Prepara um servidor novo: Docker, nginx, certbot, age, rclone, swap
+│   ├── deploy.sh               # Sobe/atualiza a stack e o nginx; na 1ª vez cria o .env e emite o certificado
 │   ├── harden.sh               # Endurece a VPS: firewall, SSH por chave, fail2ban, atualizações
 │   ├── validate.sh             # Valida o servidor, só lendo: de fora (HTTPS, cabeçalhos, cookies) e por dentro (disco, SSH, firewall, backup)
 │   ├── backup.sh               # Backup criptografado (age) do banco e dos uploads, enviado com rclone

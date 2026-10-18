@@ -117,9 +117,39 @@ Toda ação administrativa (contas, vagas e provedores de IA) grava quem fez, em
 busca (quem fez, alvo ou motivo) e filtros por ação e por tipo de alvo. A trilha é só de inclusão: não há tela nem rota para apagar ou editar registros.
 Falha ao gravar a trilha nunca derruba a ação, mas é registrada no log.
 
+## Servidor novo, do zero
+
+Para um servidor recém-instalado (Debian 12 ou 13, ou Ubuntu 22.04 ou 24.04; **Debian 13 recomendado**, com 2 GB de RAM ou mais), como
+root, com a sua chave SSH já autorizada. Cada script mostra o plano antes de aplicar e pode rodar de novo.
+
+```bash
+# 1. a máquina: Docker (repositório oficial), nginx, certbot, age, rclone, swap e pastas
+bash provision.sh                 # só o plano
+bash provision.sh --apply
+
+# 2. a segurança: firewall, SSH só por chave, fail2ban, atualizações (com uma 2ª sessão SSH aberta)
+bash harden.sh --apply
+
+# 3. o app: copie infra/vps para /opt/monburan e rode (o DNS do domínio já tem que apontar para este servidor)
+cd /opt/monburan
+bash deploy.sh --email voce@exemplo.com --admin-email adm@exemplo.com
+
+# 4. confira
+bash validate.sh
+```
+
+O `deploy.sh` cria o `.env` com a senha do banco e a chave JWT **novas** (geradas ali, nunca exibidas), sobe a stack, sobe o nginx só
+em HTTP, pede o certificado ao certbot e só então instala o `nginx.conf` completo (que depende do certificado). Nas vezes seguintes ele
+tira um backup (se o `backup.sh` estiver configurado), guarda a imagem atual com uma tag de rollback, baixa a nova e espera o `/health`.
+Se o certbot falhar (o DNS ainda não aponta para o servidor), o site fica em HTTP, o script sai com erro e basta rodar de novo depois.
+Você digita direto no servidor o que é seu: `SMTP_PASSWORD` no `.env` e as credenciais do destino do backup.
+
+Os testes `infra/vps/tests/deploy-smoke.sh` (e os da esteira `infra-scripts.yml`) rodam `provision.sh` e `deploy.sh` de verdade em um
+Debian 13 descartável, inclusive os casos de falha.
+
 ## Colocar em produção (VPS)
 
-Faça nesta ordem. Os arquivos citados estão em `infra/vps/` e são copiados para `/opt/monburan` na VPS.
+Para um servidor que já existe, faça nesta ordem. Os arquivos citados estão em `infra/vps/` e são copiados para `/opt/monburan` na VPS.
 
 > **Antes de começar:** rode um backup do banco (`pg_dump`, como em [CI-CD.md](CI-CD.md#publicar-a-web-vps)) e mantenha uma
 > segunda sessão SSH aberta durante os passos 3 e 4.
@@ -143,9 +173,9 @@ Faça nesta ordem. Os arquivos citados estão em `infra/vps/` e são copiados pa
 
 ### 2. nginx
 
-Copie o `nginx.conf` novo para o arquivo do site que `/etc/nginx/sites-enabled/` aponta (`ls -l /etc/nginx/sites-enabled/`: o
-`deploy.sh` usa `/etc/nginx/sites-available/monburan.com.br`, mas uma instalação feita à mão pode ter outro nome; guarde uma
-cópia do arquivo antigo fora do `sites-enabled`), rode `nginx -t` e `systemctl reload nginx`. Ele esconde a versão, descarta acessos por IP ou por domínio de terceiros (resposta
+O `deploy.sh` instala o `nginx.conf` novo no arquivo do site que já está em `/etc/nginx/sites-enabled/` (ou cria
+`/etc/nginx/sites-available/monburan.com.br`), guarda uma cópia do antigo e, se o `nginx -t` recusar, devolve o anterior. À mão:
+copie para esse arquivo, rode `nginx -t` e `systemctl reload nginx`. Ele esconde a versão, descarta acessos por IP ou por domínio de terceiros (resposta
 vazia), envia só o IP visto pelo nginx e encurta os tempos de cabeçalho e corpo. Se o `nginx -t` reclamar de
 `default_server` duplicado, tire esse `default_server` do outro site.
 

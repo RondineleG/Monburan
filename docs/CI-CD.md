@@ -100,6 +100,10 @@ A imagem `latest` é construída e publicada pelo `docker-ghcr.yml` a cada push 
 > Para conferir depois de ajustar, rode o workflow na `main` (`gh workflow run docker-ghcr.yml --ref main`): fora da
 > `main` o disparo manual só constrói a imagem e não envia nada.
 
+Servidor novo: `provision.sh` (Docker, nginx, certbot...), `harden.sh` e `deploy.sh`, nessa ordem; o passo a passo está em
+[SEGURANCA.md](SEGURANCA.md#servidor-novo-do-zero). O `deploy.sh` também serve para atualizar (backup, tag de rollback, pull, reinício e
+espera do `/health`). À mão, o equivalente é:
+
 A VPS baixa a imagem manualmente (não há deploy automático por SSH, que exigiria secrets de acesso ao servidor):
 
 ```bash
