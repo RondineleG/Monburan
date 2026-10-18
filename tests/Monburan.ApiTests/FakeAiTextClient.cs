@@ -13,6 +13,7 @@ public sealed class FakeAiTextClient : IAiTextClient
 
     private readonly object _lock = new();
     private readonly List<AiCompletionRequest> _requests = [];
+    private readonly List<Guid> _providerIds = [];
 
     public bool IsConfigured { get; set; } = true;
 
@@ -33,6 +34,18 @@ public sealed class FakeAiTextClient : IAiTextClient
         }
     }
 
+    /// <summary>Provedores pedidos pelo id (teste do administrador); o padrão não aparece aqui.</summary>
+    public IReadOnlyList<Guid> ProviderIds
+    {
+        get
+        {
+            lock (_lock)
+            {
+                return [.. _providerIds];
+            }
+        }
+    }
+
     public static AiCompletion DefaultResponder(AiCompletionRequest request) =>
         new(DefaultReply, "modelo-de-teste", 100, 200);
 
@@ -42,6 +55,7 @@ public sealed class FakeAiTextClient : IAiTextClient
         lock (_lock)
         {
             _requests.Clear();
+            _providerIds.Clear();
         }
 
         IsConfigured = true;
@@ -56,5 +70,15 @@ public sealed class FakeAiTextClient : IAiTextClient
         }
 
         return Task.FromResult(Responder(request));
+    }
+
+    public Task<AiCompletion> CompleteAsync(Guid providerId, AiCompletionRequest request, CancellationToken cancellationToken = default)
+    {
+        lock (_lock)
+        {
+            _providerIds.Add(providerId);
+        }
+
+        return CompleteAsync(request, cancellationToken);
     }
 }

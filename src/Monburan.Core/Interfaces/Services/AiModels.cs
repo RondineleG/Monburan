@@ -14,6 +14,10 @@ public sealed record AiCompletion(string Content, string? Model, int? PromptToke
 public enum AiFailureKind
 {
     NotConfigured,
+
+    /// <summary>O endereço do provedor aponta para uma rede interna ou reservada e a conexão foi recusada.</summary>
+    BlockedDestination,
+
     Timeout,
     RateLimited,
     Unauthorized,
