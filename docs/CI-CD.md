@@ -109,6 +109,10 @@ docker compose pull app && docker compose up -d app    # as migrations rodam no 
 curl -s http://127.0.0.1:8080/health
 ```
 
+Para ativar as sugestões de currículo com IA depois do deploy, a imagem nova precisa estar no ar e o `.env` da VPS
+precisa ter `AI_API_KEY`. O `docker-compose.yml` da VPS é uma cópia de `infra/vps/docker-compose.prod.yml`: copie a
+versão nova do repositório antes (ela passa `AI_API_KEY` ao app). Veja [IA-CURRICULO.md](IA-CURRICULO.md).
+
 Para voltar à versão anterior: `docker tag ghcr.io/rondineleg/monburan:rollback-<data-hora> ghcr.io/rondineleg/monburan:latest && docker compose up -d app`.
 
 Voltar a imagem não desfaz migrations (elas rodam no boot da imagem nova): se a versão nova alterou o esquema, restaure antes

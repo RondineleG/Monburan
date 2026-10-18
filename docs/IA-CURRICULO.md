@@ -6,7 +6,8 @@ alterado nem guardado**: o resultado só existe na tela (e na resposta da API), 
 
 A aplicação não depende de um provedor específico. Ela fala o protocolo de **"chat completions" da OpenAI**
 (`POST {BaseUrl}/chat/completions`), então qualquer serviço compatível serve (OpenAI, gateways, servidores locais
-como o Ollama). Hoje o ambiente aponta para o **Xiaomi MiMo** (`mimo-v2.6-pro`).
+como o Ollama). Qual serviço, qual modelo e qual nome aparece para a pessoa ficam em **um único lugar**: a seção
+`Ai` do `appsettings.json`.
 
 ## Como funciona
 
@@ -31,27 +32,46 @@ sugestões são um ponto de partida e que só vale usar o que for verdadeiro e c
 
 ## Configuração
 
-Seção `Ai` (valores padrão sem segredo em `appsettings.json`):
+Seção `Ai` do `appsettings.json` (sem segredo; é o **único lugar** que tem a URL, o modelo e o nome do provedor, nenhum
+outro arquivo os repete):
+
+| Chave | Para quê |
+|---|---|
+| `Ai:BaseUrl` | Raiz da API com o caminho de versão. O cliente acrescenta `/chat/completions`. Exige `https` (só endereço local aceita `http`). |
+| `Ai:Model` | Modelo usado. |
+| `Ai:ProviderName` | Nome mostrado à pessoa como destino do conteúdo, no painel e na Política de Privacidade (vazio usa o endereço do servidor). |
+| `Ai:ApiKey` | **Segredo.** Fica vazia no arquivo; sem ela o recurso fica desligado. |
+
+Os demais ajustes têm padrão no código e também ficam em `appsettings.json`:
 
 | Chave | Padrão | Para quê |
 |---|---|---|
-| `Ai:BaseUrl` | `https://token-plan-sgp.xiaomimimo.com/v1` | Raiz da API com o caminho de versão. O cliente acrescenta `/chat/completions`. Exige `https` (só endereço local aceita `http`). |
-| `Ai:Model` | `mimo-v2.6-pro` | Modelo usado. |
-| `Ai:ProviderName` | `Xiaomi MiMo` | Nome mostrado à pessoa como destino do conteúdo (vazio usa o endereço do servidor). |
-| `Ai:ApiKey` | vazio | **Segredo.** Sem ela o recurso fica desligado. |
 | `Ai:TimeoutSeconds` | `90` | Tempo máximo de uma chamada (entre 5 e 300). Modelos de raciocínio levam dezenas de segundos. |
 | `Ai:MaxOutputTokens` | `4000` | Limite da resposta. Em modelos de raciocínio o raciocínio também conta: não reduza demais. |
 | `Ai:Temperature` | `0.4` | Criatividade (0 a 2). |
 | `Ai:UseJsonResponseFormat` | `true` | Pede `response_format: json_object`. Desligue se o servidor recusar o campo. |
 | `Ai:MaxRequestsPerHour` | `5` | Usos por pessoa por hora (cada chamada tem custo). |
 
-**A chave nunca vai para o repositório.**
+**Trocar de provedor** é editar `Ai:BaseUrl`, `Ai:Model` e `Ai:ProviderName` em `appsettings.json` (e trocar a
+chave). Não há mudança de código. Como o arquivo vai dentro da imagem, a mudança chega à produção como qualquer outra:
+PR, promoção para a `main` e `docker compose pull`. (Em emergência, a variável `Ai__BaseUrl` no compose da VPS
+sobrescreve o arquivo sem novo deploy, mas isso cria um segundo lugar: volte para o arquivo depois.)
 
-- Desenvolvimento: `dotnet user-secrets set "Ai:ApiKey" "<chave>" --project src/Monburan.Web`.
-- Produção (VPS): `AI_API_KEY=<chave>` no `.env` de `/opt/monburan` (permissão `600`) e
-  `docker compose up -d app`. O compose repassa `AI_BASE_URL`, `AI_MODEL`, `AI_PROVIDER_NAME` e `AI_API_KEY`
-  (ver `infra/vps/env.example`). Basta a chave para ativar.
-- Para trocar de provedor, mude `AI_BASE_URL`, `AI_MODEL` e `AI_PROVIDER_NAME` (e a chave). Não há mudança de código.
+## Onde guardar a chave
+
+**A chave nunca vai para o repositório.** Cada ambiente tem o seu lugar:
+
+- **Desenvolvimento:** `dotnet user-secrets set "Ai:ApiKey" "<chave>" --project src/Monburan.Web` (fica fora do
+  repositório, no perfil do usuário).
+- **Produção (VPS):** `AI_API_KEY=<chave>` no `.env` de `/opt/monburan` (permissão `600`) e `docker compose up -d app`.
+  O compose repassa só essa variável (`infra/vps/env.example`). **O `docker-compose.yml` da VPS é uma cópia** de
+  `infra/vps/docker-compose.prod.yml`: ao receber uma versão nova do repositório, copie o arquivo de novo (ou
+  acrescente a linha `Ai__ApiKey=${AI_API_KEY:-}`), senão a chave no `.env` não chega ao app.
+- **GitHub (Settings → Secrets and variables → Actions):** guarda segredos que os *workflows* leem
+  (`${{ secrets.NOME }}`), e ninguém consegue ler o valor depois de salvo. Hoje nenhum workflow usa a chave de IA (o
+  app roda na VPS e lê o `.env`), então **não é preciso guardá-la no GitHub**. Só passa a fazer sentido se um
+  workflow de deploy for criado para gravar a chave na VPS (precisaria também do acesso SSH ao servidor como segredo).
+  Para criar o segredo mesmo assim: `gh secret set AI_API_KEY` (cola a chave quando pedir) ou pela página do GitHub.
 
 O mesmo provedor oferece também um endereço compatível com o protocolo da Anthropic (`.../anthropic`). A aplicação
 usa o protocolo da OpenAI; aceitar o outro exigiria um segundo cliente.
