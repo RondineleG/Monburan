@@ -203,6 +203,7 @@ Monburan/
 │   ├── nginx.conf              # Reverse proxy + TLS (certbot)
 │   ├── deploy.sh               # Provisiona VPS: deps, stack, nginx, TLS
 │   ├── harden.sh               # Endurece a VPS: firewall, SSH por chave, fail2ban, atualizações
+│   ├── validate.sh             # Valida o servidor, só lendo: de fora (HTTPS, cabeçalhos, cookies) e por dentro (disco, SSH, firewall, backup)
 │   ├── backup.sh               # Backup criptografado (age) do banco e dos uploads, enviado com rclone
 │   ├── restore-test.sh         # Restaura o backup em um Postgres descartável e confere os dados
 │   ├── systemd/                # Timer diário do backup

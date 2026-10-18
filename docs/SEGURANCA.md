@@ -229,6 +229,15 @@ vez. Isso é esperado.
 
 ### Como conferir que está valendo
 
+Um comando confere quase tudo da tabela abaixo, só lendo e sem pedir senha (`infra/vps/validate.sh`; cada linha sai como `[ok]`,
+`[AVISO]` ou `[FALHA]`, e o código de saída é 1 se houver falha):
+
+```bash
+bash infra/vps/validate.sh                                          # de fora: DNS, portas, /health, HTTPS, certificado, cabeçalhos, cookies
+bash infra/vps/validate.sh --ssh root@IP -i ~/.ssh/chave            # e por dentro: disco, SSH, firewall, fail2ban, contêineres, backup
+bash infra/vps/validate.sh --ip IP_DO_SERVIDOR_NOVO                 # testa um servidor novo antes de trocar o DNS
+```
+
 | O quê | Como |
 |---|---|
 | Firewall | `ufw status verbose`; `ss -ltn` só com SSH, 80 e 443 fora do loopback |
@@ -290,6 +299,7 @@ Como migrar (a conta é barata, porque só muda a string de conexão):
 
 | Situação | O que fazer |
 |---|---|
+| O servidor não responde (site, SSH e às vezes nem ping) | Rode `bash infra/vps/validate.sh` de fora para ver o que responde. Depois use o **console do painel do provedor** (é por onde se vê a tela do boot, reinicia, entra em modo de resgate e abre chamado): erro de disco, `fsck` pendente e "Read-only file system" são problema do disco virtual, não de firewall ou SSH. Com o SSH de volta, `validate.sh --ssh` mostra o que ficou quebrado. Mantenha uma cópia dos backups fora do servidor: sem ela, uma falha de disco leva os dados junto. |
 | Uma chave ou senha vazou | Troque **na origem primeiro** (provedor de IA, SMTP, GitHub), atualize `.env` ou `ai-keys.env` e rode `docker compose up -d --force-recreate app`. Trocar `JWT_SIGNING_KEY` derruba os tokens do app (todos entram de novo). Senha do banco: `ALTER USER` no Postgres e depois o `.env`. |
 | Conta suspeita de invasão | **Administração → Contas → Inativar** (desconecta na hora), veja a **Auditoria**, reative depois de a pessoa trocar a senha e o 2FA. |
 | Derrubar todas as sessões | Troque o carimbo de segurança de todas as contas (comando abaixo): todos saem em até 2 minutos. |

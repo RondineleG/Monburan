@@ -16,7 +16,7 @@ set -uo pipefail
 if [[ "${INSIDE_CONTAINER:-0}" != "1" ]]; then
     repo=$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)
     exec docker run --rm -e INSIDE_CONTAINER=1 -v "$repo":/repo:ro --entrypoint sh "${TEST_IMAGE:-nginx:stable-alpine}" \
-        -c 'apk add --no-cache bash curl openssl >/dev/null && bash /repo/infra/vps/tests/nginx-smoke.sh'
+        -c 'apk add --no-cache bash curl openssl coreutils >/dev/null && bash /repo/infra/vps/tests/nginx-smoke.sh'
 fi
 
 OUT=/tmp/nginx-smoke.out
@@ -106,6 +106,62 @@ head -c 1000000 /dev/zero | secure -X POST --data-binary @- -o /dev/null -w '%{h
 expect "upload de 1 MB passa" test "$(cat "$OUT")" = 200
 head -c 21000000 /dev/zero | secure -X POST --data-binary @- -o /dev/null -w '%{http_code}' https://$HOST/ >"$OUT"
 expect "upload de 21 MB é recusado (413)" test "$(cat "$OUT")" = 413
+
+VALIDATE=/repo/infra/vps/validate.sh
+validate() {
+    bash "$VALIDATE" --only-outside --host "$HOST" --ip 127.0.0.1 --insecure >"$OUT" 2>&1
+    status=$?
+}
+
+echo
+echo "5. validate.sh de fora, contra um app que não manda os cabeçalhos de segurança"
+validate
+expect "sai com 1, porque há falha" test "$status" -eq 1
+expect "confere o /health" grep -q '\[ok\] .*/health responde 200' "$OUT"
+expect "confere o redirecionamento para HTTPS" grep -q '\[ok\] .*HTTP redireciona para HTTPS' "$OUT"
+expect "confere que quem chega pelo IP é descartado" grep -q '\[ok\] .*chega pelo IP' "$OUT"
+expect "confere o cabeçalho Server sem versão" grep -q '\[ok\] .*Server sem versão' "$OUT"
+expect "acusa a falta da CSP" grep -q '\[FALHA\] .*Content-Security-Policy' "$OUT"
+expect "avisa da falta do HSTS" grep -q '\[AVISO\] .*Strict-Transport-Security' "$OUT"
+
+echo
+echo "6. validate.sh de fora, contra um app que manda cabeçalhos e cookies certos"
+cat >/etc/nginx/conf.d/backend.conf <<'CONF'
+server {
+    listen 127.0.0.1:8080;
+    add_header Content-Security-Policy "default-src 'self'; script-src 'self'; frame-ancestors 'none'" always;
+    add_header Strict-Transport-Security "max-age=31536000" always;
+    add_header X-Content-Type-Options nosniff always;
+    location = /Account/Login {
+        add_header Set-Cookie ".AspNetCore.Antiforgery.x=abc; path=/; secure; samesite=strict; httponly" always;
+        default_type text/plain;
+        return 200 "login\n";
+    }
+    location / {
+        default_type text/plain;
+        return 200 "ok\n";
+    }
+}
+CONF
+nginx -s reload
+sleep 1
+validate
+expect "sai com 0 (só avisos, como o do certificado de mentira)" test "$status" -eq 0
+expect "aprova a CSP sem unsafe-inline" grep -q '\[ok\] .*CSP sem unsafe-inline' "$OUT"
+expect "aprova o HSTS" grep -q '\[ok\] .*HSTS ligado' "$OUT"
+expect "aprova o nosniff" grep -q '\[ok\] .*nosniff' "$OUT"
+expect "aprova a proteção contra frame" grep -q '\[ok\] .*clickjacking' "$OUT"
+expect "aprova os cookies com Secure" grep -q '\[ok\] .*cookies da página de login com Secure' "$OUT"
+
+echo
+echo "7. validate.sh acusa CSP com unsafe-inline e cookie sem Secure"
+sed -i "s/script-src 'self'/script-src 'self' 'unsafe-inline'/; s/ secure;//" /etc/nginx/conf.d/backend.conf
+nginx -s reload
+sleep 1
+validate
+expect "sai com 1" test "$status" -eq 1
+expect "acusa o script inline na CSP" grep -q '\[FALHA\] .*CSP ainda permite script inline' "$OUT"
+expect "acusa o cookie sem Secure" grep -q '\[FALHA\] .*cookie(s) sem Secure' "$OUT"
 
 echo
 echo "$passed ok, $failed falhas"

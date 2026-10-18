@@ -214,5 +214,21 @@ expect "o fail2ban respeita os endereços ignorados" grep -q '^ignoreip = 127.0.
 expect "com --skip-ssh não mexe no SSH" test ! -e "$DROPIN"
 
 echo
+echo "7. validate.sh por dentro (rodando no próprio servidor)"
+VALIDATE=/repo/infra/vps/validate.sh
+reset_state
+bash "$VALIDATE" --only-inside >"$OUT" 2>&1
+expect "antes do endurecimento, avisa que o SSH aceita senha" grep -q '\[AVISO\] .*SSH aceita senha' "$OUT"
+
+reset_state
+with_key
+harden --apply --skip-ufw --yes
+bash "$VALIDATE" --only-inside >"$OUT" 2>&1
+expect "depois do endurecimento, confirma o SSH só por chave" grep -q '\[ok\] .*SSH só por chave' "$OUT"
+expect "confirma que root só entra por chave" grep -q '\[ok\] .*root só entra por chave' "$OUT"
+expect "avisa do firewall (no contêiner o ufw é de mentira)" grep -q '\[AVISO\] .*ufw' "$OUT"
+expect "termina com o resumo" grep -qE '[0-9]+ ok, [0-9]+ aviso' "$OUT"
+
+echo
 echo "$passed ok, $failed falhas"
 [[ $failed -eq 0 ]]
