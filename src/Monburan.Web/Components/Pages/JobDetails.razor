@@ -65,15 +65,23 @@
             <article class="job-detail-main" aria-labelledby="job-title">
                 @if (job.Status != "Active")
                 {
-                    <div class="job-banner@(isOwner ? " job-banner--owner" : string.Empty)" role="status" data-testid="job-banner">
+                    <div class="job-banner@(isOwner || isAdmin ? " job-banner--owner" : string.Empty)" role="status" data-testid="job-banner">
                         <Icon Name="alert" Size="18" />
                         @if (isOwner)
                         {
                             <p>Esta vaga está <strong>@UiLabels.JobStatus(job.Status).ToLowerInvariant()</strong> e não aparece para os candidatos.</p>
                         }
+                        else if (isAdmin)
+                        {
+                            <p>Esta vaga está <strong>@UiLabels.JobStatus(job.Status).ToLowerInvariant()</strong> e não aparece para os candidatos; você a vê como administrador. <a href="/admin/jobs">Voltar à moderação</a></p>
+                        }
                         else
                         {
                             <p>Esta vaga foi encerrada e não recebe mais candidaturas. <a href="/jobs">Ver vagas abertas</a></p>
+                        }
+                        @if ((isOwner || isAdmin) && !string.IsNullOrWhiteSpace(job.ModerationReason))
+                        {
+                            <p data-testid="job-moderation-reason">Motivo informado pela moderação: <em>@job.ModerationReason</em></p>
                         }
                     </div>
                 }
@@ -261,6 +269,7 @@
     private bool isAuthenticated;
     private bool isCandidate;
     private bool isOwner;
+    private bool isAdmin;
     private string? salary;
     private string? closing;
     private string canonicalUrl = string.Empty;
@@ -305,8 +314,10 @@
         {
             isOwner = advertiserId.HasValue && found.AdvertiserId == advertiserId.Value;
 
-            // Fora da empresa dona, só vagas ativas ou encerradas ficam visíveis (pausadas, ocultas e reprovadas, não)
-            if (isOwner || found.Status is "Active" or "Expired")
+            isAdmin = CurrentUserHelper.IsAdmin();
+
+            // Fora da empresa dona e da administração, só vagas ativas ou encerradas ficam visíveis (pausadas, ocultas e reprovadas, não)
+            if (isOwner || isAdmin || found.Status is "Active" or "Expired")
                 job = found;
         }
         else if (result.Status != EResultStatus.EntityNotFound)

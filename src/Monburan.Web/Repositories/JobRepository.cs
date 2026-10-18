@@ -55,6 +55,55 @@ public class JobRepository : IJobRepository
         return RequestResult<IEnumerable<Job>>.Success(jobs);
     }
 
+    public async Task<PagedResponse<Job>> AdminSearchAsync(string? searchTerm, EJobStatus? status, Guid? advertiserId, int page, int size)
+    {
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        var query = context.Jobs
+            .AsNoTracking()
+            .Include(j => j.Advertiser)
+            .Where(j => !j.IsDeleted);
+
+        if (status.HasValue)
+            query = query.Where(j => j.Status == status.Value);
+
+        if (advertiserId.HasValue)
+        {
+            var advertiserKey = Id.Create(advertiserId.Value);
+            query = query.Where(j => j.AdvertiserId == advertiserKey);
+        }
+
+        if (!string.IsNullOrWhiteSpace(searchTerm))
+        {
+            var term = searchTerm.Trim().ToLower();
+            query = query.Where(j =>
+                j.Title.ToLower().Contains(term)
+                || (j.Category != null && j.Category.ToLower().Contains(term))
+                || (j.Advertiser != null && j.Advertiser.Name.ToLower().Contains(term)));
+        }
+
+        var totalCount = await query.CountAsync();
+        var jobs = await query
+            .OrderByDescending(j => j.CreatedAt)
+            .Skip((page - 1) * size)
+            .Take(size)
+            .ToListAsync();
+
+        return new PagedResponse<Job> { Data = jobs, TotalCount = totalCount, Page = page, Size = size };
+    }
+
+    public async Task<IReadOnlyDictionary<EJobStatus, int>> CountByStatusAsync()
+    {
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        var groups = await context.Jobs
+            .AsNoTracking()
+            .Where(j => !j.IsDeleted)
+            .GroupBy(j => j.Status)
+            .Select(group => new { Status = group.Key, Count = group.Count() })
+            .ToListAsync();
+
+        return groups.ToDictionary(group => group.Status, group => group.Count);
+    }
+
     public async Task<PagedResponse<Job>> GetAllPagedAsync(int page, int size)
     {
         await using var context = await _contextFactory.CreateDbContextAsync();

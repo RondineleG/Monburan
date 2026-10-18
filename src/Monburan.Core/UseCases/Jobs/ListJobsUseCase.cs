@@ -6,6 +6,7 @@ using Monburan.Core.Interfaces.Repositories;
 using Monburan.Core.Interfaces.Repositories.Base;
 using Monburan.Core.Interfaces.UseCases;
 using Monburan.Core.Requests;
+using Monburan.Core.Services;
 
 namespace Monburan.Core.UseCases.Jobs;
 
@@ -54,6 +55,7 @@ public class ListJobsUseCase : IUseCase<ListJobsRequest, ListJobsResponse>
             Tags = job.Tags,
             ExpirationDate = job.ExpirationDate,
             Status = job.Status.ToString(),
+            ModerationReason = JobModeration.VisibleReason(job),
             City = job.Location?.City,
             State = job.Location?.State,
             Country = job.Location?.Country ?? "BR",

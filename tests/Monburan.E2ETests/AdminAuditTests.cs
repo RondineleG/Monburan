@@ -67,10 +67,8 @@ public class AdminAuditTests : E2ETestBase
         await Page.GetByTestId("audit-action").SelectOptionAsync("ai_provider.deleted");
         await Page.GetByTestId("audit-apply").ClickAsync();
 
-        var rows = Page.GetByTestId("audit-row");
-        var count = await rows.CountAsync();
-        for (var index = 0; index < count; index++)
-            Assert.Equal("ai_provider.deleted", await rows.Nth(index).GetAttributeAsync("data-action"));
+        // Espera a lista filtrada chegar: não pode sobrar nenhuma linha de outra ação
+        await Assertions.Expect(Page.Locator("[data-testid='audit-row']:not([data-action='ai_provider.deleted'])")).ToHaveCountAsync(0);
 
         await SearchAsync("termo-que-nao-existe-" + Guid.NewGuid().ToString("N"));
         await Assertions.Expect(Page.GetByTestId("audit-empty")).ToBeVisibleAsync();
