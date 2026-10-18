@@ -14,7 +14,7 @@ Os jobs `deploy-staging` e `deploy-production` (Azure Web App) só rodam quando 
 
 ## Lançar uma nova versão do app (APK)
 
-1. Num PR para a `dev`, suba `ApplicationDisplayVersion` (nome, ex.: `1.4.0`) e `ApplicationVersion` (versionCode,
+1. Num PR para a `dev`, suba `ApplicationDisplayVersion` (nome, ex.: `1.5.0`) e `ApplicationVersion` (versionCode,
    inteiro que só cresce) em `src/Monburan.Mobile/Monburan.Mobile.csproj`.
 2. O PR de promoção `dev` → `main` roda o `android-release.yml` em modo ensaio (os PRs para a `dev` não rodam o
    workflow): compila, assina, confere versão e assinatura, mostra as notas no resumo do run e deixa o APK como
