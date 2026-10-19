@@ -182,7 +182,10 @@
         var result = await CancelSubscriptionUseCase.ExecuteAsync(new CancelSubscriptionRequest
         {
             SubscriptionId = subscription.Id,
-            Reason = string.IsNullOrWhiteSpace(cancelReason) ? null : cancelReason.Trim()
+            Reason = string.IsNullOrWhiteSpace(cancelReason) ? null : cancelReason.Trim(),
+            // O anunciante vem da sessão, nunca do navegador: o use case só cancela a
+            // assinatura que for deste anunciante
+            AdvertiserId = CurrentUserHelper.GetAdvertiserId()
         });
         isCancelling = false;
 

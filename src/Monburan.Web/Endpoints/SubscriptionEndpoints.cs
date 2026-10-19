@@ -64,24 +64,16 @@ public static class SubscriptionEndpoints
             CancelSubscriptionRequest request,
             ICurrentUserHelper currentUser,
             CancelSubscriptionUseCase useCase,
-            Core.Interfaces.Repositories.Base.IBaseRepository<Core.Entities.Subscription> subscriptionRepository,
             CancellationToken cancellationToken) =>
         {
             var advertiserId = currentUser.GetAdvertiserId();
             if (advertiserId is null)
                 return Results.Problem(statusCode: StatusCodes.Status403Forbidden, title: "Perfil de anunciante necessário");
 
-            // Ownership check — o UseCase não valida AdvertiserId; sem isso qualquer
-            // anunciante cancelaria a assinatura de outro (IDOR cross-tenant)
-            var subscription = await subscriptionRepository.GetByIdAsync(
-                Core.ValueObjects.Id.Create(request.SubscriptionId));
-            if (subscription.Status != EResultStatus.Success || subscription.Data is null
-                || subscription.Data.AdvertiserId.Value != advertiserId.Value)
-            {
-                return Results.Problem(
-                    statusCode: StatusCodes.Status404NotFound,
-                    title: "Assinatura não encontrada");
-            }
+            // O anunciante vem da claim, nunca do corpo: a checagem de posse da assinatura é
+            // feita pelo use case com este valor, para o cancelamento não poder ser usado
+            // contra a assinatura de outro anunciante.
+            request.AdvertiserId = advertiserId.Value;
 
             var result = await useCase.ExecuteAsync(request);
             return result.ToHttpResult();

@@ -52,12 +52,14 @@ public sealed class UpgradePlanUseCase : IUseCase<UpgradePlanRequest, Subscripti
         if (activeSubscription is not null && activeSubscription.PlanId == plan.Id)
             return RequestResult<SubscriptionResponse>.WithDomainError("Você já está neste plano.");
 
+        // A assinatura anterior é cancelada junto com a criação da nova e a atualização do plano
+        // ativo do anunciante — na mesma transação, para o anunciante nunca ficar sem assinatura
+        // ativa (se a criação falhar) nem com duas assinaturas ativas (se o cancelamento falhar).
         if (activeSubscription is not null)
         {
             activeSubscription.Status = ESubscriptionStatus.Cancelled;
             activeSubscription.EndDate = DateTime.UtcNow;
             activeSubscription.CancellationReason = "Upgrade para novo plano";
-            await _subscriptionRepository.UpdateAsync(activeSubscription);
         }
 
         // Criar nova assinatura
@@ -73,14 +75,13 @@ public sealed class UpgradePlanUseCase : IUseCase<UpgradePlanRequest, Subscripti
             TenantId = "default"
         };
 
-        var createResult = await _subscriptionRepository.CreateAsync(newSubscription);
-        if (createResult.Status != EResultStatus.Success)
-            return RequestResult<SubscriptionResponse>.FromResult(createResult);
-
         // Atualizar ActivePlan do Advertiser
         var advertiser = advertiserResult.Data;
         advertiser.ActivePlan = plan.Name;
-        await _advertiserRepository.UpdateAsync(advertiser);
+
+        var changeResult = await _subscriptionRepository.ChangePlanAsync(activeSubscription, newSubscription, advertiser);
+        if (changeResult.Status != EResultStatus.Success)
+            return RequestResult<SubscriptionResponse>.FromResult(changeResult);
 
         var response = new SubscriptionResponse
         {

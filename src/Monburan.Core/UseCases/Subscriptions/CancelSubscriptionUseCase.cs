@@ -1,6 +1,8 @@
 using Monburan.Core.DTOs.Request;
+using Monburan.Core.DTOs.Response;
 using Monburan.Core.Entities;
 using Monburan.Core.Enums;
+using Monburan.Core.Interfaces.Repositories;
 using Monburan.Core.Interfaces.Repositories.Base;
 using Monburan.Core.Interfaces.UseCases;
 using Monburan.Core.Requests;
@@ -8,47 +10,62 @@ using Monburan.Core.ValueObjects;
 
 namespace Monburan.Core.UseCases.Subscriptions;
 
-public sealed class CancelSubscriptionUseCase : IUseCase<CancelSubscriptionRequest, RequestResult>
+public sealed class CancelSubscriptionUseCase : IUseCase<CancelSubscriptionRequest, SubscriptionResponse>
 {
-    private readonly IBaseRepository<Subscription> _subscriptionRepository;
+    private readonly ISubscriptionRepository _subscriptionRepository;
     private readonly IBaseRepository<Advertiser> _advertiserRepository;
 
     public CancelSubscriptionUseCase(
-        IBaseRepository<Subscription> subscriptionRepository,
+        ISubscriptionRepository subscriptionRepository,
         IBaseRepository<Advertiser> advertiserRepository)
     {
         _subscriptionRepository = subscriptionRepository;
         _advertiserRepository = advertiserRepository;
     }
 
-    public async Task<RequestResult<RequestResult>> ExecuteAsync(CancelSubscriptionRequest request)
+    public async Task<RequestResult<SubscriptionResponse>> ExecuteAsync(CancelSubscriptionRequest request)
     {
         // Buscar assinatura
         var subscriptionResult = await _subscriptionRepository.GetByIdAsync(Id.Create(request.SubscriptionId));
         if (subscriptionResult.Status != EResultStatus.Success || subscriptionResult.Data == null)
-            return RequestResult<RequestResult>.EntityNotFound("Subscription", request.SubscriptionId, "Assinatura não encontrada.");
+            return RequestResult<SubscriptionResponse>.EntityNotFound("Subscription", request.SubscriptionId, "Assinatura não encontrada.");
 
         var subscription = subscriptionResult.Data;
 
+        // A assinatura precisa ser do anunciante autenticado: sem esta checagem, qualquer
+        // anunciante cancelaria a assinatura de outro.
+        if (request.AdvertiserId.HasValue && subscription.AdvertiserId.Value != request.AdvertiserId.Value)
+            return RequestResult<SubscriptionResponse>.EntityNotFound("Subscription", request.SubscriptionId, "Assinatura não encontrada.");
+
         // Verificar se está ativa
         if (subscription.Status != ESubscriptionStatus.Active)
-            return RequestResult<RequestResult>.WithDomainError("A assinatura não está ativa e não pode ser cancelada.");
+            return RequestResult<SubscriptionResponse>.WithDomainError("A assinatura não está ativa e não pode ser cancelada.");
 
-        // Cancelar assinatura
+        var advertiserResult = await _advertiserRepository.GetByIdAsync(subscription.AdvertiserId);
+        if (advertiserResult.Status != EResultStatus.Success || advertiserResult.Data == null)
+            return RequestResult<SubscriptionResponse>.FromResult(advertiserResult);
+
+        var advertiser = advertiserResult.Data;
+
+        // Cancelar assinatura e voltar para o plano Free — as duas gravações saem na mesma
+        // transação, para o plano do anunciante nunca divergir do estado da assinatura.
         subscription.Status = ESubscriptionStatus.Cancelled;
         subscription.EndDate = DateTime.UtcNow;
         subscription.CancellationReason = request.Reason;
-        await _subscriptionRepository.UpdateAsync(subscription);
+        advertiser.ActivePlan = "Free";
 
-        // Voltar para plano Free
-        var advertiserResult = await _advertiserRepository.GetByIdAsync(subscription.AdvertiserId);
-        if (advertiserResult.Status == EResultStatus.Success && advertiserResult.Data != null)
+        var cancelResult = await _subscriptionRepository.CancelAsync(subscription, advertiser, "Free");
+        if (cancelResult.Status != EResultStatus.Success)
+            return RequestResult<SubscriptionResponse>.FromResult(cancelResult);
+
+        return RequestResult<SubscriptionResponse>.Success(new SubscriptionResponse
         {
-            var advertiser = advertiserResult.Data;
-            advertiser.ActivePlan = "Free";
-            await _advertiserRepository.UpdateAsync(advertiser);
-        }
-
-        return RequestResult<RequestResult>.Success(RequestResult.Success());
+            Id = subscription.Id.Value,
+            PlanName = "Free",
+            Status = ESubscriptionStatus.Cancelled.ToString(),
+            StartDate = subscription.StartDate,
+            EndDate = subscription.EndDate,
+            Price = 0
+        });
     }
 }
