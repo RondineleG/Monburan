@@ -318,4 +318,17 @@ public class JobRepository : IJobRepository
 
         return RequestResult<IEnumerable<Job>>.Success(jobs);
     }
+
+    public async Task<RequestResult<bool>> IncrementViewsAsync(Guid jobId)
+    {
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        var jobKey = Id.Create(jobId);
+
+        var updated = await context.Jobs
+            .Where(job => job.Id == jobKey)
+            .ExecuteUpdateAsync(setters => setters
+                .SetProperty(job => job.Counters.Views, job => job.Counters.Views + 1));
+
+        return RequestResult<bool>.Success(updated > 0);
+    }
 }

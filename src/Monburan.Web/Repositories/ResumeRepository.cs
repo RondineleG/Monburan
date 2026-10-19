@@ -166,4 +166,15 @@ public class ResumeRepository : IResumeRepository
 
         return RequestResult<Resume?>.Success(resume);
     }
+
+    public async Task<RequestResult<int>> CountByCandidateAsync(Guid candidateId)
+    {
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        var candidateKey = Id.Create(candidateId);
+        var count = await context.Resumes
+            .AsNoTracking()
+            .CountAsync(r => !r.IsDeleted && r.CandidateId == candidateKey);
+
+        return RequestResult<int>.Success(count);
+    }
 }

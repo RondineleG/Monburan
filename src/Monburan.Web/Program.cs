@@ -339,6 +339,7 @@ builder.Services.AddScoped<SaveJobUseCase>();
 builder.Services.AddScoped<UnsaveJobUseCase>();
 builder.Services.AddScoped<ListSavedJobsUseCase>();
 builder.Services.AddScoped<ListRecommendedJobsUseCase>();
+builder.Services.AddScoped<RegisterJobViewUseCase>();
 
 // Registrar Use Cases de Alertas de Vaga
 builder.Services.AddScoped<ListJobAlertsUseCase>();
@@ -367,6 +368,7 @@ builder.Services.AddScoped<Monburan.Core.UseCases.Candidates.DeleteCandidateUseC
 builder.Services.AddScoped<Monburan.Core.UseCases.Candidates.UpdateCandidateUseCase>();
 builder.Services.AddScoped<GetCareerProfileUseCase>();
 builder.Services.AddScoped<UpsertCareerProfileUseCase>();
+builder.Services.AddScoped<GetCandidateProgressUseCase>();
 
 // Registrar Use Cases de Advertisers
 builder.Services.AddScoped<CreateAdvertiserUseCase>();

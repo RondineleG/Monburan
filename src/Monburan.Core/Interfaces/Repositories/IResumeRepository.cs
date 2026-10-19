@@ -10,4 +10,7 @@ public interface IResumeRepository : IBaseRepository<Resume>
 
     /// <summary>Currículo ativo do candidato com as habilidades carregadas (base das recomendações).</summary>
     Task<RequestResult<Resume?>> GetActiveWithSkillsAsync(Guid candidateId);
+
+    /// <summary>Quantidade de currículos cadastrados (não excluídos) do candidato.</summary>
+    Task<RequestResult<int>> CountByCandidateAsync(Guid candidateId);
 }

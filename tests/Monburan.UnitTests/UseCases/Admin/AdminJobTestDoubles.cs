@@ -101,6 +101,16 @@ internal sealed class FakeJobRepository : IJobRepository
     public Task<RequestResult<IEnumerable<Job>>> ListActiveForRecommendationsAsync() =>
         Task.FromResult(RequestResult<IEnumerable<Job>>.Success(
             _jobs.Where(job => !job.IsDeleted && job.Status == EJobStatus.Active).ToList()));
+
+    public Task<RequestResult<bool>> IncrementViewsAsync(Guid jobId)
+    {
+        var job = _jobs.FirstOrDefault(item => item.Id.Value == jobId);
+        if (job is null)
+            return Task.FromResult(RequestResult<bool>.Success(false));
+
+        job.Counters.Views++;
+        return Task.FromResult(RequestResult<bool>.Success(true));
+    }
 }
 
 internal sealed class FakeAdvertiserRepository : IBaseRepository<Advertiser>
