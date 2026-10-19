@@ -15,4 +15,7 @@ public class ListJobsRequest
     public string? SortBy { get; set; } = "CreatedAt";
     public bool SortDescending { get; set; } = true;
     public Guid? AdvertiserId { get; set; }
+
+    /// <summary>Candidato autenticado (quando houver): preenche <c>IsSaved</c> nas vagas retornadas.</summary>
+    public Guid? CandidateId { get; set; }
 }

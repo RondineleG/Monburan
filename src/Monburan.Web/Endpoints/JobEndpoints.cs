@@ -18,6 +18,7 @@ public static class JobEndpoints
         // Público — lista com filtros (parity com a página /jobs do site)
         group.MapGet("/", async (
             SearchJobsUseCase useCase,
+            ICurrentUserHelper currentUser,
             CancellationToken cancellationToken,
             int? page = null, int? size = null,
             string? searchTerm = null, string? city = null, string? state = null,
@@ -27,7 +28,7 @@ public static class JobEndpoints
         {
             var result = await useCase.ExecuteAsync(BuildRequest(
                 page, size, searchTerm, city, state, isRemote, type, salaryMin, salaryMax,
-                category, sortBy, sortDescending, advertiserId: null));
+                category, sortBy, sortDescending, advertiserId: null, candidateId: currentUser.GetCandidateId()));
             if (result.Data is not null)
             {
                 foreach (var job in result.Data.Jobs)
@@ -56,7 +57,7 @@ public static class JobEndpoints
 
             var result = await useCase.ExecuteAsync(BuildRequest(
                 page, size, searchTerm, city, state, isRemote, type, salaryMin, salaryMax,
-                category, sortBy, sortDescending, advertiserId));
+                category, sortBy, sortDescending, advertiserId, candidateId: null));
             return result.ToHttpResult();
         })
         .RequireAuthorization("ApiBearer")
@@ -66,10 +67,11 @@ public static class JobEndpoints
         group.MapGet("/{id:guid}", async (
             Guid id,
             GetJobByIdUseCase useCase,
+            ICurrentUserHelper currentUser,
             HttpContext httpContext,
             CancellationToken cancellationToken) =>
         {
-            var result = await useCase.ExecuteAsync(id);
+            var result = await useCase.ExecuteAsync(id, currentUser.GetCandidateId());
 
             // Vaga pausada, oculta ou rejeitada só aparece para a empresa dona (que manda o token); para o resto do mundo
             // é como se não existisse. Sem isso o conteúdo (e o motivo da moderação) vazaria para quem soubesse o id.
@@ -176,7 +178,7 @@ public static class JobEndpoints
     private static ListJobsRequest BuildRequest(
         int? page, int? size, string? searchTerm, string? city, string? state,
         bool? isRemote, string? type, decimal? salaryMin, decimal? salaryMax,
-        string? category, string? sortBy, bool? sortDescending, Guid? advertiserId)
+        string? category, string? sortBy, bool? sortDescending, Guid? advertiserId, Guid? candidateId)
     {
         return new ListJobsRequest
         {
@@ -192,7 +194,8 @@ public static class JobEndpoints
             Category = category,
             SortBy = string.IsNullOrWhiteSpace(sortBy) ? "CreatedAt" : sortBy,
             SortDescending = sortDescending ?? true,
-            AdvertiserId = advertiserId
+            AdvertiserId = advertiserId,
+            CandidateId = candidateId
         };
     }
 }

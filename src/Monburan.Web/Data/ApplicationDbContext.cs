@@ -30,11 +30,17 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
 
     public DbSet<Candidate> Candidates => Set<Candidate>();
 
+    public DbSet<CareerProfile> CareerProfiles => Set<CareerProfile>();
+
     public DbSet<Job> Jobs => Set<Job>();
+
+    public DbSet<JobAlert> JobAlerts => Set<JobAlert>();
 
     public DbSet<Notification> Notifications => Set<Notification>();
 
     public DbSet<Resume> Resumes => Set<Resume>();
+
+    public DbSet<SavedJob> SavedJobs => Set<SavedJob>();
 
     public DbSet<TenantConfig> TenantConfigs => Set<TenantConfig>();
 
