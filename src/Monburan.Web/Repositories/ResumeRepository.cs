@@ -142,15 +142,19 @@ public class ResumeRepository : IResumeRepository
         }
     }
 
-    public async Task<RequestResult<IEnumerable<Resume>>> ListByCandidateAsync(Guid candidateId)
+    public async Task<RequestResult<IEnumerable<Resume>>> ListByCandidateAsync(Guid candidateId, int page = 1, int size = 0)
     {
         await using var context = await _contextFactory.CreateDbContextAsync();
         var candidateKey = Id.Create(candidateId);
-        var resumes = await context.Resumes
+        var query = context.Resumes
             .AsNoTracking()
             .Where(r => !r.IsDeleted && r.CandidateId == candidateKey)
-            .OrderByDescending(r => r.CreatedAt)
-            .ToListAsync();
+            .OrderByDescending(r => r.CreatedAt);
+
+        // Sem paginação, a listagem para no teto: materializar todos os currículos de um
+        // candidato com dezenas de milhares de registros estourava a memória do servidor
+        var (skip, take) = Pagination.For(page, size, IResumeRepository.MaxListSize);
+        var resumes = await query.Skip(skip).Take(take).ToListAsync();
 
         return RequestResult<IEnumerable<Resume>>.Success(resumes);
     }

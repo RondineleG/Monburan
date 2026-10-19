@@ -1,3 +1,4 @@
+using Monburan.Core.DTOs.Request;
 using Monburan.Core.DTOs.Response;
 using Monburan.Core.Entities;
 using Monburan.Core.Enums;
@@ -7,7 +8,7 @@ using Monburan.Core.Requests;
 
 namespace Monburan.Core.UseCases.Applications;
 
-public class ListApplicationsByCandidateUseCase : IUseCase<Guid, IEnumerable<ApplicationResponse>>
+public class ListApplicationsByCandidateUseCase : IUseCase<ListApplicationsByCandidateRequest, IEnumerable<ApplicationResponse>>
 {
     private readonly IApplicationRepository _applicationRepository;
 
@@ -16,9 +17,9 @@ public class ListApplicationsByCandidateUseCase : IUseCase<Guid, IEnumerable<App
         _applicationRepository = applicationRepository;
     }
 
-    public async Task<RequestResult<IEnumerable<ApplicationResponse>>> ExecuteAsync(Guid request)
+    public async Task<RequestResult<IEnumerable<ApplicationResponse>>> ExecuteAsync(ListApplicationsByCandidateRequest request)
     {
-        var result = await _applicationRepository.ListByCandidateAsync(request);
+        var result = await _applicationRepository.ListByCandidateAsync(request.CandidateId, request.Page, request.Size);
         if (result.Status != EResultStatus.Success)
             return RequestResult<IEnumerable<ApplicationResponse>>.FromResult(result);
 

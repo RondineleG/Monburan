@@ -94,22 +94,26 @@ public class ApplicationRepository : IApplicationRepository
         return RequestResult<Application>.Success(entity);
     }
 
-    public async Task<RequestResult<IEnumerable<Application>>> ListByCandidateAsync(Guid candidateId)
+    public async Task<RequestResult<IEnumerable<Application>>> ListByCandidateAsync(Guid candidateId, int page = 1, int size = 0)
     {
         await using var context = await _contextFactory.CreateDbContextAsync();
         var candidateKey = Id.Create(candidateId);
-        var applications = await context.Applications
+        var query = context.Applications
             .AsNoTracking()
             .Include(a => a.Job)
             .ThenInclude(job => job.Advertiser)
             .Where(a => !a.IsDeleted && a.CandidateId == candidateKey)
-            .OrderByDescending(a => a.CreatedAt)
-            .ToListAsync();
+            .OrderByDescending(a => a.CreatedAt);
+
+        // Sem paginação, a listagem para no teto: materializar todas as candidaturas de um
+        // candidato com dezenas de milhares de registros estourava a memória do servidor
+        var (skip, take) = Pagination.For(page, size, IApplicationRepository.MaxListSize);
+        var applications = await query.Skip(skip).Take(take).ToListAsync();
 
         return RequestResult<IEnumerable<Application>>.Success(applications);
     }
 
-    public async Task<RequestResult<IEnumerable<Application>>> ListByAdvertiserAsync(Guid advertiserId, Guid? jobId = null)
+    public async Task<RequestResult<IEnumerable<Application>>> ListByAdvertiserAsync(Guid advertiserId, Guid? jobId = null, int page = 1, int size = 0)
     {
         await using var context = await _contextFactory.CreateDbContextAsync();
         var advertiserKey = Id.Create(advertiserId);
@@ -125,8 +129,12 @@ public class ApplicationRepository : IApplicationRepository
             query = query.Where(a => a.JobId == jobKey);
         }
 
+        // Sem paginação, a listagem para no teto: uma empresa com dezenas de milhares de
+        // candidaturas não pode materializar tudo em memória a cada requisição
+        var (skip, take) = Pagination.For(page, size, IApplicationRepository.MaxListSize);
         var applications = await query
             .OrderByDescending(a => a.CreatedAt)
+            .Skip(skip).Take(take)
             .ToListAsync();
 
         return RequestResult<IEnumerable<Application>>.Success(applications);

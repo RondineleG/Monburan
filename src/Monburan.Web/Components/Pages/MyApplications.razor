@@ -349,7 +349,10 @@
         loadFailed = false;
         var candidateId = CurrentUserHelper.GetCandidateId()!.Value;
 
-        var applicationsResult = await ListApplicationsByCandidateUseCase.ExecuteAsync(candidateId);
+        var applicationsResult = await ListApplicationsByCandidateUseCase.ExecuteAsync(new Core.DTOs.Request.ListApplicationsByCandidateRequest
+        {
+            CandidateId = candidateId
+        });
         var savedResult = await ListSavedJobsUseCase.ExecuteAsync(candidateId);
         var alertsResult = await ListJobAlertsUseCase.ExecuteAsync(candidateId);
 

@@ -1,4 +1,5 @@
 using Monburan.Core.DTOs.Request;
+using Monburan.Core.Interfaces.Repositories;
 using Monburan.Core.UseCases.Applications;
 using Monburan.Core.UseCases.Jobs;
 using Monburan.Web.Services;
@@ -30,6 +31,7 @@ public static class ApplicationEndpoints
         .WithSummary("Candidata o usuário autenticado a uma vaga");
 
         group.MapGet("/mine", async (
+            int? page, int? size,
             ICurrentUserHelper currentUser,
             ListApplicationsByCandidateUseCase useCase,
             CancellationToken cancellationToken) =>
@@ -38,7 +40,12 @@ public static class ApplicationEndpoints
             if (candidateId is null)
                 return Results.Problem(statusCode: StatusCodes.Status403Forbidden, title: "Perfil de candidato necessário");
 
-            var result = await useCase.ExecuteAsync(candidateId.Value);
+            var result = await useCase.ExecuteAsync(new ListApplicationsByCandidateRequest
+            {
+                CandidateId = candidateId.Value,
+                Page = page is > 0 ? page.Value : 1,
+                Size = size is > 0 ? Math.Min(size.Value, IApplicationRepository.MaxListSize) : 0
+            });
             return result.ToHttpResult();
         })
         .WithSummary("Lista candidaturas do candidato autenticado");
