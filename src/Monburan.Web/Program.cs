@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.DataProtection.KeyManagement;
 using Microsoft.AspNetCore.DataProtection.Repositories;
+using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -450,12 +451,26 @@ app.UseRequestLocalization(new RequestLocalizationOptions()
     .AddSupportedUICultures("pt-BR"));
 app.UseRateLimiter();
 app.UseSecurityHeaders();
-// Re-execute para /404 só fora da API; na API, respostas de erro sem corpo (rota
-// inexistente, método não permitido) ganham ProblemDetails em vez de HTML do site
-app.UseWhen(ctx => !ctx.Request.Path.StartsWithSegments("/api"),
-    branch => branch.UseStatusCodePagesWithReExecute("/404"));
+// Rota inexistente no site chega ao navegador com a página /404 renderizada. A re-execução precisa ficar no pipeline
+// externo, fora de um branch do UseWhen: o pipeline de um branch termina nele mesmo e não alcança o middleware de
+// endpoints global, então o /404 re-executado nunca casava com o endpoint e o corpo saía vazio.
+// A API não é afetada: o UseStatusCodePages abaixo escreve o ProblemDetails antes desta linha olhar a resposta.
+app.UseStatusCodePagesWithReExecute("/404");
 app.UseWhen(ctx => ctx.Request.Path.StartsWithSegments("/api"),
     branch => branch.UseStatusCodePages());
+// Caminho com extensão é arquivo (imagem, CSS, fonte), não página: quando a re-execução veio de um arquivo, responde
+// 404 seco em vez de renderizar o site inteiro para quem pediu um asset que não existe.
+app.Use(async (context, next) =>
+{
+    var reExecute = context.Features.Get<IStatusCodeReExecuteFeature>();
+    if (reExecute is not null && HasFileExtension(new PathString(reExecute.OriginalPath)))
+    {
+        context.Response.StatusCode = StatusCodes.Status404NotFound;
+        return;
+    }
+
+    await next();
+});
 app.UseStaticFiles();
 app.UseAntiforgery();
 
@@ -522,6 +537,19 @@ catch (Exception ex) when (ex is not HostAbortedException)
 finally
 {
     Log.CloseAndFlush();
+}
+
+// Caminho com extensão é arquivo (imagem, CSS, fonte), não página: um 404 de arquivo fica seco e não renderiza o site.
+// Comparação de texto: procura o último ponto depois da última barra (o Path.HasExtension aceitaria ponto no fim).
+static bool HasFileExtension(PathString path)
+{
+    var value = path.Value;
+    if (string.IsNullOrEmpty(value))
+        return false;
+
+    var lastSlash = value.LastIndexOf('/');
+    var lastDot = value.LastIndexOf('.');
+    return lastDot > lastSlash && lastDot < value.Length - 1;
 }
 
 // Necessário para WebApplicationFactory<Program> nos testes de API
