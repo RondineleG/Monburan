@@ -158,7 +158,7 @@
 .job-logo img[hidden] { display: none; }
 .job-logo--lg { width: 4.25rem; height: 4.25rem; border-radius: var(--r-lg); font-size: 1.6rem; }
 
-.job-flag { flex: 0 0 auto; padding: 0.2rem 0.6rem; border-radius: var(--r-pill); background: var(--ok-bg); color: var(--ok); font-size: 0.72rem; font-weight: 800; letter-spacing: 0.03em; text-transform: uppercase; }
+.job-flag { flex: 0 0 auto; padding: 0.2rem 0.6rem; border-radius: var(--r-pill); background: var(--ok-bg); color: var(--ok); font-size: var(--fs-xs); font-weight: 800; letter-spacing: 0.03em; text-transform: uppercase; }
 
 .job-facts { display: flex; flex-wrap: wrap; gap: 0.4rem 1rem; margin: 0; padding: 0; color: var(--tx); font-size: 0.92rem; list-style: none; }
 .job-facts li { display: inline-flex; min-width: 0; align-items: center; gap: 0.4rem; }
@@ -227,7 +227,7 @@
 .job-owner-card__status { display: flex; align-items: center; gap: 0.5rem; }
 .job-owner-card__stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.5rem; margin: 0 0 1rem; }
 .job-owner-card__stats > div { padding: 0.55rem 0.4rem; border: 1px solid var(--border); border-radius: var(--r-sm); background: var(--bg-elev); text-align: center; }
-.job-owner-card__stats dt { color: var(--tx-2); font-size: 0.72rem; font-weight: 600; }
+.job-owner-card__stats dt { color: var(--tx-2); font-size: var(--fs-xs); font-weight: 600; }
 .job-owner-card__stats dd { margin: 0.1rem 0 0; color: var(--gold-d); font-family: var(--f-display); font-size: 1.2rem; font-weight: 700; }
 .job-share__actions { display: flex; flex-wrap: wrap; gap: 0.5rem; }
 .job-share__actions .btn { display: inline-flex; min-height: 2.6rem; flex: 1 1 auto; align-items: center; justify-content: center; gap: 0.45rem; font-family: var(--f-ui); font-size: 0.9rem; letter-spacing: 0; text-transform: none; }
