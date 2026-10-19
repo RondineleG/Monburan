@@ -97,6 +97,10 @@ internal sealed class FakeJobRepository : IJobRepository
     public Task<IReadOnlyDictionary<EJobStatus, int>> CountByStatusAsync() =>
         Task.FromResult<IReadOnlyDictionary<EJobStatus, int>>(
             _jobs.Where(job => !job.IsDeleted).GroupBy(job => job.Status).ToDictionary(group => group.Key, group => group.Count()));
+
+    public Task<RequestResult<IEnumerable<Job>>> ListActiveForRecommendationsAsync() =>
+        Task.FromResult(RequestResult<IEnumerable<Job>>.Success(
+            _jobs.Where(job => !job.IsDeleted && job.Status == EJobStatus.Active).ToList()));
 }
 
 internal sealed class FakeAdvertiserRepository : IBaseRepository<Advertiser>

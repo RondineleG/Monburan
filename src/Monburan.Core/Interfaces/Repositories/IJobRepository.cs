@@ -39,4 +39,7 @@ public interface IJobRepository : IBaseRepository<Job>
 
     /// <summary>Quantidade de vagas ativas (não excluídas) do anunciante — base do limite do plano.</summary>
     Task<int> CountActiveByAdvertiserAsync(Guid advertiserId);
+
+    /// <summary>Vagas ativas e não expiradas, mais recentes primeiro — candidatas às recomendações.</summary>
+    Task<RequestResult<IEnumerable<Job>>> ListActiveForRecommendationsAsync();
 }

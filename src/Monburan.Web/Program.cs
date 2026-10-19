@@ -338,6 +338,7 @@ builder.Services.AddScoped<ChangeJobStatusUseCase>();
 builder.Services.AddScoped<SaveJobUseCase>();
 builder.Services.AddScoped<UnsaveJobUseCase>();
 builder.Services.AddScoped<ListSavedJobsUseCase>();
+builder.Services.AddScoped<ListRecommendedJobsUseCase>();
 
 // Registrar Use Cases de Alertas de Vaga
 builder.Services.AddScoped<ListJobAlertsUseCase>();

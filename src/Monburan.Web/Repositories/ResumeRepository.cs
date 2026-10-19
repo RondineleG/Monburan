@@ -154,4 +154,16 @@ public class ResumeRepository : IResumeRepository
 
         return RequestResult<IEnumerable<Resume>>.Success(resumes);
     }
+
+    public async Task<RequestResult<Resume?>> GetActiveWithSkillsAsync(Guid candidateId)
+    {
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        var candidateKey = Id.Create(candidateId);
+        var resume = await context.Resumes
+            .AsNoTracking()
+            .Include(r => r.Skills)
+            .FirstOrDefaultAsync(r => !r.IsDeleted && r.IsActive && r.CandidateId == candidateKey);
+
+        return RequestResult<Resume?>.Success(resume);
+    }
 }

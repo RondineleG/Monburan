@@ -304,4 +304,18 @@ public class JobRepository : IJobRepository
             .AsNoTracking()
             .CountAsync(j => !j.IsDeleted && j.AdvertiserId == advertiserKey && j.Status == EJobStatus.Active);
     }
+
+    public async Task<RequestResult<IEnumerable<Job>>> ListActiveForRecommendationsAsync()
+    {
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        var now = DateTime.UtcNow;
+        var jobs = await context.Jobs
+            .AsNoTracking()
+            .Include(j => j.Advertiser)
+            .Where(j => !j.IsDeleted && j.Status == EJobStatus.Active && j.ExpirationDate >= now)
+            .OrderByDescending(j => j.CreatedAt)
+            .ToListAsync();
+
+        return RequestResult<IEnumerable<Job>>.Success(jobs);
+    }
 }
