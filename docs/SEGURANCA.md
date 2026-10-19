@@ -287,6 +287,10 @@ bash infra/vps/validate.sh --ip IP_DO_SERVIDOR_NOVO                 # testa um s
   e `main`, e toda segunda-feira. Os alertas aparecem em *Security → Code scanning*.
 - **Secret scanning** com **bloqueio de push** ligado: um push com chave conhecida (token do GitHub, chave de nuvem, etc.) é
   recusado. A esteira ainda varre os arquivos versionados atrás de formatos de chave (`security-scan`).
+- **Deploy automático na VPS** (`.github/workflows/docker-ghcr.yml`): depois de publicar a imagem na `main`, o job
+  `deploy-vps` usa uma chave SSH dedicada (secret `VPS_SSH_KEY` no environment `prod`) para enviar `infra/vps` e rodar o
+  `deploy.sh`. Se a chave vazar, gere outra, autorize em `~/.ssh/authorized_keys` do servidor, atualize o secret e remova a
+  antiga — a chave da sua máquina não é usada pela esteira.
 - **Scripts da VPS** (`.github/workflows/infra-scripts.yml`): quando algo em `infra/vps` muda, roda ShellCheck e testes de
   verdade em contêineres descartáveis (`infra/vps/tests`): o endurecimento (incluindo as travas contra ficar sem acesso),
   o backup com a restauração e o `nginx.conf`. Para rodar na sua máquina (só precisa de Docker):

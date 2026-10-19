@@ -89,10 +89,14 @@ ensure_env() {
 
 ensure_compose() {
     cd "$INSTALL_DIR"
+    [[ -f docker-compose.prod.yml ]] || fail "falta docker-compose.prod.yml em $INSTALL_DIR"
     if [[ ! -f docker-compose.yml ]]; then
-        [[ -f docker-compose.prod.yml ]] || fail "falta docker-compose.prod.yml em $INSTALL_DIR"
         cp docker-compose.prod.yml docker-compose.yml
         echo "    docker-compose.yml criado a partir de docker-compose.prod.yml"
+    elif ! cmp -s docker-compose.prod.yml docker-compose.yml; then
+        cp -p docker-compose.yml "docker-compose.yml.bak-$(date +%Y%m%d-%H%M%S)"
+        cp docker-compose.prod.yml docker-compose.yml
+        echo "    docker-compose.yml atualizado a partir de docker-compose.prod.yml (cópia anterior guardada)"
     fi
 }
 

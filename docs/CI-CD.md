@@ -103,9 +103,14 @@ A imagem `latest` é construída e publicada pelo `docker-ghcr.yml` a cada push 
 
 Servidor novo: `provision.sh` (Docker, nginx, certbot...), `harden.sh` e `deploy.sh`, nessa ordem; o passo a passo está em
 [SEGURANCA.md](SEGURANCA.md#servidor-novo-do-zero). O `deploy.sh` também serve para atualizar (backup, tag de rollback, pull, reinício e
-espera do `/health`). À mão, o equivalente é:
+espera do `/health`).
 
-A VPS baixa a imagem manualmente (não há deploy automático por SSH, que exigiria secrets de acesso ao servidor):
+Na `main`, o workflow `docker-ghcr.yml` publica a imagem e, na sequência, o job `deploy-vps` entra por SSH na VPS, envia
+`infra/vps` para `/opt/monburan` e roda o `deploy.sh` — o site é atualizado logo depois do push. O job usa os secrets do
+environment `prod` (`VPS_HOST`, `VPS_USER`, `VPS_SSH_KEY` e `VPS_KNOWN_HOSTS`) e uma chave dedicada ao GitHub Actions,
+separada da chave da sua máquina. O deploy é serializado e mantém a tag de rollback da imagem anterior.
+
+À mão, o equivalente é:
 
 ```bash
 cd /opt/monburan
