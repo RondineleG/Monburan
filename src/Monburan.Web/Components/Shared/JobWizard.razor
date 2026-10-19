@@ -1,0 +1,444 @@
+@using Monburan.Core.Catalogs
+@using Monburan.Core.DTOs.Request
+@using Monburan.Core.DTOs.Response
+@using Monburan.Core.Enums
+@using Monburan.Web.Services
+@inject IJSRuntime JS
+
+@* Formulário de vaga em etapas, compartilhado entre criação e edição. O rascunho vive no Model do pai:
+   navegar entre etapas não perde nada do que já foi digitado. *@
+<EditForm Model="Model" OnValidSubmit="SubmitAsync" novalidate>
+    <DataAnnotationsValidator />
+    <ServerValidationErrors @ref="serverErrors" FieldMap="ServerFieldMap" />
+
+    <ol class="job-wizard__steps" aria-label="Etapas da vaga">
+        @foreach (var item in StepTitles)
+        {
+            var stepNumber = item.Key;
+            <li class="job-wizard__step@(step == stepNumber ? " job-wizard__step--active" : string.Empty)"
+                aria-current="@(step == stepNumber ? "step" : null)">
+                @if (stepNumber <= maxStep && stepNumber != step)
+                {
+                    <button type="button" class="job-wizard__step-link" @onclick="() => GoToStep(stepNumber)" data-testid="job-wizard-step-@stepNumber">
+                        @stepNumber. @item.Value
+                    </button>
+                }
+                else
+                {
+                    <span data-testid="job-wizard-step-@stepNumber">@stepNumber. @item.Value</span>
+                }
+            </li>
+        }
+    </ol>
+
+    @if (stepErrors.Count > 0)
+    {
+        <div class="alert alert-danger" role="alert" data-testid="job-wizard-errors">
+            Revise os campos destacados para continuar.
+        </div>
+    }
+
+    @if (!string.IsNullOrEmpty(ServerError))
+    {
+        <div class="alert alert-danger" role="alert" data-testid="job-wizard-server-error">@ServerError</div>
+    }
+
+    @if (step == 1)
+    {
+        <h2 class="h5" id="job-wizard-title" tabindex="-1">Sobre a vaga</h2>
+
+        <div class="mb-3">
+            <label class="form-label" for="model.Title">Título da vaga *</label>
+            <InputText class="form-control" @bind-Value="Model.Title" id="model.Title" maxlength="200"
+                       placeholder="Ex.: Atendente de loja" data-testid="job-title-input"
+                       aria-describedby="model.Title-help" />
+            <div class="form-text" id="model.Title-help">Seja direto: cargo, senioridade e principal atividade.</div>
+            <ValidationMessage class="text-danger" For="@(() => Model.Title)" />
+            @FieldError(nameof(CreateJobRequest.Title))
+        </div>
+
+        <div class="row g-2">
+            <div class="col-md-6 mb-3">
+                <label class="form-label" for="model.Category">Categoria</label>
+                <InputSelect class="form-select" @bind-Value="Model.Category" id="model.Category" data-testid="job-category-select">
+                    <option value="">Sem categoria</option>
+                    @if (!string.IsNullOrWhiteSpace(Model.Category) && !JobCategories.All.Contains(Model.Category))
+                    {
+                        @* Vaga antiga com categoria em texto livre continua editável *@
+                        <option value="@Model.Category">@Model.Category</option>
+                    }
+                    @foreach (var category in JobCategories.All)
+                    {
+                        <option value="@category">@category</option>
+                    }
+                </InputSelect>
+            </div>
+            <div class="col-md-6 mb-3">
+                <label class="form-label" for="model.ContractType">Tipo de contrato</label>
+                <InputSelect class="form-select" @bind-Value="Model.ContractType" id="model.ContractType" data-testid="job-contract-select">
+                    <option value="">Não informado</option>
+                    @foreach (var contract in Enum.GetValues<EContractType>())
+                    {
+                        <option value="@contract">@UiLabels.ContractType(contract.ToString())</option>
+                    }
+                </InputSelect>
+            </div>
+        </div>
+
+        <fieldset class="mb-3">
+            <legend class="form-label">Modalidade *</legend>
+            <div class="job-type-cards" role="radiogroup" aria-label="Modalidade da vaga">
+                @foreach (var option in Modes)
+                {
+                    <label class="job-type-card@(Model.Type == option.Value ? " is-active" : string.Empty)">
+                        <input type="radio" name="job-mode" value="@option.Value"
+                               checked="@(Model.Type == option.Value)"
+                               @onchange="() => SelectMode(option.Value)"
+                               data-testid="job-mode-@option.Value.ToLowerInvariant()" />
+                        <span>@option.Label</span>
+                    </label>
+                }
+            </div>
+            @FieldError(nameof(CreateJobRequest.Type))
+        </fieldset>
+
+        @if (Model.Type != "Remote")
+        {
+            <div class="row g-2">
+                <div class="col-md-8 mb-3">
+                    <label class="form-label" for="model.City">Cidade</label>
+                    <InputText class="form-control" @bind-Value="Model.City" id="model.City" maxlength="100" placeholder="Cidade..." data-testid="job-city-input" />
+                    <ValidationMessage class="text-danger" For="@(() => Model.City)" />
+                    @FieldError(nameof(CreateJobRequest.City))
+                </div>
+                <div class="col-md-4 mb-3">
+                    <label class="form-label" for="model.State">UF</label>
+                    <InputText class="form-control" @bind-Value="Model.State" id="model.State" maxlength="2" placeholder="UF..." data-testid="job-state-input" />
+                    <ValidationMessage class="text-danger" For="@(() => Model.State)" />
+                    @FieldError(nameof(CreateJobRequest.State))
+                </div>
+            </div>
+        }
+
+        <div class="mb-3">
+            <label class="form-label" for="model.Tags">Tags</label>
+            <InputText class="form-control" @bind-Value="Model.Tags" id="model.Tags" maxlength="500" placeholder="Ex.: atendimento, vendas, caixa (separadas por vírgula)" />
+            <ValidationMessage class="text-danger" For="@(() => Model.Tags)" />
+            @FieldError(nameof(CreateJobRequest.Tags))
+        </div>
+    }
+    else if (step == 2)
+    {
+        <h2 class="h5" id="job-wizard-title" tabindex="-1">Descrição</h2>
+
+        <div class="mb-3">
+            <label class="form-label" for="model.Description">Descrição da vaga *</label>
+            <InputTextArea class="form-control" @bind-Value="Model.Description" id="model.Description" rows="5" maxlength="2000"
+                           placeholder="Descreva a rotina, a equipe e o que torna a oportunidade interessante..."
+                           data-testid="job-description-input" aria-describedby="model.Description-count" />
+            <div class="form-text" id="model.Description-count">@Count(Model.Description)/2000 caracteres</div>
+            <ValidationMessage class="text-danger" For="@(() => Model.Description)" />
+            @FieldError(nameof(CreateJobRequest.Description))
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label" for="model.Responsibilities">Responsabilidades</label>
+            <InputTextArea class="form-control" @bind-Value="Model.Responsibilities" id="model.Responsibilities" rows="4" maxlength="2000"
+                           aria-describedby="model.Responsibilities-count" />
+            <div class="form-text" id="model.Responsibilities-count">@Count(Model.Responsibilities)/2000 caracteres</div>
+            <ValidationMessage class="text-danger" For="@(() => Model.Responsibilities)" />
+            @FieldError(nameof(CreateJobRequest.Responsibilities))
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label" for="model.Requirements">Requisitos</label>
+            <InputTextArea class="form-control" @bind-Value="Model.Requirements" id="model.Requirements" rows="4" maxlength="2000"
+                           aria-describedby="model.Requirements-count" />
+            <div class="form-text" id="model.Requirements-count">@Count(Model.Requirements)/2000 caracteres</div>
+            <ValidationMessage class="text-danger" For="@(() => Model.Requirements)" />
+            @FieldError(nameof(CreateJobRequest.Requirements))
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label" for="model.Benefits">Benefícios</label>
+            <InputTextArea class="form-control" @bind-Value="Model.Benefits" id="model.Benefits" rows="3" maxlength="2000"
+                           aria-describedby="model.Benefits-count" />
+            <div class="form-text" id="model.Benefits-count">@Count(Model.Benefits)/2000 caracteres</div>
+            <ValidationMessage class="text-danger" For="@(() => Model.Benefits)" />
+            @FieldError(nameof(CreateJobRequest.Benefits))
+        </div>
+    }
+    else if (step == 3)
+    {
+        <h2 class="h5" id="job-wizard-title" tabindex="-1">Remuneração e candidatura</h2>
+
+        <div class="row g-2">
+            <div class="col-md-4 mb-3">
+                <label class="form-label" for="model.SalaryMin">Salário mínimo (R$)</label>
+                <InputNumber ParsingErrorMessage="Informe um número válido." class="form-control" @bind-Value="Model.SalaryMin" id="model.SalaryMin" />
+                <ValidationMessage class="text-danger" For="@(() => Model.SalaryMin)" />
+                @FieldError(nameof(CreateJobRequest.SalaryMin))
+            </div>
+            <div class="col-md-4 mb-3">
+                <label class="form-label" for="model.SalaryMax">Salário máximo (R$)</label>
+                <InputNumber ParsingErrorMessage="Informe um número válido." class="form-control" @bind-Value="Model.SalaryMax" id="model.SalaryMax" />
+                <ValidationMessage class="text-danger" For="@(() => Model.SalaryMax)" />
+                @FieldError(nameof(CreateJobRequest.SalaryMax))
+            </div>
+            <div class="col-md-4 mb-3">
+                <label class="form-label" for="model.SalaryPeriod">Período do salário</label>
+                <InputSelect class="form-select" @bind-Value="Model.SalaryPeriod" id="model.SalaryPeriod" data-testid="job-salary-period-select">
+                    <option value="">Não informado</option>
+                    @foreach (var period in Enum.GetValues<ESalaryPeriod>())
+                    {
+                        <option value="@period">@UiLabels.SalaryPeriod(period.ToString())</option>
+                    }
+                </InputSelect>
+            </div>
+        </div>
+
+        <div class="mb-3 form-check">
+            <InputCheckbox class="form-check-input" @bind-Value="Model.SalaryDisplay" id="model.SalaryDisplay" />
+            <label class="form-check-label" for="model.SalaryDisplay">Mostrar faixa salarial na página da vaga</label>
+        </div>
+
+        <div class="row g-2">
+            <div class="col-md-4 mb-3">
+                <label class="form-label" for="model.NumberOfOpenings">Número de vagas *</label>
+                <InputNumber ParsingErrorMessage="Informe um número válido." class="form-control" @bind-Value="Model.NumberOfOpenings" id="model.NumberOfOpenings" min="1" />
+                <ValidationMessage For="@(() => Model.NumberOfOpenings)" />
+                @FieldError(nameof(CreateJobRequest.NumberOfOpenings))
+            </div>
+            <div class="col-md-4 mb-3">
+                <label class="form-label" for="model.ExpirationDate">Data de validade *</label>
+                <InputDate ParsingErrorMessage="Informe uma data válida." class="form-control" @bind-Value="Model.ExpirationDate" id="model.ExpirationDate" />
+                <ValidationMessage class="text-danger" For="@(() => Model.ExpirationDate)" />
+                @FieldError(nameof(CreateJobRequest.ExpirationDate))
+                <div class="form-text">A vaga expira automaticamente nesta data.</div>
+            </div>
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label" for="model.ApplicationInstructions">Instruções de candidatura</label>
+            <InputTextArea class="form-control" @bind-Value="Model.ApplicationInstructions" id="model.ApplicationInstructions" rows="3" maxlength="2000"
+                           aria-describedby="model.ApplicationInstructions-help" />
+            <div class="form-text" id="model.ApplicationInstructions-help">Não inclua dados sensíveis nem solicite pagamentos.</div>
+            <ValidationMessage class="text-danger" For="@(() => Model.ApplicationInstructions)" />
+            @FieldError(nameof(CreateJobRequest.ApplicationInstructions))
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label" for="model.Observations">Observações</label>
+            <InputTextArea class="form-control" @bind-Value="Model.Observations" id="model.Observations" rows="3" maxlength="2000" />
+            <ValidationMessage class="text-danger" For="@(() => Model.Observations)" />
+            @FieldError(nameof(CreateJobRequest.Observations))
+        </div>
+    }
+    else
+    {
+        <h2 class="h5" id="job-wizard-title" tabindex="-1">Revisar e publicar</h2>
+        <p class="text-muted">É assim que os candidatos vão ver sua vaga:</p>
+
+        <div class="job-wizard__preview" data-testid="job-wizard-preview">
+            <JobCard Job="PreviewJob" />
+        </div>
+
+        <dl class="apply-summary">
+            <dt>Modalidade</dt>
+            <dd>@UiLabels.JobType(Model.Type)</dd>
+            @if (Model.Type != "Remote")
+            {
+                <dt>Local</dt>
+                <dd>@(string.IsNullOrWhiteSpace(Model.City) ? "Não informado" : $"{Model.City}{(string.IsNullOrWhiteSpace(Model.State) ? string.Empty : $" / {Model.State}")}")</dd>
+            }
+            @if (!string.IsNullOrWhiteSpace(UiLabels.ContractType(Model.ContractType?.ToString())))
+            {
+                <dt>Contrato</dt>
+                <dd>@UiLabels.ContractType(Model.ContractType?.ToString())</dd>
+            }
+            @if (Model.SalaryMin is not null || Model.SalaryMax is not null)
+            {
+                <dt>Salário</dt>
+                <dd>@PreviewSalary</dd>
+            }
+            <dt>Vagas</dt>
+            <dd>@Model.NumberOfOpenings</dd>
+            <dt>Validade</dt>
+            <dd>@UiLabels.FormatDate(Model.ExpirationDate)</dd>
+        </dl>
+    }
+
+    <div class="job-wizard__actions">
+        <button type="button" class="btn btn-secondary" @onclick="CancelAsync">Cancelar</button>
+        @if (step > 1)
+        {
+            <button type="button" class="btn btn-outline-primary" @onclick="GoBack" data-testid="job-wizard-back">
+                <span aria-hidden="true">←</span> Voltar
+            </button>
+        }
+        @if (step < JobWizardStepValidator.StepCount)
+        {
+            <button type="button" class="btn btn-primary" @onclick="GoForward" data-testid="job-wizard-continue">
+                Continuar <span aria-hidden="true">→</span>
+            </button>
+        }
+        else
+        {
+            <button type="submit" class="btn btn-success btn-lg" disabled="@(IsSubmitting || !CanPublish)" data-testid="job-create-submit">
+                @if (IsSubmitting)
+                {
+                    <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                }
+                @(IsEdit ? "Salvar alterações" : "Publicar vaga")
+            </button>
+        }
+    </div>
+</EditForm>
+
+@code {
+    private static readonly Dictionary<int, string> StepTitles = new()
+    {
+        [1] = "Sobre a vaga",
+        [2] = "Descrição",
+        [3] = "Remuneração e candidatura",
+        [4] = "Revisar e publicar"
+    };
+
+    private static readonly (string Value, string Label)[] Modes =
+    [
+        ("OnSite", "Presencial"),
+        ("Remote", "Remoto"),
+        ("Hybrid", "Híbrido")
+    ];
+
+    private static readonly Dictionary<string, string> ServerFieldMap = new() { ["Salary"] = nameof(CreateJobRequest.SalaryMax) };
+
+    [Parameter, EditorRequired]
+    public CreateJobRequest Model { get; set; } = default!;
+
+    /// <summary>Modo edição: o botão final grava em vez de publicar.</summary>
+    [Parameter]
+    public bool IsEdit { get; set; }
+
+    /// <summary>Nome da empresa, só para a pré-visualização do cartão.</summary>
+    [Parameter]
+    public string? CompanyName { get; set; }
+
+    [Parameter]
+    public bool IsSubmitting { get; set; }
+
+    /// <summary>Falso quando o plano não permite outra vaga ativa.</summary>
+    [Parameter]
+    public bool CanPublish { get; set; } = true;
+
+    [Parameter]
+    public string? ServerError { get; set; }
+
+    [Parameter]
+    public EventCallback OnSubmit { get; set; }
+
+    [Parameter]
+    public EventCallback OnCancel { get; set; }
+
+    private ServerValidationErrors serverErrors = default!;
+    private IReadOnlyList<JobWizardStepError> stepErrors = [];
+    private int step = 1;
+    private int maxStep = 1;
+
+    private JobResponse PreviewJob => new()
+    {
+        Id = Guid.Empty,
+        Title = Model.Title,
+        Description = Model.Description ?? string.Empty,
+        Requirements = Model.Requirements,
+        Responsibilities = Model.Responsibilities,
+        Benefits = Model.Benefits,
+        Category = Model.Category,
+        Tags = Model.Tags,
+        AdvertiserName = CompanyName,
+        City = Model.City,
+        State = Model.State,
+        Country = Model.Country,
+        Type = Model.Type,
+        IsRemote = Model.Type is "Remote" or "Hybrid",
+        SalaryMin = Model.SalaryMin,
+        SalaryMax = Model.SalaryMax,
+        SalaryCurrency = Model.SalaryCurrency,
+        SalaryDisplay = Model.SalaryDisplay,
+        SalaryPeriod = Model.SalaryPeriod?.ToString(),
+        ContractType = Model.ContractType?.ToString(),
+        NumberOfOpenings = Model.NumberOfOpenings,
+        ExpirationDate = Model.ExpirationDate,
+        CreatedAt = DateTime.UtcNow,
+        Status = "Active"
+    };
+
+    private string PreviewSalary
+    {
+        get
+        {
+            var text = JobDisplay.Salary(PreviewJob) ?? "Não informado";
+            var period = UiLabels.SalaryPeriod(Model.SalaryPeriod?.ToString());
+            return period.Length > 0 ? $"{text} {period}" : text;
+        }
+    }
+
+    private static int Count(string? text) => text?.Length ?? 0;
+
+    private void SelectMode(string mode) => Model.Type = mode;
+
+    /// <summary>Erros do servidor por campo (a tela do pai decide a mensagem geral).</summary>
+    public IReadOnlyList<string> DisplayServerFieldErrors(IReadOnlyDictionary<string, string[]> fieldErrors) =>
+        serverErrors.Display(fieldErrors);
+
+    private async Task GoForward()
+    {
+        stepErrors = JobWizardStepValidator.Validate(step, Model);
+        if (stepErrors.Count > 0)
+        {
+            await FocusFieldAsync($"model.{stepErrors[0].Field}");
+            return;
+        }
+
+        await GoToStep(step + 1);
+    }
+
+    private Task GoBack() => GoToStep(step - 1);
+
+    private async Task GoToStep(int target)
+    {
+        step = Math.Clamp(target, 1, JobWizardStepValidator.StepCount);
+        maxStep = Math.Max(maxStep, step);
+        stepErrors = [];
+        await FocusFieldAsync("job-wizard-title");
+    }
+
+    private async Task FocusFieldAsync(string elementId)
+    {
+        try
+        {
+            await JS.InvokeVoidAsync("monburanFocusById", elementId);
+        }
+        catch (JSException)
+        {
+            // Sem JS o foco é o de menos: as etapas continuam funcionando
+        }
+    }
+
+    private async Task CancelAsync() => await OnCancel.InvokeAsync();
+
+    private async Task SubmitAsync() => await OnSubmit.InvokeAsync();
+
+    private RenderFragment FieldError(string field) => builder =>
+    {
+        var error = stepErrors.FirstOrDefault(item => item.Field == field);
+        if (error is null)
+            return;
+
+        builder.OpenElement(0, "p");
+        builder.AddAttribute(1, "class", "text-danger");
+        builder.AddAttribute(2, "data-testid", $"job-wizard-error-{field}");
+        builder.AddContent(3, error.Message);
+        builder.CloseElement();
+    };
+}
