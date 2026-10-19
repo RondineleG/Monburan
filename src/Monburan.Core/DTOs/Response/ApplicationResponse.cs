@@ -6,6 +6,7 @@ public class ApplicationResponse
     public Guid CandidateId { get; set; }
     public string? CandidateName { get; set; }
     public string? CandidateEmail { get; set; }
+    public string? CandidatePhone { get; set; }
     public Guid JobId { get; set; }
     public string? JobTitle { get; set; }
     public string? AdvertiserName { get; set; }
