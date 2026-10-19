@@ -278,7 +278,7 @@
         public string AccountType { get; set; } = string.Empty;
 
         [Required(ErrorMessage = "Informe seu nome ou o nome da empresa.")]
-        [StringLength(100, MinimumLength = 2, ErrorMessage = "Informe um nome com pelo menos 2 caracteres.")]
+        [StringLength(100, MinimumLength = 3, ErrorMessage = "Informe um nome com pelo menos 3 caracteres.")]
         [Display(Name = "Nome")]
         public string Name { get; set; } = string.Empty;
 

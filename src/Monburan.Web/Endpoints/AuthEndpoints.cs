@@ -81,6 +81,7 @@ public static class AuthEndpoints
         CreateAdvertiserUseCase createAdvertiser,
         IIdentityService identityService,
         EmailConfirmationUseCase emailConfirmationUseCase,
+        ApplicationDbContext dbContext,
         HttpContext httpContext,
         ILoggerFactory loggerFactory,
         IConfiguration configuration,
@@ -117,20 +118,22 @@ public static class AuthEndpoints
         var emailStore = (IUserEmailStore<ApplicationUser>)userStore;
         await emailStore.SetEmailAsync(user, request.Email.Trim(), cancellationToken);
 
-        // Os UseCases de perfil escrevem via IDbContextFactory (outra conexão), então
-        // uma transação no DbContext da request não cobriria os dois lados. Em vez disso:
-        // cria o usuário primeiro e compensa com DeleteAsync se o perfil falhar.
-        var identityResult = await userManager.CreateAsync(user, request.Password);
-        if (!identityResult.Succeeded)
-        {
-            return Results.ValidationProblem(new Dictionary<string, string[]>
-            {
-                [string.Empty] = identityResult.Errors.Select(e => e.Description).ToArray()
-            }, title: "Erro de validação");
-        }
-
+        // A conta e o perfil entram na mesma transação: o perfil é gravado na mesma unidade
+        // de trabalho da conta (o mesmo DbContext do escopo), então uma falha no fim não
+        // deixa um perfil órfão sem conta nem uma conta sem perfil.
+        await using var transaction = await dbContext.Database.BeginTransactionAsync();
         try
         {
+            var identityResult = await userManager.CreateAsync(user, request.Password);
+            if (!identityResult.Succeeded)
+            {
+                await transaction.RollbackAsync();
+                return Results.ValidationProblem(new Dictionary<string, string[]>
+                {
+                    [string.Empty] = identityResult.Errors.Select(e => e.Description).ToArray()
+                }, title: "Erro de validação");
+            }
+
             // Propaga o status real do UseCase — 409 para e-mail duplicado,
             // 400/ValidationProblem para dados inválidos, em vez de achar tudo em 409
             RequestResult profileResult = request.AccountType == "candidate"
@@ -148,13 +151,15 @@ public static class AuthEndpoints
 
             if (profileResult.Status != EResultStatus.Success)
             {
-                await userManager.DeleteAsync(user);
+                await transaction.RollbackAsync();
                 return profileResult.ToHttpResult();
             }
+
+            await transaction.CommitAsync();
         }
         catch (DbUpdateException)
         {
-            await userManager.DeleteAsync(user);
+            await transaction.RollbackAsync();
             return Results.Problem(
                 statusCode: StatusCodes.Status409Conflict,
                 title: "E-mail já cadastrado",
@@ -162,8 +167,8 @@ public static class AuthEndpoints
         }
         catch (Exception ex)
         {
-            await userManager.DeleteAsync(user);
-            logger.LogError(ex, "Falha ao criar perfil {AccountType} para {Email}; usuário removido",
+            await transaction.RollbackAsync();
+            logger.LogError(ex, "Falha ao criar perfil {AccountType} para {Email}; cadastro desfeito",
                 request.AccountType, request.Email);
             return Results.Problem(
                 statusCode: StatusCodes.Status500InternalServerError,
