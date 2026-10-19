@@ -84,6 +84,45 @@ public class UploadFileUseCaseTests
         result.Data!.FileUrl.Should().EndWith(".pdf");
     }
 
+    [Fact]
+    public async Task Execute_AcceptsNonSeekableStreamWhoseLengthIsUnknown()
+    {
+        // O stream do Blazor (IBrowserFile.OpenReadStream) não aceita seek E não sabe o próprio
+        // tamanho: Length lança NotSupportedException. Medir o tamanho antes de bufferizar
+        // quebrava o upload de logo e de currículo com 500.
+        var result = await _useCase.ExecuteAsync(new UploadFileRequest
+        {
+            FileStream = new NonSeekableStream(Encoding.ASCII.GetBytes("%PDF-1.4 conteudo"), lengthIsUnknown: true),
+            FileName = "curriculo.pdf",
+            ContentType = "application/pdf",
+            FileType = EFileType.Pdf
+        });
+
+        result.Status.Should().Be(EResultStatus.Success);
+        result.Data!.FileSize.Should().Be(Encoding.ASCII.GetBytes("%PDF-1.4 conteudo").Length);
+        await _storage.Received(1).UploadAsync(Arg.Any<Stream>(), "curriculo.pdf", "application/pdf");
+    }
+
+    [Fact]
+    public async Task Execute_RejectsNonSeekableStreamBiggerThanTheLimit()
+    {
+        // Um arquivo grande demais é recusado sem carregar o arquivo inteiro na memória
+        var big = new byte[6 * 1024 * 1024];
+        big[0] = 0x89; big[1] = 0x50; big[2] = 0x4E; big[3] = 0x47;
+
+        var result = await _useCase.ExecuteAsync(new UploadFileRequest
+        {
+            FileStream = new NonSeekableStream(big, lengthIsUnknown: true),
+            FileName = "foto.png",
+            ContentType = "image/png",
+            FileType = EFileType.Image
+        });
+
+        result.Status.Should().NotBe(EResultStatus.Success);
+        result.ValidationResult.Errors.Should().ContainSingle(e => e.Message.Contains("excede o limite de 5MB"));
+        await _storage.DidNotReceive().UploadAsync(Arg.Any<Stream>(), Arg.Any<string>(), Arg.Any<string>());
+    }
+
     private static UploadFileRequest Request(string content, string contentType, EFileType type) => new()
     {
         FileStream = new MemoryStream(Encoding.UTF8.GetBytes(content)),
@@ -94,15 +133,18 @@ public class UploadFileUseCaseTests
 
     private static string ExtensionFor(string contentType) => contentType == "application/pdf" ? ".pdf" : ".img";
 
-    /// <summary>Simula o stream de upload do Blazor (sem seek, mas com Length conhecido).</summary>
-    private sealed class NonSeekableStream(byte[] data) : Stream
+    /// <summary>
+    /// Simula o stream de upload do Blazor (sem seek). Com <c>lengthIsUnknown</c> também
+    /// simula o <c>BrowserFileStream</c> real, que lança ao tentar informar o próprio tamanho.
+    /// </summary>
+    private sealed class NonSeekableStream(byte[] data, bool lengthIsUnknown = false) : Stream
     {
         private readonly MemoryStream _inner = new(data);
 
         public override bool CanRead => true;
         public override bool CanSeek => false;
         public override bool CanWrite => false;
-        public override long Length => _inner.Length;
+        public override long Length => lengthIsUnknown ? throw new NotSupportedException() : _inner.Length;
         public override long Position { get => _inner.Position; set => throw new NotSupportedException(); }
         public override void Flush() { }
         public override int Read(byte[] buffer, int offset, int count) => _inner.Read(buffer, offset, count);
