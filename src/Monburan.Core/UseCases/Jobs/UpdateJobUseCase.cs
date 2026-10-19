@@ -5,6 +5,7 @@ using Monburan.Core.Enums;
 using Monburan.Core.Interfaces.Repositories.Base;
 using Monburan.Core.Interfaces.UseCases;
 using Monburan.Core.Interfaces.Validations;
+using Monburan.Core.Mappers;
 using Monburan.Core.Requests;
 using Monburan.Core.ValueObjects;
 
@@ -76,7 +77,10 @@ public class UpdateJobUseCase : IUseCase<UpdateJobRequest, JobResponse>
         if (updateResult.Status != EResultStatus.Success)
             return RequestResult<JobResponse>.FromResult(updateResult);
 
-        return RequestResult<JobResponse>.Success(JobResponseMapper.ToResponse(updateResult.Data!));
+        // A resposta sai da vaga carregada e editada, e não do objeto devolvido pela gravação: o
+        // repositório pode devolver uma instância nova, sem as navegações carregadas, e a empresa
+        // desapareceria só na edição — a divergência que o detalhe e a listagem não têm.
+        return RequestResult<JobResponse>.Success(JobResponseMapper.ToResponse(existingJob));
     }
 }
 

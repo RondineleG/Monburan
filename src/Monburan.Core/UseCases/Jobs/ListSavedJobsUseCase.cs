@@ -2,6 +2,7 @@ using Monburan.Core.DTOs.Response;
 using Monburan.Core.Enums;
 using Monburan.Core.Interfaces.Repositories;
 using Monburan.Core.Interfaces.UseCases;
+using Monburan.Core.Mappers;
 using Monburan.Core.Requests;
 
 namespace Monburan.Core.UseCases.Jobs;

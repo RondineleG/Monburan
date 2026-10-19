@@ -7,6 +7,7 @@ using Monburan.Core.Enums;
 using Monburan.Core.Interfaces.Repositories.Base;
 using Monburan.Core.Interfaces.UseCases;
 using Monburan.Core.Interfaces.Validations;
+using Monburan.Core.Mappers;
 using Monburan.Core.Requests;
 using Monburan.Core.UseCases.JobAlerts;
 using Monburan.Core.UseCases.Subscriptions;

@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Monburan.Core.DTOs.Response;
 using Monburan.Core.Entities;
 using Monburan.Core.Enums;
+using Monburan.Core.Mappers;
 using Monburan.Core.Requests;
 using Monburan.Core.ValueObjects;
 
@@ -62,7 +63,7 @@ public class GetDashboardAnalyticsUseCase
             .OrderByDescending(j => j.CreatedAt)
             .Take(6)
             .ToListAsync();
-        response.RecentJobs = recentJobs.Select(MapToJobResponse).ToList();
+        response.RecentJobs = recentJobs.Select(job => JobResponseMapper.ToResponse(job)).ToList();
 
         var recentApplications = await applications
             .Include(a => a.Candidate)
@@ -73,44 +74,6 @@ public class GetDashboardAnalyticsUseCase
         response.RecentApplications = recentApplications.Select(MapToApplicationResponse).ToList();
 
         return RequestResult<DashboardAnalyticsResponse>.Success(response);
-    }
-
-    private static JobResponse MapToJobResponse(Job job)
-    {
-        return new JobResponse
-        {
-            Id = job.Id.Value,
-            Title = job.Title,
-            Description = job.Description,
-            Requirements = job.Requirements,
-            Responsibilities = job.Responsibilities,
-            Benefits = job.Benefits,
-            ApplicationInstructions = job.ApplicationInstructions,
-            NumberOfOpenings = job.NumberOfOpenings,
-            Observations = job.Observations,
-            Category = job.Category,
-            ContractType = job.ContractType?.ToString(),
-            Tags = job.Tags,
-            ExpirationDate = job.ExpirationDate,
-            Status = job.Status.ToString(),
-            City = job.Location?.City,
-            State = job.Location?.State,
-            Country = job.Location?.Country ?? "BR",
-            Type = job.Location?.Type ?? "OnSite",
-            IsRemote = job.Location?.IsRemote ?? false,
-            SalaryMin = job.Salary?.Min,
-            SalaryMax = job.Salary?.Max,
-            SalaryCurrency = job.Salary?.Currency ?? "BRL",
-            SalaryDisplay = job.Salary?.Display ?? true,
-            SalaryPeriod = job.Salary?.Period?.ToString(),
-            Views = job.Counters?.Views ?? 0,
-            Applications = job.Counters?.Applications ?? 0,
-            AdvertiserId = job.AdvertiserId.Value,
-            AdvertiserName = job.Advertiser?.Name,
-            AdvertiserLogoUrl = job.Advertiser?.LogoUrl,
-            CreatedAt = job.CreatedAt,
-            UpdatedAt = job.UpdatedAt
-        };
     }
 
     private static ApplicationResponse MapToApplicationResponse(Application application)
