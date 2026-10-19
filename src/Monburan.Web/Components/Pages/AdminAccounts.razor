@@ -1,0 +1,451 @@
+@page "/admin/accounts"
+@rendermode InteractiveServer
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Policy = "AdminOnly")]
+@using Monburan.Core.Interfaces.Services
+@inject AdminAccountService Accounts
+@inject AuthenticationStateProvider AuthenticationState
+@inject IToastService Toast
+@inject ILogger<AdminAccounts> Logger
+
+<PageTitle>Contas - Monburan</PageTitle>
+
+@* Gestão das contas: busca, situação (ativa, inativa, bloqueada por tentativas), e-mail, 2FA e as ações da administração.
+   Toda ação é auditada e tem trava no serviço (ninguém inativa a si mesmo, o último administrador fica). *@
+<div class="container mt-4 admin-list-page">
+    <header class="page-heading">
+        <div class="page-heading__copy">
+            <span class="page-kicker">ADMINISTRAÇÃO</span>
+            <h1>Contas</h1>
+            <p>Todas as contas da plataforma, de candidatos, empresas e administradores. Inative quem violar as regras, desbloqueie quem errou a senha e acompanhe o acesso.</p>
+        </div>
+    </header>
+
+    @if (list is not null)
+    {
+        <section class="admin-counters" aria-label="Resumo das contas">
+            <div class="admin-counter"><strong data-testid="acct-count-total">@list.Counts.Total</strong><span>Contas</span></div>
+            <div class="admin-counter"><strong data-testid="acct-count-active">@list.Counts.Active</strong><span>Ativas</span></div>
+            <div class="admin-counter"><strong data-testid="acct-count-inactive">@list.Counts.Inactive</strong><span>Inativas</span></div>
+            <div class="admin-counter"><strong data-testid="acct-count-locked">@list.Counts.Locked</strong><span>Bloqueadas por tentativas</span></div>
+        </section>
+    }
+
+    <div class="card mb-4">
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <label class="form-label" for="acct-search">Buscar</label>
+                    <input id="acct-search" type="text" class="form-control" @bind="searchTerm" @onkeydown="OnSearchKeyDown" placeholder="Nome ou e-mail..." data-testid="acct-search" />
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label" for="acct-type">Tipo</label>
+                    <select id="acct-type" class="form-select" @bind="typeFilter" data-testid="acct-type">
+                        <option value="">Todos</option>
+                        <option value="candidate">Candidato</option>
+                        <option value="advertiser">Empresa</option>
+                        <option value="admin">Administrador</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label" for="acct-status">Situação</label>
+                    <select id="acct-status" class="form-select" @bind="statusFilter" data-testid="acct-status">
+                        <option value="">Todas</option>
+                        <option value="active">Ativa</option>
+                        <option value="inactive">Inativa</option>
+                        <option value="locked">Bloqueada por tentativas</option>
+                        <option value="unconfirmed">E-mail não confirmado</option>
+                    </select>
+                </div>
+                <div class="col-md-2 d-flex align-items-end">
+                    <button type="button" class="btn btn-primary w-100" @onclick="() => LoadAsync(1)" disabled="@isLoading" data-testid="acct-apply">Filtrar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @if (selected is not null)
+    {
+        var self = IsSelf(selected);
+        <section class="card acct-panel" aria-labelledby="acct-panel-title" data-testid="acct-panel" data-email="@selected.Email">
+            <div class="card-body">
+                <div class="acct-panel__head">
+                    <div>
+                        <h2 id="acct-panel-title">@selected.Name</h2>
+                        <p class="acct-panel__email">@selected.Email</p>
+                    </div>
+                    <ul class="ai-badges" aria-label="Situação da conta">
+                        <li class="ai-badge @(selected.IsActive ? "ai-badge--ok" : "ai-badge--warn")" data-testid="acct-panel-state">@(selected.IsActive ? "Ativa" : "Inativa")</li>
+                        @if (selected.IsLockedOut)
+                        {
+                            <li class="ai-badge ai-badge--warn">Bloqueada por tentativas</li>
+                        }
+                        @if (selected.IsAdmin)
+                        {
+                            <li class="ai-badge ai-badge--gold">Administrador</li>
+                        }
+                    </ul>
+                </div>
+
+                <dl class="acct-panel__meta">
+                    <div><dt>Tipo</dt><dd>@ProfileLabel(selected.ProfileType)</dd></div>
+                    <div><dt>E-mail confirmado</dt><dd>@(selected.EmailConfirmed ? "Sim" : "Não")</dd></div>
+                    <div><dt>Verificação em duas etapas</dt><dd>@(selected.TwoFactorEnabled ? "Ativada" : "Desativada")</dd></div>
+                    <div><dt>Cadastro</dt><dd>@UiLabels.FormatMomentDate(selected.CreatedAt)</dd></div>
+                    <div><dt>Último acesso</dt><dd>@(selected.LastLoginAt is null ? "Nunca" : UiLabels.FormatMoment(selected.LastLoginAt))</dd></div>
+                    @if (selected.IsLockedOut && selected.LockoutEnd is { } until)
+                    {
+                        <div><dt>Bloqueada até</dt><dd>@UiLabels.FormatMoment(until.UtcDateTime)</dd></div>
+                    }
+                </dl>
+
+                @if (!selected.IsActive)
+                {
+                    <p class="alert alert-warning" role="status" data-testid="acct-panel-deactivation">
+                        Inativada em @UiLabels.FormatMoment(selected.DeactivatedAt) por @(selected.DeactivatedBy ?? "—").
+                        Motivo: @(string.IsNullOrWhiteSpace(selected.DeactivationReason) ? "não informado" : selected.DeactivationReason)
+                    </p>
+                }
+
+                @if (self)
+                {
+                    <p class="text-muted" data-testid="acct-panel-self">Esta é a sua conta: inativar, retirar o próprio papel e redefinir o 2FA ficam desativados (use Minha conta).</p>
+                }
+
+                @if (selected.IsConfiguredAdmin)
+                {
+                    <p class="text-muted">Administrador definido em ADMIN_EMAILS: para retirar o acesso, remova o e-mail da configuração.</p>
+                }
+
+                @if (deactivating)
+                {
+                    <div class="acct-reason" data-testid="acct-deactivate-form">
+                        <label class="form-label" for="acct-reason">Motivo da inativação (a conta é desconectada na hora e fica registrado na auditoria)</label>
+                        <textarea id="acct-reason" class="form-control" rows="3" maxlength="500" @bind="reason" @bind:event="oninput" data-testid="acct-reason"></textarea>
+                        @if (!string.IsNullOrEmpty(reasonError))
+                        {
+                            <div class="text-danger" role="alert" data-testid="acct-reason-error">@reasonError</div>
+                        }
+                        <div class="acct-actions">
+                            <button type="button" class="btn btn-danger" @onclick="DeactivateAsync" disabled="@busy" data-testid="acct-deactivate-confirm">Inativar conta</button>
+                            <button type="button" class="btn btn-secondary" @onclick="CancelDeactivation" disabled="@busy" data-testid="acct-deactivate-cancel">Cancelar</button>
+                        </div>
+                    </div>
+                }
+                else
+                {
+                    <div class="acct-actions">
+                        @if (selected.IsActive)
+                        {
+                            <button type="button" class="btn btn-outline-danger btn-sm" @onclick="StartDeactivation" disabled="@(busy || self)" data-testid="acct-deactivate">Inativar</button>
+                        }
+                        else
+                        {
+                            <button type="button" class="btn btn-primary btn-sm" @onclick="ActivateAsync" disabled="@busy" data-testid="acct-activate">Reativar</button>
+                        }
+                        @if (selected.IsLockedOut)
+                        {
+                            <button type="button" class="btn btn-outline-primary btn-sm" @onclick="UnlockAsync" disabled="@busy" data-testid="acct-unlock">Desbloquear</button>
+                        }
+                        @if (!selected.EmailConfirmed)
+                        {
+                            <button type="button" class="btn btn-outline-primary btn-sm" @onclick="ConfirmEmailAsync" disabled="@busy" data-testid="acct-confirm-email">Confirmar e-mail</button>
+                        }
+                        <button type="button" class="btn btn-outline-primary btn-sm" @onclick="RevokeSessionsAsync" disabled="@busy" data-testid="acct-revoke-sessions">Encerrar sessões</button>
+                        @if (selected.TwoFactorEnabled)
+                        {
+                            <button type="button" class="btn btn-outline-danger btn-sm" @onclick="ResetTwoFactorAsync" disabled="@(busy || self)" data-testid="acct-reset-2fa">Redefinir 2FA</button>
+                        }
+                        @if (!selected.IsAdmin)
+                        {
+                            <button type="button" class="btn btn-outline-primary btn-sm" @onclick="() => SetAdminAsync(true)" disabled="@busy" data-testid="acct-grant-admin">Tornar administrador</button>
+                        }
+                        else if (!selected.IsConfiguredAdmin)
+                        {
+                            <button type="button" class="btn btn-outline-danger btn-sm" @onclick="() => SetAdminAsync(false)" disabled="@(busy || self)" data-testid="acct-revoke-admin">Remover papel de administrador</button>
+                        }
+                        <button type="button" class="btn btn-secondary btn-sm" @onclick="ClosePanel" data-testid="acct-panel-close">Fechar</button>
+                    </div>
+                }
+            </div>
+        </section>
+    }
+
+    @if (isLoading)
+    {
+        <LoadingState Message="Carregando contas..." />
+    }
+    else if (loadFailed)
+    {
+        <ErrorState Title="Não foi possível carregar as contas"
+                    Message="Tivemos um problema ao buscar as contas. Tente novamente em instantes."
+                    OnRetry="() => LoadAsync(currentPage)" />
+    }
+    else if (list is null || list.Items.Count == 0)
+    {
+        <EmptyState Icon="☰" Title="Nenhuma conta encontrada" Message="Ajuste a busca ou os filtros." TestId="acct-empty" />
+    }
+    else
+    {
+        <div class="card">
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover table-striped mb-0" data-testid="acct-table">
+                        <thead>
+                            <tr>
+                                <th>Conta</th>
+                                <th>Tipo</th>
+                                <th>Situação</th>
+                                <th>E-mail</th>
+                                <th>2FA</th>
+                                <th>Último acesso</th>
+                                <th class="text-center">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var account in list.Items)
+                            {
+                                <tr data-testid="acct-row" data-email="@account.Email">
+                                    <td>
+                                        <strong>@account.Name</strong>
+                                        <div class="text-muted small">@account.Email</div>
+                                    </td>
+                                    <td>@ProfileLabel(account.ProfileType)@(account.IsAdmin ? " · Admin" : string.Empty)</td>
+                                    <td>
+                                        <span class="badge @(account.IsActive ? "bg-success" : "bg-danger")">@(account.IsActive ? "Ativa" : "Inativa")</span>
+                                        @if (account.IsLockedOut)
+                                        {
+                                            <span class="badge bg-warning">Bloqueada</span>
+                                        }
+                                    </td>
+                                    <td>@(account.EmailConfirmed ? "✓" : "✗")</td>
+                                    <td>@(account.TwoFactorEnabled ? "✓" : "—")</td>
+                                    <td>@(account.LastLoginAt is null ? "—" : UiLabels.FormatMomentDate(account.LastLoginAt))</td>
+                                    <td class="text-center">
+                                        <button type="button" class="btn btn-sm btn-outline-primary" @onclick="() => OpenPanelAsync(account.Id)" data-testid="acct-manage">Gerenciar</button>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <Pager Page="list.Page" TotalPages="list.TotalPages" OnPageChanged="LoadAsync" AriaLabel="Paginação das contas" />
+
+        <div class="text-muted text-center mt-3">Mostrando @list.Items.Count de @list.TotalCount contas</div>
+    }
+</div>
+
+<ConfirmDialog @ref="confirmDialog" />
+
+@code {
+    private const int PageSize = 20;
+
+    private AdminAccountPage? list;
+    private AdminAccountRow? selected;
+    private AdminActor actor = new(string.Empty, "administrador");
+    private ConfirmDialog confirmDialog = default!;
+
+    private string searchTerm = string.Empty;
+    private string typeFilter = string.Empty;
+    private string statusFilter = string.Empty;
+    private int currentPage = 1;
+    private bool isLoading = true;
+    private bool loadFailed;
+    private bool busy;
+
+    private bool deactivating;
+    private string reason = string.Empty;
+    private string? reasonError;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var state = await AuthenticationState.GetAuthenticationStateAsync();
+        actor = state.User.ToAdminActor();
+        await LoadAsync(1);
+    }
+
+    private async Task OnSearchKeyDown(KeyboardEventArgs args)
+    {
+        if (args.Key == "Enter")
+            await LoadAsync(1);
+    }
+
+    private async Task LoadAsync(int pageNumber)
+    {
+        isLoading = true;
+        loadFailed = false;
+        currentPage = pageNumber;
+
+        try
+        {
+            list = await Accounts.ListAsync(new AdminAccountFilter(searchTerm, typeFilter, statusFilter), pageNumber, PageSize);
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            Logger.LogError(exception, "Contas: falha ao listar");
+            loadFailed = true;
+        }
+
+        isLoading = false;
+    }
+
+    private bool IsSelf(AdminAccountRow account) => string.Equals(account.Id.ToString(), actor.Id, StringComparison.OrdinalIgnoreCase);
+
+    private async Task OpenPanelAsync(Guid id)
+    {
+        deactivating = false;
+        reason = string.Empty;
+        reasonError = null;
+        selected = await Accounts.GetAsync(id);
+    }
+
+    private void ClosePanel()
+    {
+        selected = null;
+        deactivating = false;
+    }
+
+    private void StartDeactivation()
+    {
+        deactivating = true;
+        reason = string.Empty;
+        reasonError = null;
+    }
+
+    private void CancelDeactivation()
+    {
+        deactivating = false;
+        reasonError = null;
+    }
+
+    private async Task DeactivateAsync()
+    {
+        if (selected is null)
+            return;
+
+        reasonError = null;
+        await RunAsync(
+            () => Accounts.DeactivateAsync(selected.Id, reason, actor),
+            $"Conta de {selected.Email} inativada.",
+            error => reasonError = error);
+
+        if (reasonError is null)
+            deactivating = false;
+    }
+
+    private async Task ActivateAsync()
+    {
+        if (selected is null)
+            return;
+
+        var withJobs = selected.ProfileType == "advertiser" ? " As vagas que a inativação escondeu voltam ao site." : string.Empty;
+        if (await ConfirmAsync("Reativar conta?", $"{selected.Email} poderá entrar de novo.{withJobs}", "Reativar", destructive: false))
+            await RunAsync(() => Accounts.ActivateAsync(selected.Id, actor), $"Conta de {selected.Email} reativada.");
+    }
+
+    private async Task UnlockAsync()
+    {
+        if (selected is null)
+            return;
+
+        if (await ConfirmAsync("Desbloquear conta?", "A contagem de senhas erradas será zerada e a pessoa poderá tentar entrar de novo.", "Desbloquear", destructive: false))
+            await RunAsync(() => Accounts.UnlockAsync(selected.Id, actor), $"Conta de {selected.Email} desbloqueada.");
+    }
+
+    private async Task ConfirmEmailAsync()
+    {
+        if (selected is null)
+            return;
+
+        if (await ConfirmAsync("Confirmar o e-mail manualmente?", "Use só quando você verificou, por outro meio, que o e-mail é da pessoa.", "Confirmar e-mail", destructive: false))
+            await RunAsync(() => Accounts.ConfirmEmailAsync(selected.Id, actor), $"E-mail de {selected.Email} confirmado.");
+    }
+
+    private async Task RevokeSessionsAsync()
+    {
+        if (selected is null)
+            return;
+
+        if (await ConfirmAsync("Encerrar as sessões?", $"{selected.Email} será desconectada em todos os dispositivos e precisará entrar de novo.", "Encerrar sessões", destructive: true))
+            await RunAsync(() => Accounts.RevokeSessionsAsync(selected.Id, actor), $"Sessões de {selected.Email} encerradas.");
+    }
+
+    private async Task ResetTwoFactorAsync()
+    {
+        if (selected is null)
+            return;
+
+        if (await ConfirmAsync(
+                "Redefinir a verificação em duas etapas?",
+                "O autenticador e os códigos de recuperação serão apagados e a pessoa terá de configurar tudo de novo. Administradores não entram na administração até lá.",
+                "Redefinir 2FA", destructive: true))
+        {
+            await RunAsync(() => Accounts.ResetTwoFactorAsync(selected.Id, actor), $"2FA de {selected.Email} redefinido.");
+        }
+    }
+
+    private async Task SetAdminAsync(bool grant)
+    {
+        if (selected is null)
+            return;
+
+        var confirmed = grant
+            ? await ConfirmAsync(
+                "Tornar administrador?",
+                $"{selected.Email} passará a ver os dados de todos os usuários e a gerenciar contas, vagas e provedores de IA. A pessoa precisará ativar a verificação em duas etapas.",
+                "Tornar administrador", destructive: true)
+            : await ConfirmAsync(
+                "Remover o papel de administrador?",
+                $"{selected.Email} perde o acesso às áreas de administração.",
+                "Remover papel", destructive: true);
+
+        if (confirmed)
+        {
+            await RunAsync(
+                () => Accounts.SetAdminAsync(selected.Id, grant, actor),
+                grant ? $"{selected.Email} agora é administradora." : $"Papel de administrador de {selected.Email} removido.");
+        }
+    }
+
+    private Task<bool> ConfirmAsync(string title, string message, string confirmText, bool destructive) =>
+        confirmDialog.ShowAsync(new ConfirmOptions { Title = title, Message = message, ConfirmText = confirmText, Destructive = destructive });
+
+    private async Task RunAsync(Func<Task<Monburan.Core.Requests.RequestResult>> action, string successMessage, Action<string>? onError = null)
+    {
+        if (busy || selected is null)
+            return;
+
+        busy = true;
+        var id = selected.Id;
+        try
+        {
+            var result = await action();
+            if (result.Status == EResultStatus.Success)
+            {
+                Toast.ShowSuccess(successMessage);
+                selected = await Accounts.GetAsync(id);
+                await LoadAsync(currentPage);
+                return;
+            }
+
+            var message = ResultMessages.ToUserMessage(result, "Não foi possível concluir a ação.");
+            if (onError is not null && result.Status == EResultStatus.HasValidation)
+                onError(message);
+            else
+                Toast.ShowError(message);
+        }
+        finally
+        {
+            busy = false;
+        }
+    }
+
+    private static string ProfileLabel(string? type) => type switch
+    {
+        "candidate" => "Candidato",
+        "advertiser" => "Empresa",
+        _ => "—"
+    };
+}

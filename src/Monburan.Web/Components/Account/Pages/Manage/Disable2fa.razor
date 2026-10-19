@@ -4,6 +4,7 @@
 @using Monburan.Web.Models
 
 @inject UserManager<ApplicationUser> UserManager
+@inject SignInManager<ApplicationUser> SignInManager
 @inject IdentityUserAccessor UserAccessor
 @inject IdentityRedirectManager RedirectManager
 @inject ILogger<Disable2fa> Logger
@@ -54,6 +55,7 @@
             throw new InvalidOperationException("Unexpected error occurred disabling 2FA.");
         }
 
+        await SignInManager.RefreshSignInAsync(user); // a sessão deixa de trazer a claim de 2FA
         var userId = await UserManager.GetUserIdAsync(user);
         Logger.LogInformation("User with ID '{UserId}' has disabled 2fa.", userId);
         RedirectManager.RedirectToWithStatus(

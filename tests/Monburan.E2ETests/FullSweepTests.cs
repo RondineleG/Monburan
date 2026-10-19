@@ -199,9 +199,12 @@ public class FullSweepTests : E2ETestBase
         Assert.True(await submit.IsEnabledAsync(), "Botão de criar vaga deveria estar habilitado");
         await submit.ClickAsync();
 
-        var modal = Page.GetByTestId("job-details-modal");
-        await modal.WaitForAsync(new LocatorWaitForOptions { State = WaitForSelectorState.Visible });
-        Assert.Equal(jobTitle, (await modal.Locator("#job-modal-title").TextContentAsync())?.Trim());
+        // Depois de publicar, a empresa cai na página da própria vaga (visão da dona)
+        var detailTitle = Page.GetByTestId("job-detail-title");
+        await detailTitle.WaitForAsync(new LocatorWaitForOptions { State = WaitForSelectorState.Visible });
+        Assert.Equal(jobTitle, (await detailTitle.TextContentAsync())?.Trim());
+        Assert.True(await Page.GetByTestId("job-owner-card").IsVisibleAsync(),
+            "A empresa dona deveria ver o painel 'Sua vaga'");
 
         // Vaga aparece em "Minhas vagas"
         await GotoAsync("/my-jobs");
@@ -239,9 +242,8 @@ public class FullSweepTests : E2ETestBase
         // Candidatura na primeira vaga disponível
         await GotoAsync("/jobs");
         await WaitForBlazorAsync();
-        await Page.GetByTestId("job-card-details").First.ClickAsync();
-        await Page.GetByTestId("job-details-modal").WaitForAsync();
-        await Page.GetByTestId("job-modal-apply").ClickAsync();
+        await Page.GetByTestId("job-card").First.ClickAsync();
+        await Page.GetByTestId("job-apply").ClickAsync();
         await Page.WaitForFunctionAsync("() => location.pathname.startsWith('/apply/')");
         await WaitForBlazorAsync();
 

@@ -1,0 +1,50 @@
+@* Paginação das listas de administração: até cinco números ao redor da página atual, com Anterior e Próximo. *@
+@if (TotalPages > 1)
+{
+    <nav class="mt-4" aria-label="@AriaLabel" data-testid="pager">
+        <ul class="pagination justify-content-center">
+            @if (Page > 1)
+            {
+                <li class="page-item">
+                    <button type="button" class="page-link" @onclick="() => GoToAsync(Page - 1)">Anterior</button>
+                </li>
+            }
+
+            @{
+                var start = Math.Max(1, Page - 2);
+                var end = Math.Min(TotalPages, start + 4);
+                start = Math.Max(1, end - 4);
+            }
+            @for (var number = start; number <= end; number++)
+            {
+                var target = number;
+                <li class="page-item @(target == Page ? "active" : string.Empty)">
+                    <button type="button" class="page-link" @onclick="() => GoToAsync(target)">@target</button>
+                </li>
+            }
+
+            @if (Page < TotalPages)
+            {
+                <li class="page-item">
+                    <button type="button" class="page-link" @onclick="() => GoToAsync(Page + 1)">Próximo</button>
+                </li>
+            }
+        </ul>
+    </nav>
+}
+
+@code {
+    [Parameter]
+    public int Page { get; set; } = 1;
+
+    [Parameter]
+    public int TotalPages { get; set; }
+
+    [Parameter]
+    public EventCallback<int> OnPageChanged { get; set; }
+
+    [Parameter]
+    public string AriaLabel { get; set; } = "Paginação";
+
+    private Task GoToAsync(int page) => OnPageChanged.InvokeAsync(page);
+}

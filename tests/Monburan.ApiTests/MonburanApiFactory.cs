@@ -2,9 +2,11 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
+using Monburan.Core.Interfaces.Services;
 using Monburan.Web.Data;
 
 namespace Monburan.ApiTests;
@@ -29,8 +31,20 @@ public class MonburanApiFactory : WebApplicationFactory<Program>
     {
         builder.UseEnvironment("Development");
 
+        // O cliente de IA é trocado por um falso logo abaixo: os testes nunca falam com um provedor de verdade, mesmo
+        // que a máquina de quem roda tenha chaves nos segredos de usuário
+        builder.ConfigureAppConfiguration((_, configuration) =>
+            configuration.AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["Ai:MaxRequestsPerHour"] = "100"
+            }));
+
         builder.ConfigureServices(services =>
         {
+            services.RemoveAll<IAiTextClient>();
+            services.AddSingleton<FakeAiTextClient>();
+            services.AddSingleton<IAiTextClient>(provider => provider.GetRequiredService<FakeAiTextClient>());
+
             services.RemoveAll<DbContextOptions<ApplicationDbContext>>();
             services.RemoveAll<DbContextOptions>();
             services.RemoveAll<ApplicationDbContext>();

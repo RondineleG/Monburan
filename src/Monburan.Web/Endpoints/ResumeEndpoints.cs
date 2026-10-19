@@ -1,5 +1,6 @@
 using Monburan.Core.DTOs.Request;
 using Monburan.Core.Enums;
+using Monburan.Core.Interfaces.Services;
 using Monburan.Core.UseCases.Resumes;
 using Monburan.Web.Services;
 
@@ -112,6 +113,30 @@ public static class ResumeEndpoints
             return result.ToHttpResult();
         })
         .WithSummary("Remove currículo do candidato autenticado");
+
+        // O app e o site só oferecem o recurso quando a IA está configurada neste ambiente
+        group.MapGet("/improvements/availability", (IAiTextClient ai) =>
+            Results.Ok(new { enabled = ai.IsConfigured, provider = ai.IsConfigured ? ai.ProviderName : null }))
+        .WithSummary("Informa se as sugestões de melhoria com IA estão ativas e qual provedor recebe o conteúdo");
+
+        // CandidateId sempre da claim (IDOR-safe); o conteúdo só sai com autorização expressa no corpo
+        group.MapPost("/{id:guid}/improvements", async (
+            Guid id,
+            ImproveResumeRequest request,
+            ICurrentUserHelper currentUser,
+            ImproveResumeUseCase useCase,
+            CancellationToken cancellationToken) =>
+        {
+            var candidateId = currentUser.GetCandidateId();
+            if (candidateId is null)
+                return Results.Problem(statusCode: StatusCodes.Status403Forbidden, title: "Perfil de candidato necessário");
+
+            request.ResumeId = id;
+            request.CandidateId = candidateId.Value;
+            var result = await useCase.ExecuteAsync(request, cancellationToken);
+            return result.ToHttpResult();
+        })
+        .WithSummary("Gera sugestões de melhoria do currículo com IA (exige acceptsExternalProcessing: true)");
 
         return api;
     }

@@ -176,8 +176,8 @@ public class MobileClientContractTests : IClassFixture<MonburanApiFactory>
             AccountType = "candidate",
             Name = "Pessoa Teste",
             Email = $"fraca-{Guid.NewGuid():N}@teste.com",
-            Password = "abcdef",
-            ConfirmPassword = "abcdef"
+            Password = "palavrasolta",
+            ConfirmPassword = "palavrasolta"
         });
 
         var error = (await register.Should().ThrowAsync<ApiException>()).Which;

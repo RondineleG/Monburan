@@ -12,6 +12,14 @@
 <PageTitle>Autenticação em duas etapas</PageTitle>
 
 <StatusMessage />
+@if (AdminRequired && !is2faEnabled)
+{
+    <div class="alert alert-warning" role="alert" data-testid="admin-2fa-required">
+        <strong>Para usar as áreas de administração, ative a verificação em duas etapas.</strong>
+        <p class="mb-0">Contas de administrador têm acesso a dados de todos os usuários. Configure um aplicativo autenticador abaixo
+            (Google Authenticator, Microsoft Authenticator, Authy...), guarde os códigos de recuperação e depois volte à administração.</p>
+    </div>
+}
 <h3>Autenticação em duas etapas</h3>
 @if (canTrack)
 {
@@ -79,6 +87,9 @@ else
 
     [CascadingParameter]
     private HttpContext HttpContext { get; set; } = default!;
+
+    [SupplyParameterFromQuery]
+    private bool AdminRequired { get; set; }
 
     protected override async Task OnInitializedAsync()
     {

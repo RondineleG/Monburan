@@ -21,6 +21,12 @@ public class ApplicationUserConfiguration : IEntityTypeConfiguration<Application
         builder.Property(u => u.IsActive)
             .HasDefaultValue(true);
 
+        builder.Property(u => u.DeactivatedBy)
+            .HasMaxLength(256);
+
+        builder.Property(u => u.DeactivationReason)
+            .HasMaxLength(500);
+
         builder.Property(u => u.ProfilePicture)
             .HasColumnType("bytea");
 

@@ -15,6 +15,9 @@ public class JobResponse
     public string? Tags { get; set; }
     public DateTime ExpirationDate { get; set; }
     public string Status { get; set; } = string.Empty;
+
+    /// <summary>Motivo da moderação, só com a vaga oculta ou rejeitada (e só quem a vê é a empresa dona).</summary>
+    public string? ModerationReason { get; set; }
     
     // Location
     public string? City { get; set; }

@@ -55,6 +55,55 @@ public class JobRepository : IJobRepository
         return RequestResult<IEnumerable<Job>>.Success(jobs);
     }
 
+    public async Task<PagedResponse<Job>> AdminSearchAsync(string? searchTerm, EJobStatus? status, Guid? advertiserId, int page, int size)
+    {
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        var query = context.Jobs
+            .AsNoTracking()
+            .Include(j => j.Advertiser)
+            .Where(j => !j.IsDeleted);
+
+        if (status.HasValue)
+            query = query.Where(j => j.Status == status.Value);
+
+        if (advertiserId.HasValue)
+        {
+            var advertiserKey = Id.Create(advertiserId.Value);
+            query = query.Where(j => j.AdvertiserId == advertiserKey);
+        }
+
+        if (!string.IsNullOrWhiteSpace(searchTerm))
+        {
+            var term = searchTerm.Trim().ToLower();
+            query = query.Where(j =>
+                j.Title.ToLower().Contains(term)
+                || (j.Category != null && j.Category.ToLower().Contains(term))
+                || (j.Advertiser != null && j.Advertiser.Name.ToLower().Contains(term)));
+        }
+
+        var totalCount = await query.CountAsync();
+        var jobs = await query
+            .OrderByDescending(j => j.CreatedAt)
+            .Skip((page - 1) * size)
+            .Take(size)
+            .ToListAsync();
+
+        return new PagedResponse<Job> { Data = jobs, TotalCount = totalCount, Page = page, Size = size };
+    }
+
+    public async Task<IReadOnlyDictionary<EJobStatus, int>> CountByStatusAsync()
+    {
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        var groups = await context.Jobs
+            .AsNoTracking()
+            .Where(j => !j.IsDeleted)
+            .GroupBy(j => j.Status)
+            .Select(group => new { Status = group.Key, Count = group.Count() })
+            .ToListAsync();
+
+        return groups.ToDictionary(group => group.Status, group => group.Count);
+    }
+
     public async Task<PagedResponse<Job>> GetAllPagedAsync(int page, int size)
     {
         await using var context = await _contextFactory.CreateDbContextAsync();
@@ -171,16 +220,21 @@ public class JobRepository : IJobRepository
             query = query.Where(j => j.Location != null && j.Location.Type == type);
         }
 
-        // Filtro por salário mínimo
+        // Faixa salarial só conta quando a empresa a exibe: filtrar ou ordenar por um valor oculto revelaria a
+        // posição dele (o site e a API já escondem o valor). Sem teto ("a partir de"), o valor de referência é o piso.
+
+        // Filtro por salário mínimo: a vaga paga pelo menos esse valor
         if (salaryMin.HasValue)
         {
-            query = query.Where(j => j.Salary != null && j.Salary.Max.HasValue && j.Salary.Max >= salaryMin.Value);
+            query = query.Where(j => j.Salary != null && j.Salary.Display
+                && (j.Salary.Max ?? j.Salary.Min) >= salaryMin.Value);
         }
 
-        // Filtro por salário máximo
+        // Filtro por salário máximo: o piso da vaga cabe no orçamento informado
         if (salaryMax.HasValue)
         {
-            query = query.Where(j => j.Salary != null && j.Salary.Min.HasValue && j.Salary.Min <= salaryMax.Value);
+            query = query.Where(j => j.Salary != null && j.Salary.Display
+                && j.Salary.Min.HasValue && j.Salary.Min <= salaryMax.Value);
         }
 
         // Filtro por categoria
@@ -194,9 +248,13 @@ public class JobRepository : IJobRepository
         query = sortBy?.ToLowerInvariant() switch
         {
             "title" => descending ? query.OrderByDescending(j => j.Title) : query.OrderBy(j => j.Title),
+            // Vagas sem salário visível vão sempre para o fim: no PostgreSQL o NULL vem primeiro em ordem
+            // decrescente, e "maior salário" listaria antes as vagas que não informam (ou ocultam) o valor.
             "salary" => descending
-                ? query.OrderByDescending(j => j.Salary == null ? null : j.Salary.Max)
-                : query.OrderBy(j => j.Salary == null ? null : j.Salary.Max),
+                ? query.OrderByDescending(j => j.Salary != null && j.Salary.Display && (j.Salary.Max ?? j.Salary.Min) != null)
+                    .ThenByDescending(j => j.Salary == null || !j.Salary.Display ? null : j.Salary.Max ?? j.Salary.Min)
+                : query.OrderBy(j => j.Salary == null || !j.Salary.Display || (j.Salary.Max ?? j.Salary.Min) == null)
+                    .ThenBy(j => j.Salary == null || !j.Salary.Display ? null : j.Salary.Max ?? j.Salary.Min),
             _ => descending ? query.OrderByDescending(j => j.CreatedAt) : query.OrderBy(j => j.CreatedAt),
         };
 

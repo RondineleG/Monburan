@@ -1,0 +1,58 @@
+name: Scripts da VPS
+
+# Os scripts de infra/vps (preparo do servidor, deploy, endurecimento, backup, restauração e nginx) mexem em firewall, SSH e backup: um erro neles tranca
+# você para fora do servidor ou deixa o backup inútil sem ninguém perceber. Por isso rodam de verdade em contêineres descartáveis.
+# Só dispara quando algo de infra/vps muda.
+on:
+  push:
+    branches: [ main, dev ]
+    paths:
+      - 'infra/vps/**'
+      - '.github/workflows/infra-scripts.yml'
+  pull_request:
+    branches: [ main, dev ]
+    paths:
+      - 'infra/vps/**'
+      - '.github/workflows/infra-scripts.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: infra-scripts-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  shellcheck:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: ShellCheck
+      run: |
+        docker run --rm -v "$PWD":/mnt -w /mnt koalaman/shellcheck:v0.10.0 -x \
+          infra/vps/*.sh infra/vps/tests/*.sh
+
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { script: harden-smoke, image: 'ubuntu:24.04' }
+          - { script: harden-smoke, image: 'debian:trixie' }
+          - { script: backup-restore-smoke, image: '' }
+          - { script: nginx-smoke, image: '' }
+          - { script: deploy-smoke, image: '' }
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    # image vazia = o teste usa a imagem padrão dele
+    - name: Run ${{ matrix.script }} ${{ matrix.image }}
+      env:
+        TEST_IMAGE: ${{ matrix.image }}
+      run: bash infra/vps/tests/${{ matrix.script }}.sh

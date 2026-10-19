@@ -1,0 +1,68 @@
+# Atualização de dependências: abre PRs semanais, sempre para a dev (a main só recebe a promoção da dev).
+# Os alertas e as atualizações de SEGURANÇA do Dependabot são ligados nas configurações do repositório e abrem PR fora desta agenda.
+version: 2
+updates:
+  # Pacotes NuGet (web, núcleo, app mobile e testes). Correções (patch) e melhorias (minor) vêm juntas em um PR só por semana;
+  # versão maior (major) vem em PR próprio, para ser avaliada sozinha.
+  - package-ecosystem: nuget
+    directory: /
+    target-branch: dev
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: America/Sao_Paulo
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore(deps)"
+    groups:
+      nuget-minor-patch:
+        update-types:
+          - minor
+          - patch
+
+  # Ações do GitHub usadas nos workflows
+  - package-ecosystem: github-actions
+    directory: /
+    target-branch: dev
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: America/Sao_Paulo
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "ci(deps)"
+    groups:
+      github-actions:
+        patterns:
+          - "*"
+
+  # Imagens base do Dockerfile (SDK e runtime do .NET)
+  - package-ecosystem: docker
+    directory: /src/Monburan.Web
+    target-branch: dev
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: America/Sao_Paulo
+    commit-message:
+      prefix: "chore(deps)"
+
+  # Imagens dos composes. O PostgreSQL fica de fora das versões maiores: trocar de versão maior com dados existentes exige
+  # dump e restauração (veja docs/SEGURANCA.md), não pode vir de um PR automático.
+  - package-ecosystem: docker-compose
+    directory: /infra/vps
+    target-branch: dev
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: America/Sao_Paulo
+    commit-message:
+      prefix: "chore(deps)"
+    ignore:
+      - dependency-name: postgres
+        update-types:
+          - version-update:semver-major

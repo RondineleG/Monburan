@@ -83,9 +83,8 @@
 
     public async Task LoginUser()
     {
-        // This doesn't count login failures towards account lockout
-        // To enable password failures to trigger account lockout, set lockoutOnFailure: true
-        var result = await SignInManager.PasswordSignInAsync(Input.Email, Input.Password, Input.RememberMe, lockoutOnFailure: false);
+        // As senhas erradas contam para o bloqueio da conta (5 seguidas, 15 minutos; ver Program.cs)
+        var result = await SignInManager.PasswordSignInAsync(Input.Email, Input.Password, Input.RememberMe, lockoutOnFailure: true);
         if (result.Succeeded)
         {
             Logger.LogInformation("User logged in.");
@@ -101,6 +100,12 @@
         {
             Logger.LogWarning("User account locked out.");
             RedirectManager.RedirectTo("Account/Lockout");
+        }
+        else if (result.IsNotAllowed)
+        {
+            // Só chega aqui quem acertou a senha: a conta foi inativada pela administração
+            Logger.LogWarning("Login recusado: conta inativa.");
+            errorMessage = "Erro: sua conta está inativa. Entre em contato com o suporte para reativá-la.";
         }
         else
         {

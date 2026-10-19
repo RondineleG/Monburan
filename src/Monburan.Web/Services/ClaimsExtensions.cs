@@ -7,6 +7,7 @@ public static class ClaimsExtensions
     public const string CandidateIdClaimType = "candidate_id";
     public const string AdvertiserIdClaimType = "advertiser_id";
     public const string UserTypeClaimType = "user_type";
+    public const string TwoFactorEnabledClaimType = "two_factor_enabled";
 
     public static IEnumerable<Claim> WithCandidateId(this IEnumerable<Claim> claims, Guid candidateId)
     {

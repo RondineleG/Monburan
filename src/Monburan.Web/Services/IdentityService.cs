@@ -36,6 +36,10 @@ public class IdentityService : IIdentityService
     private readonly SignInManager<ApplicationUser> _signInManager;
     private readonly UserManager<ApplicationUser> _userManager;
 
+    private const string InactiveAccountMessage = "Sua conta está inativa. Entre em contato com o suporte para reativá-la.";
+
+    private const string LockedOutMessage = "Conta bloqueada por excesso de tentativas. Tente novamente em alguns minutos.";
+
     public async Task<UserLoginResponse> Login(UserLoginRequest request)
     {
         // CheckPasswordSignInAsync não emite cookie Identity — a API só entrega JWT
@@ -50,7 +54,7 @@ public class IdentityService : IIdentityService
             if (!user!.IsActive)
             {
                 var blocked = new UserLoginResponse();
-                blocked.AddErro("This account is blocked");
+                blocked.AddErro(InactiveAccountMessage);
                 return blocked;
             }
 
@@ -61,13 +65,13 @@ public class IdentityService : IIdentityService
         if (!result.Succeeded)
         {
             if (result.IsLockedOut)
-                response.AddErro("This account is blocked");
+                response.AddErro(LockedOutMessage);
             else if (result.IsNotAllowed)
-                response.AddErro("This account is not allwed to login");
+                response.AddErro(InactiveAccountMessage);
             else if (result.RequiresTwoFactor)
-                response.AddErro("It is necessary to confirm the login in its second authentication factor");
+                response.AddErro("Esta conta usa a verificação em duas etapas, que o app ainda não suporta. Entre pelo site.");
             else
-                response.AddErro("User or password are incorrect");
+                response.AddErro("E-mail ou senha incorretos.");
         }
 
         return response;

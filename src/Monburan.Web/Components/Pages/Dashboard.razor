@@ -342,8 +342,7 @@
                             }
                         </div>
                         <div class="card-footer bg-transparent">
-                            @* Vaga do próprio anunciante pode estar pausada/expirada: o modal de /jobs só abre vagas ativas *@
-                            <a class="btn btn-outline-primary w-100" href="@(isAdvertiser ? $"/jobs/{job.Id}" : $"/jobs?jobId={job.Id}")">
+                            <a class="btn btn-outline-primary w-100" href="@($"/jobs/{job.Id}")">
                                 Ver detalhes
                             </a>
                         </div>

@@ -6,9 +6,12 @@ namespace Monburan.Web.Services;
 
 public class ApplicationUserClaimsPrincipalFactory(UserManager<ApplicationUser> userManager,
                                                    ApplicationDbContext applicationDbContext,
-                                                   IOptions<IdentityOptions> optionsAccessor)
+                                                   IOptions<IdentityOptions> optionsAccessor,
+                                                   IConfiguration configuration)
     : UserClaimsPrincipalFactory<ApplicationUser>(userManager, optionsAccessor)
 {
+    private const string AdminRole = "Admin";
+
     protected override async Task<ClaimsIdentity> GenerateClaimsAsync(ApplicationUser user)
     {
         var identity = await base.GenerateClaimsAsync(user).ConfigureAwait(false);
@@ -17,6 +20,17 @@ public class ApplicationUserClaimsPrincipalFactory(UserManager<ApplicationUser> 
         foreach (var role in roles)
         {
             identity.AddClaim(new Claim(identity.RoleClaimType, role));
+        }
+
+        if (IsConfiguredAdmin(user) && !roles.Contains(AdminRole))
+        {
+            identity.AddClaim(new Claim(identity.RoleClaimType, AdminRole));
+        }
+
+        // Quem tem a verificação em duas etapas ligada: a política de administrador confere esta claim
+        if (user.TwoFactorEnabled)
+        {
+            identity.AddClaim(new Claim(ClaimsExtensions.TwoFactorEnabledClaimType, "true"));
         }
 
         var email = user.Email;
@@ -47,4 +61,11 @@ public class ApplicationUserClaimsPrincipalFactory(UserManager<ApplicationUser> 
 
         return identity;
     }
+
+    /// <summary>
+    /// Administrador definido por configuração (<c>Admin:Emails</c>, e-mails separados por vírgula ou ponto e vírgula).
+    /// Só vale com o e-mail confirmado: sem isso, bastaria cadastrar o e-mail de outra pessoa para virar administrador.
+    /// Tirar o e-mail da lista tira o acesso no próximo login (ou na próxima revalidação da sessão).
+    /// </summary>
+    private bool IsConfiguredAdmin(ApplicationUser user) => AdminEmails.IsConfiguredAdmin(user, AdminEmails.Read(configuration));
 }

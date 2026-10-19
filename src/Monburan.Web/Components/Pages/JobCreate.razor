@@ -273,7 +273,7 @@
         if (result.Status == EResultStatus.Success)
         {
             Toast.ShowSuccess("Sua vaga já está visível para os candidatos.", "Vaga publicada");
-            Navigation.NavigateTo($"/jobs?jobId={result.Data!.Id}");
+            Navigation.NavigateTo($"/jobs/{result.Data!.Id}");
             return;
         }
 

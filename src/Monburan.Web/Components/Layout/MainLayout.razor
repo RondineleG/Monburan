@@ -100,6 +100,14 @@ else
                         @if (IsAdmin)
                         {
                             <span class="sidebar-nav__label sidebar-nav__label--spaced">Administração</span>
+                            <NavLink class="sidebar-link" href="/admin/accounts" data-testid="nav-admin-accounts" title="Contas: ativar, inativar e desbloquear">
+                                <span class="sidebar-link__icon">◉</span>
+                                <span>Contas</span>
+                            </NavLink>
+                            <NavLink class="sidebar-link" href="/admin/jobs" data-testid="nav-admin-jobs" title="Vagas de todas as empresas: moderação">
+                                <span class="sidebar-link__icon">▤</span>
+                                <span>Vagas</span>
+                            </NavLink>
                             <NavLink class="sidebar-link" href="/admin/candidates" title="Candidatos cadastrados">
                                 <span class="sidebar-link__icon">☰</span>
                                 <span>Candidatos</span>
@@ -107,6 +115,14 @@ else
                             <NavLink class="sidebar-link" href="/admin/advertisers" title="Empresas cadastradas">
                                 <span class="sidebar-link__icon">▦</span>
                                 <span>Empresas</span>
+                            </NavLink>
+                            <NavLink class="sidebar-link" href="/admin/ai-providers" data-testid="nav-admin-ai-providers" title="Provedores de IA">
+                                <span class="sidebar-link__icon">✦</span>
+                                <span>Provedores de IA</span>
+                            </NavLink>
+                            <NavLink class="sidebar-link" href="/admin/audit" data-testid="nav-admin-audit" title="Auditoria das ações de administração">
+                                <span class="sidebar-link__icon">◷</span>
+                                <span>Auditoria</span>
                             </NavLink>
                         }
                     </Authorized>

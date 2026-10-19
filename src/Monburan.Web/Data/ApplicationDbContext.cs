@@ -20,6 +20,10 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
 
     public DbSet<Address> Addresses => Set<Address>();
 
+    public DbSet<AdminAuditEntry> AdminAuditEntries => Set<AdminAuditEntry>();
+
+    public DbSet<AiProvider> AiProviders => Set<AiProvider>();
+
     public DbSet<Advertiser> Advertisers => Set<Advertiser>();
 
     public DbSet<Application> Applications => Set<Application>();

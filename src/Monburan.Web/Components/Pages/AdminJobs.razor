@@ -1,0 +1,442 @@
+@page "/admin/jobs"
+@rendermode InteractiveServer
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Policy = "AdminOnly")]
+@using Monburan.Core.DTOs.Request
+@using Monburan.Core.DTOs.Response
+@using Monburan.Core.Enums
+@using Monburan.Core.Interfaces.Services
+@using Monburan.Core.UseCases.Admin
+@inject AdminListJobsUseCase ListJobs
+@inject AdminChangeJobStatusUseCase ChangeStatus
+@inject AdminDeleteJobUseCase DeleteJob
+@inject AuthenticationStateProvider AuthenticationState
+@inject IToastService Toast
+@inject ILogger<AdminJobs> Logger
+
+<PageTitle>Vagas - Moderação - Monburan</PageTitle>
+
+@* Moderação das vagas de todas as empresas: ativar, pausar, ocultar, reprovar e excluir. Ocultar, reprovar e excluir pedem
+   um motivo, que a empresa vê (na vaga e num aviso). Toda ação é auditada. *@
+<div class="container mt-4 admin-list-page">
+    <header class="page-heading">
+        <div class="page-heading__copy">
+            <span class="page-kicker">ADMINISTRAÇÃO</span>
+            <h1>Vagas</h1>
+            <p>As vagas de todas as empresas, em qualquer situação. Tire do ar o que não cumpre as regras e explique o motivo à empresa.</p>
+        </div>
+    </header>
+
+    @if (list is not null)
+    {
+        <section class="admin-counters" aria-label="Vagas por situação">
+            @foreach (var status in StatusOrder)
+            {
+                <div class="admin-counter"><strong data-testid="jobs-count-@status.ToLowerInvariant()">@list.StatusCounts.GetValueOrDefault(status)</strong><span>@UiLabels.JobStatus(status)s</span></div>
+            }
+        </section>
+    }
+
+    <div class="card mb-4">
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-5">
+                    <label class="form-label" for="jobs-search">Buscar</label>
+                    <input id="jobs-search" type="text" class="form-control" @bind="searchTerm" @onkeydown="OnSearchKeyDown" placeholder="Título, categoria ou empresa..." data-testid="jobs-search" />
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label" for="jobs-status">Situação</label>
+                    <select id="jobs-status" class="form-select" @bind="statusFilter" data-testid="jobs-status">
+                        <option value="">Todas</option>
+                        @foreach (var status in StatusOrder)
+                        {
+                            <option value="@status">@UiLabels.JobStatus(status)</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-md-3 d-flex align-items-end">
+                    <button type="button" class="btn btn-primary w-100" @onclick="() => LoadAsync(1)" disabled="@isLoading" data-testid="jobs-apply">Filtrar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @if (selected is not null)
+    {
+        <section class="card acct-panel" aria-labelledby="job-panel-title" data-testid="job-panel" data-job-id="@selected.Id">
+            <div class="card-body">
+                <div class="acct-panel__head">
+                    <div>
+                        <h2 id="job-panel-title">@selected.Title</h2>
+                        <p class="acct-panel__email">@(selected.AdvertiserName ?? "Empresa") · @selected.AdvertiserEmail</p>
+                    </div>
+                    <ul class="ai-badges" aria-label="Situação da vaga">
+                        <li class="ai-badge @(selected.Status == "Active" ? "ai-badge--ok" : selected.Status == "Paused" ? "ai-badge--off" : "ai-badge--warn")" data-testid="job-panel-state">@UiLabels.JobStatus(selected.Status)</li>
+                        @if (selected.IsPastExpiration)
+                        {
+                            <li class="ai-badge ai-badge--warn">Validade vencida</li>
+                        }
+                    </ul>
+                </div>
+
+                <dl class="acct-panel__meta">
+                    <div><dt>Local</dt><dd>@Where(selected)</dd></div>
+                    <div><dt>Validade</dt><dd>@UiLabels.FormatMomentDate(selected.ExpirationDate)</dd></div>
+                    <div><dt>Visualizações</dt><dd>@selected.Views</dd></div>
+                    <div><dt>Candidaturas</dt><dd>@selected.Applications</dd></div>
+                    <div><dt>Publicada em</dt><dd>@UiLabels.FormatMomentDate(selected.CreatedAt)</dd></div>
+                </dl>
+
+                @if (!string.IsNullOrWhiteSpace(selected.ModerationReason))
+                {
+                    <p class="alert alert-warning" role="status" data-testid="job-panel-moderation">
+                        Moderação em @UiLabels.FormatMoment(selected.ModerationDate): @selected.ModerationReason
+                    </p>
+                }
+
+                @if (pending != PendingAction.None)
+                {
+                    <div class="acct-reason" data-testid="job-action-form">
+                        @if (pending == PendingAction.Activate)
+                        {
+                            <label class="form-label" for="job-renew-until">A validade desta vaga já passou. Até quando renová-la?</label>
+                            <input id="job-renew-until" type="date" class="form-control" @bind="renewUntil" @bind:format="yyyy-MM-dd" data-testid="job-renew-until" />
+                        }
+                        else
+                        {
+                            <label class="form-label" for="job-reason">@ReasonLabel</label>
+                            <textarea id="job-reason" class="form-control" rows="3" maxlength="500" @bind="reason" @bind:event="oninput" data-testid="job-reason"></textarea>
+                        }
+                        @if (!string.IsNullOrEmpty(formError))
+                        {
+                            <div class="text-danger" role="alert" data-testid="job-reason-error">@formError</div>
+                        }
+                        <div class="acct-actions">
+                            <button type="button" class="btn @(pending is PendingAction.Delete or PendingAction.Reject ? "btn-danger" : "btn-primary")" @onclick="ConfirmPendingAsync" disabled="@busy" data-testid="job-action-confirm">@ConfirmText</button>
+                            <button type="button" class="btn btn-secondary" @onclick="CancelPending" disabled="@busy" data-testid="job-action-cancel">Cancelar</button>
+                        </div>
+                    </div>
+                }
+                else
+                {
+                    <div class="acct-actions">
+                        <a class="btn btn-outline-primary btn-sm" href="/jobs/@selected.Id" target="_blank" rel="noopener" data-testid="job-open">Abrir a página da vaga</a>
+                        @if (selected.Status != "Active")
+                        {
+                            <button type="button" class="btn btn-primary btn-sm" @onclick="StartActivation" disabled="@busy" data-testid="job-activate">@(selected.Status == "Paused" ? "Reativar" : "Aprovar e ativar")</button>
+                        }
+                        @if (selected.Status == "Active")
+                        {
+                            <button type="button" class="btn btn-outline-primary btn-sm" @onclick="PauseAsync" disabled="@busy" data-testid="job-pause">Pausar</button>
+                        }
+                        @if (selected.Status != "Hidden")
+                        {
+                            <button type="button" class="btn btn-outline-danger btn-sm" @onclick="() => StartReason(PendingAction.Hide)" disabled="@busy" data-testid="job-hide">Ocultar</button>
+                        }
+                        @if (selected.Status != "Rejected")
+                        {
+                            <button type="button" class="btn btn-outline-danger btn-sm" @onclick="() => StartReason(PendingAction.Reject)" disabled="@busy" data-testid="job-reject">Reprovar</button>
+                        }
+                        <button type="button" class="btn btn-outline-danger btn-sm" @onclick="() => StartReason(PendingAction.Delete)" disabled="@busy" data-testid="job-delete">Excluir</button>
+                        <button type="button" class="btn btn-secondary btn-sm" @onclick="ClosePanel" data-testid="job-panel-close">Fechar</button>
+                    </div>
+                }
+            </div>
+        </section>
+    }
+
+    @if (isLoading)
+    {
+        <LoadingState Message="Carregando vagas..." />
+    }
+    else if (loadFailed)
+    {
+        <ErrorState Title="Não foi possível carregar as vagas"
+                    Message="Tivemos um problema ao buscar as vagas. Tente novamente em instantes."
+                    OnRetry="() => LoadAsync(currentPage)" />
+    }
+    else if (list is null || !list.Items.Any())
+    {
+        <EmptyState Icon="▤" Title="Nenhuma vaga encontrada" Message="Ajuste a busca ou os filtros." TestId="jobs-empty" />
+    }
+    else
+    {
+        <div class="card">
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover table-striped mb-0" data-testid="jobs-table">
+                        <thead>
+                            <tr>
+                                <th>Vaga</th>
+                                <th>Empresa</th>
+                                <th>Situação</th>
+                                <th>Validade</th>
+                                <th class="text-center">Candidaturas</th>
+                                <th>Publicada</th>
+                                <th class="text-center">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var job in list.Items)
+                            {
+                                <tr data-testid="job-row" data-job-id="@job.Id" data-title="@job.Title">
+                                    <td><strong>@job.Title</strong><div class="text-muted small">@Where(job)</div></td>
+                                    <td>@(job.AdvertiserName ?? "—")</td>
+                                    <td><span class="badge @UiLabels.JobStatusBadge(job.Status)">@UiLabels.JobStatus(job.Status)</span></td>
+                                    <td>@UiLabels.FormatMomentDate(job.ExpirationDate)@(job.IsPastExpiration ? " (vencida)" : string.Empty)</td>
+                                    <td class="text-center">@job.Applications</td>
+                                    <td>@UiLabels.FormatMomentDate(job.CreatedAt)</td>
+                                    <td class="text-center">
+                                        <button type="button" class="btn btn-sm btn-outline-primary" @onclick="() => OpenPanel(job)" data-testid="job-manage">Gerenciar</button>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <Pager Page="list.Page" TotalPages="list.TotalPages" OnPageChanged="LoadAsync" AriaLabel="Paginação das vagas" />
+
+        <div class="text-muted text-center mt-3">Mostrando @list.Items.Count() de @list.TotalCount vagas</div>
+    }
+</div>
+
+<ConfirmDialog @ref="confirmDialog" />
+
+@code {
+    private const int PageSize = 20;
+
+    // Ordem dos contadores e do filtro
+    private static readonly string[] StatusOrder = ["Active", "Paused", "Hidden", "Rejected", "Expired"];
+
+    private enum PendingAction { None, Activate, Hide, Reject, Delete }
+
+    private AdminListJobsResponse? list;
+    private AdminJobResponse? selected;
+    private AdminActor actor = new(string.Empty, "administrador");
+    private ConfirmDialog confirmDialog = default!;
+
+    private string searchTerm = string.Empty;
+    private string statusFilter = string.Empty;
+    private int currentPage = 1;
+    private bool isLoading = true;
+    private bool loadFailed;
+    private bool busy;
+
+    private PendingAction pending = PendingAction.None;
+    private string reason = string.Empty;
+    private DateTime renewUntil = DateTime.UtcNow.Date.AddDays(30);
+    private string? formError;
+
+    private string ReasonLabel => pending switch
+    {
+        PendingAction.Hide => "Motivo para ocultar a vaga (a empresa vê este texto e a vaga sai do ar)",
+        PendingAction.Reject => "Motivo da reprovação (a empresa vê este texto e a vaga sai do ar)",
+        _ => "Motivo da exclusão (a empresa vê este texto; a vaga é removida)"
+    };
+
+    private string ConfirmText => pending switch
+    {
+        PendingAction.Activate => "Renovar e ativar",
+        PendingAction.Hide => "Ocultar vaga",
+        PendingAction.Reject => "Reprovar vaga",
+        _ => "Excluir vaga"
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        var state = await AuthenticationState.GetAuthenticationStateAsync();
+        actor = state.User.ToAdminActor();
+        await LoadAsync(1);
+    }
+
+    private async Task OnSearchKeyDown(KeyboardEventArgs args)
+    {
+        if (args.Key == "Enter")
+            await LoadAsync(1);
+    }
+
+    private async Task LoadAsync(int pageNumber)
+    {
+        isLoading = true;
+        loadFailed = false;
+        currentPage = pageNumber;
+
+        var result = await ListJobs.ExecuteAsync(new AdminListJobsRequest
+        {
+            SearchTerm = searchTerm,
+            Status = statusFilter,
+            Page = pageNumber,
+            Size = PageSize
+        });
+
+        if (result.Status == EResultStatus.Success && result.Data is not null)
+        {
+            list = result.Data;
+        }
+        else
+        {
+            Logger.LogFailure(result, "Listar vagas (administração)");
+            loadFailed = true;
+        }
+
+        isLoading = false;
+    }
+
+    private void OpenPanel(AdminJobResponse job)
+    {
+        selected = job;
+        pending = PendingAction.None;
+        reason = string.Empty;
+        formError = null;
+    }
+
+    private void ClosePanel()
+    {
+        selected = null;
+        pending = PendingAction.None;
+    }
+
+    private void StartReason(PendingAction action)
+    {
+        pending = action;
+        reason = string.Empty;
+        formError = null;
+    }
+
+    private void CancelPending()
+    {
+        pending = PendingAction.None;
+        formError = null;
+    }
+
+    private async Task StartActivation()
+    {
+        if (selected is null)
+            return;
+
+        if (selected.IsPastExpiration)
+        {
+            pending = PendingAction.Activate;
+            renewUntil = DateTime.UtcNow.Date.AddDays(30);
+            formError = null;
+            return;
+        }
+
+        var wasHiddenByModeration = selected.Status is "Hidden" or "Rejected";
+        var message = wasHiddenByModeration
+            ? $"A vaga \"{selected.Title}\" volta ao site e a empresa é avisada."
+            : $"A vaga \"{selected.Title}\" volta a receber candidaturas.";
+        if (await confirmDialog.ShowAsync(new ConfirmOptions { Title = "Ativar a vaga?", Message = message, ConfirmText = "Ativar" }))
+            await ChangeAsync(EJobStatus.Active, null, null);
+    }
+
+    private async Task PauseAsync()
+    {
+        if (selected is null)
+            return;
+
+        if (await confirmDialog.ShowAsync(new ConfirmOptions
+            {
+                Title = "Pausar a vaga?",
+                Message = $"A vaga \"{selected.Title}\" para de receber candidaturas e a empresa é avisada.",
+                ConfirmText = "Pausar"
+            }))
+        {
+            await ChangeAsync(EJobStatus.Paused, null, null);
+        }
+    }
+
+    private async Task ConfirmPendingAsync()
+    {
+        if (selected is null)
+            return;
+
+        formError = null;
+        switch (pending)
+        {
+            case PendingAction.Activate:
+                await ChangeAsync(EJobStatus.Active, null, renewUntil);
+                break;
+            case PendingAction.Hide:
+                await ChangeAsync(EJobStatus.Hidden, reason, null);
+                break;
+            case PendingAction.Reject:
+                await ChangeAsync(EJobStatus.Rejected, reason, null);
+                break;
+            case PendingAction.Delete:
+                await DeleteAsync();
+                break;
+        }
+    }
+
+    private async Task ChangeAsync(EJobStatus status, string? text, DateTime? renew)
+    {
+        if (busy || selected is null)
+            return;
+
+        busy = true;
+        try
+        {
+            var result = await ChangeStatus.ExecuteAsync(new AdminChangeJobStatusRequest(selected.Id, status, text, renew, actor));
+            if (result.Status == EResultStatus.Success && result.Data is not null)
+            {
+                Toast.ShowSuccess($"Vaga \"{result.Data.Title}\": {UiLabels.JobStatus(result.Data.Status).ToLowerInvariant()}.");
+                selected = result.Data;
+                pending = PendingAction.None;
+                await LoadAsync(currentPage);
+                return;
+            }
+
+            ShowFailure(result.Status, ResultMessages.ToUserMessage(result, "Não foi possível alterar a vaga."));
+        }
+        finally
+        {
+            busy = false;
+        }
+    }
+
+    private async Task DeleteAsync()
+    {
+        if (busy || selected is null)
+            return;
+
+        busy = true;
+        try
+        {
+            var result = await DeleteJob.ExecuteAsync(new AdminDeleteJobRequest(selected.Id, reason, actor));
+            if (result.Status == EResultStatus.Success)
+            {
+                Toast.ShowSuccess($"Vaga \"{selected.Title}\" excluída.");
+                selected = null;
+                pending = PendingAction.None;
+                await LoadAsync(currentPage);
+                return;
+            }
+
+            ShowFailure(result.Status, ResultMessages.ToUserMessage(result, "Não foi possível excluir a vaga."));
+        }
+        finally
+        {
+            busy = false;
+        }
+    }
+
+    // Erro de preenchimento fica junto do campo; o resto (vaga mudou, conta inativa...) vira aviso
+    private void ShowFailure(EResultStatus status, string message)
+    {
+        if (status == EResultStatus.HasValidation)
+            formError = message;
+        else
+            Toast.ShowError(message);
+    }
+
+    private static string Where(AdminJobResponse job)
+    {
+        var place = string.Join(" / ", new[] { job.City, job.State }.Where(part => !string.IsNullOrWhiteSpace(part)));
+        if (job.IsRemote)
+            place = string.IsNullOrEmpty(place) ? "Remoto" : place + " · remoto";
+        return string.IsNullOrEmpty(place) ? "—" : place;
+    }
+}

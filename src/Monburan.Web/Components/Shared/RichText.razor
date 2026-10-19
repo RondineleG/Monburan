@@ -1,0 +1,88 @@
+@* Texto livre da vaga com parágrafos e listas: linhas iniciadas por "- ", "* " ou "• " viram itens de lista.
+   O conteúdo passa sempre pela codificação do Razor (nada de HTML do anunciante). *@
+<div class="rich-text">
+    @foreach (var block in blocks)
+    {
+        if (block.Items is not null)
+        {
+            <ul>
+                @foreach (var item in block.Items)
+                {
+                    <li>@item</li>
+                }
+            </ul>
+        }
+        else
+        {
+            <p>@block.Text</p>
+        }
+    }
+</div>
+
+@code {
+    private static readonly string[] BulletMarkers = ["- ", "* ", "• ", "– ", "· "];
+
+    [Parameter]
+    public string? Text { get; set; }
+
+    private IReadOnlyList<Block> blocks = [];
+
+    protected override void OnParametersSet() => blocks = Parse(Text);
+
+    private sealed record Block(string? Text, IReadOnlyList<string>? Items);
+
+    private static List<Block> Parse(string? text)
+    {
+        var result = new List<Block>();
+        if (string.IsNullOrWhiteSpace(text))
+            return result;
+
+        var paragraph = new List<string>();
+        var items = new List<string>();
+
+        void FlushParagraph()
+        {
+            if (paragraph.Count == 0)
+                return;
+
+            result.Add(new Block(string.Join('\n', paragraph), null));
+            paragraph.Clear();
+        }
+
+        void FlushItems()
+        {
+            if (items.Count == 0)
+                return;
+
+            result.Add(new Block(null, items.ToList()));
+            items.Clear();
+        }
+
+        foreach (var raw in text.Replace("\r\n", "\n").Split('\n'))
+        {
+            var line = raw.Trim();
+            if (line.Length == 0)
+            {
+                FlushParagraph();
+                FlushItems();
+                continue;
+            }
+
+            var marker = BulletMarkers.FirstOrDefault(m => line.StartsWith(m, StringComparison.Ordinal));
+            if (marker is not null)
+            {
+                FlushParagraph();
+                items.Add(line[marker.Length..].Trim());
+            }
+            else
+            {
+                FlushItems();
+                paragraph.Add(line);
+            }
+        }
+
+        FlushParagraph();
+        FlushItems();
+        return result;
+    }
+}

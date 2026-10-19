@@ -1,0 +1,618 @@
+@page "/admin/ai-providers"
+@rendermode InteractiveServer
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Policy = "AdminOnly")]
+@implements IDisposable
+@using System.ComponentModel.DataAnnotations
+@using Microsoft.AspNetCore.Components.Authorization
+@using Monburan.Core.DTOs.Request
+@using Monburan.Core.DTOs.Response
+@using Monburan.Core.Enums
+@using Monburan.Core.Interfaces.Services
+@using Monburan.Core.Services
+@using Monburan.Core.UseCases.Ai
+@using Monburan.Core.Validations
+@inject ListAiProvidersUseCase ListUseCase
+@inject SaveAiProviderUseCase SaveUseCase
+@inject SetDefaultAiProviderUseCase SetDefaultUseCase
+@inject DeleteAiProviderUseCase DeleteUseCase
+@inject TestAiProviderUseCase TestUseCase
+@inject AuthenticationStateProvider AuthenticationState
+@inject IAdminAuditLog AuditLog
+@inject IToastService Toast
+@inject ILogger<AdminAiProviders> Logger
+
+<PageTitle>Provedores de IA - Monburan</PageTitle>
+
+@* Administração dos provedores de IA. O banco guarda endereço, modelo, protocolo e o NOME da variável de ambiente da chave;
+   a chave em si fica no ambiente do servidor e nunca aparece aqui nem é gravada. *@
+<div class="container mt-4 admin-ai-page">
+    <header class="page-heading">
+        <div class="page-heading__copy">
+            <span class="page-kicker">ADMINISTRAÇÃO</span>
+            <h1>Provedores de IA</h1>
+            <p>Cadastre os serviços de IA que o Monburan pode usar, escolha o padrão e diga em qual variável de ambiente está a chave de cada um.</p>
+        </div>
+        <button type="button" class="btn btn-primary" @onclick="NewProvider" disabled="@(form is not null)" data-testid="ai-provider-new">Adicionar provedor <span aria-hidden="true">+</span></button>
+    </header>
+
+    <aside class="alert alert-info ai-admin-note" role="note">
+        <strong>Como a chave é guardada:</strong> aqui você salva só o <em>nome</em> da variável (por exemplo <code>@AiProviderRules.EnvVarPrefix</code>OPENROUTER).
+        A chave em si fica no ambiente do servidor (na VPS, no arquivo <code>ai-keys.env</code>; em desenvolvimento, nos segredos de usuário) e
+        nunca aparece nesta tela nem vai para o banco. Só nomes que começam com <code>@AiProviderRules.EnvVarPrefix</code> são aceitos.
+    </aside>
+
+    @if (isLoading)
+    {
+        <LoadingState Message="Carregando provedores..." />
+    }
+    else if (loadFailed)
+    {
+        <ErrorState Title="Não foi possível carregar os provedores"
+                    Message="Tivemos um problema ao buscar os provedores de IA. Tente novamente em instantes."
+                    OnRetry="LoadAsync" />
+    }
+    else
+    {
+        @if (DefaultProvider is null)
+        {
+            <div class="alert alert-warning" role="status" data-testid="ai-status">
+                Nenhum provedor padrão ativo: as sugestões de IA estão <strong>desligadas</strong>. Ative um provedor e torne-o o padrão.
+            </div>
+        }
+        else if (!DefaultProvider.KeyConfigured)
+        {
+            <div class="alert alert-warning" role="status" data-testid="ai-status">
+                O provedor padrão (<strong>@DefaultProvider.Name</strong>) ainda não tem a chave neste servidor: as sugestões de IA continuam
+                <strong>desligadas</strong> até a variável <code>@DefaultProvider.ApiKeyEnvVar</code> ser definida e o app reiniciado.
+            </div>
+        }
+        else
+        {
+            <div class="alert alert-success" role="status" data-testid="ai-status">
+                Provedor padrão: <strong>@DefaultProvider.Name</strong> · modelo <code>@DefaultProvider.Model</code>. As sugestões de IA estão <strong>ativas</strong>.
+            </div>
+        }
+
+        @if (providers.Count == 0)
+        {
+            <EmptyState Icon="✦" Title="Nenhum provedor cadastrado" Message="Adicione um provedor para ligar as sugestões de IA." TestId="ai-empty" />
+        }
+        else
+        {
+            <section class="ai-providers" aria-label="Provedores cadastrados">
+                @foreach (var provider in providers)
+                {
+                    <article class="card ai-provider@(provider.IsDefault ? " ai-provider--default" : string.Empty)" data-testid="ai-provider-card" data-provider-name="@provider.Name">
+                        <div class="card-body">
+                            <div class="ai-provider__head">
+                                <h2>@provider.Name</h2>
+                                <ul class="ai-badges" aria-label="Situação">
+                                    @if (provider.IsDefault)
+                                    {
+                                        <li class="ai-badge ai-badge--gold">Padrão</li>
+                                    }
+                                    <li class="ai-badge @(provider.IsEnabled ? "ai-badge--ok" : "ai-badge--off")">@(provider.IsEnabled ? "Ativo" : "Desativado")</li>
+                                    <li class="ai-badge">@ProtocolLabel(provider.Protocol)</li>
+                                </ul>
+                            </div>
+
+                            <dl class="ai-provider__meta">
+                                <div><dt>Modelo</dt><dd><code>@provider.Model</code></dd></div>
+                                <div><dt>Servidor</dt><dd>@HostOf(provider.BaseUrl)</dd></div>
+                                <div>
+                                    <dt>Chave</dt>
+                                    <dd>
+                                        <code>@provider.ApiKeyEnvVar</code>
+                                        @if (provider.KeyConfigured)
+                                        {
+                                            <span class="ai-badge ai-badge--ok" data-testid="ai-key-status">definida no servidor</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="ai-badge ai-badge--warn" data-testid="ai-key-status">não definida neste servidor</span>
+                                        }
+                                    </dd>
+                                </div>
+                            </dl>
+
+                            <div class="ai-provider__actions">
+                                <button type="button" class="btn btn-outline-primary btn-sm" @onclick="() => TestAsync(provider)" disabled="@(IsBusy(provider.Id))" data-testid="ai-provider-test">
+                                    @(testing.Contains(provider.Id) ? "Testando..." : "Testar")
+                                </button>
+                                <button type="button" class="btn btn-outline-primary btn-sm" @onclick="() => EditProvider(provider)" disabled="@(form is not null || IsBusy(provider.Id))" data-testid="ai-provider-edit">Editar</button>
+                                @if (!provider.IsDefault && provider.IsEnabled)
+                                {
+                                    <button type="button" class="btn btn-outline-primary btn-sm" @onclick="() => MakeDefaultAsync(provider)" disabled="@(IsBusy(provider.Id))" data-testid="ai-provider-default">Tornar padrão</button>
+                                }
+                                @if (!provider.IsDefault)
+                                {
+                                    <button type="button" class="btn btn-outline-primary btn-sm" @onclick="() => ToggleEnabledAsync(provider)" disabled="@(IsBusy(provider.Id))" data-testid="ai-provider-toggle">@(provider.IsEnabled ? "Desativar" : "Ativar")</button>
+                                }
+                                <button type="button" class="btn btn-outline-danger btn-sm" @onclick="() => DeleteAsync(provider)" disabled="@(IsBusy(provider.Id))" data-testid="ai-provider-delete">Excluir</button>
+                            </div>
+
+                            @if (testResults.TryGetValue(provider.Id, out var test))
+                            {
+                                <p class="ai-test @(test.Success ? "ai-test--ok" : "ai-test--fail")" role="status" data-testid="ai-test-result">
+                                    @if (test.Success)
+                                    {
+                                        <span>Funcionou em @((test.ElapsedMilliseconds / 1000.0).ToString("0.0")) s. Resposta do modelo: “@test.Reply”.</span>
+                                    }
+                                    else
+                                    {
+                                        <span>Não funcionou: @test.Message</span>
+                                    }
+                                </p>
+                            }
+                        </div>
+                    </article>
+                }
+            </section>
+        }
+
+        @if (form is not null)
+        {
+            <section class="card ai-form" aria-labelledby="ai-form-title" data-testid="ai-provider-form">
+                <div class="card-body">
+                    <h2 id="ai-form-title">@(form.Id is null ? "Novo provedor" : "Editar provedor")</h2>
+
+                    <EditForm Model="form" OnValidSubmit="SaveAsync">
+                        <DataAnnotationsValidator />
+                        <ServerValidationErrors @ref="serverErrors" FieldMap="@FieldMap" />
+
+                        @if (form.Id is null)
+                        {
+                            <div class="mb-3">
+                                <label class="form-label" for="ai-form-preset">Começar de um modelo</label>
+                                <select id="ai-form-preset" class="form-select" @onchange="OnPresetChanged" data-testid="ai-form-preset">
+                                    <option value="">Escolha um modelo pronto (ou preencha à mão)</option>
+                                    @foreach (var preset in AiProviderPresets.All)
+                                    {
+                                        <option value="@preset.Key" selected="@(form.PresetKey == preset.Key)">@preset.Label</option>
+                                    }
+                                </select>
+                                @if (SelectedPreset is { } selected)
+                                {
+                                    <small class="form-text">@selected.Note</small>
+                                }
+                            </div>
+                        }
+
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label" for="ai-form-name">Nome *</label>
+                                <InputText @bind-Value="form.Name" class="form-control" id="ai-form-name" maxlength="80" data-testid="ai-form-name" />
+                                <small class="form-text">É o que a pessoa vê como destino do conteúdo, na tela de autorização.</small>
+                                <ValidationMessage For="@(() => form.Name)" />
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label" for="ai-form-protocol">Protocolo *</label>
+                                <InputSelect @bind-Value="form.Protocol" class="form-select" id="ai-form-protocol" data-testid="ai-form-protocol">
+                                    <option value="@EAiProtocol.OpenAiCompatible">Compatível com OpenAI (/chat/completions)</option>
+                                    <option value="@EAiProtocol.Anthropic">Anthropic (/v1/messages)</option>
+                                </InputSelect>
+                                <ValidationMessage For="@(() => form.Protocol)" />
+                            </div>
+                            <div class="col-md-12">
+                                <label class="form-label" for="ai-form-url">Endereço (URL) *</label>
+                                <InputText @bind-Value="form.BaseUrl" class="form-control" id="ai-form-url" maxlength="300" placeholder="https://api.exemplo.com/v1" autocomplete="off" data-testid="ai-form-url" />
+                                <small class="form-text">@UrlHint</small>
+                                <ValidationMessage For="@(() => form.BaseUrl)" />
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label" for="ai-form-model">Modelo *</label>
+                                <InputText @bind-Value="form.Model" class="form-control" id="ai-form-model" maxlength="150" autocomplete="off" data-testid="ai-form-model" />
+                                <ValidationMessage For="@(() => form.Model)" />
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label" for="ai-form-env">Variável de ambiente da chave *</label>
+                                <div class="ai-env-group">
+                                    <span class="ai-env-group__prefix" aria-hidden="true">@AiProviderRules.EnvVarPrefix</span>
+                                    <InputText @bind-Value="form.EnvVarSuffix" class="form-control" id="ai-form-env" maxlength="60" placeholder="OPENROUTER" autocomplete="off" spellcheck="false" data-testid="ai-form-env" />
+                                </div>
+                                <small class="form-text">Só o nome. A chave é definida no servidor, nunca aqui.</small>
+                                <ValidationMessage For="@(() => form.EnvVarSuffix)" />
+                            </div>
+
+                            <div class="col-md-12">
+                                <div class="form-check">
+                                    <InputCheckbox @bind-Value="form.IsEnabled" class="form-check-input" id="ai-form-enabled" data-testid="ai-form-enabled" />
+                                    <label class="form-check-label" for="ai-form-enabled">Ativo</label>
+                                </div>
+                                <div class="form-check">
+                                    <InputCheckbox @bind-Value="form.MakeDefault" class="form-check-input" id="ai-form-default" data-testid="ai-form-default" />
+                                    <label class="form-check-label" for="ai-form-default">Usar como padrão dos recursos de IA</label>
+                                </div>
+                                <ValidationMessage For="@(() => form.IsEnabled)" />
+                                <ValidationMessage For="@(() => form.MakeDefault)" />
+                            </div>
+                        </div>
+
+                        <details class="ai-advanced">
+                            <summary>Ajustes avançados</summary>
+                            <div class="row g-3 mt-1">
+                                <div class="col-md-4">
+                                    <label class="form-label" for="ai-form-timeout">Tempo limite (segundos)</label>
+                                    <InputNumber @bind-Value="form.TimeoutSeconds" class="form-control" id="ai-form-timeout" />
+                                    <ValidationMessage For="@(() => form.TimeoutSeconds)" />
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label" for="ai-form-tokens">Limite de tokens da resposta</label>
+                                    <InputNumber @bind-Value="form.MaxOutputTokens" class="form-control" id="ai-form-tokens" />
+                                    <small class="form-text">Modelos de raciocínio gastam tokens pensando: deixe folga.</small>
+                                    <ValidationMessage For="@(() => form.MaxOutputTokens)" />
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label" for="ai-form-temperature">Temperatura</label>
+                                    <InputNumber @bind-Value="form.Temperature" class="form-control" id="ai-form-temperature" step="0.1" disabled="@(!form.SendTemperature)" />
+                                    <ValidationMessage For="@(() => form.Temperature)" />
+                                </div>
+                                <div class="col-md-12">
+                                    <div class="form-check">
+                                        <InputCheckbox @bind-Value="form.SendTemperature" class="form-check-input" id="ai-form-sendtemp" />
+                                        <label class="form-check-label" for="ai-form-sendtemp">Enviar a temperatura (desmarque se o modelo a recusar)</label>
+                                    </div>
+                                    @if (form.Protocol == EAiProtocol.OpenAiCompatible)
+                                    {
+                                        <div class="form-check">
+                                            <InputCheckbox @bind-Value="form.UseJsonResponseFormat" class="form-check-input" id="ai-form-json" />
+                                            <label class="form-check-label" for="ai-form-json">Pedir resposta em JSON (<code>response_format</code>; desmarque se o servidor recusar)</label>
+                                        </div>
+                                        <div class="form-check">
+                                            <InputCheckbox @bind-Value="form.UseMaxCompletionTokens" class="form-check-input" id="ai-form-maxcompletion" />
+                                            <label class="form-check-label" for="ai-form-maxcompletion">Usar <code>max_completion_tokens</code> no lugar de <code>max_tokens</code> (modelos novos da OpenAI)</label>
+                                        </div>
+                                    }
+                                </div>
+                            </div>
+                        </details>
+
+                        <div class="ai-form__actions">
+                            <button type="submit" class="btn btn-primary" disabled="@isSaving" data-testid="ai-form-save">@(isSaving ? "Salvando..." : "Salvar provedor")</button>
+                            <button type="button" class="btn btn-secondary" @onclick="CloseForm" disabled="@isSaving" data-testid="ai-form-cancel">Cancelar</button>
+                        </div>
+                    </EditForm>
+                </div>
+            </section>
+        }
+    }
+</div>
+
+<ConfirmDialog @ref="confirmDialog" />
+
+@code {
+    private static readonly IReadOnlyDictionary<string, string> FieldMap = new Dictionary<string, string>
+    {
+        [nameof(AiProviderRequest.ApiKeyEnvVar)] = nameof(ProviderForm.EnvVarSuffix)
+    };
+
+    private readonly CancellationTokenSource cancellation = new();
+    private readonly HashSet<Guid> testing = [];
+    private readonly Dictionary<Guid, AiProviderTestResponse> testResults = [];
+
+    private List<AiProviderResponse> providers = [];
+    private bool isLoading = true;
+    private bool loadFailed;
+    private bool isSaving;
+    private Guid? busyId;
+    private string admin = "administrador";
+    private AdminActor actor = new(string.Empty, "administrador");
+    private ProviderForm? form;
+    private ServerValidationErrors serverErrors = default!;
+    private ConfirmDialog confirmDialog = default!;
+
+    private AiProviderResponse? DefaultProvider => providers.FirstOrDefault(provider => provider.IsDefault && provider.IsEnabled);
+
+    private AiProviderPreset? SelectedPreset => AiProviderPresets.Find(form?.PresetKey);
+
+    private string UrlHint => form?.Protocol == EAiProtocol.Anthropic
+        ? "Raiz da API, sem o /v1/messages (ex.: https://api.anthropic.com). Precisa ser https."
+        : "Raiz da API, sem o /chat/completions (ex.: https://api.openai.com/v1). Precisa ser https.";
+
+    protected override async Task OnInitializedAsync()
+    {
+        var state = await AuthenticationState.GetAuthenticationStateAsync();
+        admin = state.User.Identity?.Name ?? admin;
+        actor = state.User.ToAdminActor();
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        isLoading = true;
+        loadFailed = false;
+
+        var result = await ListUseCase.ExecuteAsync();
+        if (result.Status == EResultStatus.Success && result.Data is not null)
+        {
+            providers = result.Data.ToList();
+        }
+        else
+        {
+            Logger.LogFailure(result, "Listar provedores de IA");
+            loadFailed = true;
+        }
+
+        isLoading = false;
+    }
+
+    private bool IsBusy(Guid id) => busyId == id || testing.Contains(id);
+
+    private static string ProtocolLabel(EAiProtocol protocol) =>
+        protocol == EAiProtocol.Anthropic ? "Anthropic" : "OpenAI-compatível";
+
+    private static string HostOf(string baseUrl) =>
+        Uri.TryCreate(baseUrl, UriKind.Absolute, out var uri) ? uri.Host : baseUrl;
+
+    private void NewProvider() => form = new ProviderForm();
+
+    private void EditProvider(AiProviderResponse provider) => form = ProviderForm.From(provider);
+
+    private void CloseForm() => form = null;
+
+    private void OnPresetChanged(ChangeEventArgs args)
+    {
+        if (form is null)
+            return;
+
+        var preset = AiProviderPresets.Find(args.Value?.ToString());
+        form.PresetKey = preset?.Key;
+        if (preset is null)
+            return;
+
+        form.Name = preset.Label;
+        form.Protocol = preset.Protocol;
+        form.BaseUrl = preset.BaseUrl;
+        form.Model = preset.Model;
+        form.EnvVarSuffix = ProviderForm.SuffixOf(preset.ApiKeyEnvVar);
+        form.UseMaxCompletionTokens = preset.UseMaxCompletionTokens;
+        serverErrors.Clear();
+    }
+
+    private async Task SaveAsync()
+    {
+        if (form is null || isSaving)
+            return;
+
+        isSaving = true;
+        try
+        {
+            var result = await SaveUseCase.ExecuteAsync(form.ToRequest(admin));
+            if (result.Status == EResultStatus.Success && result.Data is not null)
+            {
+                Logger.LogInformation("IA: provedor {Provider} salvo por {Admin}", result.Data.Name, admin);
+                await AuditLog.RecordAsync(new AdminAuditRecord(
+                    AdminAuditActions.AiProviderSaved, actor, AdminAuditActions.AiProviderTarget, result.Data.Id.ToString(), result.Data.Name,
+                    $"{ProtocolLabel(result.Data.Protocol)}, modelo {result.Data.Model}, variável {result.Data.ApiKeyEnvVar}"
+                    + (result.Data.IsDefault ? ", padrão" : string.Empty) + (result.Data.IsEnabled ? string.Empty : ", desativado")));
+                Toast.ShowSuccess($"Provedor “{result.Data.Name}” salvo.");
+                form = null;
+                await LoadAsync();
+                return;
+            }
+
+            var fieldErrors = ResultMessages.FieldErrors(result);
+            var unmatched = serverErrors.Display(fieldErrors);
+            if (fieldErrors.Count == 0)
+                Toast.ShowError(ResultMessages.ToUserMessage(result, "Não foi possível salvar o provedor."));
+            else
+                foreach (var message in unmatched)
+                    Toast.ShowError(message);
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+    private async Task MakeDefaultAsync(AiProviderResponse provider)
+    {
+        busyId = provider.Id;
+        try
+        {
+            var result = await SetDefaultUseCase.ExecuteAsync(new AiProviderActionRequest { Id = provider.Id, UpdatedBy = admin });
+            if (result.Status == EResultStatus.Success)
+            {
+                Logger.LogInformation("IA: provedor {Provider} virou o padrão por {Admin}", provider.Name, admin);
+                await AuditLog.RecordAsync(new AdminAuditRecord(
+                    AdminAuditActions.AiProviderDefaultChanged, actor, AdminAuditActions.AiProviderTarget, provider.Id.ToString(), provider.Name,
+                    "passou a ser o provedor padrão"));
+                Toast.ShowSuccess($"“{provider.Name}” agora é o provedor padrão.");
+                await LoadAsync();
+            }
+            else
+            {
+                Toast.ShowError(ResultMessages.ToUserMessage(result, "Não foi possível mudar o provedor padrão."));
+            }
+        }
+        finally
+        {
+            busyId = null;
+        }
+    }
+
+    private async Task ToggleEnabledAsync(AiProviderResponse provider)
+    {
+        busyId = provider.Id;
+        try
+        {
+            var request = ProviderForm.From(provider).ToRequest(admin);
+            request.IsEnabled = !provider.IsEnabled;
+            request.MakeDefault = false;
+
+            var result = await SaveUseCase.ExecuteAsync(request);
+            if (result.Status == EResultStatus.Success)
+            {
+                Logger.LogInformation("IA: provedor {Provider} {Action} por {Admin}", provider.Name, request.IsEnabled ? "ativado" : "desativado", admin);
+                await AuditLog.RecordAsync(new AdminAuditRecord(
+                    AdminAuditActions.AiProviderSaved, actor, AdminAuditActions.AiProviderTarget, provider.Id.ToString(), provider.Name,
+                    request.IsEnabled ? "ativado" : "desativado"));
+                await LoadAsync();
+            }
+            else
+            {
+                Toast.ShowError(ResultMessages.ToUserMessage(result, "Não foi possível alterar o provedor."));
+            }
+        }
+        finally
+        {
+            busyId = null;
+        }
+    }
+
+    private async Task DeleteAsync(AiProviderResponse provider)
+    {
+        var confirmed = await confirmDialog.ShowAsync(new ConfirmOptions
+        {
+            Title = "Excluir provedor?",
+            Message = $"O provedor “{provider.Name}” será removido da lista. A variável da chave no servidor não é alterada.",
+            ConfirmText = "Excluir provedor",
+            Destructive = true
+        });
+        if (!confirmed)
+            return;
+
+        busyId = provider.Id;
+        try
+        {
+            var result = await DeleteUseCase.ExecuteAsync(new AiProviderActionRequest { Id = provider.Id, UpdatedBy = admin });
+            if (result.Status == EResultStatus.Success)
+            {
+                Logger.LogInformation("IA: provedor {Provider} excluído por {Admin}", provider.Name, admin);
+                await AuditLog.RecordAsync(new AdminAuditRecord(
+                    AdminAuditActions.AiProviderDeleted, actor, AdminAuditActions.AiProviderTarget, provider.Id.ToString(), provider.Name));
+                testResults.Remove(provider.Id);
+                Toast.ShowSuccess($"Provedor “{provider.Name}” excluído.");
+                await LoadAsync();
+            }
+            else
+            {
+                Toast.ShowError(ResultMessages.ToUserMessage(result, "Não foi possível excluir o provedor."));
+            }
+        }
+        finally
+        {
+            busyId = null;
+        }
+    }
+
+    private async Task TestAsync(AiProviderResponse provider)
+    {
+        testing.Add(provider.Id);
+        testResults.Remove(provider.Id);
+        try
+        {
+            var result = await TestUseCase.ExecuteAsync(
+                new AiProviderActionRequest { Id = provider.Id, UpdatedBy = admin }, cancellation.Token);
+
+            if (result.Status == EResultStatus.Success && result.Data is not null)
+            {
+                testResults[provider.Id] = result.Data;
+                Logger.LogInformation("IA: teste do provedor {Provider} por {Admin}: {Outcome}", provider.Name, admin, result.Data.Success ? "ok" : "falhou");
+            }
+            else
+            {
+                Toast.ShowError(ResultMessages.ToUserMessage(result, "Não foi possível testar o provedor."));
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // A pessoa saiu da página: nada a mostrar
+        }
+        finally
+        {
+            testing.Remove(provider.Id);
+        }
+    }
+
+    public void Dispose()
+    {
+        cancellation.Cancel();
+        cancellation.Dispose();
+    }
+
+    /// <summary>Campos da tela. A variável da chave é digitada sem o prefixo, que fica fixo ao lado do campo.</summary>
+    private sealed class ProviderForm
+    {
+        public Guid? Id { get; set; }
+
+        public string? PresetKey { get; set; }
+
+        [Required(ErrorMessage = "Informe o nome do provedor.")]
+        [StringLength(80, MinimumLength = 2, ErrorMessage = "O nome deve ter entre 2 e 80 caracteres.")]
+        public string Name { get; set; } = string.Empty;
+
+        public EAiProtocol Protocol { get; set; } = EAiProtocol.OpenAiCompatible;
+
+        [Required(ErrorMessage = "Informe o endereço do provedor.")]
+        public string BaseUrl { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Informe o modelo.")]
+        public string Model { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Informe o nome da variável da chave.")]
+        public string EnvVarSuffix { get; set; } = string.Empty;
+
+        public bool IsEnabled { get; set; } = true;
+
+        public bool MakeDefault { get; set; }
+
+        public int TimeoutSeconds { get; set; } = 90;
+
+        public int MaxOutputTokens { get; set; } = 4000;
+
+        public double Temperature { get; set; } = 0.4;
+
+        public bool SendTemperature { get; set; } = true;
+
+        public bool UseJsonResponseFormat { get; set; } = true;
+
+        public bool UseMaxCompletionTokens { get; set; }
+
+        public static string SuffixOf(string envVar) =>
+            envVar.StartsWith(AiProviderRules.EnvVarPrefix, StringComparison.Ordinal) ? envVar[AiProviderRules.EnvVarPrefix.Length..] : envVar;
+
+        public static ProviderForm From(AiProviderResponse provider) => new()
+        {
+            Id = provider.Id,
+            Name = provider.Name,
+            Protocol = provider.Protocol,
+            BaseUrl = provider.BaseUrl,
+            Model = provider.Model,
+            EnvVarSuffix = SuffixOf(provider.ApiKeyEnvVar),
+            IsEnabled = provider.IsEnabled,
+            MakeDefault = false,
+            TimeoutSeconds = provider.TimeoutSeconds,
+            MaxOutputTokens = provider.MaxOutputTokens,
+            Temperature = provider.Temperature,
+            SendTemperature = provider.SendTemperature,
+            UseJsonResponseFormat = provider.UseJsonResponseFormat,
+            UseMaxCompletionTokens = provider.UseMaxCompletionTokens
+        };
+
+        public AiProviderRequest ToRequest(string updatedBy)
+        {
+            // Aceita também o nome completo colado (com o prefixo) e converte para MAIÚSCULAS
+            var suffix = SuffixOf((EnvVarSuffix ?? string.Empty).Trim().ToUpperInvariant());
+
+            return new AiProviderRequest
+            {
+                Id = Id,
+                Name = Name,
+                Protocol = Protocol,
+                BaseUrl = BaseUrl,
+                Model = Model,
+                ApiKeyEnvVar = AiProviderRules.EnvVarPrefix + suffix,
+                IsEnabled = IsEnabled,
+                MakeDefault = MakeDefault,
+                TimeoutSeconds = TimeoutSeconds,
+                MaxOutputTokens = MaxOutputTokens,
+                Temperature = Temperature,
+                SendTemperature = SendTemperature,
+                UseJsonResponseFormat = UseJsonResponseFormat,
+                UseMaxCompletionTokens = UseMaxCompletionTokens,
+                UpdatedBy = updatedBy
+            };
+        }
+    }
+}

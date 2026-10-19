@@ -69,12 +69,15 @@ public class AdvertiserFlowTests : E2ETestBase
         Assert.True(await submit.IsEnabledAsync(),
             "Botão de criação de vaga deveria estar habilitado");
         await submit.ClickAsync();
-        var jobModal = Page.GetByTestId("job-details-modal");
-        await jobModal.WaitForAsync(new LocatorWaitForOptions
+        // Publicada a vaga, a empresa abre a página dela já com o painel "Sua vaga"
+        var detailTitle = Page.GetByTestId("job-detail-title");
+        await detailTitle.WaitForAsync(new LocatorWaitForOptions
         {
             State = WaitForSelectorState.Visible
         });
-        Assert.Equal(jobTitle, (await jobModal.Locator("#job-modal-title").TextContentAsync())?.Trim());
+        Assert.Equal(jobTitle, (await detailTitle.TextContentAsync())?.Trim());
+        Assert.True(await Page.GetByTestId("job-owner-card").IsVisibleAsync(),
+            "A empresa dona deveria ver o painel 'Sua vaga'");
     }
 
     [Fact]

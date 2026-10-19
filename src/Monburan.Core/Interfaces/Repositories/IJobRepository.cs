@@ -1,5 +1,6 @@
 using Monburan.Core.DTOs.Response;
 using Monburan.Core.Entities;
+using Monburan.Core.Enums;
 using Monburan.Core.Interfaces.Repositories.Base;
 using Monburan.Core.Requests;
 
@@ -23,6 +24,15 @@ public interface IJobRepository : IBaseRepository<Job>
         bool? sortDescending = null);
 
     Task<PagedResponse<Job>> GetAllPagedAsync(int page, int size);
+
+    /// <summary>
+    /// Visão da administração: vagas de qualquer empresa e em qualquer situação (menos as excluídas), mais recentes primeiro.
+    /// A busca olha o título, a categoria e o nome da empresa.
+    /// </summary>
+    Task<PagedResponse<Job>> AdminSearchAsync(string? searchTerm, EJobStatus? status, Guid? advertiserId, int page, int size);
+
+    /// <summary>Quantidade de vagas (não excluídas) por situação.</summary>
+    Task<IReadOnlyDictionary<EJobStatus, int>> CountByStatusAsync();
 
     /// <summary>Quantidade de vagas ativas (não excluídas) do anunciante — base do limite do plano.</summary>
     Task<int> CountActiveByAdvertiserAsync(Guid advertiserId);
