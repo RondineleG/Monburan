@@ -492,6 +492,7 @@ app.MapAdditionalIdentityEndpoints();
 
 // API REST consumida pelo app mobile
 app.MapApiEndpoints();
+app.MapSeoEndpoints();
 
 // Health Check endpoint
 app.MapHealthChecks("/health");
