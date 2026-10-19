@@ -1,0 +1,204 @@
+@page "/career-profile"
+@rendermode InteractiveServer
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Policy = "CandidateOnly")]
+@using System.Globalization
+@using Monburan.Core.Catalogs
+@using Monburan.Core.DTOs.Request
+@using Monburan.Core.DTOs.Response
+@using Monburan.Core.Enums
+@using Monburan.Core.UseCases.Candidates
+@using Monburan.Web.Services
+@inject GetCareerProfileUseCase GetCareerProfileUseCase
+@inject UpsertCareerProfileUseCase UpsertCareerProfileUseCase
+@inject CurrentUserHelper CurrentUserHelper
+@inject NavigationManager Navigation
+@inject IToastService Toast
+@inject ILogger<CareerProfile> Logger
+
+<PageTitle>Perfil de carreira - Monburan</PageTitle>
+
+<div class="container my-applications-page">
+    <header class="page-heading">
+        <div class="page-heading__copy">
+            <span class="page-kicker">MINHA CARREIRA</span>
+            <h1>Perfil de carreira</h1>
+            <p>Usamos estas informações para recomendar vagas.</p>
+        </div>
+    </header>
+
+    @if (isLoading)
+    {
+        <LoadingState Message="Carregando seu perfil de carreira..." />
+    }
+    else if (loadFailed)
+    {
+        <ErrorState Title="Não foi possível carregar seu perfil"
+                    Message="Tivemos um problema ao buscar seu perfil de carreira. Tente novamente em instantes."
+                    OnRetry="LoadAsync" />
+    }
+    else
+    {
+        <div class="row">
+            <div class="col-lg-8">
+                <article class="card">
+                    <div class="card-body">
+                        @if (!string.IsNullOrEmpty(errorMessage))
+                        {
+                            <div class="alert alert-danger" role="alert" data-testid="career-profile-error">@errorMessage</div>
+                        }
+
+                        <EditForm Model="model" OnValidSubmit="SaveAsync" novalidate>
+                            <div class="mb-3">
+                                <label class="form-label" for="career-role">Cargo desejado</label>
+                                <InputText id="career-role" class="form-control" @bind-Value="model.DesiredRole" data-testid="career-role"
+                                           placeholder="Ex.: Atendente, Vendedor(a), Desenvolvedor(a)" />
+                                <div class="form-text">Usamos estas informações para recomendar vagas.</div>
+                            </div>
+
+                            <div class="row g-2">
+                                <div class="col-8">
+                                    <label class="form-label" for="career-city">Cidade</label>
+                                    <InputText id="career-city" class="form-control" @bind-Value="model.City" data-testid="career-city" />
+                                </div>
+                                <div class="col-4">
+                                    <label class="form-label" for="career-state">UF</label>
+                                    <InputSelect id="career-state" class="form-select" @bind-Value="model.State" data-testid="career-state">
+                                        <option value="">Selecione</option>
+                                        @foreach (var uf in States)
+                                        {
+                                            <option value="@uf">@uf</option>
+                                        }
+                                    </InputSelect>
+                                </div>
+                            </div>
+
+                            <div class="row g-2 mt-1">
+                                <div class="col-md-6">
+                                    <label class="form-label" for="career-mode">Modalidade</label>
+                                    <InputSelect id="career-mode" class="form-select" @bind-Value="model.Mode" data-testid="career-mode">
+                                        <option value="">Qualquer modalidade</option>
+                                        <option value="OnSite">Presencial</option>
+                                        <option value="Remote">Remoto</option>
+                                        <option value="Hybrid">Híbrido</option>
+                                    </InputSelect>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label" for="career-contract">Tipo de contrato</label>
+                                    <InputSelect id="career-contract" class="form-select" @bind-Value="model.ContractType" data-testid="career-contract">
+                                        <option value="">Qualquer contrato</option>
+                                        @foreach (var contract in Enum.GetValues<EContractType>())
+                                        {
+                                            <option value="@contract">@UiLabels.ContractType(contract.ToString())</option>
+                                        }
+                                    </InputSelect>
+                                </div>
+                            </div>
+
+                            <div class="row g-2 mt-1">
+                                <div class="col-md-7">
+                                    <label class="form-label" for="career-category">Categoria</label>
+                                    <InputSelect id="career-category" class="form-select" @bind-Value="model.Category" data-testid="career-category">
+                                        <option value="">Qualquer categoria</option>
+                                        @foreach (var category in JobCategories.All)
+                                        {
+                                            <option value="@category">@category</option>
+                                        }
+                                    </InputSelect>
+                                </div>
+                                <div class="col-md-5">
+                                    <label class="form-label" for="career-salary">Salário mínimo (R$)</label>
+                                    <InputNumber id="career-salary" class="form-control" @bind-Value="model.MinimumSalary"
+                                                 Culture="@BrazilianCulture" data-testid="career-salary" />
+                                </div>
+                            </div>
+
+                            <div class="d-flex gap-2 mt-4">
+                                <button type="submit" class="btn btn-primary" disabled="@isSaving" data-testid="career-profile-submit">
+                                    @if (isSaving)
+                                    {
+                                        <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                                    }
+                                    Salvar perfil de carreira
+                                </button>
+                                <button type="button" class="btn btn-secondary" @onclick="BackToDashboard">Voltar</button>
+                            </div>
+                        </EditForm>
+                    </div>
+                </article>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private static readonly string[] States =
+    [
+        "AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA", "MT", "MS", "MG",
+        "PA", "PB", "PR", "PE", "PI", "RJ", "RN", "RS", "RO", "RR", "SC", "SP", "SE", "TO"
+    ];
+
+    private static readonly CultureInfo BrazilianCulture = CultureInfo.GetCultureInfo("pt-BR");
+
+    private CareerProfileRequest model = new();
+    private string errorMessage = string.Empty;
+    private bool isLoading = true;
+    private bool isSaving;
+    private bool loadFailed;
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        isLoading = true;
+        loadFailed = false;
+
+        var result = await GetCareerProfileUseCase.ExecuteAsync(CurrentUserHelper.GetCandidateId()!.Value);
+        if (result.Status == EResultStatus.Success && result.Data is not null)
+        {
+            model = new CareerProfileRequest
+            {
+                DesiredRole = result.Data.DesiredRole,
+                City = result.Data.City,
+                State = result.Data.State,
+                Mode = result.Data.Mode,
+                Category = result.Data.Category,
+                MinimumSalary = result.Data.MinimumSalary,
+                ContractType = result.Data.ContractType
+            };
+        }
+        else
+        {
+            Logger.LogFailure(result, "Carregar perfil de carreira");
+            loadFailed = true;
+        }
+
+        isLoading = false;
+    }
+
+    private async Task SaveAsync()
+    {
+        if (isSaving)
+            return;
+
+        isSaving = true;
+        errorMessage = string.Empty;
+
+        var result = await UpsertCareerProfileUseCase.ExecuteAsync(
+            new UpsertCareerProfileCommand(CurrentUserHelper.GetCandidateId()!.Value, model));
+
+        if (result.Status == EResultStatus.Success)
+        {
+            Toast.ShowSuccess("Perfil salvo. Suas recomendações já consideram as novas informações.", "Perfil de carreira");
+        }
+        else
+        {
+            Logger.LogFailure(result, "Salvar perfil de carreira");
+            errorMessage = ResultMessages.ToUserMessage(result, "Não foi possível salvar o perfil. Revise os campos e tente novamente.");
+            Toast.ShowError(errorMessage);
+        }
+
+        isSaving = false;
+    }
+
+    private void BackToDashboard() => Navigation.NavigateTo("/dashboard");
+}
