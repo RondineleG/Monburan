@@ -324,6 +324,19 @@ public class JobRepository : IJobRepository
         await using var context = await _contextFactory.CreateDbContextAsync();
         var jobKey = Id.Create(jobId);
 
+        // O EF InMemory (provider dos testes de API) não traduz ExecuteUpdate; no banco de verdade,
+        // o incremento é atômico, feito numa instrução só
+        if (context.Database.ProviderName == "Microsoft.EntityFrameworkCore.InMemory")
+        {
+            var job = await context.Jobs.FirstOrDefaultAsync(item => item.Id == jobKey);
+            if (job is null)
+                return RequestResult<bool>.Success(false);
+
+            job.Counters.Views++;
+            await context.SaveChangesAsync();
+            return RequestResult<bool>.Success(true);
+        }
+
         var updated = await context.Jobs
             .Where(job => job.Id == jobKey)
             .ExecuteUpdateAsync(setters => setters

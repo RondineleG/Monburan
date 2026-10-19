@@ -19,16 +19,20 @@ public static class JobEndpoints
         group.MapGet("/", async (
             SearchJobsUseCase useCase,
             ICurrentUserHelper currentUser,
+            HttpContext httpContext,
             CancellationToken cancellationToken,
             int? page = null, int? size = null,
             string? searchTerm = null, string? city = null, string? state = null,
             bool? isRemote = null, string? type = null,
             decimal? salaryMin = null, decimal? salaryMax = null,
-            string? category = null, string? sortBy = null, bool? sortDescending = null) =>
+            string? category = null, string? sortBy = null, bool? sortDescending = null,
+            string? contractType = null, string? salaryPeriod = null, int? publishedWithinDays = null) =>
         {
+            var (candidateId, _) = await ResolveApiIdentityAsync(httpContext, currentUser);
             var result = await useCase.ExecuteAsync(BuildRequest(
                 page, size, searchTerm, city, state, isRemote, type, salaryMin, salaryMax,
-                category, sortBy, sortDescending, advertiserId: null, candidateId: currentUser.GetCandidateId()));
+                category, sortBy, sortDescending, advertiserId: null, candidateId,
+                contractType, salaryPeriod, publishedWithinDays));
             if (result.Data is not null)
             {
                 foreach (var job in result.Data.Jobs)
@@ -63,6 +67,99 @@ public static class JobEndpoints
         .RequireAuthorization("ApiBearer")
         .WithSummary("Lista vagas do anunciante autenticado");
 
+        // Bearer — recomendações para o candidato autenticado
+        group.MapGet("/recommended", async (
+            ICurrentUserHelper currentUser,
+            ListRecommendedJobsUseCase useCase,
+            CancellationToken cancellationToken) =>
+        {
+            var candidateId = currentUser.GetCandidateId();
+            if (candidateId is null)
+                return Results.Problem(statusCode: StatusCodes.Status403Forbidden, title: "Perfil de candidato necessário");
+
+            var result = await useCase.ExecuteAsync(candidateId.Value);
+            if (result.Data is not null)
+            {
+                foreach (var job in result.Data.Jobs)
+                    HideUndisclosedSalary(job);
+            }
+
+            return result.ToHttpResult();
+        })
+        .RequireAuthorization("ApiBearer")
+        .WithSummary("Lista vagas recomendadas para o candidato autenticado");
+
+        // Bearer — vagas salvas do candidato
+        group.MapGet("/saved", async (
+            ICurrentUserHelper currentUser,
+            ListSavedJobsUseCase useCase,
+            CancellationToken cancellationToken) =>
+        {
+            var candidateId = currentUser.GetCandidateId();
+            if (candidateId is null)
+                return Results.Problem(statusCode: StatusCodes.Status403Forbidden, title: "Perfil de candidato necessário");
+
+            var result = await useCase.ExecuteAsync(candidateId.Value);
+            if (result.Data is not null)
+            {
+                foreach (var job in result.Data.Jobs)
+                    HideUndisclosedSalary(job);
+            }
+
+            return result.ToHttpResult();
+        })
+        .RequireAuthorization("ApiBearer")
+        .WithSummary("Lista vagas salvas do candidato autenticado");
+
+        // Bearer — salvar vaga (idempotente)
+        group.MapPut("/{id:guid}/save", async (
+            Guid id,
+            ICurrentUserHelper currentUser,
+            SaveJobUseCase useCase,
+            CancellationToken cancellationToken) =>
+        {
+            var candidateId = currentUser.GetCandidateId();
+            if (candidateId is null)
+                return Results.Problem(statusCode: StatusCodes.Status403Forbidden, title: "Perfil de candidato necessário");
+
+            var result = await useCase.ExecuteAsync(new SaveJobRequest(candidateId.Value, id));
+            return result.ToHttpResult(StatusCodes.Status204NoContent);
+        })
+        .RequireAuthorization("ApiBearer")
+        .WithSummary("Salva a vaga para o candidato autenticado (idempotente)");
+
+        // Bearer — remover vaga salva (idempotente)
+        group.MapDelete("/{id:guid}/save", async (
+            Guid id,
+            ICurrentUserHelper currentUser,
+            UnsaveJobUseCase useCase,
+            CancellationToken cancellationToken) =>
+        {
+            var candidateId = currentUser.GetCandidateId();
+            if (candidateId is null)
+                return Results.Problem(statusCode: StatusCodes.Status403Forbidden, title: "Perfil de candidato necessário");
+
+            var result = await useCase.ExecuteAsync(new UnsaveJobRequest(candidateId.Value, id));
+            return result.ToHttpResult(StatusCodes.Status204NoContent);
+        })
+        .RequireAuthorization("ApiBearer")
+        .WithSummary("Remove a vaga salva do candidato autenticado (idempotente)");
+
+        // Público — registrar visualização (a visita do próprio anunciante não conta)
+        group.MapPost("/{id:guid}/views", async (
+            Guid id,
+            ICurrentUserHelper currentUser,
+            HttpContext httpContext,
+            RegisterJobViewUseCase useCase,
+            CancellationToken cancellationToken) =>
+        {
+            var (_, advertiserId) = await ResolveApiIdentityAsync(httpContext, currentUser);
+            var result = await useCase.ExecuteAsync(new RegisterJobViewRequest(id, advertiserId));
+            return result.ToHttpResult(StatusCodes.Status204NoContent);
+        })
+        .AllowAnonymous()
+        .WithSummary("Registra uma visualização da vaga (a do próprio anunciante não conta)");
+
         // Público — detalhe
         group.MapGet("/{id:guid}", async (
             Guid id,
@@ -71,15 +168,14 @@ public static class JobEndpoints
             HttpContext httpContext,
             CancellationToken cancellationToken) =>
         {
-            var result = await useCase.ExecuteAsync(id, currentUser.GetCandidateId());
+            var (candidateId, advertiserId) = await ResolveApiIdentityAsync(httpContext, currentUser);
+            var result = await useCase.ExecuteAsync(id, candidateId);
 
             // Vaga pausada, oculta ou rejeitada só aparece para a empresa dona (que manda o token); para o resto do mundo
             // é como se não existisse. Sem isso o conteúdo (e o motivo da moderação) vazaria para quem soubesse o id.
             if (result.Data is { } job && job.Status is not ("Active" or "Expired"))
             {
-                var auth = await httpContext.AuthenticateAsync(JwtBearerDefaults.AuthenticationScheme);
-                var ownerId = auth.Succeeded ? auth.Principal?.GetAdvertiserId() : null;
-                if (ownerId != job.AdvertiserId)
+                if (advertiserId != job.AdvertiserId)
                     return RequestResult<JobResponse>.EntityNotFound("Job", id, "Vaga não encontrada.").ToHttpResult();
             }
 
@@ -164,10 +260,24 @@ public static class JobEndpoints
         return api;
     }
 
+    // O bearer não é o scheme padrão da aplicação (o site usa cookie): em rota anônima, só a autenticação
+    // explícita do JWT devolve quem está chamando — sem isso o app mobile nunca veria IsSaved nem o dono
+    // da vaga seria reconhecido na contagem de visualizações.
+    private static async Task<(Guid? CandidateId, Guid? AdvertiserId)> ResolveApiIdentityAsync(
+        HttpContext httpContext, ICurrentUserHelper currentUser)
+    {
+        if (currentUser.IsAuthenticated())
+            return (currentUser.GetCandidateId(), currentUser.GetAdvertiserId());
+
+        var auth = await httpContext.AuthenticateAsync(JwtBearerDefaults.AuthenticationScheme);
+        return auth.Succeeded
+            ? (auth.Principal?.GetCandidateId(), auth.Principal?.GetAdvertiserId())
+            : (null, null);
+    }
+
     // Endpoints públicos: o anunciante pode ocultar a faixa salarial — o valor não deve
     // sair na resposta (antes só o site respeitava SalaryDisplay; o app exibia o salário)
-    private static void HideUndisclosedSalary(Core.DTOs.Response.JobResponse job)
-    {
+    private static void HideUndisclosedSalary(Core.DTOs.Response.JobResponse job)    {
         if (job.SalaryDisplay)
             return;
 
@@ -178,7 +288,8 @@ public static class JobEndpoints
     private static ListJobsRequest BuildRequest(
         int? page, int? size, string? searchTerm, string? city, string? state,
         bool? isRemote, string? type, decimal? salaryMin, decimal? salaryMax,
-        string? category, string? sortBy, bool? sortDescending, Guid? advertiserId, Guid? candidateId)
+        string? category, string? sortBy, bool? sortDescending, Guid? advertiserId, Guid? candidateId,
+        string? contractType = null, string? salaryPeriod = null, int? publishedWithinDays = null)
     {
         return new ListJobsRequest
         {
@@ -195,7 +306,10 @@ public static class JobEndpoints
             SortBy = string.IsNullOrWhiteSpace(sortBy) ? "CreatedAt" : sortBy,
             SortDescending = sortDescending ?? true,
             AdvertiserId = advertiserId,
-            CandidateId = candidateId
+            CandidateId = candidateId,
+            ContractType = contractType,
+            SalaryPeriod = salaryPeriod,
+            PublishedWithinDays = publishedWithinDays is > 0 ? publishedWithinDays : null
         };
     }
 }
