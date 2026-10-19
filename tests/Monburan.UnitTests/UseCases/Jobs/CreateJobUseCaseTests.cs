@@ -1,4 +1,5 @@
 using FluentAssertions;
+using Microsoft.Extensions.Logging;
 using NSubstitute;
 using Monburan.Core.DTOs.Request;
 using Monburan.Core.DTOs.Response;
@@ -8,7 +9,9 @@ using Monburan.Core.Interfaces.Repositories;
 using Monburan.Core.Interfaces.Repositories.Base;
 using Monburan.Core.Interfaces.Validations;
 using Monburan.Core.Requests;
+using Monburan.Core.UseCases.JobAlerts;
 using Monburan.Core.UseCases.Jobs;
+using Monburan.Core.UseCases.Notifications;
 using Monburan.Core.UseCases.Subscriptions;
 using Monburan.Core.Validations;
 using Monburan.Core.ValueObjects;
@@ -23,6 +26,7 @@ public class CreateJobUseCaseTests
     private readonly ISubscriptionRepository _mockSubscriptionRepository;
     private readonly IBaseRepository<SubscriptionPlan> _mockPlanRepository;
     private readonly IJobRepository _mockJobQueries;
+    private readonly IJobAlertRepository _mockAlerts;
     private readonly CreateJobUseCase _useCase;
 
     public CreateJobUseCaseTests()
@@ -41,10 +45,21 @@ public class CreateJobUseCaseTests
         _mockJobQueries = Substitute.For<IJobRepository>();
         _mockJobQueries.CountActiveByAdvertiserAsync(Arg.Any<Guid>()).Returns(0);
 
+        // Sem alertas ativos por padrão: a criação da vaga não notifica ninguém
+        _mockAlerts = Substitute.For<IJobAlertRepository>();
+        _mockAlerts.ListActiveAsync().Returns(RequestResult<IEnumerable<JobAlert>>.Success([]));
+
+        var notifyAlerts = new NotifyJobAlertsOnJobCreatedUseCase(
+            _mockAlerts,
+            new CreateNotificationUseCase(Substitute.For<IBaseRepository<Notification>>()),
+            Substitute.For<ILogger<NotifyJobAlertsOnJobCreatedUseCase>>());
+
         _useCase = new CreateJobUseCase(
             _mockRepository,
             _mockValidator,
-            new CheckJobLimitUseCase(_mockSubscriptionRepository, _mockPlanRepository, _mockJobQueries));
+            new CheckJobLimitUseCase(_mockSubscriptionRepository, _mockPlanRepository, _mockJobQueries),
+            notifyAlerts,
+            Substitute.For<ILogger<CreateJobUseCase>>());
     }
 
     [Fact]
@@ -129,6 +144,7 @@ public class CreateJobUseCaseTests
 
         _mockValidator.Received(1).Validate(Arg.Any<Job>());
         await _mockRepository.Received(1).CreateAsync(Arg.Any<Job>());
+        await _mockAlerts.Received(1).ListActiveAsync();
     }
 
     [Fact]
@@ -275,6 +291,31 @@ public class CreateJobUseCaseTests
         result.Data.Should().BeNull();
 
         _mockValidator.Received(1).Validate(Arg.Any<Job>());
+        await _mockRepository.Received(1).CreateAsync(Arg.Any<Job>());
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_WhenTheAlertEvaluationFails_StillCreatesTheJob()
+    {
+        var request = new CreateJobRequest
+        {
+            AdvertiserId = Guid.NewGuid(),
+            Title = "Senior Developer",
+            Description = "Test description",
+            ExpirationDate = DateTime.UtcNow.AddDays(30),
+            Type = "Remote",
+            IsRemote = true
+        };
+
+        _mockValidator.Validate(Arg.Any<Job>())
+            .Returns(ValidationResult.Success());
+        _mockRepository.CreateAsync(Arg.Any<Job>())
+            .Returns(call => RequestResult<Job>.Success(call.Arg<Job>()));
+        _mockAlerts.ListActiveAsync().Returns(RequestResult<IEnumerable<JobAlert>>.WithError("banco fora do ar"));
+
+        var result = await _useCase.ExecuteAsync(request);
+
+        result.Status.Should().Be(EResultStatus.Success);
         await _mockRepository.Received(1).CreateAsync(Arg.Any<Job>());
     }
 }

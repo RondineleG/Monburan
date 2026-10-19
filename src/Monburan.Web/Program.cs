@@ -345,6 +345,7 @@ builder.Services.AddScoped<ListJobAlertsUseCase>();
 builder.Services.AddScoped<CreateJobAlertUseCase>();
 builder.Services.AddScoped<UpdateJobAlertUseCase>();
 builder.Services.AddScoped<DeleteJobAlertUseCase>();
+builder.Services.AddScoped<NotifyJobAlertsOnJobCreatedUseCase>();
 
 // Registrar Use Cases de Applications
 builder.Services.AddScoped<CreateApplicationUseCase>();

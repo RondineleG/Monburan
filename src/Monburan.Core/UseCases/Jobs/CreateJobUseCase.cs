@@ -1,3 +1,5 @@
+using Microsoft.Extensions.Logging;
+
 using Monburan.Core.DTOs.Request;
 using Monburan.Core.DTOs.Response;
 using Monburan.Core.Entities;
@@ -6,6 +8,7 @@ using Monburan.Core.Interfaces.Repositories.Base;
 using Monburan.Core.Interfaces.UseCases;
 using Monburan.Core.Interfaces.Validations;
 using Monburan.Core.Requests;
+using Monburan.Core.UseCases.JobAlerts;
 using Monburan.Core.UseCases.Subscriptions;
 using Monburan.Core.ValueObjects;
 
@@ -16,15 +19,21 @@ public class CreateJobUseCase : IUseCase<CreateJobRequest, JobResponse>
     private readonly IBaseRepository<Job> _jobRepository;
     private readonly IEntityValidator<Job> _jobValidator;
     private readonly CheckJobLimitUseCase _checkJobLimit;
+    private readonly NotifyJobAlertsOnJobCreatedUseCase _notifyAlerts;
+    private readonly ILogger<CreateJobUseCase> _logger;
 
     public CreateJobUseCase(
         IBaseRepository<Job> jobRepository,
         IEntityValidator<Job> jobValidator,
-        CheckJobLimitUseCase checkJobLimit)
+        CheckJobLimitUseCase checkJobLimit,
+        NotifyJobAlertsOnJobCreatedUseCase notifyAlerts,
+        ILogger<CreateJobUseCase> logger)
     {
         _jobRepository = jobRepository;
         _jobValidator = jobValidator;
         _checkJobLimit = checkJobLimit;
+        _notifyAlerts = notifyAlerts;
+        _logger = logger;
     }
 
     public async Task<RequestResult<JobResponse>> ExecuteAsync(CreateJobRequest request)
@@ -96,6 +105,19 @@ public class CreateJobUseCase : IUseCase<CreateJobRequest, JobResponse>
         var createJobResult = await _jobRepository.CreateAsync(job);
         if (createJobResult.Status != EResultStatus.Success)
             return RequestResult<JobResponse>.FromResult(createJobResult);
+
+        // Alertas de vaga (não bloqueante: avaliar alertas nunca impede a publicação)
+        try
+        {
+            var notifyResult = await _notifyAlerts.ExecuteAsync(new NotifyJobAlertsOnJobCreatedRequest(createJobResult.Data!));
+            if (notifyResult.Status != EResultStatus.Success)
+                _logger.LogWarning("Vaga {JobId} criada, mas os alertas não foram avaliados: {Detail}",
+                    createJobResult.Data!.Id.Value, notifyResult.Message);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Falha ao avaliar os alertas da vaga {JobId}", createJobResult.Data!.Id.Value);
+        }
 
         return RequestResult<JobResponse>.Success(JobResponseMapper.ToResponse(createJobResult.Data!));
     }
