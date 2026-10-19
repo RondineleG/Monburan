@@ -1,0 +1,22 @@
+<div class="skeleton-card" aria-hidden="true">
+    <div class="skeleton-card__head">
+        <SkeletonBlock Width="62%" Height="1.05rem" />
+        <SkeletonBlock Width="4.5rem" Height="1.05rem" Radius="var(--r-pill)" />
+    </div>
+    <SkeletonBlock Width="36%" Height="0.85rem" />
+    <SkeletonBlock Width="100%" Height="0.85rem" />
+    <SkeletonBlock Width="84%" Height="0.85rem" />
+    @if (ShowFooter)
+    {
+        <div class="skeleton-card__foot">
+            <SkeletonBlock Width="5.5rem" Height="1.6rem" Radius="var(--r-pill)" />
+            <SkeletonBlock Width="4.25rem" Height="1.6rem" Radius="var(--r-pill)" />
+        </div>
+    }
+</div>
+
+@code {
+    /// <summary>Mostra a linha de etiquetas no rodapé do cartão.</summary>
+    [Parameter]
+    public bool ShowFooter { get; set; } = true;
+}

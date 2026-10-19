@@ -70,7 +70,18 @@
 
         @if (isLoading)
         {
-            <LoadingState Message="Carregando notificações..." />
+            <div class="skeleton-stack" role="status" aria-live="polite" data-testid="loading-state">
+                <span class="visually-hidden">Carregando notificações...</span>
+                <div class="skeleton-grid">
+                    <SkeletonBlock Height="5.5rem" Radius="var(--r-md)" />
+                    <SkeletonBlock Height="5.5rem" Radius="var(--r-md)" />
+                    <SkeletonBlock Height="5.5rem" Radius="var(--r-md)" />
+                </div>
+                <SkeletonBlock Height="3.8rem" />
+                <SkeletonBlock Height="3.8rem" />
+                <SkeletonBlock Height="3.8rem" />
+                <SkeletonBlock Height="3.8rem" />
+            </div>
         }
         else if (loadFailed)
         {

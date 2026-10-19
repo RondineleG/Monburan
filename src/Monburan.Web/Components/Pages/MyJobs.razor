@@ -30,7 +30,19 @@
 
     @if (isLoading)
     {
-        <LoadingState Message="Carregando suas vagas..." />
+        <div class="skeleton-stack" role="status" aria-live="polite" data-testid="loading-state">
+            <span class="visually-hidden">Carregando suas vagas...</span>
+            <div class="skeleton-grid">
+                <SkeletonBlock Height="6.5rem" Radius="var(--r-md)" />
+                <SkeletonBlock Height="6.5rem" Radius="var(--r-md)" />
+                <SkeletonBlock Height="6.5rem" Radius="var(--r-md)" />
+                <SkeletonBlock Height="6.5rem" Radius="var(--r-md)" />
+            </div>
+            <SkeletonBlock Height="2.8rem" />
+            <SkeletonBlock Height="3.2rem" />
+            <SkeletonBlock Height="3.2rem" />
+            <SkeletonBlock Height="3.2rem" />
+        </div>
     }
     else if (loadFailed)
     {
