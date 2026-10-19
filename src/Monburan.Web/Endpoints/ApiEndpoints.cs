@@ -13,6 +13,7 @@ public static class ApiEndpoints
         var api = app.MapGroup("/api/v1").WithTags("API v1");
 
         api.MapJobEndpoints();
+        api.MapJobAlertEndpoints();
         api.MapApplicationEndpoints();
         api.MapCandidateEndpoints();
         api.MapAdvertiserEndpoints();

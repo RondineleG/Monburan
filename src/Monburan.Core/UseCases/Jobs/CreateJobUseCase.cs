@@ -1,3 +1,5 @@
+using Microsoft.Extensions.Logging;
+
 using Monburan.Core.DTOs.Request;
 using Monburan.Core.DTOs.Response;
 using Monburan.Core.Entities;
@@ -6,6 +8,7 @@ using Monburan.Core.Interfaces.Repositories.Base;
 using Monburan.Core.Interfaces.UseCases;
 using Monburan.Core.Interfaces.Validations;
 using Monburan.Core.Requests;
+using Monburan.Core.UseCases.JobAlerts;
 using Monburan.Core.UseCases.Subscriptions;
 using Monburan.Core.ValueObjects;
 
@@ -16,15 +19,21 @@ public class CreateJobUseCase : IUseCase<CreateJobRequest, JobResponse>
     private readonly IBaseRepository<Job> _jobRepository;
     private readonly IEntityValidator<Job> _jobValidator;
     private readonly CheckJobLimitUseCase _checkJobLimit;
+    private readonly NotifyJobAlertsOnJobCreatedUseCase _notifyAlerts;
+    private readonly ILogger<CreateJobUseCase> _logger;
 
     public CreateJobUseCase(
         IBaseRepository<Job> jobRepository,
         IEntityValidator<Job> jobValidator,
-        CheckJobLimitUseCase checkJobLimit)
+        CheckJobLimitUseCase checkJobLimit,
+        NotifyJobAlertsOnJobCreatedUseCase notifyAlerts,
+        ILogger<CreateJobUseCase> logger)
     {
         _jobRepository = jobRepository;
         _jobValidator = jobValidator;
         _checkJobLimit = checkJobLimit;
+        _notifyAlerts = notifyAlerts;
+        _logger = logger;
     }
 
     public async Task<RequestResult<JobResponse>> ExecuteAsync(CreateJobRequest request)
@@ -43,6 +52,7 @@ public class CreateJobUseCase : IUseCase<CreateJobRequest, JobResponse>
             Observations = request.Observations,
             Category = request.Category,
             Tags = request.Tags,
+            ContractType = request.ContractType,
             ExpirationDate = request.ExpirationDate,
             Status = EJobStatus.Active,
             TenantId = "default",
@@ -59,6 +69,7 @@ public class CreateJobUseCase : IUseCase<CreateJobRequest, JobResponse>
             {
                 Min = request.SalaryMin,
                 Max = request.SalaryMax,
+                Period = request.SalaryPeriod,
                 Currency = request.SalaryCurrency,
                 Display = request.SalaryDisplay
             },
@@ -95,37 +106,19 @@ public class CreateJobUseCase : IUseCase<CreateJobRequest, JobResponse>
         if (createJobResult.Status != EResultStatus.Success)
             return RequestResult<JobResponse>.FromResult(createJobResult);
 
-        return RequestResult<JobResponse>.Success(MapToResponse(createJobResult.Data!));
-    }
+        // Alertas de vaga (não bloqueante: avaliar alertas nunca impede a publicação)
+        try
+        {
+            var notifyResult = await _notifyAlerts.ExecuteAsync(new NotifyJobAlertsOnJobCreatedRequest(createJobResult.Data!));
+            if (notifyResult.Status != EResultStatus.Success)
+                _logger.LogWarning("Vaga {JobId} criada, mas os alertas não foram avaliados: {Detail}",
+                    createJobResult.Data!.Id.Value, notifyResult.Message);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Falha ao avaliar os alertas da vaga {JobId}", createJobResult.Data!.Id.Value);
+        }
 
-    private static JobResponse MapToResponse(Job job) => new()
-    {
-        Id = job.Id.Value,
-        Title = job.Title,
-        Description = job.Description,
-        Requirements = job.Requirements,
-        Responsibilities = job.Responsibilities,
-        Benefits = job.Benefits,
-        ApplicationInstructions = job.ApplicationInstructions,
-        NumberOfOpenings = job.NumberOfOpenings,
-        Observations = job.Observations,
-        Category = job.Category,
-        Tags = job.Tags,
-        ExpirationDate = job.ExpirationDate,
-        Status = job.Status.ToString(),
-        City = job.Location?.City,
-        State = job.Location?.State,
-        Country = job.Location?.Country ?? "BR",
-        Type = job.Location?.Type ?? "OnSite",
-        IsRemote = job.Location?.IsRemote ?? false,
-        SalaryMin = job.Salary?.Min,
-        SalaryMax = job.Salary?.Max,
-        SalaryCurrency = job.Salary?.Currency ?? "BRL",
-        SalaryDisplay = job.Salary?.Display ?? true,
-        Views = job.Counters?.Views ?? 0,
-        Applications = job.Counters?.Applications ?? 0,
-        AdvertiserId = job.AdvertiserId.Value,
-        CreatedAt = job.CreatedAt,
-        UpdatedAt = job.UpdatedAt
-    };
+        return RequestResult<JobResponse>.Success(JobResponseMapper.ToResponse(createJobResult.Data!));
+    }
 }

@@ -44,6 +44,49 @@ public static class CandidateEndpoints
         })
         .WithSummary("Atualiza o perfil do candidato autenticado");
 
+        group.MapGet("/me/career-profile", async (
+            ICurrentUserHelper currentUser,
+            GetCareerProfileUseCase useCase,
+            CancellationToken cancellationToken) =>
+        {
+            var candidateId = currentUser.GetCandidateId();
+            if (candidateId is null)
+                return Results.Problem(statusCode: StatusCodes.Status403Forbidden, title: "Perfil de candidato necessário");
+
+            var result = await useCase.ExecuteAsync(candidateId.Value);
+            return result.ToHttpResult();
+        })
+        .WithSummary("Perfil de carreira do candidato (200 com campos nulos quando ainda não existe)");
+
+        group.MapPut("/me/career-profile", async (
+            CareerProfileRequest request,
+            ICurrentUserHelper currentUser,
+            UpsertCareerProfileUseCase useCase,
+            CancellationToken cancellationToken) =>
+        {
+            var candidateId = currentUser.GetCandidateId();
+            if (candidateId is null)
+                return Results.Problem(statusCode: StatusCodes.Status403Forbidden, title: "Perfil de candidato necessário");
+
+            var result = await useCase.ExecuteAsync(new UpsertCareerProfileCommand(candidateId.Value, request));
+            return result.ToHttpResult();
+        })
+        .WithSummary("Cria ou atualiza o perfil de carreira do candidato autenticado");
+
+        group.MapGet("/me/progress", async (
+            ICurrentUserHelper currentUser,
+            GetCandidateProgressUseCase useCase,
+            CancellationToken cancellationToken) =>
+        {
+            var candidateId = currentUser.GetCandidateId();
+            if (candidateId is null)
+                return Results.Problem(statusCode: StatusCodes.Status403Forbidden, title: "Perfil de candidato necessário");
+
+            var result = await useCase.ExecuteAsync(candidateId.Value);
+            return result.ToHttpResult();
+        })
+        .WithSummary("Progresso do candidato: completude, candidaturas por situação, vagas salvas e alertas ativos");
+
         return api;
     }
 

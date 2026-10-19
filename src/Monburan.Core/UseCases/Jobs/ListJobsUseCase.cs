@@ -3,28 +3,30 @@ using Monburan.Core.DTOs.Response;
 using Monburan.Core.Entities;
 using Monburan.Core.Enums;
 using Monburan.Core.Interfaces.Repositories;
-using Monburan.Core.Interfaces.Repositories.Base;
 using Monburan.Core.Interfaces.UseCases;
 using Monburan.Core.Requests;
-using Monburan.Core.Services;
 
 namespace Monburan.Core.UseCases.Jobs;
 
 public class ListJobsUseCase : IUseCase<ListJobsRequest, ListJobsResponse>
 {
     private readonly IJobRepository _jobRepository;
+    private readonly ISavedJobRepository _savedJobs;
 
-    public ListJobsUseCase(IJobRepository jobRepository)
+    public ListJobsUseCase(IJobRepository jobRepository, ISavedJobRepository savedJobs)
     {
         _jobRepository = jobRepository;
+        _savedJobs = savedJobs;
     }
 
     public async Task<RequestResult<ListJobsResponse>> ExecuteAsync(ListJobsRequest request)
     {
         var pagedResult = await _jobRepository.GetAllPagedAsync(request.Page, request.Size);
 
-        var jobs = pagedResult.Data
-            .Select(MapToResponse)
+        var pageJobs = pagedResult.Data.ToList();
+        var savedIds = await GetSavedJobIdsAsync(request.CandidateId, pageJobs);
+        var jobs = pageJobs
+            .Select(job => JobResponseMapper.ToResponse(job, savedIds.Contains(job.Id.Value)))
             .ToList();
 
         var response = new ListJobsResponse
@@ -38,40 +40,17 @@ public class ListJobsUseCase : IUseCase<ListJobsRequest, ListJobsResponse>
         return RequestResult<ListJobsResponse>.Success(response);
     }
 
-    private static JobResponse MapToResponse(Job job)
+    // Uma consulta em lote por página; falha na marcação não derruba a listagem (as vagas só perdem o coração preenchido)
+    private async Task<IReadOnlyCollection<Guid>> GetSavedJobIdsAsync(Guid? candidateId, IEnumerable<Job> jobs)
     {
-        return new JobResponse
-        {
-            Id = job.Id.Value,
-            Title = job.Title,
-            Description = job.Description,
-            Requirements = job.Requirements,
-            Responsibilities = job.Responsibilities,
-            Benefits = job.Benefits,
-            ApplicationInstructions = job.ApplicationInstructions,
-            NumberOfOpenings = job.NumberOfOpenings,
-            Observations = job.Observations,
-            Category = job.Category,
-            Tags = job.Tags,
-            ExpirationDate = job.ExpirationDate,
-            Status = job.Status.ToString(),
-            ModerationReason = JobModeration.VisibleReason(job),
-            City = job.Location?.City,
-            State = job.Location?.State,
-            Country = job.Location?.Country ?? "BR",
-            Type = job.Location?.Type ?? "OnSite",
-            IsRemote = job.Location?.IsRemote ?? false,
-            SalaryMin = job.Salary?.Min,
-            SalaryMax = job.Salary?.Max,
-            SalaryCurrency = job.Salary?.Currency ?? "BRL",
-            SalaryDisplay = job.Salary?.Display ?? true,
-            Views = job.Counters?.Views ?? 0,
-            Applications = job.Counters?.Applications ?? 0,
-            AdvertiserId = job.AdvertiserId.Value,
-            AdvertiserName = job.Advertiser?.Name,
-            AdvertiserLogoUrl = job.Advertiser?.LogoUrl,
-            CreatedAt = job.CreatedAt,
-            UpdatedAt = job.UpdatedAt
-        };
+        if (!candidateId.HasValue)
+            return [];
+
+        var jobIds = jobs.Select(job => job.Id.Value).ToList();
+        if (jobIds.Count == 0)
+            return [];
+
+        var saved = await _savedJobs.ListSavedJobIdsAsync(candidateId.Value, jobIds);
+        return saved.Status == EResultStatus.Success && saved.Data is not null ? saved.Data : [];
     }
 }

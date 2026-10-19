@@ -23,6 +23,7 @@ using Monburan.Core.Interfaces.UseCases;
 using Monburan.Core.Interfaces.Validations;
 using Monburan.Core.UseCases.Ai;
 using Monburan.Core.UseCases.Jobs;
+using Monburan.Core.UseCases.JobAlerts;
 using Monburan.Core.UseCases.Applications;
 using Monburan.Core.UseCases.Candidates;
 using Monburan.Core.UseCases.Advertisers;
@@ -299,8 +300,12 @@ builder.Services.AddScoped<IBaseRepository<Advertiser>, AdvertiserRepository>();
 builder.Services.AddScoped<IAdvertiserRepository, AdvertiserRepository>();
 builder.Services.AddScoped<IBaseRepository<Application>, ApplicationRepository>();
 builder.Services.AddScoped<IApplicationRepository, ApplicationRepository>();
+builder.Services.AddScoped<IApplicationStatusHistoryRepository, ApplicationStatusHistoryRepository>();
 builder.Services.AddScoped<IBaseRepository<Resume>, ResumeRepository>();
 builder.Services.AddScoped<IResumeRepository, ResumeRepository>();
+builder.Services.AddScoped<ISavedJobRepository, SavedJobRepository>();
+builder.Services.AddScoped<IJobAlertRepository, JobAlertRepository>();
+builder.Services.AddScoped<ICareerProfileRepository, CareerProfileRepository>();
 builder.Services.AddScoped<IAiProviderRepository, AiProviderRepository>();
 builder.Services.AddScoped<IAdminAuditLog, AdminAuditLog>();
 builder.Services.AddScoped<Monburan.Core.UseCases.Admin.AdminListJobsUseCase>();
@@ -331,12 +336,25 @@ builder.Services.AddScoped<UpdateJobUseCase>();
 builder.Services.AddScoped<DeleteJobUseCase>();
 builder.Services.AddScoped<SearchJobsUseCase>();
 builder.Services.AddScoped<ChangeJobStatusUseCase>();
+builder.Services.AddScoped<SaveJobUseCase>();
+builder.Services.AddScoped<UnsaveJobUseCase>();
+builder.Services.AddScoped<ListSavedJobsUseCase>();
+builder.Services.AddScoped<ListRecommendedJobsUseCase>();
+builder.Services.AddScoped<RegisterJobViewUseCase>();
+
+// Registrar Use Cases de Alertas de Vaga
+builder.Services.AddScoped<ListJobAlertsUseCase>();
+builder.Services.AddScoped<CreateJobAlertUseCase>();
+builder.Services.AddScoped<UpdateJobAlertUseCase>();
+builder.Services.AddScoped<DeleteJobAlertUseCase>();
+builder.Services.AddScoped<NotifyJobAlertsOnJobCreatedUseCase>();
 
 // Registrar Use Cases de Applications
 builder.Services.AddScoped<CreateApplicationUseCase>();
 builder.Services.AddScoped<ListApplicationsByJobUseCase>();
 builder.Services.AddScoped<ListApplicationsByCandidateUseCase>();
 builder.Services.AddScoped<UpdateApplicationStatusUseCase>();
+builder.Services.AddScoped<ListApplicationHistoryUseCase>();
 
 // Registrar Use Cases de Notifications
 builder.Services.AddScoped<NotifyOnApplicationCreatedUseCase>();
@@ -349,6 +367,9 @@ builder.Services.AddScoped<Monburan.Core.UseCases.Candidates.ListCandidatesUseCa
 builder.Services.AddScoped<Monburan.Core.UseCases.Candidates.GetCandidateByIdUseCase>();
 builder.Services.AddScoped<Monburan.Core.UseCases.Candidates.DeleteCandidateUseCase>();
 builder.Services.AddScoped<Monburan.Core.UseCases.Candidates.UpdateCandidateUseCase>();
+builder.Services.AddScoped<GetCareerProfileUseCase>();
+builder.Services.AddScoped<UpsertCareerProfileUseCase>();
+builder.Services.AddScoped<GetCandidateProgressUseCase>();
 
 // Registrar Use Cases de Advertisers
 builder.Services.AddScoped<CreateAdvertiserUseCase>();
@@ -486,6 +507,7 @@ app.MapAdditionalIdentityEndpoints();
 
 // API REST consumida pelo app mobile
 app.MapApiEndpoints();
+app.MapSeoEndpoints();
 
 // Health Check endpoint
 app.MapHealthChecks("/health");

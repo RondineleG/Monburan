@@ -21,7 +21,10 @@ public interface IJobRepository : IBaseRepository<Job>
         int size = 10,
         string? type = null,
         string? sortBy = null,
-        bool? sortDescending = null);
+        bool? sortDescending = null,
+        EContractType? contractType = null,
+        ESalaryPeriod? salaryPeriod = null,
+        int? publishedWithinDays = null);
 
     Task<PagedResponse<Job>> GetAllPagedAsync(int page, int size);
 
@@ -36,4 +39,10 @@ public interface IJobRepository : IBaseRepository<Job>
 
     /// <summary>Quantidade de vagas ativas (não excluídas) do anunciante — base do limite do plano.</summary>
     Task<int> CountActiveByAdvertiserAsync(Guid advertiserId);
+
+    /// <summary>Vagas ativas e não expiradas, mais recentes primeiro — candidatas às recomendações.</summary>
+    Task<RequestResult<IEnumerable<Job>>> ListActiveForRecommendationsAsync();
+
+    /// <summary>Incrementa o contador de visualizações de forma atômica. <c>false</c> quando a vaga não existe.</summary>
+    Task<RequestResult<bool>> IncrementViewsAsync(Guid jobId);
 }

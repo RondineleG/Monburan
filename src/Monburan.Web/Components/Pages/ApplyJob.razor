@@ -141,7 +141,7 @@
 
     protected override async Task OnInitializedAsync()
     {
-        var jobResult = await GetJobByIdUseCase.ExecuteAsync(JobId);
+        var jobResult = await GetJobByIdUseCase.ExecuteAsync(JobId, CurrentUserHelper.GetCandidateId());
         if (jobResult.Status == EResultStatus.Success && jobResult.Data is not null)
         {
             jobTitle = jobResult.Data.Title;

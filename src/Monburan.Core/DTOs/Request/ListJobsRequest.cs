@@ -15,4 +15,16 @@ public class ListJobsRequest
     public string? SortBy { get; set; } = "CreatedAt";
     public bool SortDescending { get; set; } = true;
     public Guid? AdvertiserId { get; set; }
+
+    /// <summary>Candidato autenticado (quando houver): preenche <c>IsSaved</c> nas vagas retornadas.</summary>
+    public Guid? CandidateId { get; set; }
+
+    /// <summary>Nome de <c>EContractType</c> ("Clt", "Pj"...). Valor desconhecido é ignorado.</summary>
+    public string? ContractType { get; set; }
+
+    /// <summary>Nome de <c>ESalaryPeriod</c> ("Hour", "Month"...). Valor desconhecido é ignorado.</summary>
+    public string? SalaryPeriod { get; set; }
+
+    /// <summary>Vagas publicadas nos últimos N dias; nulo/zero não filtra.</summary>
+    public int? PublishedWithinDays { get; set; }
 }

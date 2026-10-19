@@ -309,7 +309,7 @@
         isCandidate = CurrentUserHelper.GetCandidateId().HasValue;
         var advertiserId = CurrentUserHelper.GetAdvertiserId();
 
-        var result = await GetJobByIdUseCase.ExecuteAsync(JobId);
+        var result = await GetJobByIdUseCase.ExecuteAsync(JobId, CurrentUserHelper.GetCandidateId());
         if (result.Status == EResultStatus.Success && result.Data is { } found)
         {
             isOwner = advertiserId.HasValue && found.AdvertiserId == advertiserId.Value;

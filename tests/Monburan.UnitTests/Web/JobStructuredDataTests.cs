@@ -87,9 +87,61 @@ public class JobStructuredDataTests
     {
         var data = Parse(JobStructuredData.Build(Job(), PageUrl));
 
-        // o cadastro não guarda o período do salário nem o tipo de contratação
+        // sem tipo de contratação nem período do salário no cadastro, o JSON-LD omite os campos
         data.TryGetProperty("baseSalary", out _).Should().BeFalse();
         data.TryGetProperty("employmentType", out _).Should().BeFalse();
+    }
+
+    [Theory]
+    [InlineData("Clt", "FULL_TIME")]
+    [InlineData("Pj", "CONTRACTOR")]
+    [InlineData("Internship", "INTERN")]
+    [InlineData("Apprenticeship", "INTERN")]
+    [InlineData("Temporary", "TEMPORARY")]
+    [InlineData("Freelance", "CONTRACTOR")]
+    public void Build_MapsTheContractTypeToEmploymentType(string contractType, string employmentType)
+    {
+        var data = Parse(JobStructuredData.Build(Job(job => job.ContractType = contractType), PageUrl));
+
+        data.GetProperty("employmentType").GetString().Should().Be(employmentType);
+    }
+
+    [Theory]
+    [InlineData("Hour", "HOUR")]
+    [InlineData("Day", "DAY")]
+    [InlineData("Week", "WEEK")]
+    [InlineData("Month", "MONTH")]
+    [InlineData("Year", "YEAR")]
+    public void Build_IncludesBaseSalaryWithTheUnitText_WhenThePeriodIsInformed(string salaryPeriod, string unitText)
+    {
+        var data = Parse(JobStructuredData.Build(Job(job => job.SalaryPeriod = salaryPeriod), PageUrl));
+
+        var value = data.GetProperty("baseSalary");
+        value.GetProperty("currency").GetString().Should().Be("BRL");
+        value.GetProperty("value").GetProperty("minValue").GetDecimal().Should().Be(8000);
+        value.GetProperty("value").GetProperty("maxValue").GetDecimal().Should().Be(12000);
+        value.GetProperty("value").GetProperty("unitText").GetString().Should().Be(unitText);
+    }
+
+    [Fact]
+    public void Build_OmitsBaseSalary_WhenThereIsNoSalaryValue()
+    {
+        var data = Parse(JobStructuredData.Build(Job(job =>
+        {
+            job.SalaryPeriod = "Month";
+            job.SalaryMin = null;
+            job.SalaryMax = null;
+        }), PageUrl));
+
+        data.TryGetProperty("baseSalary", out _).Should().BeFalse();
+    }
+
+    [Fact]
+    public void Build_OmitsBaseSalary_WhenThePeriodIsNotInformed()
+    {
+        var data = Parse(JobStructuredData.Build(Job(), PageUrl));
+
+        data.TryGetProperty("baseSalary", out _).Should().BeFalse();
     }
 
     [Fact]
