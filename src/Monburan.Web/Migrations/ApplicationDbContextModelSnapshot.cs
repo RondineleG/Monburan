@@ -17,7 +17,7 @@ namespace Monburan.Web.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "10.0.12")
+                .HasAnnotation("ProductVersion", "10.0.13")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -634,7 +634,8 @@ namespace Monburan.Web.Migrations
 
                     b.HasIndex("CandidateId", "JobId")
                         .IsUnique()
-                        .HasDatabaseName("IX_Applications_CandidateId_JobId");
+                        .HasDatabaseName("IX_Applications_CandidateId_JobId")
+                        .HasFilter("\"IsDeleted\" = false");
 
                     b.HasIndex("JobId", "Status")
                         .HasDatabaseName("IX_Applications_JobId_Status");
