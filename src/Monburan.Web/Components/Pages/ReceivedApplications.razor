@@ -6,12 +6,14 @@
 @using Monburan.Core.DTOs.Response
 @using Monburan.Core.Enums
 @using Monburan.Core.UseCases.Applications
+@using Monburan.Core.UseCases.Jobs
 @using Monburan.Web.Services
 @inject ListApplicationsByJobUseCase ListApplicationsByJobUseCase
-@inject UpdateApplicationStatusUseCase UpdateApplicationStatusUseCase
+@inject SearchJobsUseCase SearchJobsUseCase
 @inject CurrentUserHelper CurrentUserHelper
 @inject NavigationManager Navigation
 @inject IToastService Toast
+@inject IJSRuntime JS
 @inject ILogger<ReceivedApplications> Logger
 
 <PageTitle>Candidaturas Recebidas - Monburan</PageTitle>
@@ -59,84 +61,129 @@
                     Message="Tivemos um problema ao buscar as candidaturas recebidas. Tente novamente em instantes."
                     OnRetry="LoadAsync" />
     }
-    else if (applications.Count > 0)
-    {
-        <div class="card received-applications-card">
-            <div class="card-body p-0">
-                <div class="table-responsive">
-                    <table class="table table-hover">
-                        <thead>
-                            <tr>
-                                <th>Candidato</th>
-                                <th>Vaga</th>
-                                <th>Situação</th>
-                                <th>Data</th>
-                                <th>Ações</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach (var app in applications)
-                            {
-                                <tr data-testid="received-application-row">
-                                    <td>
-                                        <strong>@app.CandidateName</strong>
-                                        <br />
-                                        <small class="text-muted">@app.CandidateEmail</small>
-                                        @if (!string.IsNullOrWhiteSpace(app.Notes))
-                                        {
-                                            <details class="application-notes">
-                                                <summary>Mensagem do candidato</summary>
-                                                <p>@app.Notes</p>
-                                            </details>
-                                        }
-                                        @if (app.ResumeId.HasValue)
-                                        {
-                                            <a class="d-block small" href="@($"/resumes/{app.ResumeId}")">Ver currículo enviado</a>
-                                        }
-                                        else
-                                        {
-                                            <small class="d-block text-muted">Sem currículo anexado</small>
-                                        }
-                                    </td>
-                                    <td>@app.JobTitle</td>
-                                    <td>
-                                        <span class="badge @UiLabels.ApplicationStatusBadge(app.Status)">@UiLabels.ApplicationStatus(app.Status)</span>
-                                    </td>
-                                    <td>@UiLabels.FormatMoment(app.AppliedAt)</td>
-                                    <td>
-                                        <div class="d-flex flex-wrap gap-1">
-                                            @if (app.Status != "Selected")
-                                            {
-                                                <button class="btn btn-sm btn-success" @onclick="() => SelectAsync(app)" disabled="@(updatingId == app.Id)" data-testid="application-select">
-                                                    Selecionar
-                                                </button>
-                                            }
-                                            @if (app.Status != "Rejected")
-                                            {
-                                                <button class="btn btn-sm btn-danger" @onclick="() => RejectAsync(app)" disabled="@(updatingId == app.Id)" data-testid="application-reject">
-                                                    Rejeitar
-                                                </button>
-                                            }
-                                        </div>
-                                    </td>
-                                </tr>
-                            }
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-    }
     else
     {
-        <EmptyState Icon="◎"
-                    Title="Nenhuma candidatura recebida ainda"
-                    Message="Quando alguém se candidatar às suas vagas, os perfis aparecem aqui."
-                    TestId="received-applications-empty">
-            <a class="btn btn-primary" href="/my-jobs">Ver minhas vagas</a>
-        </EmptyState>
+        <form class="received-filters" method="get" action="@FilterAction" data-clean-query data-testid="applications-filters">
+            <label class="received-filter">
+                <span class="visually-hidden">Vaga</span>
+                <select name="vaga" data-autosubmit data-default="" data-testid="filter-job">
+                    <option value="">Todas as vagas</option>
+                    @foreach (var job in advertiserJobs)
+                    {
+                        <option value="@job.Id" selected="@(FilterJobId == job.Id)">@job.Title</option>
+                    }
+                </select>
+            </label>
+            <label class="received-filter">
+                <span class="visually-hidden">Situação</span>
+                <select name="situacao" data-autosubmit data-default="" data-testid="filter-status">
+                    <option value="">Todas as situações</option>
+                    <option value="sent" selected="@(FilterStatus == "sent")">Enviada</option>
+                    <option value="viewed" selected="@(FilterStatus == "viewed")">Visualizada</option>
+                    <option value="selected" selected="@(FilterStatus == "selected")">Selecionada</option>
+                    <option value="rejected" selected="@(FilterStatus == "rejected")">Rejeitada</option>
+                    <option value="archived" selected="@(FilterStatus == "archived")">Arquivada</option>
+                </select>
+            </label>
+            <label class="received-filter">
+                <span class="visually-hidden">Período</span>
+                <select name="periodo" data-autosubmit data-default="" data-testid="filter-period">
+                    <option value="">Todo o período</option>
+                    <option value="7" selected="@(FilterPeriod == "7")">Últimos 7 dias</option>
+                    <option value="30" selected="@(FilterPeriod == "30")">Últimos 30 dias</option>
+                </select>
+            </label>
+            <label class="received-filter received-filter--search">
+                <span class="visually-hidden">Buscar por nome</span>
+                <input type="search" name="busca" value="@FilterSearch" maxlength="80" placeholder="Buscar por nome" data-testid="filter-search" />
+            </label>
+            <button type="submit" class="btn btn-outline-primary btn-sm">Filtrar</button>
+            @if (isFiltered)
+            {
+                <a class="chip-clear" href="@FilterAction" data-enhance-nav="false" data-testid="filters-clear">
+                    <Icon Name="rotate-ccw" Size="14" />Limpar filtros
+                </a>
+            }
+        </form>
+
+        @if (filteredApplications.Count > 0)
+        {
+            <div class="card received-applications-card">
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover table-cards">
+                            <thead>
+                                <tr>
+                                    <th>Candidato</th>
+                                    <th>Vaga</th>
+                                    <th>Situação</th>
+                                    <th>Data</th>
+                                    <th>Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var app in filteredApplications)
+                                {
+                                    <tr data-testid="received-application-row">
+                                        <td data-label="Candidato">
+                                            <strong>@app.CandidateName</strong>
+                                            <br />
+                                            <small class="text-muted">@app.CandidateEmail</small>
+                                            @if (app.ResumeId.HasValue)
+                                            {
+                                                <a class="d-block small" href="@($"/resumes/{app.ResumeId}")">Ver currículo enviado</a>
+                                            }
+                                            else
+                                            {
+                                                <small class="d-block text-muted">Sem currículo anexado</small>
+                                            }
+                                        </td>
+                                        <td data-label="Vaga">@app.JobTitle</td>
+                                        <td data-label="Situação">
+                                            <span class="badge @UiLabels.ApplicationStatusBadge(app.Status)">@UiLabels.ApplicationStatus(app.Status)</span>
+                                        </td>
+                                        <td data-label="Data">@UiLabels.FormatMoment(app.AppliedAt)</td>
+                                        <td data-label="Ações">
+                                            <button type="button"
+                                                    id="application-open-@app.Id"
+                                                    class="btn btn-outline-primary btn-sm"
+                                                    data-testid="application-open"
+                                                    @onclick="() => OpenDrawerAsync(app)">
+                                                Ver candidato
+                                            </button>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        }
+        else if (applications.Count > 0)
+        {
+            <EmptyState Icon="⌕"
+                        Title="Nenhuma candidatura com estes filtros"
+                        Message="Ajuste a vaga, a situação ou o período para ver outras candidaturas."
+                        TestId="received-applications-filtered-empty">
+                <a class="btn btn-outline-primary" href="@FilterAction">Limpar filtros</a>
+            </EmptyState>
+        }
+        else
+        {
+            <EmptyState Icon="◎"
+                        Title="Nenhuma candidatura recebida ainda"
+                        Message="Quando alguém se candidatar às suas vagas, os perfis aparecem aqui."
+                        TestId="received-applications-empty">
+                <a class="btn btn-primary" href="/my-jobs">Ver minhas vagas</a>
+            </EmptyState>
+        }
     }
 </div>
+
+<ApplicantDrawer Application="selected"
+                 OnClose="CloseDrawerAsync"
+                 OnStatusChanged="OnStatusChangedAsync" />
 
 <ConfirmDialog @ref="confirmDialog" />
 
@@ -144,14 +191,38 @@
     [Parameter]
     public Guid? JobId { get; set; }
 
+    [SupplyParameterFromQuery(Name = "vaga")]
+    public string? JobQuery { get; set; }
+
+    [SupplyParameterFromQuery(Name = "situacao")]
+    public string? StatusQuery { get; set; }
+
+    [SupplyParameterFromQuery(Name = "periodo")]
+    public string? PeriodQuery { get; set; }
+
+    [SupplyParameterFromQuery(Name = "busca")]
+    public string? SearchQuery { get; set; }
+
     private List<ApplicationResponse> applications = [];
+    private List<ApplicationResponse> filteredApplications = [];
+    private List<JobResponse> advertiserJobs = [];
+    private ApplicationResponse? selected;
     private bool isLoading = true;
     private bool loadFailed;
     private bool isAdvertiser;
     private Guid? advertiserId;
-    private Guid? updatingId;
     private string? filteredJobTitle;
+    private Guid? lastOpenedId;
     private ConfirmDialog confirmDialog = default!;
+
+    private Guid? FilterJobId => JobId ?? (Guid.TryParse(JobQuery, out var id) ? id : null);
+    private string FilterStatus => StatusQuery ?? string.Empty;
+    private string FilterPeriod => PeriodQuery ?? string.Empty;
+    private string FilterSearch => SearchQuery ?? string.Empty;
+
+    private bool isFiltered => FilterJobId.HasValue || FilterStatus.Length > 0 || FilterPeriod.Length > 0 || FilterSearch.Length > 0;
+
+    private string FilterAction => JobId.HasValue ? $"/jobs/{JobId}/applications" : "/received-applications";
 
     protected override async Task OnParametersSetAsync()
     {
@@ -170,13 +241,15 @@
         var result = await ListApplicationsByJobUseCase.ExecuteAsync(new ListApplicationsByJobRequest
         {
             AdvertiserId = advertiserId!.Value,
-            JobId = JobId
+            JobId = FilterJobId
         });
 
         if (result.Status == EResultStatus.Success)
         {
             applications = result.Data?.ToList() ?? [];
             filteredJobTitle = JobId.HasValue ? applications.FirstOrDefault()?.JobTitle : null;
+            await LoadJobsAsync();
+            ApplyFilters();
         }
         else
         {
@@ -185,48 +258,76 @@
         }
     }
 
-    private Task SelectAsync(ApplicationResponse application) =>
-        UpdateStatusAsync(application, EApplicationStatus.Selected);
-
-    private async Task RejectAsync(ApplicationResponse application)
+    private async Task LoadJobsAsync()
     {
-        var confirmed = await confirmDialog.ShowAsync(new ConfirmOptions
+        var result = await SearchJobsUseCase.ExecuteAsync(new ListJobsRequest
         {
-            Title = "Rejeitar candidatura?",
-            Message = $"{application.CandidateName} será avisado(a) de que não seguiu no processo da vaga \"{application.JobTitle}\".",
-            ConfirmText = "Rejeitar",
-            Destructive = true
+            Page = 1,
+            Size = 100,
+            AdvertiserId = advertiserId
         });
-
-        if (confirmed)
-            await UpdateStatusAsync(application, EApplicationStatus.Rejected);
+        advertiserJobs = result.Status == EResultStatus.Success
+            ? result.Data?.Jobs.OrderBy(job => job.Title).ToList() ?? []
+            : [];
     }
 
-    private async Task UpdateStatusAsync(ApplicationResponse application, EApplicationStatus newStatus)
+    private void ApplyFilters()
     {
-        if (!advertiserId.HasValue || updatingId.HasValue)
-            return;
+        IEnumerable<ApplicationResponse> query = applications;
 
-        updatingId = application.Id;
-        var result = await UpdateApplicationStatusUseCase.ExecuteAsync(new UpdateApplicationStatusRequest
-        {
-            ApplicationId = application.Id,
-            AdvertiserId = advertiserId.Value,
-            NewStatus = newStatus
-        });
-        updatingId = null;
+        if (FilterStatus.Length > 0)
+            query = query.Where(app => string.Equals(app.Status, StatusValue(FilterStatus), StringComparison.OrdinalIgnoreCase));
 
-        if (result.Status == EResultStatus.Success)
+        if (FilterPeriod is "7" or "30")
         {
-            application.Status = newStatus.ToString();
-            Toast.ShowSuccess(newStatus == EApplicationStatus.Selected
-                ? $"{application.CandidateName} foi selecionado(a). O candidato será avisado."
-                : $"Candidatura de {application.CandidateName} marcada como não selecionada.");
+            var limit = DateTime.UtcNow.AddDays(FilterPeriod == "7" ? -7 : -30);
+            query = query.Where(app => (app.AppliedAt ?? app.CreatedAt) >= limit);
         }
-        else
+
+        if (FilterSearch.Length > 0)
+            query = query.Where(app => app.CandidateName?.Contains(FilterSearch.Trim(), StringComparison.OrdinalIgnoreCase) == true);
+
+        filteredApplications = query.ToList();
+    }
+
+    private static string StatusValue(string value) => value switch
+    {
+        "sent" => "Sent",
+        "viewed" => "Viewed",
+        "selected" => "Selected",
+        "rejected" => "Rejected",
+        "archived" => "Archived",
+        _ => value
+    };
+
+    private async Task OpenDrawerAsync(ApplicationResponse application)
+    {
+        lastOpenedId = application.Id;
+        selected = application;
+        await Task.CompletedTask;
+    }
+
+    private async Task CloseDrawerAsync()
+    {
+        selected = null;
+
+        // O foco volta para quem abriu a gaveta
+        if (lastOpenedId is { } id)
         {
-            Logger.LogFailure(result, "Atualizar situação da candidatura");
-            Toast.ShowError(ResultMessages.ToUserMessage(result, "Não foi possível atualizar a candidatura. Tente novamente."));
+            try
+            {
+                await JS.InvokeVoidAsync("monburanFocusById", $"application-open-{id}");
+            }
+            catch (JSException)
+            {
+                // Sem JS o foco volta sozinho para o início do documento
+            }
         }
+    }
+
+    private Task OnStatusChangedAsync(ApplicationResponse application)
+    {
+        ApplyFilters();
+        return Task.CompletedTask;
     }
 }

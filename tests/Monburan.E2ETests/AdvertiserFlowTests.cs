@@ -61,9 +61,12 @@ public class AdvertiserFlowTests : E2ETestBase
         var jobTitle = $"Vaga E2E {DateTime.Now:HHmmss}";
 
         await Page.GetByTestId("job-title-input").FillAsync(jobTitle);
+        await Page.GetByTestId("job-mode-remote").CheckAsync();
+        await Page.GetByTestId("job-wizard-continue").ClickAsync();
         await Page.GetByTestId("job-description-input")
             .FillAsync("Vaga criada por teste E2E automatizado.");
-        await Page.GetByTestId("job-type-select").SelectOptionAsync("Remote");
+        await Page.GetByTestId("job-wizard-continue").ClickAsync();
+        await Page.GetByTestId("job-wizard-continue").ClickAsync();
 
         var submit = Page.GetByTestId("job-create-submit");
         Assert.True(await submit.IsEnabledAsync(),

@@ -155,3 +155,24 @@ window.monburanFocusById = function (id) {
     var el = document.getElementById(id);
     if (el && typeof el.focus === 'function') el.focus();
 };
+
+// ---- Armadilha de foco para gavetas e diálogos -----------------------------------------------------
+// O Blazor controla abrir/fechar; daqui sai só o Tab preso dentro do painel enquanto ele existir.
+window.monburanTrapFocus = function (container) {
+    if (!container || !container.addEventListener) return;
+    container.addEventListener('keydown', function (e) {
+        if (e.key !== 'Tab') return;
+        var items = container.querySelectorAll(
+            'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])');
+        if (!items.length) return;
+        var first = items[0];
+        var last = items[items.length - 1];
+        if (e.shiftKey && (document.activeElement === first || !container.contains(document.activeElement))) {
+            e.preventDefault();
+            last.focus();
+        } else if (!e.shiftKey && (document.activeElement === last || !container.contains(document.activeElement))) {
+            e.preventDefault();
+            first.focus();
+        }
+    });
+};
