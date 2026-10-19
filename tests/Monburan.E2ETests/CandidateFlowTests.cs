@@ -80,12 +80,15 @@ public class CandidateFlowTests : E2ETestBase
             new PageWaitForFunctionOptions { Timeout = 30000 });
         await WaitForBlazorAsync();
 
+        await Page.GetByTestId("application-notes")
+            .FillAsync("Candidatura E2E automatizada");
+        await Page.GetByTestId("application-continue").ClickAsync();
+        await Page.GetByTestId("application-confirm").CheckAsync();
+        await WaitForBlazorAsync();
+
         var submit = Page.GetByTestId("application-submit");
         Assert.True(await submit.IsEnabledAsync(),
             "Botão de candidatura deveria estar habilitado");
-
-        await Page.GetByTestId("application-notes")
-            .FillAsync("Candidatura E2E automatizada");
         await submit.ClickAsync();
         await Page.GetByTestId("application-feedback").WaitForAsync(new LocatorWaitForOptions
         {
@@ -110,6 +113,9 @@ public class CandidateFlowTests : E2ETestBase
         await Page.GetByTestId("job-card").First.ClickAsync();
         await Page.GetByTestId("job-apply").ClickAsync();
         await Page.WaitForFunctionAsync("() => location.pathname.startsWith('/apply/')");
+        await WaitForBlazorAsync();
+        await Page.GetByTestId("application-continue").ClickAsync();
+        await Page.GetByTestId("application-confirm").CheckAsync();
         await WaitForBlazorAsync();
         await Page.GetByTestId("application-submit").ClickAsync();
         await Page.GetByTestId("application-feedback").WaitForAsync();

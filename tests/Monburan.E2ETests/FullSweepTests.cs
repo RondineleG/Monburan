@@ -247,9 +247,13 @@ public class FullSweepTests : E2ETestBase
         await Page.WaitForFunctionAsync("() => location.pathname.startsWith('/apply/')");
         await WaitForBlazorAsync();
 
+        await Page.GetByTestId("application-notes").FillAsync("Candidatura da varredura real");
+        await Page.GetByTestId("application-continue").ClickAsync();
+        await Page.GetByTestId("application-confirm").CheckAsync();
+        await WaitForBlazorAsync();
+
         var submit = Page.GetByTestId("application-submit");
         Assert.True(await submit.IsEnabledAsync(), "Botão de candidatura deveria estar habilitado");
-        await Page.GetByTestId("application-notes").FillAsync("Candidatura da varredura real");
         await submit.ClickAsync();
 
         await Page.GetByTestId("application-feedback")
