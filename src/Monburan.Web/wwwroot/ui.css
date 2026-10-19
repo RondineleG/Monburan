@@ -1250,3 +1250,13 @@ body:has(.confirm-backdrop) { overflow: hidden; }
     from { background-position: 100% 0; }
     to { background-position: 0 0; }
 }
+
+/* ---- .table-cards: tabela no desktop, cartões no celular (célula traz o rótulo em data-label) ---- */
+.table-cards thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+@media (max-width: 767.98px) {
+    .table-cards, .table-cards tbody, .table-cards tr, .table-cards td { display: block; width: 100%; }
+    .table-cards tr { margin-bottom: 0.85rem; padding: 0.85rem 1rem; background: var(--bg-card, #fff); border: 1px solid var(--border, rgb(0 0 0 / 12%)); border-radius: var(--r-md, 0.75rem); }
+    .table-cards td { display: flex; justify-content: space-between; gap: 1rem; padding: 0.35rem 0; border: 0; }
+    .table-cards td::before { content: attr(data-label); color: var(--tx-muted, var(--tx-2, #555)); font-family: var(--f-mono); font-size: var(--fs-xs, 0.75rem); text-transform: uppercase; letter-spacing: 0.05em; }
+    .table-cards td[data-label="Ações"] { justify-content: flex-start; }
+}
