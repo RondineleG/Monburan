@@ -1,0 +1,32 @@
+@using Monburan.Web.Services
+
+@* Linha do tempo de etapas da candidatura, da mais antiga para a mais nova. *@
+@if (Steps.Count == 0)
+{
+    <p class="application-timeline__empty">Ainda não há etapas registradas para esta candidatura.</p>
+}
+else
+{
+    <ol class="application-timeline" aria-label="Etapas da candidatura">
+        @foreach (var step in Steps)
+        {
+            <li class="application-timeline__step">
+                <span class="application-timeline__label">@step.Label</span>
+                <time class="application-timeline__date" datetime="@step.Date.ToString("o")">@UiLabels.FormatMoment(step.Date)</time>
+                @if (step.Note is not null)
+                {
+                    <p class="application-timeline__note">@step.Note</p>
+                }
+                @if (step.Responsible is not null)
+                {
+                    <p class="application-timeline__by">@step.Responsible</p>
+                }
+            </li>
+        }
+    </ol>
+}
+
+@code {
+    [Parameter, EditorRequired]
+    public IReadOnlyList<ApplicationTimelineStep> Steps { get; set; } = [];
+}

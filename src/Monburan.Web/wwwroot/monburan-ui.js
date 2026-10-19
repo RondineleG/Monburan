@@ -148,3 +148,10 @@
         );
     });
 })();
+
+// ---- Foco programático (acessibilidade) -----------------------------------------------------------
+// O Blazor move o foco para o título ao trocar de etapa em fluxos guiados (candidatura, wizard de vaga).
+window.monburanFocusById = function (id) {
+    var el = document.getElementById(id);
+    if (el && typeof el.focus === 'function') el.focus();
+};

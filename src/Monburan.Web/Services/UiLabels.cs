@@ -52,6 +52,29 @@ public static class UiLabels
         _ => "Presencial"
     };
 
+    /// <summary>Rótulos pt-BR do tipo de contrato (contrato compartilhado).</summary>
+    public static string ContractType(string? contractType) => contractType switch
+    {
+        "Clt" => "CLT",
+        "Pj" => "PJ",
+        "Internship" => "Estágio",
+        "Apprenticeship" => "Aprendiz",
+        "Temporary" => "Temporário",
+        "Freelance" => "Freelance",
+        _ => string.Empty
+    };
+
+    /// <summary>Rótulos pt-BR do período do salário (contrato compartilhado).</summary>
+    public static string SalaryPeriod(string? period) => period switch
+    {
+        "Hour" => "por hora",
+        "Day" => "por dia",
+        "Week" => "por semana",
+        "Month" => "por mês",
+        "Year" => "por ano",
+        _ => string.Empty
+    };
+
     public static string SubscriptionStatus(string? status) => status switch
     {
         "Active" => "Ativa",
