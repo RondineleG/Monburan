@@ -143,9 +143,85 @@ public class JobRepository : IJobRepository
     public async Task<RequestResult<Job>> UpdateAsync(Job entity)
     {
         await using var context = await _contextFactory.CreateDbContextAsync();
-        context.Jobs.Update(entity);
+
+        // A vaga chega desanexada (lida em outra unidade de trabalho). Gravar com Update()
+        // marcaria TODAS as colunas como modificadas, incluindo as que esta edição não
+        // tocou — uma edição feita com dados antigos apagaria a moderação da administração
+        // e os contadores da vaga. Por isso a gravação passa por uma cópia explícita: só
+        // entram as colunas que a edição da vaga de fato controla.
+        var tracked = await context.Jobs.FirstOrDefaultAsync(job => job.Id == entity.Id);
+        if (tracked is null)
+            return RequestResult<Job>.EntityNotFound("Job", entity.Id.Value, "Vaga não encontrada.");
+
+        tracked.Title = entity.Title;
+        tracked.Description = entity.Description;
+        tracked.Requirements = entity.Requirements;
+        tracked.Responsibilities = entity.Responsibilities;
+        tracked.Benefits = entity.Benefits;
+        tracked.ApplicationInstructions = entity.ApplicationInstructions;
+        tracked.NumberOfOpenings = entity.NumberOfOpenings;
+        tracked.Observations = entity.Observations;
+        tracked.Category = entity.Category;
+        tracked.Tags = entity.Tags;
+        tracked.ContractType = entity.ContractType;
+        tracked.ExpirationDate = entity.ExpirationDate;
+        tracked.Status = entity.Status;
+        tracked.AdvertiserId = entity.AdvertiserId;
+
+        CopyLocation(tracked.Location, entity.Location);
+        CopySalary(tracked.Salary, entity.Salary);
+
         await context.SaveChangesAsync();
-        return RequestResult<Job>.Success(entity);
+        return RequestResult<Job>.Success(tracked);
+    }
+
+    // Local e salário são "owned" (tabelas próprias): só são gravados quando o valor
+    // recebido é diferente do que já está no banco.
+    private static void CopyLocation(JobLocation? target, JobLocation? source)
+    {
+        if (target is null || source is null)
+            return;
+
+        target.City = source.City;
+        target.State = source.State;
+        target.Country = source.Country;
+        target.Type = source.Type;
+        target.IsRemote = source.IsRemote;
+        target.ShowAddress = source.ShowAddress;
+    }
+
+    private static void CopySalary(SalaryRange? target, SalaryRange? source)
+    {
+        if (target is null || source is null)
+            return;
+
+        target.Min = source.Min;
+        target.Max = source.Max;
+        target.Period = source.Period;
+        target.Currency = source.Currency;
+        target.Display = source.Display;
+    }
+
+    /// <summary>
+    /// Grava a moderação da vaga (aprovada, rejeitada ou escondida). Fica fora da
+    /// atualização geral da vaga de propósito: são campos da administração, e uma edição
+    /// da empresa não pode sobrescrever o que a administração gravou.
+    /// </summary>
+    public async Task<RequestResult<Job>> UpdateModerationAsync(Id jobId, ModerationInfo moderation)
+    {
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        var tracked = await context.Jobs.FirstOrDefaultAsync(job => job.Id == jobId);
+        if (tracked is null)
+            return RequestResult<Job>.EntityNotFound("Job", jobId.Value, "Vaga não encontrada.");
+
+        tracked.Moderation ??= new ModerationInfo();
+        tracked.Moderation.Status = moderation.Status;
+        tracked.Moderation.Reason = moderation.Reason;
+        tracked.Moderation.ModeratorId = moderation.ModeratorId;
+        tracked.Moderation.ModerationDate = moderation.ModerationDate;
+
+        await context.SaveChangesAsync();
+        return RequestResult<Job>.Success(tracked);
     }
 
     public async Task<RequestResult<PagedResponse<Job>>> SearchAsync(
@@ -341,6 +417,37 @@ public class JobRepository : IJobRepository
             .Where(job => job.Id == jobKey)
             .ExecuteUpdateAsync(setters => setters
                 .SetProperty(job => job.Counters.Views, job => job.Counters.Views + 1));
+
+        return RequestResult<bool>.Success(updated > 0);
+    }
+
+    /// <summary>
+    /// Incrementa o contador de candidaturas de forma atômica. <c>false</c> quando a vaga não existe.
+    /// Contar no código (ler, somar, gravar a vaga inteira) perdia a contagem quando duas
+    /// candidaturas entravam ao mesmo tempo e ainda sobrescrevia a moderação da vaga.
+    /// </summary>
+    public async Task<RequestResult<bool>> IncrementApplicationsAsync(Guid jobId)
+    {
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        var jobKey = Id.Create(jobId);
+
+        // O EF InMemory (provider dos testes de API) não traduz ExecuteUpdate; no banco de verdade,
+        // o incremento é atômico, feito numa instrução só
+        if (context.Database.ProviderName == "Microsoft.EntityFrameworkCore.InMemory")
+        {
+            var job = await context.Jobs.FirstOrDefaultAsync(item => item.Id == jobKey);
+            if (job is null)
+                return RequestResult<bool>.Success(false);
+
+            job.Counters.Applications++;
+            await context.SaveChangesAsync();
+            return RequestResult<bool>.Success(true);
+        }
+
+        var updated = await context.Jobs
+            .Where(job => job.Id == jobKey)
+            .ExecuteUpdateAsync(setters => setters
+                .SetProperty(job => job.Counters.Applications, job => job.Counters.Applications + 1));
 
         return RequestResult<bool>.Success(updated > 0);
     }

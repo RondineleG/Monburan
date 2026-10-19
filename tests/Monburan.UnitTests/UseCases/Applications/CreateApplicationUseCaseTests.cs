@@ -18,7 +18,7 @@ namespace Monburan.UnitTests.UseCases.Applications;
 public class CreateApplicationUseCaseTests
 {
     private readonly IBaseRepository<Application> _applications = Substitute.For<IBaseRepository<Application>>();
-    private readonly IBaseRepository<Job> _jobs = Substitute.For<IBaseRepository<Job>>();
+    private readonly IJobRepository _jobs = Substitute.For<IJobRepository>();
     private readonly IApplicationStatusHistoryRepository _history = Substitute.For<IApplicationStatusHistoryRepository>();
     private readonly Guid _candidateId = Guid.NewGuid();
     private readonly Guid _jobId = Guid.NewGuid();
@@ -100,5 +100,18 @@ public class CreateApplicationUseCaseTests
         var result = await _useCase.ExecuteAsync(Request());
 
         result.Status.Should().Be(EResultStatus.Success);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_CountsTheApplicationAtomically_WithoutRewritingTheJob()
+    {
+        // Contar no código (ler a vaga, somar, gravar a vaga inteira) perdia a contagem
+        // quando duas candidaturas entravam ao mesmo tempo e ainda sobrescrevia a moderação
+        // que a administração tinha gravado.
+        var result = await _useCase.ExecuteAsync(Request());
+
+        result.Status.Should().Be(EResultStatus.Success);
+        await _jobs.Received(1).IncrementApplicationsAsync(_jobId);
+        await _jobs.DidNotReceive().UpdateAsync(Arg.Any<Job>());
     }
 }

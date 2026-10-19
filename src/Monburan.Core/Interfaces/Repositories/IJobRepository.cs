@@ -3,6 +3,7 @@ using Monburan.Core.Entities;
 using Monburan.Core.Enums;
 using Monburan.Core.Interfaces.Repositories.Base;
 using Monburan.Core.Requests;
+using Monburan.Core.ValueObjects;
 
 namespace Monburan.Core.Interfaces.Repositories;
 
@@ -45,4 +46,15 @@ public interface IJobRepository : IBaseRepository<Job>
 
     /// <summary>Incrementa o contador de visualizações de forma atômica. <c>false</c> quando a vaga não existe.</summary>
     Task<RequestResult<bool>> IncrementViewsAsync(Guid jobId);
+
+    /// <summary>
+    /// Incrementa o contador de candidaturas de forma atômica. <c>false</c> quando a vaga não existe.
+    /// </summary>
+    Task<RequestResult<bool>> IncrementApplicationsAsync(Guid jobId);
+
+    /// <summary>
+    /// Grava a moderação da vaga (aprovada, rejeitada ou escondida). Fica fora da atualização
+    /// geral da vaga: uma edição da empresa não pode sobrescrever o que a administração gravou.
+    /// </summary>
+    Task<RequestResult<Job>> UpdateModerationAsync(Id jobId, ModerationInfo moderation);
 }

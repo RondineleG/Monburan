@@ -111,6 +111,30 @@ internal sealed class FakeJobRepository : IJobRepository
         job.Counters.Views++;
         return Task.FromResult(RequestResult<bool>.Success(true));
     }
+
+    public Task<RequestResult<bool>> IncrementApplicationsAsync(Guid jobId)
+    {
+        var job = _jobs.FirstOrDefault(item => item.Id.Value == jobId);
+        if (job is null)
+            return Task.FromResult(RequestResult<bool>.Success(false));
+
+        job.Counters.Applications++;
+        return Task.FromResult(RequestResult<bool>.Success(true));
+    }
+
+    public Task<RequestResult<Job>> UpdateModerationAsync(Id jobId, ModerationInfo moderation)
+    {
+        var job = _jobs.FirstOrDefault(item => item.Id == jobId && !item.IsDeleted);
+        if (job is null)
+            return Task.FromResult(RequestResult<Job>.EntityNotFound("Job", jobId.Value, "Vaga não encontrada."));
+
+        job.Moderation ??= new ModerationInfo();
+        job.Moderation.Status = moderation.Status;
+        job.Moderation.Reason = moderation.Reason;
+        job.Moderation.ModeratorId = moderation.ModeratorId;
+        job.Moderation.ModerationDate = moderation.ModerationDate;
+        return Task.FromResult(RequestResult<Job>.Success(job));
+    }
 }
 
 internal sealed class FakeAdvertiserRepository : IBaseRepository<Advertiser>

@@ -16,7 +16,7 @@ namespace Monburan.Core.UseCases.Applications;
 public class CreateApplicationUseCase : IUseCase<CreateApplicationRequest, ApplicationResponse>
 {
     private readonly IBaseRepository<Application> _applicationRepository;
-    private readonly IBaseRepository<Job> _jobRepository;
+    private readonly IJobRepository _jobRepository;
     private readonly IBaseRepository<Resume> _resumeRepository;
     private readonly IApplicationStatusHistoryRepository _historyRepository;
     private readonly NotifyOnApplicationCreatedUseCase _notifyOnCreatedUseCase;
@@ -24,7 +24,7 @@ public class CreateApplicationUseCase : IUseCase<CreateApplicationRequest, Appli
 
     public CreateApplicationUseCase(
         IBaseRepository<Application> applicationRepository,
-        IBaseRepository<Job> jobRepository,
+        IJobRepository jobRepository,
         IBaseRepository<Resume> resumeRepository,
         IApplicationStatusHistoryRepository historyRepository,
         NotifyOnApplicationCreatedUseCase notifyOnCreatedUseCase,
@@ -81,12 +81,10 @@ public class CreateApplicationUseCase : IUseCase<CreateApplicationRequest, Appli
         // Histórico de etapas (não bloqueante: a candidatura existe mesmo se o histórico falhar)
         await TryWriteHistoryAsync(application, note: null, responsible: null);
 
-        // Incrementar contador de aplicações da vaga
-        if (job.Counters != null)
-        {
-            job.Counters.Applications++;
-            await _jobRepository.UpdateAsync(job);
-        }
+        // Incrementar contador de aplicações da vaga — de forma atômica. Contar no código
+        // (ler a vaga, somar, gravar a vaga inteira) perdia a contagem quando duas
+        // candidaturas entravam ao mesmo tempo e ainda sobrescrevia a moderação da vaga.
+        await _jobRepository.IncrementApplicationsAsync(request.JobId);
 
         // Enviar notificação por email para o anunciante (não bloqueante)
         try

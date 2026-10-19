@@ -110,6 +110,14 @@ public sealed class AdminChangeJobStatusUseCase : IUseCase<AdminChangeJobStatusR
         }
 
         job.Status = request.NewStatus;
+
+        // A moderação é gravada por via própria: a atualização geral da vaga não escreve a
+        // moderação, para uma edição da empresa (com dados antigos) não apagar o que a
+        // administração gravou.
+        var moderationUpdated = await _jobs.UpdateModerationAsync(job.Id, job.Moderation!);
+        if (moderationUpdated.Status != EResultStatus.Success)
+            return RequestResult<AdminJobResponse>.FromResult(moderationUpdated);
+
         var updated = await _jobs.UpdateAsync(job);
         if (updated.Status != EResultStatus.Success)
             return RequestResult<AdminJobResponse>.FromResult(updated);
