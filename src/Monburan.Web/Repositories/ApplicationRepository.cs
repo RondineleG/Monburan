@@ -101,6 +101,7 @@ public class ApplicationRepository : IApplicationRepository
         var applications = await context.Applications
             .AsNoTracking()
             .Include(a => a.Job)
+            .ThenInclude(job => job.Advertiser)
             .Where(a => !a.IsDeleted && a.CandidateId == candidateKey)
             .OrderByDescending(a => a.CreatedAt)
             .ToListAsync();
@@ -129,5 +130,20 @@ public class ApplicationRepository : IApplicationRepository
             .ToListAsync();
 
         return RequestResult<IEnumerable<Application>>.Success(applications);
+    }
+
+    public async Task<RequestResult<IReadOnlyDictionary<EApplicationStatus, int>>> CountByStatusForCandidateAsync(Guid candidateId)
+    {
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        var candidateKey = Id.Create(candidateId);
+        var grouped = await context.Applications
+            .AsNoTracking()
+            .Where(a => !a.IsDeleted && a.CandidateId == candidateKey)
+            .GroupBy(a => a.Status)
+            .Select(group => new { Status = group.Key, Count = group.Count() })
+            .ToListAsync();
+
+        return RequestResult<IReadOnlyDictionary<EApplicationStatus, int>>.Success(
+            grouped.ToDictionary(item => item.Status, item => item.Count));
     }
 }

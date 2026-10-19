@@ -61,6 +61,12 @@
         {
             <span class="job-card__owner">@Job.Applications @(Job.Applications == 1 ? "candidatura" : "candidaturas")</span>
         }
+        @if (ShowSave)
+        {
+            <span class="job-card__save">
+                <SaveJobButton JobId="Job.Id" IsSaved="Job.IsSaved" CanSave="CanSave" ReturnUrl="@SaveReturnUrl" />
+            </span>
+        }
     </div>
 </article>
 
@@ -75,6 +81,18 @@
     /// <summary>Versão enxuta (sem trecho da descrição), usada em "Vagas semelhantes".</summary>
     [Parameter]
     public bool Compact { get; set; }
+
+    /// <summary>Mostra o botão de salvar (o visitante vê "Entrar para salvar").</summary>
+    [Parameter]
+    public bool ShowSave { get; set; }
+
+    /// <summary>Candidato autenticado pode salvar de verdade.</summary>
+    [Parameter]
+    public bool CanSave { get; set; }
+
+    /// <summary>Página atual para retorno depois do login.</summary>
+    [Parameter]
+    public string? SaveReturnUrl { get; set; }
 
     private bool isNew;
     private string? salary;

@@ -1,6 +1,9 @@
 ﻿@inherits LayoutComponentBase
 @inject NavigationManager NavigationManager
 
+@* Primeiro elemento da página: quem navega por teclado pula a navegação e vai direto ao conteúdo. *@
+<a class="skip-link" href="#main">Pular para o conteúdo</a>
+
 @if (IsAccountPage)
 {
     <header class="auth-header">
@@ -13,7 +16,7 @@
         </a>
         <a class="header-backlink" href="/">← Voltar ao início</a>
     </header>
-    <main class="app-main app-main--auth">
+    <main id="main" class="app-main app-main--auth">
         @Body
     </main>
 }
@@ -29,13 +32,13 @@ else
                         <small>talentos que ficam</small>
                     </span>
                 </a>
-                <button class="sidebar-pin" type="button" data-action="sidebar-pin" aria-pressed="false" title="Expandir ou recolher o menu"></button>
+                <button class="sidebar-pin" type="button" data-action="sidebar-pin" aria-pressed="false" title="Expandir ou recolher o menu" aria-label="Expandir ou recolher o menu"></button>
                 <button class="sidebar-close" type="button" aria-label="Fechar menu">×</button>
             </div>
 
             <nav class="sidebar-nav" aria-label="Navegação principal">
                 <span class="sidebar-nav__label">Descobrir</span>
-                <NavLink class="sidebar-link" href="/jobs" data-testid="nav-jobs" title="Explorar vagas">
+                <NavLink class="sidebar-link" href="/jobs" data-testid="nav-jobs" title="Explorar vagas" aria-label="Explorar vagas" data-label="Explorar vagas">
                     <span class="sidebar-link__icon">⌕</span>
                     <span>Explorar vagas</span>
                 </NavLink>
@@ -45,24 +48,24 @@ else
                         @if (IsAdvertiser)
                         {
                             <span class="sidebar-nav__label sidebar-nav__label--spaced">Recrutamento</span>
-                            <NavLink class="sidebar-link" href="/dashboard" title="Visão geral">
+                            <NavLink class="sidebar-link" href="/dashboard" title="Visão geral" aria-label="Visão geral" data-label="Visão geral">
                                 <span class="sidebar-link__icon">⌂</span>
                                 <span>Visão geral</span>
                             </NavLink>
-                            <NavLink class="sidebar-link" href="/my-jobs" data-testid="nav-my-jobs" title="Minhas vagas">
+                            <NavLink class="sidebar-link" href="/my-jobs" data-testid="nav-my-jobs" title="Minhas vagas" aria-label="Minhas vagas" data-label="Minhas vagas">
                                 <span class="sidebar-link__icon">▣</span>
                                 <span>Minhas vagas</span>
                             </NavLink>
-                            <NavLink class="sidebar-link" href="/received-applications" data-testid="nav-received-applications" title="Candidaturas recebidas">
+                            <NavLink class="sidebar-link" href="/received-applications" data-testid="nav-received-applications" title="Candidaturas recebidas" aria-label="Candidaturas recebidas" data-label="Candidaturas recebidas">
                                 <span class="sidebar-link__icon">◎</span>
                                 <span>Candidaturas recebidas</span>
                             </NavLink>
                             <span class="sidebar-nav__label sidebar-nav__label--spaced">Conta da empresa</span>
-                            <NavLink class="sidebar-link" href="/profile/advertiser" title="Perfil da empresa">
+                            <NavLink class="sidebar-link" href="/profile/advertiser" title="Perfil da empresa" aria-label="Perfil da empresa" data-label="Perfil da empresa">
                                 <span class="sidebar-link__icon">◇</span>
                                 <span>Perfil da empresa</span>
                             </NavLink>
-                            <NavLink class="sidebar-link" href="/my-subscription" title="Plano e assinatura">
+                            <NavLink class="sidebar-link" href="/my-subscription" title="Plano e assinatura" aria-label="Plano e assinatura" data-label="Plano e assinatura">
                                 <span class="sidebar-link__icon">◈</span>
                                 <span>Plano e assinatura</span>
                             </NavLink>
@@ -70,20 +73,24 @@ else
                         else if (IsCandidate)
                         {
                             <span class="sidebar-nav__label sidebar-nav__label--spaced">Minha carreira</span>
-                            <NavLink class="sidebar-link" href="/my-applications" data-testid="nav-applications" title="Minhas candidaturas">
+                            <NavLink class="sidebar-link" href="/my-applications" data-testid="nav-applications" title="Minhas vagas" aria-label="Minhas vagas" data-label="Minhas vagas">
                                 <span class="sidebar-link__icon">↗</span>
-                                <span>Minhas candidaturas</span>
+                                <span>Minhas vagas</span>
                             </NavLink>
-                            <NavLink class="sidebar-link" href="/resumes" title="Meus currículos">
+                            <NavLink class="sidebar-link" href="/career-profile" title="Perfil de carreira" aria-label="Perfil de carreira" data-label="Perfil de carreira">
+                                <span class="sidebar-link__icon">✦</span>
+                                <span>Perfil de carreira</span>
+                            </NavLink>
+                            <NavLink class="sidebar-link" href="/resumes" title="Meus currículos" aria-label="Meus currículos" data-label="Meus currículos">
                                 <span class="sidebar-link__icon">▤</span>
                                 <span>Meus currículos</span>
                             </NavLink>
-                            <NavLink class="sidebar-link" href="/notifications" title="Notificações">
+                            <NavLink class="sidebar-link" href="/notifications" title="Notificações" aria-label="Notificações" data-label="Notificações">
                                 <span class="sidebar-link__icon">◌</span>
                                 <span>Notificações</span>
                             </NavLink>
                             <span class="sidebar-nav__label sidebar-nav__label--spaced">Minha conta</span>
-                            <NavLink class="sidebar-link" href="/profile/candidate" title="Meu perfil">
+                            <NavLink class="sidebar-link" href="/profile/candidate" title="Meu perfil" aria-label="Meu perfil" data-label="Meu perfil">
                                 <span class="sidebar-link__icon">◇</span>
                                 <span>Meu perfil</span>
                             </NavLink>
@@ -91,7 +98,7 @@ else
                         else if (!IsAdmin)
                         {
                             <span class="sidebar-nav__label sidebar-nav__label--spaced">Minha conta</span>
-                            <NavLink class="sidebar-link" href="/notifications" title="Notificações">
+                            <NavLink class="sidebar-link" href="/notifications" title="Notificações" aria-label="Notificações" data-label="Notificações">
                                 <span class="sidebar-link__icon">◌</span>
                                 <span>Notificações</span>
                             </NavLink>
@@ -100,27 +107,27 @@ else
                         @if (IsAdmin)
                         {
                             <span class="sidebar-nav__label sidebar-nav__label--spaced">Administração</span>
-                            <NavLink class="sidebar-link" href="/admin/accounts" data-testid="nav-admin-accounts" title="Contas: ativar, inativar e desbloquear">
+                            <NavLink class="sidebar-link" href="/admin/accounts" data-testid="nav-admin-accounts" title="Contas: ativar, inativar e desbloquear" aria-label="Contas" data-label="Contas">
                                 <span class="sidebar-link__icon">◉</span>
                                 <span>Contas</span>
                             </NavLink>
-                            <NavLink class="sidebar-link" href="/admin/jobs" data-testid="nav-admin-jobs" title="Vagas de todas as empresas: moderação">
+                            <NavLink class="sidebar-link" href="/admin/jobs" data-testid="nav-admin-jobs" title="Vagas de todas as empresas: moderação" aria-label="Vagas" data-label="Vagas">
                                 <span class="sidebar-link__icon">▤</span>
                                 <span>Vagas</span>
                             </NavLink>
-                            <NavLink class="sidebar-link" href="/admin/candidates" title="Candidatos cadastrados">
+                            <NavLink class="sidebar-link" href="/admin/candidates" title="Candidatos cadastrados" aria-label="Candidatos" data-label="Candidatos">
                                 <span class="sidebar-link__icon">☰</span>
                                 <span>Candidatos</span>
                             </NavLink>
-                            <NavLink class="sidebar-link" href="/admin/advertisers" title="Empresas cadastradas">
+                            <NavLink class="sidebar-link" href="/admin/advertisers" title="Empresas cadastradas" aria-label="Empresas" data-label="Empresas">
                                 <span class="sidebar-link__icon">▦</span>
                                 <span>Empresas</span>
                             </NavLink>
-                            <NavLink class="sidebar-link" href="/admin/ai-providers" data-testid="nav-admin-ai-providers" title="Provedores de IA">
+                            <NavLink class="sidebar-link" href="/admin/ai-providers" data-testid="nav-admin-ai-providers" title="Provedores de IA" aria-label="Provedores de IA" data-label="Provedores de IA">
                                 <span class="sidebar-link__icon">✦</span>
                                 <span>Provedores de IA</span>
                             </NavLink>
-                            <NavLink class="sidebar-link" href="/admin/audit" data-testid="nav-admin-audit" title="Auditoria das ações de administração">
+                            <NavLink class="sidebar-link" href="/admin/audit" data-testid="nav-admin-audit" title="Auditoria das ações de administração" aria-label="Auditoria" data-label="Auditoria">
                                 <span class="sidebar-link__icon">◷</span>
                                 <span>Auditoria</span>
                             </NavLink>
@@ -134,7 +141,7 @@ else
                     <Authorized>
                         @if (IsAdmin && !IsAdvertiser && !IsCandidate)
                         {
-                            <NavLink class="profile-link" href="/Account/Manage" title="Minha conta">
+                            <NavLink class="profile-link" href="/Account/Manage" title="Minha conta" aria-label="Minha conta" data-label="Minha conta">
                                 <span class="avatar">AD</span>
                                 <span>
                                     <strong>Minha conta</strong>
@@ -145,7 +152,7 @@ else
                         }
                         else if (IsAdvertiser)
                         {
-                            <NavLink class="profile-link" href="/profile/advertiser" title="Perfil da empresa">
+                            <NavLink class="profile-link" href="/profile/advertiser" title="Perfil da empresa" aria-label="Perfil da empresa" data-label="Perfil da empresa">
                                 <span class="avatar">EM</span>
                                 <span>
                                     <strong>Perfil da empresa</strong>
@@ -156,7 +163,7 @@ else
                         }
                         else
                         {
-                            <NavLink class="profile-link" href="/profile/candidate" title="Meu perfil">
+                            <NavLink class="profile-link" href="/profile/candidate" title="Meu perfil" aria-label="Meu perfil" data-label="Meu perfil">
                                 <span class="avatar">EU</span>
                                 <span>
                                     <strong>Meu perfil</strong>
@@ -168,7 +175,7 @@ else
                         <form class="sidebar-logout" action="Account/Logout" method="post">
                             <AntiforgeryToken />
                             <input type="hidden" name="returnUrl" value="/" />
-                            <button type="submit" class="sidebar-logout__btn" title="Sair" data-testid="nav-logout">
+                            <button type="submit" class="sidebar-logout__btn" title="Sair" aria-label="Sair" data-label="Sair" data-testid="nav-logout">
                                 <span class="sidebar-link__icon" aria-hidden="true">⏻</span>
                                 <span class="sidebar-logout__text">Sair</span>
                             </button>
@@ -177,7 +184,7 @@ else
                     <NotAuthorized>
                         <div class="sidebar-auth-links">
                             <span>Já tem uma conta?</span>
-                            <a href="/Account/Login" title="Entrar">Entrar</a>
+                            <a href="/Account/Login" title="Entrar" aria-label="Entrar">Entrar</a>
                         </div>
                     </NotAuthorized>
                 </AuthorizeView>
@@ -221,7 +228,7 @@ else
                 </div>
             </header>
 
-            <main class="app-main">
+            <main id="main" class="app-main">
                 @Body
             </main>
 

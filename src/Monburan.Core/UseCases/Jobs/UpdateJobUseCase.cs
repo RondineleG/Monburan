@@ -39,6 +39,7 @@ public class UpdateJobUseCase : IUseCase<UpdateJobRequest, JobResponse>
         existingJob.Observations = request.Observations;
         existingJob.Category = request.Category;
         existingJob.Tags = request.Tags;
+        existingJob.ContractType = request.ContractType;
         existingJob.ExpirationDate = request.ExpirationDate;
 
         if (existingJob.Location != null)
@@ -55,6 +56,7 @@ public class UpdateJobUseCase : IUseCase<UpdateJobRequest, JobResponse>
         {
             existingJob.Salary.Min = request.SalaryMin;
             existingJob.Salary.Max = request.SalaryMax;
+            existingJob.Salary.Period = request.SalaryPeriod;
             existingJob.Salary.Currency = request.SalaryCurrency;
             existingJob.Salary.Display = request.SalaryDisplay;
         }
@@ -74,40 +76,7 @@ public class UpdateJobUseCase : IUseCase<UpdateJobRequest, JobResponse>
         if (updateResult.Status != EResultStatus.Success)
             return RequestResult<JobResponse>.FromResult(updateResult);
 
-        return RequestResult<JobResponse>.Success(MapToResponse(updateResult.Data!));
-    }
-
-    private static JobResponse MapToResponse(Job job)
-    {
-        return new JobResponse
-        {
-            Id = job.Id.Value,
-            Title = job.Title,
-            Description = job.Description,
-            Requirements = job.Requirements,
-            Responsibilities = job.Responsibilities,
-            Benefits = job.Benefits,
-            ApplicationInstructions = job.ApplicationInstructions,
-            NumberOfOpenings = job.NumberOfOpenings,
-            Observations = job.Observations,
-            Category = job.Category,
-            Tags = job.Tags,
-            ExpirationDate = job.ExpirationDate,
-            Status = job.Status.ToString(),
-            City = job.Location?.City,
-            State = job.Location?.State,
-            Country = job.Location?.Country ?? "BR",
-            Type = job.Location?.Type ?? "OnSite",
-            IsRemote = job.Location?.IsRemote ?? false,
-            SalaryMin = job.Salary?.Min,
-            SalaryMax = job.Salary?.Max,
-            SalaryCurrency = job.Salary?.Currency ?? "BRL",
-            SalaryDisplay = job.Salary?.Display ?? true,
-            Views = job.Counters?.Views ?? 0,
-            Applications = job.Counters?.Applications ?? 0,
-            AdvertiserId = job.AdvertiserId.Value,
-            CreatedAt = job.CreatedAt,
-            UpdatedAt = job.UpdatedAt
-        };
+        return RequestResult<JobResponse>.Success(JobResponseMapper.ToResponse(updateResult.Data!));
     }
 }
+

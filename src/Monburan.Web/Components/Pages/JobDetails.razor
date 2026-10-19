@@ -2,6 +2,7 @@
 @using Monburan.Core.Enums
 @inject GetJobByIdUseCase GetJobByIdUseCase
 @inject SearchJobsUseCase SearchJobsUseCase
+@inject RegisterJobViewUseCase RegisterJobViewUseCase
 @inject ICurrentUserHelper CurrentUserHelper
 @inject NavigationManager Navigation
 @inject IConfiguration Configuration
@@ -193,6 +194,9 @@
                         {
                             <p>A candidatura está disponível para perfis de candidato.</p>
                         }
+                        <div class="job-save">
+                            <SaveJobButton JobId="job.Id" IsSaved="job.IsSaved" CanSave="isCandidate" ReturnUrl="@Navigation.Uri" />
+                        </div>
                     </section>
                 }
 
@@ -309,7 +313,7 @@
         isCandidate = CurrentUserHelper.GetCandidateId().HasValue;
         var advertiserId = CurrentUserHelper.GetAdvertiserId();
 
-        var result = await GetJobByIdUseCase.ExecuteAsync(JobId);
+        var result = await GetJobByIdUseCase.ExecuteAsync(JobId, CurrentUserHelper.GetCandidateId());
         if (result.Status == EResultStatus.Success && result.Data is { } found)
         {
             isOwner = advertiserId.HasValue && found.AdvertiserId == advertiserId.Value;
@@ -326,6 +330,10 @@
             Logger.LogFailure(result, "Carregar detalhes da vaga");
             loadFailed = true;
         }
+
+        // A visita conta uma vez por renderização da página (a do próprio anunciante não conta)
+        if (job is not null)
+            await RegisterJobViewUseCase.ExecuteAsync(new RegisterJobViewRequest(JobId, advertiserId));
 
         // Vaga inexistente ou indisponível responde 404 (buscadores deixam de indexar) e mostra a tela "Vaga não
         // encontrada". O status só é trocado quando os cabeçalhos vão ser enviados: com 404 já definido aqui o Blazor

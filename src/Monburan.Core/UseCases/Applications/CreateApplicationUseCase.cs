@@ -4,6 +4,7 @@ using Monburan.Core.DTOs.Request;
 using Monburan.Core.DTOs.Response;
 using Monburan.Core.Entities;
 using Monburan.Core.Enums;
+using Monburan.Core.Interfaces.Repositories;
 using Monburan.Core.Interfaces.Repositories.Base;
 using Monburan.Core.Interfaces.UseCases;
 using Monburan.Core.Requests;
@@ -17,6 +18,7 @@ public class CreateApplicationUseCase : IUseCase<CreateApplicationRequest, Appli
     private readonly IBaseRepository<Application> _applicationRepository;
     private readonly IBaseRepository<Job> _jobRepository;
     private readonly IBaseRepository<Resume> _resumeRepository;
+    private readonly IApplicationStatusHistoryRepository _historyRepository;
     private readonly NotifyOnApplicationCreatedUseCase _notifyOnCreatedUseCase;
     private readonly ILogger<CreateApplicationUseCase> _logger;
 
@@ -24,12 +26,14 @@ public class CreateApplicationUseCase : IUseCase<CreateApplicationRequest, Appli
         IBaseRepository<Application> applicationRepository,
         IBaseRepository<Job> jobRepository,
         IBaseRepository<Resume> resumeRepository,
+        IApplicationStatusHistoryRepository historyRepository,
         NotifyOnApplicationCreatedUseCase notifyOnCreatedUseCase,
         ILogger<CreateApplicationUseCase> logger)
     {
         _applicationRepository = applicationRepository;
         _jobRepository = jobRepository;
         _resumeRepository = resumeRepository;
+        _historyRepository = historyRepository;
         _notifyOnCreatedUseCase = notifyOnCreatedUseCase;
         _logger = logger;
     }
@@ -74,6 +78,9 @@ public class CreateApplicationUseCase : IUseCase<CreateApplicationRequest, Appli
         if (result.Status != EResultStatus.Success)
             return RequestResult<ApplicationResponse>.FromResult(result);
 
+        // Histórico de etapas (não bloqueante: a candidatura existe mesmo se o histórico falhar)
+        await TryWriteHistoryAsync(application, note: null, responsible: null);
+
         // Incrementar contador de aplicações da vaga
         if (job.Counters != null)
         {
@@ -96,6 +103,32 @@ public class CreateApplicationUseCase : IUseCase<CreateApplicationRequest, Appli
         }
 
         return RequestResult<ApplicationResponse>.Success(MapToResponse(result.Data!));
+    }
+
+    // Falha na gravação do histórico fica no log: a trilha é um extra e não pode derrubar a candidatura
+    private async Task TryWriteHistoryAsync(Application application, string? note, string? responsible)
+    {
+        try
+        {
+            var historyResult = await _historyRepository.CreateAsync(new ApplicationStatusHistory
+            {
+                Id = Id.Create(Guid.NewGuid()),
+                ApplicationId = application.Id,
+                Status = application.Status,
+                Date = DateTime.UtcNow,
+                Note = note,
+                Responsible = responsible,
+                TenantId = application.TenantId
+            });
+
+            if (historyResult.Status != EResultStatus.Success)
+                _logger.LogWarning("Histórico da candidatura {ApplicationId} não foi gravado: {Detail}",
+                    application.Id.Value, historyResult.Message);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Falha ao gravar o histórico da candidatura {ApplicationId}", application.Id.Value);
+        }
     }
 
     private static ApplicationResponse MapToResponse(Application app) => new()

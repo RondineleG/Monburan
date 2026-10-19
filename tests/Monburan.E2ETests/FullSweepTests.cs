@@ -191,9 +191,13 @@ public class FullSweepTests : E2ETestBase
 
         var jobTitle = $"Vaga Real E2E {DateTime.Now:HHmmss}";
         await Page.GetByTestId("job-title-input").FillAsync(jobTitle);
+        await Page.GetByTestId("job-mode-remote").CheckAsync();
+        await Page.GetByTestId("job-wizard-continue").ClickAsync();
+
         await Page.GetByTestId("job-description-input")
             .FillAsync("Vaga criada na bateria de varredura real.");
-        await Page.GetByTestId("job-type-select").SelectOptionAsync("Remote");
+        await Page.GetByTestId("job-wizard-continue").ClickAsync();
+        await Page.GetByTestId("job-wizard-continue").ClickAsync();
 
         var submit = Page.GetByTestId("job-create-submit");
         Assert.True(await submit.IsEnabledAsync(), "Botão de criar vaga deveria estar habilitado");
@@ -247,9 +251,14 @@ public class FullSweepTests : E2ETestBase
         await Page.WaitForFunctionAsync("() => location.pathname.startsWith('/apply/')");
         await WaitForBlazorAsync();
 
-        var submit = Page.GetByTestId("application-submit");
-        Assert.True(await submit.IsEnabledAsync(), "Botão de candidatura deveria estar habilitado");
         await Page.GetByTestId("application-notes").FillAsync("Candidatura da varredura real");
+        await Page.GetByTestId("application-continue").ClickAsync();
+        await Page.GetByTestId("application-confirm").CheckAsync();
+        await WaitForBlazorAsync();
+
+        var submit = Page.GetByTestId("application-submit");
+        // Espera o circuito liberar o botão depois da confirmação: a leitura instantânea perdia a corrida no CI
+        await Assertions.Expect(submit).ToBeEnabledAsync(new LocatorAssertionsToBeEnabledOptions { Timeout = 20000 });
         await submit.ClickAsync();
 
         await Page.GetByTestId("application-feedback")

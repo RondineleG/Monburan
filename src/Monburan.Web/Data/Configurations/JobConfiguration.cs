@@ -22,6 +22,10 @@ public class JobConfiguration : IEntityTypeConfiguration<Job>
             .HasConversion<string>()
             .HasMaxLength(50);
 
+        builder.Property(j => j.ContractType)
+            .HasConversion<string>()
+            .HasMaxLength(30);
+
         builder.Property(j => j.Title)
             .IsRequired()
             .HasMaxLength(200);
@@ -126,6 +130,11 @@ public class JobConfiguration : IEntityTypeConfiguration<Job>
                 salary.Property(s => s.Display)
                     .HasDefaultValue(true)
                     .HasColumnName("SalaryDisplay");
+
+                salary.Property(s => s.Period)
+                    .HasConversion<string>()
+                    .HasMaxLength(30)
+                    .HasColumnName("SalaryPeriod");
             });
 
         builder.OwnsOne(

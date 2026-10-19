@@ -3,6 +3,7 @@ using NSubstitute;
 using Monburan.Core.DTOs.Response;
 using Monburan.Core.Entities;
 using Monburan.Core.Enums;
+using Monburan.Core.Interfaces.Repositories;
 using Monburan.Core.Interfaces.Repositories.Base;
 using Monburan.Core.Requests;
 using Monburan.Core.UseCases.Jobs;
@@ -14,12 +15,14 @@ namespace Monburan.UnitTests.UseCases.Jobs;
 public class GetJobByIdUseCaseTests
 {
     private readonly IBaseRepository<Job> _mockRepository;
+    private readonly ISavedJobRepository _mockSavedJobs;
     private readonly GetJobByIdUseCase _useCase;
 
     public GetJobByIdUseCaseTests()
     {
         _mockRepository = Substitute.For<IBaseRepository<Job>>();
-        _useCase = new GetJobByIdUseCase(_mockRepository);
+        _mockSavedJobs = Substitute.For<ISavedJobRepository>();
+        _useCase = new GetJobByIdUseCase(_mockRepository, _mockSavedJobs);
     }
 
     [Fact]
@@ -113,5 +116,59 @@ public class GetJobByIdUseCaseTests
         await Assert.ThrowsAsync<NullReferenceException>(() => _useCase.ExecuteAsync(jobId));
 
         await _mockRepository.Received(1).GetByIdAsync(Arg.Any<Id>());
+    }
+
+    private static Job JobOf(Guid jobId) => new()
+    {
+        Id = Id.Create(jobId),
+        AdvertiserId = Id.Create(Guid.NewGuid()),
+        Title = "Senior Developer",
+        Description = "Test description",
+        ExpirationDate = DateTime.UtcNow.AddDays(30),
+        Status = EJobStatus.Active,
+        TenantId = "default"
+    };
+
+    [Fact]
+    public async Task ExecuteAsync_WithAuthenticatedCandidateThatSavedTheJob_MarksIsSaved()
+    {
+        var jobId = Guid.NewGuid();
+        var candidateId = Guid.NewGuid();
+        _mockRepository.GetByIdAsync(Arg.Any<Id>()).Returns(RequestResult<Job>.Success(JobOf(jobId)));
+        _mockSavedJobs.ListSavedJobIdsAsync(candidateId, Arg.Any<IReadOnlyCollection<Guid>>())
+            .Returns(RequestResult<IReadOnlyCollection<Guid>>.Success([jobId]));
+
+        var result = await _useCase.ExecuteAsync(jobId, candidateId);
+
+        result.Status.Should().Be(EResultStatus.Success);
+        result.Data!.IsSaved.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_WhenTheSavedLookupFails_StillReturnsTheJob()
+    {
+        var jobId = Guid.NewGuid();
+        var candidateId = Guid.NewGuid();
+        _mockRepository.GetByIdAsync(Arg.Any<Id>()).Returns(RequestResult<Job>.Success(JobOf(jobId)));
+        _mockSavedJobs.ListSavedJobIdsAsync(candidateId, Arg.Any<IReadOnlyCollection<Guid>>())
+            .Returns(RequestResult<IReadOnlyCollection<Guid>>.WithError("banco fora do ar"));
+
+        var result = await _useCase.ExecuteAsync(jobId, candidateId);
+
+        result.Status.Should().Be(EResultStatus.Success);
+        result.Data!.IsSaved.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_WithoutCandidate_NeverQueriesSavedJobs()
+    {
+        var jobId = Guid.NewGuid();
+        _mockRepository.GetByIdAsync(Arg.Any<Id>()).Returns(RequestResult<Job>.Success(JobOf(jobId)));
+
+        var result = await _useCase.ExecuteAsync(jobId);
+
+        result.Status.Should().Be(EResultStatus.Success);
+        result.Data!.IsSaved.Should().BeFalse();
+        await _mockSavedJobs.DidNotReceiveWithAnyArgs().ListSavedJobIdsAsync(default, default!);
     }
 }

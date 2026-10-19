@@ -1,7 +1,8 @@
-@page "/jobs/edit/{JobId:guid}"
+@page "/jobs/edit/{jobId:guid}"
 @rendermode InteractiveServer
 @attribute [Microsoft.AspNetCore.Authorization.Authorize(Policy = "AdvertiserOnly")]
 @using Monburan.Core.DTOs.Request
+@using Monburan.Core.DTOs.Response
 @using Monburan.Core.Enums
 @using Monburan.Core.UseCases.Jobs
 @using Monburan.Web.Services
@@ -17,192 +18,47 @@
 <div class="container mt-4 page-form-shell">
     @if (isLoading)
     {
-        <LoadingState Message="Carregando vaga..." />
+        <LoadingState Message="Carregando a vaga..." />
     }
     else if (loadFailed)
     {
         <ErrorState Title="Não foi possível carregar a vaga"
-                    Message="Tivemos um problema ao abrir a vaga para edição. Tente novamente em instantes."
+                    Message="Tivemos um problema ao abrir esta vaga para edição. Tente novamente em instantes."
                     OnRetry="LoadAsync" />
     }
     else if (!isJobOwner)
     {
-        <EmptyState Icon="!" Title="Vaga não disponível" Message="Ela não existe mais ou pertence a outra empresa. Somente quem publicou a vaga pode editá-la.">
-            <a class="btn btn-primary" href="/my-jobs">Voltar para minhas vagas</a>
-        </EmptyState>
+        <section class="auth-message-page">
+            <h1>Vaga não encontrada</h1>
+            <p>Esta vaga não existe ou pertence a outra empresa.</p>
+            <a class="btn btn-primary" href="/my-jobs">Voltar para Minhas vagas</a>
+        </section>
     }
     else
     {
-    <header class="page-heading">
-        <div class="page-heading__copy">
-            <span class="page-kicker">ÁREA DA EMPRESA</span>
-            <h1>Editar vaga</h1>
-            <p>Ajuste as informações para manter a oportunidade atrativa.</p>
-        </div>
-        <button class="btn btn-secondary" @onclick="Cancel">Cancelar</button>
-    </header>
-    <div class="row">
-        <div class="col-lg-8 mx-auto">
-
-            @if (!string.IsNullOrEmpty(errorMessage))
-            {
-                <div class="alert alert-danger" role="alert">
-                    @errorMessage
-                </div>
-            }
-
-            <div class="card page-form-card">
-                <div class="card-body">
-                    <EditForm Model="model" OnValidSubmit="SubmitForm">
-                        <DataAnnotationsValidator />
-                        <ServerValidationErrors @ref="serverErrors" FieldMap="ServerFieldMap" />
-
-                        <h5 class="mb-3"><i class="bi bi-info-circle"></i> Informações Básicas</h5>
-
-                        <div class="mb-3">
-                            <label class="form-label" for="model.Title">Título da Vaga *</label>
-                            <InputText class="form-control" @bind-Value="model.Title" id="model.Title" placeholder="Ex: Desenvolvedor Full Stack Pleno" data-testid="job-title-input" />
-                            <ValidationMessage class="text-danger" For="@(() => model.Title)" />
-                        </div>
-
-                        <div class="mb-3">
-                            <label class="form-label" for="model.Description">Descrição *</label>
-                            <InputTextArea class="form-control" @bind-Value="model.Description" id="model.Description" rows="5" data-testid="job-description-input" />
-                            <ValidationMessage class="text-danger" For="@(() => model.Description)" />
-                        </div>
-
-                        <div class="row">
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label" for="model.Category">Categoria</label>
-                                <InputText class="form-control" @bind-Value="model.Category" id="model.Category" />
-                                <ValidationMessage class="text-danger" For="@(() => model.Category)" />
-                            </div>
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label" for="model.Tags">Tags</label>
-                                <InputText class="form-control" @bind-Value="model.Tags" id="model.Tags" />
-                                <ValidationMessage class="text-danger" For="@(() => model.Tags)" />
-                            </div>
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label" for="model.NumberOfOpenings">Quantidade de vagas *</label>
-                                <InputNumber ParsingErrorMessage="Informe um número válido." class="form-control" @bind-Value="model.NumberOfOpenings" id="model.NumberOfOpenings" min="1" />
-                                <ValidationMessage For="@(() => model.NumberOfOpenings)" />
-                            </div>
-                        </div>
-
-                        <hr class="my-4" />
-
-                        <h5 class="mb-3"><i class="bi bi-check2-square"></i> Requisitos e Responsabilidades</h5>
-
-                        <div class="mb-3">
-                            <label class="form-label" for="model.Requirements">Requisitos</label>
-                            <InputTextArea class="form-control" @bind-Value="model.Requirements" id="model.Requirements" rows="4" />
-                            <ValidationMessage class="text-danger" For="@(() => model.Requirements)" />
-                        </div>
-
-                        <div class="mb-3">
-                            <label class="form-label" for="model.Responsibilities">Responsabilidades</label>
-                            <InputTextArea class="form-control" @bind-Value="model.Responsibilities" id="model.Responsibilities" rows="4" />
-                            <ValidationMessage class="text-danger" For="@(() => model.Responsibilities)" />
-                        </div>
-
-                        <div class="mb-3">
-                            <label class="form-label" for="model.Benefits">Benefícios</label>
-                            <InputTextArea class="form-control" @bind-Value="model.Benefits" id="model.Benefits" rows="3" />
-                            <ValidationMessage class="text-danger" For="@(() => model.Benefits)" />
-                        </div>
-
-                        <hr class="my-4" />
-                        <h5 class="mb-3">Candidatura e observações</h5>
-                        <div class="mb-3">
-                            <label class="form-label" for="model.ApplicationInstructions">Como a pessoa deve se candidatar?</label>
-                            <InputTextArea class="form-control" @bind-Value="model.ApplicationInstructions" id="model.ApplicationInstructions" rows="3" maxlength="2000" />
-                            <ValidationMessage class="text-danger" For="@(() => model.ApplicationInstructions)" />
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label" for="model.Observations">Observações</label>
-                            <InputTextArea class="form-control" @bind-Value="model.Observations" id="model.Observations" rows="3" maxlength="2000" />
-                            <ValidationMessage class="text-danger" For="@(() => model.Observations)" />
-                        </div>
-
-                        <h5 class="mb-3"><i class="bi bi-geo-alt"></i> Localização</h5>
-
-                        <div class="row">
-                            <div class="col-md-4 mb-3">
-                                <label class="form-label" for="model.Type">Tipo de Trabalho *</label>
-                                <InputSelect class="form-select" @bind-Value="model.Type" id="model.Type" data-testid="job-type-select">
-                                    <option value="OnSite">Presencial</option>
-                                    <option value="Remote">Remoto</option>
-                                    <option value="Hybrid">Híbrido</option>
-                                </InputSelect>
-                            </div>
-                            <div class="col-md-4 mb-3">
-                                <label class="form-label" for="model.City">Cidade</label>
-                                <InputText class="form-control" @bind-Value="model.City" id="model.City" />
-                                <ValidationMessage class="text-danger" For="@(() => model.City)" />
-                            </div>
-                            <div class="col-md-4 mb-3">
-                                <label class="form-label" for="model.State">Estado</label>
-                                <InputText class="form-control" @bind-Value="model.State" id="model.State" maxlength="2" />
-                                <ValidationMessage class="text-danger" For="@(() => model.State)" />
-                            </div>
-                        </div>
-
-                        <hr class="my-4" />
-
-                        <h5 class="mb-3"><i class="bi bi-currency-exchange"></i> Faixa Salarial</h5>
-
-                        <div class="row">
-                            <div class="col-md-4 mb-3">
-                                <label class="form-label" for="model.SalaryMin">Salário Mínimo (R$)</label>
-                                <InputNumber ParsingErrorMessage="Informe um número válido." class="form-control" @bind-Value="model.SalaryMin" id="model.SalaryMin" />
-                                <ValidationMessage class="text-danger" For="@(() => model.SalaryMin)" />
-                            </div>
-                            <div class="col-md-4 mb-3">
-                                <label class="form-label" for="model.SalaryMax">Salário Máximo (R$)</label>
-                                <InputNumber ParsingErrorMessage="Informe um número válido." class="form-control" @bind-Value="model.SalaryMax" id="model.SalaryMax" />
-                                <ValidationMessage class="text-danger" For="@(() => model.SalaryMax)" />
-                            </div>
-                            <div class="col-md-4 mb-3">
-                                <label class="form-label" for="model.SalaryCurrency">Moeda</label>
-                                <InputSelect class="form-select" @bind-Value="model.SalaryCurrency" id="model.SalaryCurrency">
-                                    <option value="BRL">BRL - Real Brasileiro</option>
-                                    <option value="USD">USD - Dólar Americano</option>
-                                    <option value="EUR">EUR - Euro</option>
-                                </InputSelect>
-                            </div>
-                        </div>
-
-                        <div class="mb-3 form-check">
-                            <InputCheckbox class="form-check-input" @bind-Value="model.SalaryDisplay" id="model.SalaryDisplay" />
-                            <label class="form-check-label" for="model.SalaryDisplay">Exibir faixa salarial na listagem</label>
-                        </div>
-
-                        <hr class="my-4" />
-
-                        <h5 class="mb-3"><i class="bi bi-calendar-event"></i> Validade</h5>
-
-                        <div class="mb-3">
-                            <label class="form-label" for="model.ExpirationDate">Data de Expiração *</label>
-                            <InputDate ParsingErrorMessage="Informe uma data válida." class="form-control" @bind-Value="model.ExpirationDate" id="model.ExpirationDate" />
-                            <ValidationMessage class="text-danger" For="@(() => model.ExpirationDate)" />
-                        </div>
-
-                        <hr class="my-4" />
-
-                        <div class="d-grid gap-2">
-                            <button type="submit" class="btn btn-success btn-lg" disabled="@isSubmitting" data-testid="job-edit-submit">
-                                @if (isSubmitting)
-                                {
-                                    <span class="spinner-border spinner-border-sm me-2" role="status"></span>
-                                }
-                                <i class="bi bi-check-circle"></i> Salvar alterações
-                            </button>
-                        </div>
-                    </EditForm>
+        <header class="page-heading">
+            <div class="page-heading__copy">
+                <span class="page-kicker">ÁREA DA EMPRESA</span>
+                <h1>Editar vaga</h1>
+                <p>Atualize as informações da publicação. O que os candidatos já enviaram continua valendo.</p>
+            </div>
+        </header>
+        <div class="row">
+            <div class="col-lg-8 mx-auto">
+                <div class="card page-form-card">
+                    <div class="card-body">
+                        <JobWizard @ref="wizard"
+                                   Model="draft"
+                                   IsEdit="true"
+                                   CompanyName="@companyName"
+                                   IsSubmitting="isSubmitting"
+                                   ServerError="@errorMessage"
+                                   OnSubmit="SubmitForm"
+                                   OnCancel="Cancel" />
+                    </div>
                 </div>
             </div>
         </div>
-    </div>
     }
 </div>
 
@@ -210,17 +66,16 @@
     [Parameter]
     public Guid JobId { get; set; }
 
-    private static readonly Dictionary<string, string> ServerFieldMap = new() { ["Salary"] = nameof(UpdateJobRequest.SalaryMax) };
-
-    private UpdateJobRequest model = new();
+    private CreateJobRequest draft = new();
     private string errorMessage = string.Empty;
-    private bool isSubmitting;
     private bool isLoading = true;
     private bool loadFailed;
     private bool isJobOwner;
-    private ServerValidationErrors serverErrors = default!;
+    private bool isSubmitting;
+    private string? companyName;
+    private JobWizard wizard = default!;
 
-    protected override Task OnInitializedAsync() => LoadAsync();
+    protected override async Task OnInitializedAsync() => await LoadAsync();
 
     private async Task LoadAsync()
     {
@@ -251,9 +106,11 @@
             return;
         }
 
-        model = new UpdateJobRequest
+        companyName = job.AdvertiserName;
+        // Vaga antiga com categoria em texto livre e sem contrato/período continua editável
+        draft = new CreateJobRequest
         {
-            Id = job.Id,
+            AdvertiserId = job.AdvertiserId,
             Title = job.Title,
             Description = job.Description,
             Requirements = job.Requirements,
@@ -264,6 +121,7 @@
             Observations = job.Observations,
             Category = job.Category,
             Tags = job.Tags,
+            ContractType = Enum.TryParse<EContractType>(job.ContractType, out var contractType) ? contractType : null,
             ExpirationDate = job.ExpirationDate,
             City = job.City,
             State = job.State,
@@ -272,6 +130,7 @@
             ShowAddress = true,
             SalaryMin = job.SalaryMin,
             SalaryMax = job.SalaryMax,
+            SalaryPeriod = Enum.TryParse<ESalaryPeriod>(job.SalaryPeriod, out var salaryPeriod) ? salaryPeriod : null,
             SalaryCurrency = job.SalaryCurrency ?? "BRL",
             SalaryDisplay = job.SalaryDisplay
         };
@@ -287,20 +146,46 @@
         isSubmitting = true;
         errorMessage = string.Empty;
 
-        model.IsRemote = model.Type is "Remote" or "Hybrid";
+        draft.IsRemote = draft.Type is "Remote" or "Hybrid";
 
-        var result = await UpdateJobUseCase.ExecuteAsync(model);
+        var result = await UpdateJobUseCase.ExecuteAsync(new UpdateJobRequest
+        {
+            Id = JobId,
+            Title = draft.Title,
+            Description = draft.Description,
+            Requirements = draft.Requirements,
+            Responsibilities = draft.Responsibilities,
+            Benefits = draft.Benefits,
+            ApplicationInstructions = draft.ApplicationInstructions,
+            NumberOfOpenings = draft.NumberOfOpenings,
+            Observations = draft.Observations,
+            Category = draft.Category,
+            Tags = draft.Tags,
+            ContractType = draft.ContractType,
+            ExpirationDate = draft.ExpirationDate,
+            City = draft.City,
+            State = draft.State,
+            Country = draft.Country,
+            Type = draft.Type,
+            IsRemote = draft.IsRemote,
+            ShowAddress = draft.ShowAddress,
+            SalaryMin = draft.SalaryMin,
+            SalaryMax = draft.SalaryMax,
+            SalaryPeriod = draft.SalaryPeriod,
+            SalaryCurrency = draft.SalaryCurrency,
+            SalaryDisplay = draft.SalaryDisplay
+        });
 
         if (result.Status == EResultStatus.Success)
         {
-            Toast.ShowSuccess($"As alterações em \"{model.Title}\" foram salvas.", "Vaga atualizada");
+            Toast.ShowSuccess($"As alterações em \"{draft.Title}\" foram salvas.", "Vaga atualizada");
             Navigation.NavigateTo("/my-jobs");
             return;
         }
 
         Logger.LogFailure(result, "Atualizar vaga");
         var fieldErrors = ResultMessages.FieldErrors(result);
-        var unmatched = serverErrors.Display(fieldErrors);
+        var unmatched = wizard.DisplayServerFieldErrors(fieldErrors);
         errorMessage = fieldErrors.Count > 0 && unmatched.Count == 0
             ? "Revise os campos destacados no formulário."
             : ResultMessages.ToUserMessage(result, "Não foi possível salvar a vaga. Tente novamente.");

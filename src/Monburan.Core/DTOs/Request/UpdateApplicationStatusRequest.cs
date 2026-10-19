@@ -8,4 +8,7 @@ public class UpdateApplicationStatusRequest
     public Guid AdvertiserId { get; set; }
     public EApplicationStatus NewStatus { get; set; }
     public string? Notes { get; set; }
+
+    /// <summary>Quem alterou a etapa (nome ou email), guardado no histórico.</summary>
+    public string? Responsible { get; set; }
 }

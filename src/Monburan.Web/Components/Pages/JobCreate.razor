@@ -3,10 +3,12 @@
 @attribute [Microsoft.AspNetCore.Authorization.Authorize(Policy = "AdvertiserOnly")]
 @using Monburan.Core.DTOs.Request
 @using Monburan.Core.Enums
+@using Monburan.Core.UseCases.Advertisers
 @using Monburan.Core.UseCases.Jobs
 @using Monburan.Core.UseCases.Subscriptions
 @using Monburan.Web.Services
 @inject CreateJobUseCase CreateJobUseCase
+@inject GetAdvertiserByIdUseCase GetAdvertiserByIdUseCase
 @inject CheckJobLimitUseCase CheckJobLimitUseCase
 @inject ICurrentUserHelper CurrentUserHelper
 @inject NavigationManager Navigation
@@ -18,193 +20,39 @@
 <div class="container mt-4 page-form-shell">
     @if (isAdvertiser)
     {
-    <header class="page-heading">
-        <div class="page-heading__copy">
-            <span class="page-kicker">ÁREA DA EMPRESA</span>
-            <h1>Criar nova vaga</h1>
-            <p>Compartilhe uma descrição clara para atrair pessoas alinhadas à oportunidade.</p>
-        </div>
-        <button class="btn btn-secondary" @onclick="Cancel">Cancelar</button>
-    </header>
-    <div class="row">
-        <div class="col-lg-8 mx-auto">
+        <header class="page-heading">
+            <div class="page-heading__copy">
+                <span class="page-kicker">ÁREA DA EMPRESA</span>
+                <h1>Criar nova vaga</h1>
+                <p>Compartilhe uma descrição clara para atrair pessoas alinhadas à oportunidade.</p>
+            </div>
+        </header>
+        <div class="row">
+            <div class="col-lg-8 mx-auto">
 
-            @if (jobLimit is { CanCreate: false })
-            {
-                <div class="alert alert-warning" role="status" data-testid="job-limit-reached">
-                    <strong>Você atingiu o limite do plano @jobLimit.PlanName.</strong>
-                    Ele permite até @jobLimit.MaxJobs vagas ativas ao mesmo tempo.
-                    Encerre uma vaga em <a href="/my-jobs">Minhas vagas</a> ou <a href="/plans">mude de plano</a> para publicar outra.
-                </div>
-            }
+                @if (jobLimit is { CanCreate: false })
+                {
+                    <div class="alert alert-warning" role="status" data-testid="job-limit-reached">
+                        <strong>Você atingiu o limite do plano @jobLimit.PlanName.</strong>
+                        Ele permite até @jobLimit.MaxJobs vagas ativas ao mesmo tempo.
+                        Encerre uma vaga em <a href="/my-jobs">Minhas vagas</a> ou <a href="/plans">mude de plano</a> para publicar outra.
+                    </div>
+                }
 
-            @if (!string.IsNullOrEmpty(errorMessage))
-            {
-                <div class="alert alert-danger" role="alert">
-                    @errorMessage
-                </div>
-            }
-
-            <div class="card page-form-card">
-                <div class="card-body">
-                    <EditForm Model="model" OnValidSubmit="SubmitForm">
-                        <DataAnnotationsValidator />
-                        <ServerValidationErrors @ref="serverErrors" FieldMap="ServerFieldMap" />
-
-                        <!-- Informações Básicas -->
-                        <h5 class="mb-3"><i class="bi bi-info-circle"></i> Informações Básicas</h5>
-                        
-                        <div class="mb-3">
-                            <label class="form-label" for="model.Title">Título da Vaga *</label>
-                            <InputText class="form-control" @bind-Value="model.Title" id="model.Title" placeholder="Ex: Desenvolvedor Full Stack Pleno" data-testid="job-title-input" />
-                            <ValidationMessage class="text-danger" For="@(() => model.Title)" />
-                        </div>
-
-                        <div class="mb-3">
-                            <label class="form-label" for="model.Description">Descrição *</label>
-                            <InputTextArea class="form-control" @bind-Value="model.Description" id="model.Description" rows="5" placeholder="Descreva a vaga, responsabilidades e oportunidades..." data-testid="job-description-input" />
-                            <ValidationMessage class="text-danger" For="@(() => model.Description)" />
-                        </div>
-
-                        <div class="row">
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label" for="model.Category">Categoria</label>
-                                <InputText class="form-control" @bind-Value="model.Category" id="model.Category" placeholder="Ex: Tecnologia, Marketing, Vendas..." />
-                                <ValidationMessage class="text-danger" For="@(() => model.Category)" />
-                            </div>
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label" for="model.Tags">Tags</label>
-                                <InputText class="form-control" @bind-Value="model.Tags" id="model.Tags" placeholder="Ex: .NET, React, Python (separadas por vírgula)" />
-                                <ValidationMessage class="text-danger" For="@(() => model.Tags)" />
-                            </div>
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label" for="model.NumberOfOpenings">Quantidade de vagas *</label>
-                                <InputNumber ParsingErrorMessage="Informe um número válido." class="form-control" @bind-Value="model.NumberOfOpenings" id="model.NumberOfOpenings" min="1" />
-                                <ValidationMessage For="@(() => model.NumberOfOpenings)" />
-                            </div>
-                        </div>
-
-                        <hr class="my-4" />
-
-                        <!-- Requisitos e Responsabilidades -->
-                        <h5 class="mb-3"><i class="bi bi-check2-square"></i> Requisitos e Responsabilidades</h5>
-
-                        <div class="mb-3">
-                            <label class="form-label" for="model.Requirements">Requisitos</label>
-                            <InputTextArea class="form-control" @bind-Value="model.Requirements" id="model.Requirements" rows="4" placeholder="Liste os requisitos necessários..." />
-                            <ValidationMessage class="text-danger" For="@(() => model.Requirements)" />
-                        </div>
-
-                        <div class="mb-3">
-                            <label class="form-label" for="model.Responsibilities">Responsabilidades</label>
-                            <InputTextArea class="form-control" @bind-Value="model.Responsibilities" id="model.Responsibilities" rows="4" placeholder="Descreva as principais responsabilidades..." />
-                            <ValidationMessage class="text-danger" For="@(() => model.Responsibilities)" />
-                        </div>
-
-                        <div class="mb-3">
-                            <label class="form-label" for="model.Benefits">Benefícios</label>
-                            <InputTextArea class="form-control" @bind-Value="model.Benefits" id="model.Benefits" rows="3" placeholder="Liste os benefícios oferecidos..." />
-                            <ValidationMessage class="text-danger" For="@(() => model.Benefits)" />
-                        </div>
-
-                        <hr class="my-4" />
-                        <h5 class="mb-3">Candidatura e observações</h5>
-                        <div class="mb-3">
-                            <label class="form-label" for="model.ApplicationInstructions">Como a pessoa deve se candidatar?</label>
-                            <InputTextArea class="form-control" @bind-Value="model.ApplicationInstructions" id="model.ApplicationInstructions" rows="3" maxlength="2000" placeholder="Ex.: candidate-se pela Monburan ou envie o currículo para o e-mail informado." />
-                            <ValidationMessage class="text-danger" For="@(() => model.ApplicationInstructions)" />
-                            <div class="form-text">Não inclua dados sensíveis nem solicite pagamentos.</div>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label" for="model.Observations">Observações</label>
-                            <InputTextArea class="form-control" @bind-Value="model.Observations" id="model.Observations" rows="3" maxlength="2000" placeholder="Horários, escala, prazo ou outras informações importantes." />
-                            <ValidationMessage class="text-danger" For="@(() => model.Observations)" />
-                        </div>
-
-                        <!-- Localização -->
-                        <h5 class="mb-3"><i class="bi bi-geo-alt"></i> Localização</h5>
-
-                        <div class="row">
-                            <div class="col-md-4 mb-3">
-                                <label class="form-label" for="model.Type">Tipo de Trabalho *</label>
-                                <InputSelect class="form-select" @bind-Value="model.Type" id="model.Type" data-testid="job-type-select">
-                                    <option value="OnSite">Presencial</option>
-                                    <option value="Remote">Remoto</option>
-                                    <option value="Hybrid">Híbrido</option>
-                                </InputSelect>
-                            </div>
-                            <div class="col-md-4 mb-3">
-                                <label class="form-label" for="model.City">Cidade</label>
-                                <InputText class="form-control" @bind-Value="model.City" id="model.City" placeholder="Cidade..." />
-                                <ValidationMessage class="text-danger" For="@(() => model.City)" />
-                            </div>
-                            <div class="col-md-4 mb-3">
-                                <label class="form-label" for="model.State">Estado</label>
-                                <InputText class="form-control" @bind-Value="model.State" id="model.State" placeholder="UF..." maxlength="2" />
-                                <ValidationMessage class="text-danger" For="@(() => model.State)" />
-                            </div>
-                        </div>
-
-                        <hr class="my-4" />
-
-                        <!-- Salário -->
-                        <h5 class="mb-3"><i class="bi bi-currency-exchange"></i> Faixa Salarial</h5>
-
-                        <div class="row">
-                            <div class="col-md-4 mb-3">
-                                <label class="form-label" for="model.SalaryMin">Salário Mínimo (R$)</label>
-                                <InputNumber ParsingErrorMessage="Informe um número válido." class="form-control" @bind-Value="model.SalaryMin" id="model.SalaryMin" placeholder="0,00" />
-                                <ValidationMessage class="text-danger" For="@(() => model.SalaryMin)" />
-                            </div>
-                            <div class="col-md-4 mb-3">
-                                <label class="form-label" for="model.SalaryMax">Salário Máximo (R$)</label>
-                                <InputNumber ParsingErrorMessage="Informe um número válido." class="form-control" @bind-Value="model.SalaryMax" id="model.SalaryMax" placeholder="0,00" />
-                                <ValidationMessage class="text-danger" For="@(() => model.SalaryMax)" />
-                            </div>
-                            <div class="col-md-4 mb-3">
-                                <label class="form-label" for="model.SalaryCurrency">Moeda</label>
-                                <InputSelect class="form-select" @bind-Value="model.SalaryCurrency" id="model.SalaryCurrency">
-                                    <option value="BRL">BRL - Real Brasileiro</option>
-                                    <option value="USD">USD - Dólar Americano</option>
-                                    <option value="EUR">EUR - Euro</option>
-                                </InputSelect>
-                            </div>
-                        </div>
-
-                        <div class="mb-3 form-check">
-                            <InputCheckbox class="form-check-input" @bind-Value="model.SalaryDisplay" id="model.SalaryDisplay" />
-                            <label class="form-check-label" for="model.SalaryDisplay">Exibir faixa salarial na listagem</label>
-                        </div>
-
-                        <hr class="my-4" />
-
-                        <!-- Data de Expiração -->
-                        <h5 class="mb-3"><i class="bi bi-calendar-event"></i> Validade</h5>
-
-                        <div class="mb-3">
-                            <label class="form-label" for="model.ExpirationDate">Data de Expiração *</label>
-                            <InputDate ParsingErrorMessage="Informe uma data válida." class="form-control" @bind-Value="model.ExpirationDate" id="model.ExpirationDate" />
-                            <ValidationMessage class="text-danger" For="@(() => model.ExpirationDate)" />
-                            <div class="form-text">A vaga será automaticamente expirada nesta data.</div>
-                        </div>
-
-                        <hr class="my-4" />
-
-                        <!-- Botões -->
-                        <div class="d-grid gap-2">
-                            <button type="submit" class="btn btn-success btn-lg" disabled="@(isSubmitting || jobLimit is { CanCreate: false })" data-testid="job-create-submit">
-                                @if (isSubmitting)
-                                {
-                                    <span class="spinner-border spinner-border-sm me-2" role="status"></span>
-                                }
-                                <i class="bi bi-check-circle"></i> Criar Vaga
-                            </button>
-                        </div>
-                    </EditForm>
+                <div class="card page-form-card">
+                    <div class="card-body">
+                        <JobWizard @ref="wizard"
+                                   Model="model"
+                                   CompanyName="@CompanyName"
+                                   IsSubmitting="isSubmitting"
+                                   CanPublish="jobLimit is not { CanCreate: false }"
+                                   ServerError="@errorMessage"
+                                   OnSubmit="SubmitForm"
+                                   OnCancel="Cancel" />
+                    </div>
                 </div>
             </div>
         </div>
-    </div>
     }
     else
     {
@@ -225,16 +73,16 @@
         Type = "OnSite",
         ShowAddress = true,
         SalaryCurrency = "BRL",
-        SalaryDisplay = true
+        SalaryDisplay = true,
+        SalaryPeriod = Core.Enums.ESalaryPeriod.Month
     };
-
-    private static readonly Dictionary<string, string> ServerFieldMap = new() { ["Salary"] = nameof(CreateJobRequest.SalaryMax) };
 
     private string errorMessage = string.Empty;
     private bool isSubmitting;
     private bool isAdvertiser;
+    private string? CompanyName;
     private CheckJobLimitResponse? jobLimit;
-    private ServerValidationErrors serverErrors = default!;
+    private JobWizard wizard = default!;
 
     protected override async Task OnInitializedAsync()
     {
@@ -247,6 +95,10 @@
         var limit = await CheckJobLimitUseCase.ExecuteAsync(new CheckJobLimitRequest(advertiserId!.Value));
         if (limit.Status == EResultStatus.Success)
             jobLimit = limit.Data;
+
+        var advertiser = await GetAdvertiserByIdUseCase.ExecuteAsync(advertiserId!.Value);
+        if (advertiser.Status == EResultStatus.Success && advertiser.Data is not null)
+            CompanyName = advertiser.Data.Name;
     }
 
     private async Task SubmitForm()
@@ -280,7 +132,7 @@
         // Validação de domínio voltava com Message vazio: a tela não mostrava nada
         Logger.LogFailure(result, "Publicar vaga");
         var fieldErrors = ResultMessages.FieldErrors(result);
-        var unmatched = serverErrors.Display(fieldErrors);
+        var unmatched = wizard.DisplayServerFieldErrors(fieldErrors);
         errorMessage = fieldErrors.Count > 0 && unmatched.Count == 0
             ? "Revise os campos destacados no formulário."
             : ResultMessages.ToUserMessage(result, "Não foi possível publicar a vaga. Tente novamente.");

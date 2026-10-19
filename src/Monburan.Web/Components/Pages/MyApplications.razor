@@ -1,28 +1,63 @@
 @page "/my-applications"
 @rendermode InteractiveServer
 @attribute [Microsoft.AspNetCore.Authorization.Authorize(Policy = "CandidateOnly")]
+@using Monburan.Core.Catalogs
+@using Monburan.Core.DTOs.Request
 @using Monburan.Core.DTOs.Response
 @using Monburan.Core.Enums
+@using Monburan.Core.Services
 @using Monburan.Core.UseCases.Applications
+@using Monburan.Core.UseCases.JobAlerts
+@using Monburan.Core.UseCases.Jobs
 @using Monburan.Web.Services
 @inject ListApplicationsByCandidateUseCase ListApplicationsByCandidateUseCase
+@inject ListApplicationHistoryUseCase ListApplicationHistoryUseCase
+@inject ListSavedJobsUseCase ListSavedJobsUseCase
+@inject UnsaveJobUseCase UnsaveJobUseCase
+@inject ListJobAlertsUseCase ListJobAlertsUseCase
+@inject CreateJobAlertUseCase CreateJobAlertUseCase
+@inject UpdateJobAlertUseCase UpdateJobAlertUseCase
+@inject DeleteJobAlertUseCase DeleteJobAlertUseCase
 @inject CurrentUserHelper CurrentUserHelper
+@inject NavigationManager Navigation
+@inject IToastService Toast
 @inject ILogger<MyApplications> Logger
 
-<PageTitle>Minhas candidaturas - Monburan</PageTitle>
+<PageTitle>Minhas vagas - Monburan</PageTitle>
 
 <div class="container my-applications-page">
     <header class="page-heading">
         <div class="page-heading__copy">
             <span class="page-kicker">MINHA CARREIRA</span>
-            <h1>Minhas candidaturas</h1>
-            <p>Acompanhe as oportunidades para as quais você já se candidatou.</p>
+            <h1>Minhas vagas</h1>
+            <p>Acompanhe suas candidaturas, as vagas que você salvou e seus alertas de oportunidades.</p>
         </div>
     </header>
 
+    <nav class="journey-tabs" aria-label="Seções de Minhas vagas">
+        <a class="journey-tab@(Tab == "candidaturas" ? " journey-tab--active" : string.Empty)"
+           href="/my-applications?aba=candidaturas"
+           aria-current="@(Tab == "candidaturas" ? "page" : null)"
+           data-testid="tab-candidaturas">Candidaturas</a>
+        <a class="journey-tab@(Tab == "salvas" ? " journey-tab--active" : string.Empty)"
+           href="/my-applications?aba=salvas"
+           aria-current="@(Tab == "salvas" ? "page" : null)"
+           data-testid="tab-salvas">Vagas salvas</a>
+        <a class="journey-tab@(Tab == "alertas" ? " journey-tab--active" : string.Empty)"
+           href="/my-applications?aba=alertas"
+           aria-current="@(Tab == "alertas" ? "page" : null)"
+           data-testid="tab-alertas">Alertas</a>
+    </nav>
+
     @if (isLoading)
     {
-        <LoadingState Message="Carregando suas candidaturas..." />
+        <div class="skeleton-stack" role="status" aria-live="polite" data-testid="loading-state">
+            <span class="visually-hidden">Carregando suas informações...</span>
+            <SkeletonBlock Height="2.8rem" />
+            <SkeletonBlock Height="3.2rem" />
+            <SkeletonBlock Height="3.2rem" />
+            <SkeletonBlock Height="3.2rem" />
+        </div>
     }
     else if (!isCandidate)
     {
@@ -32,39 +67,199 @@
     }
     else if (loadFailed)
     {
-        <ErrorState Title="Não foi possível carregar suas candidaturas"
-                    Message="Tivemos um problema ao buscar suas candidaturas. Tente novamente em instantes."
+        <ErrorState Title="Não foi possível carregar suas informações"
+                    Message="Tivemos um problema ao buscar seus dados. Tente novamente em instantes."
                     OnRetry="LoadAsync" />
+    }
+    else if (Tab == "salvas")
+    {
+        @if (savedJobs.Count > 0)
+        {
+            <ul class="saved-jobs-list" data-testid="saved-jobs-list">
+                @foreach (var job in savedJobs)
+                {
+                    <li class="saved-jobs-list__item" data-testid="saved-job-row">
+                        <div class="saved-jobs-list__copy">
+                            <a href="/jobs/@job.Id"><strong>@job.Title</strong></a>
+                            <p class="text-muted mb-0">@job.AdvertiserName · @JobDisplay.Location(job)</p>
+                        </div>
+                        <div class="saved-jobs-list__actions">
+                            <a class="btn btn-primary btn-sm" href="/apply/@job.Id">Candidatar-se</a>
+                            <button type="button" class="btn btn-outline-danger btn-sm" @onclick="() => RemoveSavedAsync(job)" data-testid="saved-job-remove">
+                                Remover
+                            </button>
+                        </div>
+                    </li>
+                }
+            </ul>
+        }
+        else
+        {
+            <EmptyState Icon="☆"
+                        Kicker="GUARDE OPORTUNIDADES"
+                        Title="Nenhuma vaga salva"
+                        Message="Ao encontrar uma vaga interessante, toque em Salvar para acompanhá-la por aqui."
+                        TestId="saved-jobs-empty">
+                <a href="/jobs" class="btn btn-primary">Explorar vagas</a>
+            </EmptyState>
+        }
+    }
+    else if (Tab == "alertas")
+    {
+        <div class="row g-4">
+            <div class="col-lg-5">
+                <article class="card">
+                    <div class="card-body">
+                        <h2 class="h5">Criar alerta de vaga</h2>
+                        <p class="text-muted">Avisamos você quando uma vaga combinar com o que você procura.</p>
+
+                        @if (!string.IsNullOrEmpty(alertError))
+                        {
+                            <div class="alert alert-danger" role="alert" data-testid="alert-form-error">@alertError</div>
+                        }
+
+                        <EditForm Model="alertModel" OnValidSubmit="CreateAlertAsync" novalidate>
+                            <div class="mb-3">
+                                <label class="form-label" for="alert-name">Nome do alerta</label>
+                                <InputText id="alert-name" class="form-control" @bind-Value="alertModel.Name" data-testid="alert-name" />
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label" for="alert-keywords">Palavras-chave</label>
+                                <InputText id="alert-keywords" class="form-control" @bind-Value="alertModel.Keywords" data-testid="alert-keywords"
+                                           placeholder="Ex.: atendimento, vendas" />
+                            </div>
+                            <div class="row g-2">
+                                <div class="col-8">
+                                    <label class="form-label" for="alert-city">Cidade</label>
+                                    <InputText id="alert-city" class="form-control" @bind-Value="alertModel.City" data-testid="alert-city" />
+                                </div>
+                                <div class="col-4">
+                                    <label class="form-label" for="alert-state">UF</label>
+                                    <InputText id="alert-state" class="form-control" @bind-Value="alertModel.State" maxlength="2" data-testid="alert-state" />
+                                </div>
+                            </div>
+                            <div class="mb-3 mt-3">
+                                <label class="form-label" for="alert-mode">Modalidade</label>
+                                <InputSelect id="alert-mode" class="form-select" @bind-Value="alertModel.Mode" data-testid="alert-mode">
+                                    <option value="">Qualquer modalidade</option>
+                                    <option value="OnSite">Presencial</option>
+                                    <option value="Remote">Remoto</option>
+                                    <option value="Hybrid">Híbrido</option>
+                                </InputSelect>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label" for="alert-category">Categoria</label>
+                                <InputSelect id="alert-category" class="form-select" @bind-Value="alertModel.Category" data-testid="alert-category">
+                                    <option value="">Qualquer categoria</option>
+                                    @foreach (var category in JobCategories.All)
+                                    {
+                                        <option value="@category">@category</option>
+                                    }
+                                </InputSelect>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label" for="alert-salary">Salário mínimo (R$)</label>
+                                <InputNumber id="alert-salary" class="form-control" @bind-Value="alertModel.SalaryMin" data-testid="alert-salary" />
+                            </div>
+                            <button type="submit" class="btn btn-primary" disabled="@isSavingAlert" data-testid="alert-submit">
+                                @if (isSavingAlert)
+                                {
+                                    <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                                }
+                                Criar alerta
+                            </button>
+                        </EditForm>
+                    </div>
+                </article>
+            </div>
+            <div class="col-lg-7">
+                @if (alerts.Count > 0)
+                {
+                    <ul class="alerts-list" data-testid="alerts-list">
+                        @foreach (var alert in alerts)
+                        {
+                            <li class="alerts-list__item" data-testid="alert-row">
+                                <div class="alerts-list__copy">
+                                    <strong>@alert.Name</strong>
+                                    <p class="text-muted mb-0">@AlertSummary(alert)</p>
+                                </div>
+                                <div class="alerts-list__actions">
+                                    <button type="button" class="btn btn-outline-primary btn-sm" @onclick="() => ToggleAlertAsync(alert)" data-testid="alert-toggle">
+                                        @(alert.IsActive ? "Desativar" : "Ativar")
+                                    </button>
+                                    <button type="button" class="btn btn-outline-danger btn-sm" @onclick="() => DeleteAlertAsync(alert)" data-testid="alert-delete">
+                                        Excluir
+                                    </button>
+                                </div>
+                                <span class="badge @(alert.IsActive ? "bg-success" : "bg-secondary")">
+                                    @(alert.IsActive ? "Ativo" : "Desativado")
+                                </span>
+                            </li>
+                        }
+                    </ul>
+                }
+                else
+                {
+                    <EmptyState Icon="◌"
+                                Kicker="AVISOS SOBRE VAGAS"
+                                Title="Nenhum alerta criado"
+                                Message="Crie um alerta e avisamos quando surgir uma vaga com o perfil que você procura."
+                                TestId="alerts-empty" />
+                }
+            </div>
+        </div>
+    }
+    else if (filteredApplications.Count > 0)
+    {
+        <nav class="journey-filters" aria-label="Filtrar candidaturas por situação">
+            @foreach (var filter in Filters)
+            {
+                <a class="journey-filter@(Situation == ApplicationJourneyRules.Parse(filter.Value) ? " journey-filter--active" : string.Empty)"
+                   href="@FilterUrl(filter.Value)"
+                   aria-current="@(Situation == ApplicationJourneyRules.Parse(filter.Value) ? "true" : null)"
+                   data-testid="application-filter-@filter.Value">@filter.Label</a>
+            }
+        </nav>
+
+        <ul class="applications-list">
+            @foreach (var app in filteredApplications)
+            {
+                <li class="applications-list__item" data-testid="my-application-row">
+                    <div class="applications-list__head">
+                        <div>
+                            <a href="/jobs/@app.JobId"><strong>@(app.JobTitle ?? "Vaga")</strong></a>
+                            @if (!string.IsNullOrWhiteSpace(app.AdvertiserName))
+                            {
+                                <p class="text-muted mb-0">@app.AdvertiserName</p>
+                            }
+                        </div>
+                        <div class="applications-list__meta">
+                            <span class="badge @UiLabels.ApplicationStatusBadge(app.Status)">@UiLabels.ApplicationStatus(app.Status)</span>
+                            <span class="applications-list__date">@UiLabels.FormatMoment(app.AppliedAt ?? app.CreatedAt)</span>
+                        </div>
+                    </div>
+                    <button type="button"
+                            class="btn btn-link applications-list__toggle"
+                            aria-expanded="@expandedIds.Contains(app.Id)"
+                            data-testid="application-expand"
+                            @onclick="() => ToggleTimelineAsync(app)">
+                        @(expandedIds.Contains(app.Id) ? "Ocultar etapas" : "Ver etapas")
+                        <span aria-hidden="true">@(expandedIds.Contains(app.Id) ? "▴" : "▾")</span>
+                    </button>
+                    @if (expandedIds.Contains(app.Id))
+                    {
+                        <ApplicationTimeline Steps="@(timelines.TryGetValue(app.Id, out var steps) ? steps : [])" />
+                    }
+                </li>
+            }
+        </ul>
     }
     else if (applications.Count > 0)
     {
-        <div class="card received-applications-card">
-            <div class="card-body p-0">
-                <div class="table-responsive">
-                    <table class="table table-hover">
-                        <thead>
-                            <tr>
-                                <th>Vaga</th>
-                                <th>Situação</th>
-                                <th>Data</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach (var app in applications)
-                            {
-                                <tr data-testid="my-application-row">
-                                    <td><a href="@($"/jobs/{app.JobId}")"><strong>@(app.JobTitle ?? "Vaga")</strong></a></td>
-                                    <td>
-                                        <span class="badge @UiLabels.ApplicationStatusBadge(app.Status)">@UiLabels.ApplicationStatus(app.Status)</span>
-                                    </td>
-                                    <td>@UiLabels.FormatMoment(app.AppliedAt)</td>
-                                </tr>
-                            }
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
+        <EmptyState Icon="⌕"
+                    Title="Nenhuma candidatura nesta situação"
+                    Message="Tente outro filtro para ver suas outras candidaturas."
+                    TestId="applications-filtered-empty" />
     }
     else
     {
@@ -78,11 +273,53 @@
     }
 </div>
 
+<ConfirmDialog @ref="confirmDialog" />
+
 @code {
+    private static readonly (string Value, string Label)[] Filters =
+    [
+        ("todas", "Todas"),
+        ("andamento", "Em andamento"),
+        ("selecionadas", "Selecionadas"),
+        ("encerradas", "Encerradas")
+    ];
+
+    [SupplyParameterFromQuery(Name = "aba")]
+    public string? TabQuery { get; set; }
+
+    [SupplyParameterFromQuery(Name = "situacao")]
+    public string? SituationQuery { get; set; }
+
+    [SupplyParameterFromQuery(Name = "q")]
+    public string? SearchKeywords { get; set; }
+
+    [SupplyParameterFromQuery(Name = "local")]
+    public string? SearchLocation { get; set; }
+
+    [SupplyParameterFromQuery(Name = "modo")]
+    public string? SearchMode { get; set; }
+
+    [SupplyParameterFromQuery(Name = "categoria")]
+    public string? SearchCategory { get; set; }
+
     private List<ApplicationResponse> applications = [];
+    private List<ApplicationResponse> filteredApplications = [];
+    private readonly Dictionary<Guid, IReadOnlyList<ApplicationTimelineStep>> timelines = [];
+    private readonly HashSet<Guid> expandedIds = [];
+    private List<JobResponse> savedJobs = [];
+    private List<JobAlertResponse> alerts = [];
+    private JobAlertRequest alertModel = new();
+    private ConfirmDialog confirmDialog = default!;
+    private string alertError = string.Empty;
+    private bool isSavingAlert;
     private bool isLoading = true;
     private bool isCandidate;
     private bool loadFailed;
+    private bool prefillDone;
+
+    private string Tab => TabQuery is "salvas" or "alertas" ? TabQuery : "candidaturas";
+
+    private ApplicationJourneyFilter Situation => ApplicationJourneyRules.Parse(SituationQuery);
 
     protected override async Task OnInitializedAsync()
     {
@@ -93,18 +330,184 @@
         isLoading = false;
     }
 
+    protected override void OnParametersSet()
+    {
+        // A busca que trouxe o usuário ("Criar alerta com esta busca") já vem no formulário
+        if (Tab == "alertas" && !prefillDone)
+        {
+            prefillDone = true;
+            alertModel.Keywords = string.IsNullOrWhiteSpace(SearchKeywords) ? alertModel.Keywords : SearchKeywords;
+            alertModel.City = string.IsNullOrWhiteSpace(SearchLocation) ? alertModel.City : SearchLocation;
+            alertModel.Category = string.IsNullOrWhiteSpace(SearchCategory) ? alertModel.Category : SearchCategory;
+            if (JobModes.Normalize(SearchMode ?? string.Empty) is { } mode)
+                alertModel.Mode = mode;
+        }
+    }
+
     private async Task LoadAsync()
     {
         loadFailed = false;
-        var result = await ListApplicationsByCandidateUseCase.ExecuteAsync(CurrentUserHelper.GetCandidateId()!.Value);
-        if (result.Status == EResultStatus.Success)
+        var candidateId = CurrentUserHelper.GetCandidateId()!.Value;
+
+        var applicationsResult = await ListApplicationsByCandidateUseCase.ExecuteAsync(candidateId);
+        var savedResult = await ListSavedJobsUseCase.ExecuteAsync(candidateId);
+        var alertsResult = await ListJobAlertsUseCase.ExecuteAsync(candidateId);
+
+        if (applicationsResult.Status == EResultStatus.Success
+            && savedResult.Status == EResultStatus.Success
+            && alertsResult.Status == EResultStatus.Success)
         {
-            applications = result.Data?.ToList() ?? [];
+            applications = applicationsResult.Data?.ToList() ?? [];
+            savedJobs = savedResult.Data?.Jobs.ToList() ?? [];
+            alerts = alertsResult.Data?.ToList() ?? [];
+            ApplyFilter();
         }
         else
         {
-            Logger.LogFailure(result, "Listar candidaturas do candidato");
+            Logger.LogFailure(applicationsResult, "Listar candidaturas do candidato");
+            Logger.LogFailure(savedResult, "Listar vagas salvas do candidato");
+            Logger.LogFailure(alertsResult, "Listar alertas do candidato");
             loadFailed = true;
         }
+    }
+
+    private void ApplyFilter() =>
+        filteredApplications = applications
+            .Where(app => ApplicationJourneyRules.Matches(app.Status, Situation))
+            .ToList();
+
+    private string FilterUrl(string value) =>
+        value == "todas" ? "/my-applications?aba=candidaturas" : $"/my-applications?aba=candidaturas&situacao={value}";
+
+    private async Task ToggleTimelineAsync(ApplicationResponse app)
+    {
+        if (!expandedIds.Add(app.Id))
+        {
+            expandedIds.Remove(app.Id);
+            return;
+        }
+
+        if (timelines.ContainsKey(app.Id))
+            return;
+
+        var result = await ListApplicationHistoryUseCase.ExecuteAsync(
+            new ListApplicationHistoryRequest(app.Id, CurrentUserHelper.GetCandidateId()!.Value, null));
+        if (result.Status == EResultStatus.Success)
+        {
+            timelines[app.Id] = ApplicationTimelineBuilder.Build(result.Data ?? []);
+        }
+        else
+        {
+            Logger.LogFailure(result, "Carregar etapas da candidatura");
+            timelines[app.Id] = [];
+            Toast.ShowError("Não foi possível carregar as etapas desta candidatura.");
+        }
+    }
+
+    private async Task RemoveSavedAsync(JobResponse job)
+    {
+        var result = await UnsaveJobUseCase.ExecuteAsync(
+            new UnsaveJobRequest(CurrentUserHelper.GetCandidateId()!.Value, job.Id));
+        if (result.Status == EResultStatus.Success)
+        {
+            savedJobs.RemoveAll(item => item.Id == job.Id);
+            Toast.ShowSuccess("Vaga removida das suas vagas salvas.", "Vaga removida");
+        }
+        else
+        {
+            Toast.ShowError("Não foi possível remover a vaga salva. Tente novamente.");
+        }
+    }
+
+    private async Task CreateAlertAsync()
+    {
+        if (isSavingAlert)
+            return;
+
+        isSavingAlert = true;
+        alertError = string.Empty;
+
+        var result = await CreateJobAlertUseCase.ExecuteAsync(
+            new CreateJobAlertCommand(CurrentUserHelper.GetCandidateId()!.Value, alertModel));
+
+        if (result.Status == EResultStatus.Success && result.Data is not null)
+        {
+            alerts.Insert(0, result.Data);
+            alertModel = new JobAlertRequest();
+            Toast.ShowSuccess("Alerta criado. Avisamos quando surgir uma vaga compatível.", "Alerta criado");
+        }
+        else
+        {
+            Logger.LogFailure(result, "Criar alerta de vaga");
+            alertError = ResultMessages.ToUserMessage(result, "Não foi possível criar o alerta. Revise os campos e tente novamente.");
+            Toast.ShowError(alertError);
+        }
+
+        isSavingAlert = false;
+    }
+
+    private async Task ToggleAlertAsync(JobAlertResponse alert)
+    {
+        var result = await UpdateJobAlertUseCase.ExecuteAsync(new UpdateJobAlertCommand(
+            CurrentUserHelper.GetCandidateId()!.Value,
+            alert.Id,
+            new JobAlertRequest
+            {
+                Name = alert.Name,
+                Keywords = alert.Keywords,
+                City = alert.City,
+                State = alert.State,
+                Mode = alert.Mode,
+                Category = alert.Category,
+                SalaryMin = alert.SalaryMin,
+                IsActive = !alert.IsActive
+            }));
+
+        if (result.Status == EResultStatus.Success && result.Data is not null)
+        {
+            alerts[alerts.FindIndex(item => item.Id == alert.Id)] = result.Data;
+        }
+        else
+        {
+            Logger.LogFailure(result, "Atualizar alerta de vaga");
+            Toast.ShowError("Não foi possível atualizar o alerta. Tente novamente.");
+        }
+    }
+
+    private async Task DeleteAlertAsync(JobAlertResponse alert)
+    {
+        var confirmed = await confirmDialog.ShowAsync(new ConfirmOptions
+        {
+            Title = "Excluir alerta?",
+            Message = $"O alerta \"{alert.Name}\" será excluído e você deixará de receber avisos dele.",
+            ConfirmText = "Excluir",
+            Destructive = true
+        });
+        if (!confirmed)
+            return;
+
+        var result = await DeleteJobAlertUseCase.ExecuteAsync(
+            new DeleteJobAlertCommand(CurrentUserHelper.GetCandidateId()!.Value, alert.Id));
+        if (result.Status == EResultStatus.Success)
+        {
+            alerts.RemoveAll(item => item.Id == alert.Id);
+            Toast.ShowSuccess("Alerta excluído.", "Alerta excluído");
+        }
+        else
+        {
+            Logger.LogFailure(result, "Excluir alerta de vaga");
+            Toast.ShowError("Não foi possível excluir o alerta. Tente novamente.");
+        }
+    }
+
+    private static string AlertSummary(JobAlertResponse alert)
+    {
+        var parts = new List<string>();
+        if (!string.IsNullOrWhiteSpace(alert.Keywords)) parts.Add(alert.Keywords);
+        if (!string.IsNullOrWhiteSpace(alert.City)) parts.Add(alert.City);
+        if (!string.IsNullOrWhiteSpace(alert.State)) parts.Add(alert.State);
+        if (!string.IsNullOrWhiteSpace(alert.Mode)) parts.Add(UiLabels.JobType(alert.Mode));
+        if (!string.IsNullOrWhiteSpace(alert.Category)) parts.Add(alert.Category);
+        return parts.Count > 0 ? string.Join(" · ", parts) : "Qualquer vaga";
     }
 }

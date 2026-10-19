@@ -43,6 +43,18 @@ public static class ApplicationEndpoints
         })
         .WithSummary("Lista candidaturas do candidato autenticado");
 
+        group.MapGet("/{id:guid}/history", async (
+            Guid id,
+            ICurrentUserHelper currentUser,
+            ListApplicationHistoryUseCase useCase,
+            CancellationToken cancellationToken) =>
+        {
+            var result = await useCase.ExecuteAsync(new ListApplicationHistoryRequest(
+                id, currentUser.GetCandidateId(), currentUser.GetAdvertiserId()));
+            return result.ToHttpResult();
+        })
+        .WithSummary("Histórico de etapas da candidatura (candidato dono ou anunciante dono da vaga)");
+
         // Atualiza status — AdvertiserId sempre da claim
         group.MapPut("/{id:guid}/status", async (
             Guid id,

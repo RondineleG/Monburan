@@ -15,12 +15,14 @@ namespace Monburan.UnitTests.UseCases.Jobs;
 public class ListJobsUseCaseTests
 {
     private readonly IJobRepository _mockRepository;
+    private readonly ISavedJobRepository _mockSavedJobs;
     private readonly ListJobsUseCase _useCase;
 
     public ListJobsUseCaseTests()
     {
         _mockRepository = Substitute.For<IJobRepository>();
-        _useCase = new ListJobsUseCase(_mockRepository);
+        _mockSavedJobs = Substitute.For<ISavedJobRepository>();
+        _useCase = new ListJobsUseCase(_mockRepository, _mockSavedJobs);
     }
 
     [Fact]
@@ -226,5 +228,61 @@ public class ListJobsUseCaseTests
         result.Data.TotalCount.Should().Be(15);
 
         await _mockRepository.Received(1).GetAllPagedAsync(2, 5);
+    }
+
+    private static Job JobOf(Guid jobId, string title) => new()
+    {
+        Id = Id.Create(jobId),
+        AdvertiserId = Id.Create(Guid.NewGuid()),
+        Title = title,
+        Description = "Test description",
+        ExpirationDate = DateTime.UtcNow.AddDays(30),
+        Status = EJobStatus.Active,
+        TenantId = "default"
+    };
+
+    [Fact]
+    public async Task ExecuteAsync_WithAuthenticatedCandidate_MarksOnlyTheSavedJobs()
+    {
+        var candidateId = Guid.NewGuid();
+        var savedJobId = Guid.NewGuid();
+        var request = new ListJobsRequest { Page = 1, Size = 10, CandidateId = candidateId };
+
+        _mockRepository.GetAllPagedAsync(1, 10).Returns(new PagedResponse<Job>
+        {
+            Data = [JobOf(savedJobId, "Salva"), JobOf(Guid.NewGuid(), "Não salva")],
+            TotalCount = 2,
+            Page = 1,
+            Size = 10
+        });
+        _mockSavedJobs.ListSavedJobIdsAsync(candidateId, Arg.Any<IReadOnlyCollection<Guid>>())
+            .Returns(RequestResult<IReadOnlyCollection<Guid>>.Success([savedJobId]));
+
+        var result = await _useCase.ExecuteAsync(request);
+
+        result.Status.Should().Be(EResultStatus.Success);
+        result.Data!.Jobs.Should().ContainSingle(job => job.IsSaved).Which.Title.Should().Be("Salva");
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_WhenTheSavedLookupFails_StillReturnsTheListing()
+    {
+        var candidateId = Guid.NewGuid();
+        var request = new ListJobsRequest { Page = 1, Size = 10, CandidateId = candidateId };
+
+        _mockRepository.GetAllPagedAsync(1, 10).Returns(new PagedResponse<Job>
+        {
+            Data = [JobOf(Guid.NewGuid(), "Vaga")],
+            TotalCount = 1,
+            Page = 1,
+            Size = 10
+        });
+        _mockSavedJobs.ListSavedJobIdsAsync(candidateId, Arg.Any<IReadOnlyCollection<Guid>>())
+            .Returns(RequestResult<IReadOnlyCollection<Guid>>.WithError("banco fora do ar"));
+
+        var result = await _useCase.ExecuteAsync(request);
+
+        result.Status.Should().Be(EResultStatus.Success);
+        result.Data!.Jobs.Should().OnlyContain(job => !job.IsSaved);
     }
 }

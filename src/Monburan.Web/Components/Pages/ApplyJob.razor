@@ -2,6 +2,7 @@
 @rendermode InteractiveServer
 @attribute [Microsoft.AspNetCore.Authorization.Authorize(Policy = "CandidateOnly")]
 @using Monburan.Core.DTOs.Request
+@using Monburan.Core.DTOs.Response
 @using Monburan.Core.Enums
 @using Monburan.Core.UseCases.Applications
 @using Monburan.Core.UseCases.Jobs
@@ -14,6 +15,7 @@
 @inject ICurrentUserHelper CurrentUserHelper
 @inject NavigationManager Navigation
 @inject IToastService Toast
+@inject IJSRuntime JS
 
 <PageTitle>Candidatar-se - Monburan</PageTitle>
 
@@ -40,8 +42,40 @@
                     <a href="/dashboard">Voltar ao início</a>
                 </div>
             }
+            else if (submitted)
+            {
+                <section class="card" data-testid="application-feedback" aria-live="polite">
+                    <div class="card-body">
+                        <h2 class="h4" id="apply-step-title" tabindex="-1">Candidatura enviada!</h2>
+                        <p>A empresa já pode ver seu perfil para esta vaga. Acompanhe as atualizações em Minhas vagas.</p>
+                        <h3 class="h6">Próximos passos</h3>
+                        <ul>
+                            <li>Acompanhe as etapas do processo seletivo em <a href="/my-applications?aba=candidaturas">Minhas vagas</a>.</li>
+                            <li>Continue explorando <a href="/jobs">outras oportunidades</a>.</li>
+                            <li>Mantenha seu <a href="/resumes">currículo</a> atualizado.</li>
+                        </ul>
+                        <button class="btn btn-primary" @onclick="ViewApplications">Ir para Minhas vagas</button>
+                    </div>
+                </section>
+            }
+            else if (jobUnavailableMessage is not null)
+            {
+                <div class="alert alert-warning" role="status" data-testid="application-unavailable">
+                    @jobUnavailableMessage
+                    <a href="/jobs">Ver outras vagas</a>
+                </div>
+            }
             else
             {
+                <ol class="apply-steps" aria-label="Etapas da candidatura">
+                    <li class="apply-steps__item@(step == 1 ? " apply-steps__item--active" : string.Empty)" aria-current="@(step == 1 ? "step" : null)">
+                        1. Revisar
+                    </li>
+                    <li class="apply-steps__item@(step == 2 ? " apply-steps__item--active" : string.Empty)" aria-current="@(step == 2 ? "step" : null)">
+                        2. Confirmar
+                    </li>
+                </ol>
+
                 @if (!string.IsNullOrEmpty(errorMessage))
                 {
                     <div class="alert alert-danger" data-testid="application-feedback">
@@ -49,77 +83,115 @@
                     </div>
                 }
 
-                @if (successMessage)
-                {
-                    <div class="alert alert-success" data-testid="application-feedback">
-                        <i class="bi bi-check-circle"></i> Candidatura realizada com sucesso!
-                        <br />
-                        <button class="btn btn-primary mt-2" @onclick="ViewApplications">
-                            Ver minhas candidaturas
-                        </button>
-                    </div>
-                }
-                else if (jobUnavailableMessage is not null)
-                {
-                    <div class="alert alert-warning" role="status" data-testid="application-unavailable">
-                        @jobUnavailableMessage
-                        <a href="/jobs">Ver outras vagas</a>
-                    </div>
-                }
-                else
-                {
-                    <div class="card">
-                        <div class="card-body">
+                <div class="card">
+                    <div class="card-body">
+                        @if (step == 1)
+                        {
+                            <h2 class="h4" id="apply-step-title" tabindex="-1">Revisar</h2>
                             <p class="text-muted">
-                                Você está se candidatando à vaga <strong>@jobTitle</strong>.
-                                <br />
-                                Preencha as informações abaixo (opcional):
+                                Você está se candidatando à vaga <strong>@job?.Title</strong>. Preencha as informações abaixo (opcional):
                             </p>
 
-                            <EditForm Model="model" OnValidSubmit="SubmitForm">
-                                <DataAnnotationsValidator />
+                            <dl class="apply-summary">
+                                <dt>Empresa</dt>
+                                <dd>@(job?.AdvertiserName ?? "Empresa confidencial")</dd>
+                                <dt>Local</dt>
+                                <dd>@JobDisplay.Location(job)</dd>
+                                <dt>Modalidade</dt>
+                                <dd>@UiLabels.JobType(job?.Type)</dd>
+                                @if (!string.IsNullOrWhiteSpace(UiLabels.ContractType(job?.ContractType)))
+                                {
+                                    <dt>Contrato</dt>
+                                    <dd>@UiLabels.ContractType(job?.ContractType)</dd>
+                                }
+                                @if (salary is not null)
+                                {
+                                    <dt>Salário</dt>
+                                    <dd>@salary</dd>
+                                }
+                            </dl>
 
+                            @if (resumes.Count > 0)
+                            {
                                 <div class="mb-3">
-                                    <label class="form-label" for="application-notes">Observações (opcional)</label>
-                                    <InputTextArea id="application-notes" class="form-control" @bind-Value="model.Notes" rows="4" data-testid="application-notes"
-                                        placeholder="Escreva uma breve mensagem ou destaque suas qualificações..." />
-                                </div>
-
-                                @if (resumes.Count > 0)
-                                {
-                                    <div class="mb-3">
-                                        <label class="form-label" for="application-resume">Currículo enviado com a candidatura</label>
-                                        <InputSelect id="application-resume" class="form-select" @bind-Value="model.ResumeId" data-testid="application-resume">
-                                            <option value="">Não anexar currículo</option>
-                                            @foreach (var resume in resumes)
-                                            {
-                                                <option value="@resume.Id">@resume.Title@(resume.IsActive ? " (ativo)" : "")</option>
-                                            }
-                                        </InputSelect>
-                                        <div class="form-text">A empresa poderá ver o currículo escolhido.</div>
-                                    </div>
-                                }
-                                else
-                                {
-                                    <div class="alert alert-info">
-                                        <i class="bi bi-info-circle"></i>
-                                        Você ainda não tem currículo cadastrado. <a href="/resumes/new">Crie um currículo</a> para enviá-lo junto com a candidatura.
-                                    </div>
-                                }
-
-                                <div class="d-grid gap-2">
-                                    <button type="submit" class="btn btn-success btn-lg" disabled="@isSubmitting" data-testid="application-submit">
-                                        @if (isSubmitting)
+                                    <label class="form-label" for="application-resume">Currículo enviado com a candidatura</label>
+                                    <InputSelect id="application-resume" class="form-select" @bind-Value="model.ResumeId" data-testid="application-resume">
+                                        <option value="">Não anexar currículo</option>
+                                        @foreach (var resume in resumes)
                                         {
-                                            <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                                            <option value="@resume.Id">@resume.Title@(resume.IsActive ? " (ativo)" : "")</option>
                                         }
-                                        <i class="bi bi-send"></i> Enviar candidatura
-                                    </button>
+                                    </InputSelect>
+                                    <div class="form-text">A empresa poderá ver o currículo escolhido.</div>
                                 </div>
-                            </EditForm>
-                        </div>
+                            }
+                            else
+                            {
+                                <div class="alert alert-info">
+                                    <i class="bi bi-info-circle"></i>
+                                    Você ainda não tem currículo cadastrado. <a href="/resumes/new">Crie um currículo</a> para enviá-lo junto com a candidatura.
+                                </div>
+                            }
+
+                            <div class="mb-3">
+                                <label class="form-label" for="application-notes">Observações (opcional)</label>
+                                <InputTextArea id="application-notes" class="form-control" @bind-Value="model.Notes" rows="4" data-testid="application-notes"
+                                               placeholder="Escreva uma breve mensagem ou destaque suas qualificações..." />
+                            </div>
+
+                            <div class="d-grid gap-2">
+                                <button type="button" class="btn btn-primary btn-lg" @onclick="GoToConfirm" data-testid="application-continue">
+                                    Continuar <span aria-hidden="true">→</span>
+                                </button>
+                            </div>
+                        }
+                        else
+                        {
+                            <h2 class="h4" id="apply-step-title" tabindex="-1">Confirmar</h2>
+                            <p class="text-muted">Confira um resumo do que a empresa vai receber:</p>
+
+                            <dl class="apply-summary">
+                                <dt>Vaga</dt>
+                                <dd>@job?.Title</dd>
+                                <dt>Empresa</dt>
+                                <dd>@(job?.AdvertiserName ?? "Empresa confidencial")</dd>
+                                <dt>Local</dt>
+                                <dd>@JobDisplay.Location(job)</dd>
+                                @if (salary is not null)
+                                {
+                                    <dt>Salário</dt>
+                                    <dd>@salary</dd>
+                                }
+                                <dt>Currículo</dt>
+                                <dd>@(SelectedResumeTitle ?? "Sem currículo anexado")</dd>
+                                <dt>Observações</dt>
+                                <dd>@(string.IsNullOrWhiteSpace(model.Notes) ? "Sem observações" : model.Notes)</dd>
+                            </dl>
+
+                            <div class="form-check mb-3">
+                                <input type="checkbox" class="form-check-input" id="application-confirm"
+                                       @bind="confirmed" data-testid="application-confirm" />
+                                <label class="form-check-label" for="application-confirm">
+                                    Confirmo que as informações estão corretas
+                                </label>
+                            </div>
+
+                            <div class="d-flex gap-2">
+                                <button type="button" class="btn btn-secondary" @onclick="BackToReview">
+                                    <span aria-hidden="true">←</span> Voltar
+                                </button>
+                                <button type="button" class="btn btn-success btn-lg flex-grow-1" disabled="@(!confirmed || isSubmitting)"
+                                        @onclick="SubmitForm" data-testid="application-submit">
+                                    @if (isSubmitting)
+                                    {
+                                        <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                                    }
+                                    Enviar candidatura
+                                </button>
+                            </div>
+                        }
                     </div>
-                }
+                </div>
             }
         </div>
     </div>
@@ -130,22 +202,32 @@
     public Guid JobId { get; set; }
 
     private CreateApplicationRequest model = new();
+    private JobResponse? job;
+    private string? salary;
     private string errorMessage = string.Empty;
-    private bool successMessage = false;
-    private bool isSubmitting = false;
+    private bool submitted;
+    private bool confirmed;
+    private bool isSubmitting;
     private bool isCandidate;
-    private string jobTitle = "carregando...";
     private string? jobUnavailableMessage;
     private bool isLoading = true;
+    private int step = 1;
     private List<ResumeResponse> resumes = [];
+
+    private string? SelectedResumeTitle =>
+        resumes.FirstOrDefault(resume => resume.Id == model.ResumeId)?.Title;
 
     protected override async Task OnInitializedAsync()
     {
-        var jobResult = await GetJobByIdUseCase.ExecuteAsync(JobId);
+        var jobResult = await GetJobByIdUseCase.ExecuteAsync(JobId, CurrentUserHelper.GetCandidateId());
         if (jobResult.Status == EResultStatus.Success && jobResult.Data is not null)
         {
-            jobTitle = jobResult.Data.Title;
-            if (jobResult.Data.Status != "Active")
+            job = jobResult.Data;
+            salary = JobDisplay.Salary(job);
+            if (!string.IsNullOrWhiteSpace(UiLabels.SalaryPeriod(job.SalaryPeriod)))
+                salary = $"{salary} {UiLabels.SalaryPeriod(job.SalaryPeriod)}";
+
+            if (job.Status != "Active")
                 jobUnavailableMessage = "Esta vaga não está mais recebendo candidaturas.";
         }
         else if (jobResult.Status == EResultStatus.EntityNotFound)
@@ -176,6 +258,31 @@
         isLoading = false;
     }
 
+    private async Task GoToConfirm()
+    {
+        step = 2;
+        await FocusStepTitleAsync();
+    }
+
+    private async Task BackToReview()
+    {
+        // Volta sem perder o que já foi digitado: o modelo continua o mesmo
+        step = 1;
+        await FocusStepTitleAsync();
+    }
+
+    private async Task FocusStepTitleAsync()
+    {
+        try
+        {
+            await JS.InvokeVoidAsync("monburanFocusById", "apply-step-title");
+        }
+        catch (JSException)
+        {
+            // Sem JS disponível o foco é o de menos: a navegação por etapas continua funcionando
+        }
+    }
+
     private async Task SubmitForm()
     {
         // Clique duplo antes do re-render não pode enviar duas candidaturas
@@ -186,11 +293,12 @@
         errorMessage = string.Empty;
 
         var result = await CreateApplicationUseCase.ExecuteAsync(model);
-        
+
         if (result.Status == EResultStatus.Success)
         {
-            successMessage = true;
-            Toast.ShowSuccess("A empresa já pode ver sua candidatura. Acompanhe em Minhas candidaturas.", "Candidatura enviada");
+            submitted = true;
+            Toast.ShowSuccess("A empresa já pode ver sua candidatura. Acompanhe em Minhas vagas.", "Candidatura enviada");
+            await FocusStepTitleAsync();
         }
         else
         {

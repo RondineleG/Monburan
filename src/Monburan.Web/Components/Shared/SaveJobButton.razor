@@ -1,0 +1,81 @@
+@rendermode InteractiveServer
+@using Monburan.Core.Enums
+@using Monburan.Core.UseCases.Jobs
+@using Monburan.Web.Services
+@inject SaveJobUseCase SaveJobUseCase
+@inject UnsaveJobUseCase UnsaveJobUseCase
+@inject ICurrentUserHelper CurrentUserHelper
+@inject IToastService Toast
+
+@* Botão de salvar vaga, interativo por conta própria: o restante da página pode continuar estático. *@
+@if (CanSave)
+{
+    <button type="button"
+            class="btn @(IsSaved ? "btn-primary" : "btn-outline-primary") save-job-button"
+            aria-pressed="@IsSaved"
+            disabled="@isWorking"
+            data-testid="save-job-button"
+            @onclick="ToggleAsync">
+        <span aria-hidden="true">@(IsSaved ? "★" : "☆")</span>
+        @(IsSaved ? "Salva" : "Salvar")
+    </button>
+}
+else
+{
+    <a class="btn btn-outline-primary save-job-button" href="@LoginUrl" data-testid="save-job-login">
+        <span aria-hidden="true">☆</span> Entrar para salvar
+    </a>
+}
+
+@code {
+    /// <summary>Vaga salva pelo candidato logado.</summary>
+    [Parameter]
+    public bool IsSaved { get; set; }
+
+    /// <summary>Candidato autenticado: pode salvar. Visitante recebe o convite para entrar.</summary>
+    [Parameter]
+    public bool CanSave { get; set; }
+
+    [Parameter]
+    public Guid JobId { get; set; }
+
+    /// <summary>Página atual, para voltar depois do login.</summary>
+    [Parameter]
+    public string? ReturnUrl { get; set; }
+
+    private bool isWorking;
+
+    private string LoginUrl =>
+        $"/Account/Login?returnUrl={Uri.EscapeDataString(string.IsNullOrWhiteSpace(ReturnUrl) ? "/" : ReturnUrl)}";
+
+    private async Task ToggleAsync()
+    {
+        // Clique duplo antes do re-render não pode salvar e dessalvar
+        if (isWorking)
+            return;
+
+        var candidateId = CurrentUserHelper.GetCandidateId();
+        if (candidateId is null)
+            return;
+
+        isWorking = true;
+        var wasSaved = IsSaved;
+        var result = wasSaved
+            ? await UnsaveJobUseCase.ExecuteAsync(new UnsaveJobRequest(candidateId.Value, JobId))
+            : await SaveJobUseCase.ExecuteAsync(new SaveJobRequest(candidateId.Value, JobId));
+
+        if (result.Status == EResultStatus.Success)
+        {
+            IsSaved = !wasSaved;
+            Toast.ShowSuccess(
+                IsSaved ? "Vaga salva em Minhas vagas." : "Vaga removida das suas vagas salvas.",
+                IsSaved ? "Vaga salva" : "Vaga removida");
+        }
+        else
+        {
+            Toast.ShowError("Não foi possível atualizar suas vagas salvas. Tente novamente.");
+        }
+
+        isWorking = false;
+    }
+}

@@ -4,11 +4,14 @@
 @using Monburan.Core.DTOs.Request
 @using Monburan.Core.DTOs.Response
 @using Monburan.Core.Enums
+@using Monburan.Core.UseCases.Candidates
 @using Monburan.Core.UseCases.Jobs
 @using Monburan.Web.Services
 @using Monburan.Web.UseCases.Analytics
 @inject SearchJobsUseCase SearchJobsUseCase
 @inject GetDashboardAnalyticsUseCase DashboardAnalyticsUseCase
+@inject GetCandidateProgressUseCase GetCandidateProgressUseCase
+@inject ListRecommendedJobsUseCase ListRecommendedJobsUseCase
 @inject ICurrentUserHelper CurrentUserHelper
 @inject NavigationManager Navigation
 @inject ILogger<Dashboard> Logger
@@ -53,7 +56,17 @@
 
     @if (isLoading)
     {
-        <LoadingState Message="Carregando..." />
+        <div class="skeleton-stack" role="status" aria-live="polite" data-testid="loading-state">
+            <span class="visually-hidden">Carregando seus indicadores...</span>
+            <div class="skeleton-grid">
+                <SkeletonBlock Height="6.5rem" Radius="var(--r-md)" />
+                <SkeletonBlock Height="6.5rem" Radius="var(--r-md)" />
+                <SkeletonBlock Height="6.5rem" Radius="var(--r-md)" />
+                <SkeletonBlock Height="6.5rem" Radius="var(--r-md)" />
+            </div>
+            <SkeletonBlock Height="12rem" Radius="var(--r-md)" />
+            <SkeletonBlock Height="12rem" Radius="var(--r-md)" />
+        </div>
     }
     else if (loadFailed)
     {
@@ -182,14 +195,94 @@
         }
     }
 
+    @if (isCandidate && progress is not null)
+    {
+        <section class="page-section dashboard-progress" aria-labelledby="progress-title">
+            <div class="page-section__heading">
+                <div>
+                    <span class="page-kicker">SEU PROGRESSO</span>
+                    <h2 id="progress-title">Continue de onde parou</h2>
+                </div>
+                <p class="dashboard-progress__label" data-testid="candidate-progress-label">@CandidateProgressText.Completeness(progress.CompletenessPercent)</p>
+            </div>
+
+            <div class="progress dashboard-progress__bar" role="progressbar"
+                 aria-valuenow="@progress.CompletenessPercent" aria-valuemin="0" aria-valuemax="100"
+                 aria-label="Completude do perfil">
+                <div class="progress-bar" style="width: @(progress.CompletenessPercent)%"></div>
+            </div>
+
+            <div class="row g-3">
+                <div class="col-lg-6">
+                    <article class="card h-100">
+                        <div class="card-body">
+                            <h3 class="h5">Próximos passos</h3>
+                            @if (nextSteps.Count > 0)
+                            {
+                                <ul class="next-steps" data-testid="candidate-next-steps">
+                                    @foreach (var step in nextSteps)
+                                    {
+                                        <li><a href="@step.ActionUrl">@step.Label <span aria-hidden="true">→</span></a></li>
+                                    }
+                                </ul>
+                            }
+                            else
+                            {
+                                <p class="text-muted mb-0">Tudo certo por aqui: seu perfil está completo.</p>
+                            }
+                        </div>
+                    </article>
+                </div>
+                <div class="col-lg-6">
+                    <div class="row g-3 h-100">
+                        <div class="col-6">
+                            <article class="card dashboard-metric h-100">
+                                <div class="card-body">
+                                    <span class="dashboard-metric__label">Candidaturas</span>
+                                    <strong class="dashboard-metric__value">@progress.Applications.Total</strong>
+                                    <small class="dashboard-metric__hint">@InProgressApplications em andamento</small>
+                                </div>
+                            </article>
+                        </div>
+                        <div class="col-6">
+                            <article class="card dashboard-metric h-100">
+                                <div class="card-body">
+                                    <span class="dashboard-metric__label">Selecionadas</span>
+                                    <strong class="dashboard-metric__value">@progress.Applications.Selected</strong>
+                                </div>
+                            </article>
+                        </div>
+                        <div class="col-6">
+                            <a class="card dashboard-metric dashboard-metric--link h-100" href="/my-applications?aba=salvas">
+                                <div class="card-body">
+                                    <span class="dashboard-metric__label">Vagas salvas</span>
+                                    <strong class="dashboard-metric__value">@progress.SavedJobs</strong>
+                                    <small class="dashboard-metric__hint">Ver salvas <span aria-hidden="true">→</span></small>
+                                </div>
+                            </a>
+                        </div>
+                        <div class="col-6">
+                            <a class="card dashboard-metric dashboard-metric--link h-100" href="/my-applications?aba=alertas">
+                                <div class="card-body">
+                                    <span class="dashboard-metric__label">Alertas ativos</span>
+                                    <strong class="dashboard-metric__value">@progress.ActiveAlerts</strong>
+                                    <small class="dashboard-metric__hint">Ver alertas <span aria-hidden="true">→</span></small>
+                                </div>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    }
+
     <section class="page-section dashboard-actions">
         <div class="page-section__heading">
             <div>
                 <span class="page-kicker">@(isAnonymous ? "COMECE POR AQUI" : "PRÓXIMOS PASSOS")</span>
                 <h2>Acessos rápidos</h2>
             </div>
-        </div>
-        @if (isAdvertiser)
+        </div>        @if (isAdvertiser)
         {
             <div class="row g-3">
                 <div class="col-md-4">
@@ -296,11 +389,11 @@
         }
     </section>
 
-    <!-- Vagas Recentes -->
+    <!-- Vagas recomendadas para o candidato; sem recomendações, as recentes como fallback -->
     <div class="row">
         <div class="col">
             <div class="d-flex justify-content-between align-items-center mb-3">
-                <h2>@(isAnonymous ? "Vagas em destaque" : "Vagas recentes")</h2>
+                <h2>@JobsHeading</h2>
                 <a class="btn btn-outline-primary" href="/jobs">
                     Ver todas as vagas <span aria-hidden="true">→</span>
                 </a>
@@ -308,45 +401,25 @@
         </div>
     </div>
 
-    @if (recentJobs.Count > 0)
+    @if (isCandidate && !hasCareerProfile && !isLoading && !loadFailed)
+    {
+        <aside class="promo-strip" aria-label="Perfil de carreira">
+            <span class="promo-strip__tag">Recomendações</span>
+            <div class="promo-strip__body">
+                <p class="promo-strip__title">Conte o que você procura</p>
+                <p class="promo-strip__text">Preencha o perfil de carreira para receber vagas que combinam com você.</p>
+            </div>
+            <a class="btn btn-outline-primary" href="/career-profile">Completar perfil de carreira</a>
+        </aside>
+    }
+
+    @if (displayJobs.Count > 0)
     {
         <div class="row g-3">
-            @foreach (var job in recentJobs.Take(6))
+            @foreach (var job in displayJobs.Take(6))
             {
                 <div class="col-md-6 col-lg-4">
-                    <div class="card h-100">
-                        <div class="card-body">
-                            <h5 class="card-title">@job.Title</h5>
-                            @if (!string.IsNullOrEmpty(job.AdvertiserName))
-                            {
-                                <p class="text-muted mb-2">
-                                    <i class="bi bi-building"></i> @job.AdvertiserName
-                                </p>
-                            }
-                            @if (!string.IsNullOrEmpty(job.City))
-                            {
-                                <p class="text-muted mb-2">
-                                    <i class="bi bi-geo-alt"></i> @job.City, @job.State
-                                </p>
-                            }
-                            @if (job.SalaryDisplay && job.SalaryMin.HasValue && job.SalaryMax.HasValue)
-                            {
-                                <p class="text-success mb-2">
-                                    <i class="bi bi-currency-exchange"></i>
-                                    R$ @job.SalaryMin.Value.ToString("N2") - R$ @job.SalaryMax.Value.ToString("N2")
-                                </p>
-                            }
-                            @if (!string.IsNullOrEmpty(job.Category))
-                            {
-                                <span class="badge bg-info">@job.Category</span>
-                            }
-                        </div>
-                        <div class="card-footer bg-transparent">
-                            <a class="btn btn-outline-primary w-100" href="@($"/jobs/{job.Id}")">
-                                Ver detalhes
-                            </a>
-                        </div>
-                    </div>
+                    <JobCard Job="job" ShowSave="isCandidate" CanSave="isCandidate" SaveReturnUrl="/" />
                 </div>
             }
         </div>
@@ -381,12 +454,25 @@
 @code {
     private DashboardAnalyticsResponse? analytics;
     private List<JobResponse> recentJobs = [];
+    private List<JobResponse> recommendedJobs = [];
+    private CandidateProgressResponse? progress;
+    private IReadOnlyList<CandidateProgressChecklistItem> nextSteps = [];
+    private bool hasCareerProfile;
     private bool isLoading = true;
     private bool loadFailed;
     private bool isAuthenticated;
     private bool isAdvertiser;
     private bool isCandidate;
     private bool isAnonymous => !isAuthenticated;
+
+    private List<JobResponse> displayJobs => isCandidate && recommendedJobs.Count > 0 ? recommendedJobs : recentJobs;
+
+    private string JobsHeading => isCandidate
+        ? (recommendedJobs.Count > 0 ? "Recomendadas para você" : "Vagas recentes")
+        : (isAnonymous ? "Vagas em destaque" : "Vagas recentes");
+
+    private int InProgressApplications =>
+        (progress?.Applications.Sent ?? 0) + (progress?.Applications.Viewed ?? 0);
 
     protected override async Task OnInitializedAsync()
     {
@@ -414,6 +500,31 @@
             else
             {
                 Logger.LogFailure(analyticsResult, "Carregar painel do anunciante");
+                loadFailed = true;
+            }
+        }
+        else if (isCandidate)
+        {
+            var candidateId = CurrentUserHelper.GetCandidateId()!.Value;
+            var progressResult = await GetCandidateProgressUseCase.ExecuteAsync(candidateId);
+            var recommendedResult = await ListRecommendedJobsUseCase.ExecuteAsync(candidateId);
+            var jobsResult = await SearchJobsUseCase.ExecuteAsync(new ListJobsRequest { Page = 1, Size = 6 });
+
+            if (progressResult.Status == EResultStatus.Success && progressResult.Data is not null
+                && recommendedResult.Status == EResultStatus.Success
+                && jobsResult.Status == EResultStatus.Success)
+            {
+                progress = progressResult.Data;
+                nextSteps = CandidateProgressText.NextSteps(progress);
+                hasCareerProfile = progress.Checklist.Any(item => item.Key == "careerProfile" && item.Done);
+                recommendedJobs = recommendedResult.Data?.Jobs.ToList() ?? [];
+                recentJobs = jobsResult.Data?.Jobs.ToList() ?? [];
+            }
+            else
+            {
+                Logger.LogFailure(progressResult, "Carregar progresso do candidato");
+                Logger.LogFailure(recommendedResult, "Carregar vagas recomendadas");
+                Logger.LogFailure(jobsResult, "Carregar vagas recentes");
                 loadFailed = true;
             }
         }

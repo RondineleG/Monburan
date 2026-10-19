@@ -37,6 +37,7 @@ public class ListApplicationsByCandidateUseCase : IUseCase<Guid, IEnumerable<App
         CandidateEmail = app.Candidate?.Email,
         JobId = app.JobId.Value,
         JobTitle = app.Job?.Title,
+        AdvertiserName = app.Job?.Advertiser?.Name,
         Status = app.Status.ToString(),
         AppliedAt = app.AppliedAt,
         ResumeId = app.ResumeId,

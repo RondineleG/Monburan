@@ -213,6 +213,8 @@ public class PublicPagesTests : E2ETestBase
             new PageWaitForFunctionOptions { Timeout = 45000 });
         await WaitForBlazorAsync();
 
+        // O formulário abre na etapa 1 (revisão); a etapa 2 traz o envio da candidatura
+        await Page.GetByTestId("application-continue").ClickAsync();
         await Page.GetByTestId("application-submit").WaitForAsync(new LocatorWaitForOptions
         {
             State = WaitForSelectorState.Visible,

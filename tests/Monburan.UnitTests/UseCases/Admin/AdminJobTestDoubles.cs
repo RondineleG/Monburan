@@ -65,7 +65,8 @@ internal sealed class FakeJobRepository : IJobRepository
     public Task<RequestResult<PagedResponse<Job>>> SearchAsync(
         string? searchTerm = null, string? city = null, string? state = null, bool? isRemote = null, decimal? salaryMin = null,
         decimal? salaryMax = null, string? category = null, Guid? advertiserId = null, int page = 1, int size = 10,
-        string? type = null, string? sortBy = null, bool? sortDescending = null) =>
+        string? type = null, string? sortBy = null, bool? sortDescending = null, EContractType? contractType = null,
+        ESalaryPeriod? salaryPeriod = null, int? publishedWithinDays = null) =>
         throw new NotSupportedException();
 
     public Task<PagedResponse<Job>> GetAllPagedAsync(int page, int size) => throw new NotSupportedException();
@@ -96,6 +97,20 @@ internal sealed class FakeJobRepository : IJobRepository
     public Task<IReadOnlyDictionary<EJobStatus, int>> CountByStatusAsync() =>
         Task.FromResult<IReadOnlyDictionary<EJobStatus, int>>(
             _jobs.Where(job => !job.IsDeleted).GroupBy(job => job.Status).ToDictionary(group => group.Key, group => group.Count()));
+
+    public Task<RequestResult<IEnumerable<Job>>> ListActiveForRecommendationsAsync() =>
+        Task.FromResult(RequestResult<IEnumerable<Job>>.Success(
+            _jobs.Where(job => !job.IsDeleted && job.Status == EJobStatus.Active).ToList()));
+
+    public Task<RequestResult<bool>> IncrementViewsAsync(Guid jobId)
+    {
+        var job = _jobs.FirstOrDefault(item => item.Id.Value == jobId);
+        if (job is null)
+            return Task.FromResult(RequestResult<bool>.Success(false));
+
+        job.Counters.Views++;
+        return Task.FromResult(RequestResult<bool>.Success(true));
+    }
 }
 
 internal sealed class FakeAdvertiserRepository : IBaseRepository<Advertiser>

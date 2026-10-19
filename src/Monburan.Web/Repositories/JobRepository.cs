@@ -161,7 +161,10 @@ public class JobRepository : IJobRepository
         int size = 10,
         string? type = null,
         string? sortBy = null,
-        bool? sortDescending = null)
+        bool? sortDescending = null,
+        EContractType? contractType = null,
+        ESalaryPeriod? salaryPeriod = null,
+        int? publishedWithinDays = null)
     {
         await using var context = await _contextFactory.CreateDbContextAsync();
         var query = context.Jobs
@@ -243,6 +246,25 @@ public class JobRepository : IJobRepository
             query = query.Where(j => j.Category == category);
         }
 
+        // Filtro por tipo de contratação (CLT, PJ, estágio...)
+        if (contractType.HasValue)
+        {
+            query = query.Where(j => j.ContractType == contractType.Value);
+        }
+
+        // Filtro por período do salário (hora, dia, mês, ano)
+        if (salaryPeriod.HasValue)
+        {
+            query = query.Where(j => j.Salary != null && j.Salary.Period == salaryPeriod.Value);
+        }
+
+        // Filtro por data de publicação: vagas criadas nos últimos N dias
+        if (publishedWithinDays is > 0)
+        {
+            var cutoff = DateTime.UtcNow.AddDays(-publishedWithinDays.Value);
+            query = query.Where(j => j.CreatedAt >= cutoff);
+        }
+
         // Ordenação — sortBy: "createdAt" (default), "title", "salary"
         var descending = sortDescending ?? true;
         query = sortBy?.ToLowerInvariant() switch
@@ -281,5 +303,45 @@ public class JobRepository : IJobRepository
         return await context.Jobs
             .AsNoTracking()
             .CountAsync(j => !j.IsDeleted && j.AdvertiserId == advertiserKey && j.Status == EJobStatus.Active);
+    }
+
+    public async Task<RequestResult<IEnumerable<Job>>> ListActiveForRecommendationsAsync()
+    {
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        var now = DateTime.UtcNow;
+        var jobs = await context.Jobs
+            .AsNoTracking()
+            .Include(j => j.Advertiser)
+            .Where(j => !j.IsDeleted && j.Status == EJobStatus.Active && j.ExpirationDate >= now)
+            .OrderByDescending(j => j.CreatedAt)
+            .ToListAsync();
+
+        return RequestResult<IEnumerable<Job>>.Success(jobs);
+    }
+
+    public async Task<RequestResult<bool>> IncrementViewsAsync(Guid jobId)
+    {
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        var jobKey = Id.Create(jobId);
+
+        // O EF InMemory (provider dos testes de API) não traduz ExecuteUpdate; no banco de verdade,
+        // o incremento é atômico, feito numa instrução só
+        if (context.Database.ProviderName == "Microsoft.EntityFrameworkCore.InMemory")
+        {
+            var job = await context.Jobs.FirstOrDefaultAsync(item => item.Id == jobKey);
+            if (job is null)
+                return RequestResult<bool>.Success(false);
+
+            job.Counters.Views++;
+            await context.SaveChangesAsync();
+            return RequestResult<bool>.Success(true);
+        }
+
+        var updated = await context.Jobs
+            .Where(job => job.Id == jobKey)
+            .ExecuteUpdateAsync(setters => setters
+                .SetProperty(job => job.Counters.Views, job => job.Counters.Views + 1));
+
+        return RequestResult<bool>.Success(updated > 0);
     }
 }

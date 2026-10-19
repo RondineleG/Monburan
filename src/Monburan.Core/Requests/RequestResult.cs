@@ -303,6 +303,17 @@ public class RequestResult<T> : RequestResult, IRequestCustomResult<T>
         return new RequestResult<T> { Status = EResultStatus.HasValidation, Validations = validations };
     }
 
+    public new static RequestResult<T> WithValidations(IEnumerable<RequestValidation> validations)
+    {
+        var array = validations.ToArray();
+        var result = new RequestResult<T> { Status = EResultStatus.HasValidation, Validations = array };
+
+        foreach (var validation in array)
+            result.ValidationResult.AddError(validation.Description, validation.PropertyName);
+
+        return result;
+    }
+
     public new static RequestResult<T> WithValidations(string propertyName, string description)
     {
         return WithValidations(new RequestValidation(propertyName, description));
