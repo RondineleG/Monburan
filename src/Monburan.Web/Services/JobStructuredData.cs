@@ -6,12 +6,31 @@ namespace Monburan.Web.Services;
 
 /// <summary>
 /// Dados estruturados <c>JobPosting</c> (schema.org) da página da vaga, lidos pelo Google Vagas. Descreve só o
-/// que a vaga informa: sem tipo de contratação nem período do salário, que o cadastro não guarda.
+/// que a vaga informa: tipo de contratação e período do salário entram quando preenchidos e somem quando não há dado.
 /// </summary>
 public static class JobStructuredData
 {
     // O codificador padrão escapa < > & ', então o JSON é seguro dentro de <script type="application/ld+json">.
     private static readonly JsonSerializerOptions Options = new() { WriteIndented = false };
+
+    private static readonly IReadOnlyDictionary<string, string> EmploymentTypes = new Dictionary<string, string>
+    {
+        ["Clt"] = "FULL_TIME",
+        ["Pj"] = "CONTRACTOR",
+        ["Internship"] = "INTERN",
+        ["Apprenticeship"] = "INTERN",
+        ["Temporary"] = "TEMPORARY",
+        ["Freelance"] = "CONTRACTOR"
+    };
+
+    private static readonly IReadOnlyDictionary<string, string> SalaryUnits = new Dictionary<string, string>
+    {
+        ["Hour"] = "HOUR",
+        ["Day"] = "DAY",
+        ["Week"] = "WEEK",
+        ["Month"] = "MONTH",
+        ["Year"] = "YEAR"
+    };
 
     public static string Build(JobResponse job, string pageUrl)
     {
@@ -32,6 +51,27 @@ public static class JobStructuredData
 
         if (job.ExpirationDate != default)
             data["validThrough"] = job.ExpirationDate.ToString("yyyy-MM-dd");
+
+        if (!string.IsNullOrWhiteSpace(job.ContractType) && EmploymentTypes.TryGetValue(job.ContractType, out var employmentType))
+            data["employmentType"] = employmentType;
+
+        if (!string.IsNullOrWhiteSpace(job.SalaryPeriod)
+            && SalaryUnits.TryGetValue(job.SalaryPeriod, out var unitText)
+            && (job.SalaryMin is not null || job.SalaryMax is not null))
+        {
+            data["baseSalary"] = Without(new Dictionary<string, object?>
+            {
+                ["@type"] = "MonetaryAmount",
+                ["currency"] = "BRL",
+                ["value"] = Without(new Dictionary<string, object?>
+                {
+                    ["@type"] = "QuantitativeValue",
+                    ["minValue"] = job.SalaryMin,
+                    ["maxValue"] = job.SalaryMax,
+                    ["unitText"] = unitText
+                })
+            });
+        }
 
         if (job.Type == "Remote")
         {
