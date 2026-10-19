@@ -161,7 +161,10 @@ public class JobRepository : IJobRepository
         int size = 10,
         string? type = null,
         string? sortBy = null,
-        bool? sortDescending = null)
+        bool? sortDescending = null,
+        EContractType? contractType = null,
+        ESalaryPeriod? salaryPeriod = null,
+        int? publishedWithinDays = null)
     {
         await using var context = await _contextFactory.CreateDbContextAsync();
         var query = context.Jobs
@@ -241,6 +244,25 @@ public class JobRepository : IJobRepository
         if (!string.IsNullOrWhiteSpace(category))
         {
             query = query.Where(j => j.Category == category);
+        }
+
+        // Filtro por tipo de contratação (CLT, PJ, estágio...)
+        if (contractType.HasValue)
+        {
+            query = query.Where(j => j.ContractType == contractType.Value);
+        }
+
+        // Filtro por período do salário (hora, dia, mês, ano)
+        if (salaryPeriod.HasValue)
+        {
+            query = query.Where(j => j.Salary != null && j.Salary.Period == salaryPeriod.Value);
+        }
+
+        // Filtro por data de publicação: vagas criadas nos últimos N dias
+        if (publishedWithinDays is > 0)
+        {
+            var cutoff = DateTime.UtcNow.AddDays(-publishedWithinDays.Value);
+            query = query.Where(j => j.CreatedAt >= cutoff);
         }
 
         // Ordenação — sortBy: "createdAt" (default), "title", "salary"

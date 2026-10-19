@@ -37,8 +37,10 @@ public class SearchJobsUseCaseTests
     private void ReturnsJobs(params Job[] jobs) =>
         _jobs.SearchAsync(
             Arg.Any<string?>(), Arg.Any<string?>(), Arg.Any<string?>(), Arg.Any<bool?>(), Arg.Any<decimal?>(), Arg.Any<decimal?>(),
-            Arg.Any<string?>(), Arg.Any<Guid?>(), Arg.Any<int>(), Arg.Any<int>(), Arg.Any<string?>(), Arg.Any<string?>(), Arg.Any<bool?>())
+            Arg.Any<string?>(), Arg.Any<Guid?>(), Arg.Any<int>(), Arg.Any<int>(), Arg.Any<string?>(), Arg.Any<string?>(), Arg.Any<bool?>(),
+            Arg.Any<EContractType?>(), Arg.Any<ESalaryPeriod?>(), Arg.Any<int?>())
             .Returns(new PagedResponse<Job> { Data = jobs, TotalCount = jobs.Length, Page = 1, Size = 10 });
+
 
     [Fact]
     public async Task ExecuteAsync_WithAuthenticatedCandidate_MarksOnlyTheSavedJobs()
@@ -86,9 +88,46 @@ public class SearchJobsUseCaseTests
     {
         _jobs.SearchAsync(
             Arg.Any<string?>(), Arg.Any<string?>(), Arg.Any<string?>(), Arg.Any<bool?>(), Arg.Any<decimal?>(), Arg.Any<decimal?>(),
-            Arg.Any<string?>(), Arg.Any<Guid?>(), Arg.Any<int>(), Arg.Any<int>(), Arg.Any<string?>(), Arg.Any<string?>(), Arg.Any<bool?>())
+            Arg.Any<string?>(), Arg.Any<Guid?>(), Arg.Any<int>(), Arg.Any<int>(), Arg.Any<string?>(), Arg.Any<string?>(), Arg.Any<bool?>(),
+            Arg.Any<EContractType?>(), Arg.Any<ESalaryPeriod?>(), Arg.Any<int?>())
             .Returns(Task.FromException<RequestResult<PagedResponse<Job>>>(new InvalidOperationException("banco fora do ar")));
 
         await Assert.ThrowsAsync<InvalidOperationException>(() => _useCase.ExecuteAsync(new ListJobsRequest()));
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_ParsesTheNewFiltersIgnoringTheCase()
+    {
+        ReturnsJobs();
+
+        await _useCase.ExecuteAsync(new ListJobsRequest
+        {
+            ContractType = "pj",
+            SalaryPeriod = "month",
+            PublishedWithinDays = 7
+        });
+
+        await _jobs.Received(1).SearchAsync(
+            Arg.Any<string?>(), Arg.Any<string?>(), Arg.Any<string?>(), Arg.Any<bool?>(), Arg.Any<decimal?>(), Arg.Any<decimal?>(),
+            Arg.Any<string?>(), Arg.Any<Guid?>(), Arg.Any<int>(), Arg.Any<int>(), Arg.Any<string?>(), Arg.Any<string?>(), Arg.Any<bool?>(),
+            EContractType.Pj, ESalaryPeriod.Month, 7);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_WithUnknownFilterValues_IgnoresThemInsteadOfFailing()
+    {
+        ReturnsJobs();
+
+        await _useCase.ExecuteAsync(new ListJobsRequest
+        {
+            ContractType = "Banana",
+            SalaryPeriod = "Século",
+            PublishedWithinDays = 0
+        });
+
+        await _jobs.Received(1).SearchAsync(
+            Arg.Any<string?>(), Arg.Any<string?>(), Arg.Any<string?>(), Arg.Any<bool?>(), Arg.Any<decimal?>(), Arg.Any<decimal?>(),
+            Arg.Any<string?>(), Arg.Any<Guid?>(), Arg.Any<int>(), Arg.Any<int>(), Arg.Any<string?>(), Arg.Any<string?>(), Arg.Any<bool?>(),
+            null, null, null);
     }
 }

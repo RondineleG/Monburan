@@ -65,7 +65,8 @@ internal sealed class FakeJobRepository : IJobRepository
     public Task<RequestResult<PagedResponse<Job>>> SearchAsync(
         string? searchTerm = null, string? city = null, string? state = null, bool? isRemote = null, decimal? salaryMin = null,
         decimal? salaryMax = null, string? category = null, Guid? advertiserId = null, int page = 1, int size = 10,
-        string? type = null, string? sortBy = null, bool? sortDescending = null) =>
+        string? type = null, string? sortBy = null, bool? sortDescending = null, EContractType? contractType = null,
+        ESalaryPeriod? salaryPeriod = null, int? publishedWithinDays = null) =>
         throw new NotSupportedException();
 
     public Task<PagedResponse<Job>> GetAllPagedAsync(int page, int size) => throw new NotSupportedException();

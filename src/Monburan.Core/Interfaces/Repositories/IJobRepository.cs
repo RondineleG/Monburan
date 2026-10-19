@@ -21,7 +21,10 @@ public interface IJobRepository : IBaseRepository<Job>
         int size = 10,
         string? type = null,
         string? sortBy = null,
-        bool? sortDescending = null);
+        bool? sortDescending = null,
+        EContractType? contractType = null,
+        ESalaryPeriod? salaryPeriod = null,
+        int? publishedWithinDays = null);
 
     Task<PagedResponse<Job>> GetAllPagedAsync(int page, int size);
 

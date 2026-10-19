@@ -34,7 +34,10 @@ public class SearchJobsUseCase : IUseCase<ListJobsRequest, ListJobsResponse>
             size: request.Size,
             type: request.Type,
             sortBy: request.SortBy,
-            sortDescending: request.SortDescending);
+            sortDescending: request.SortDescending,
+            contractType: ParseEnum<EContractType>(request.ContractType),
+            salaryPeriod: ParseEnum<ESalaryPeriod>(request.SalaryPeriod),
+            publishedWithinDays: request.PublishedWithinDays is > 0 ? request.PublishedWithinDays : null);
 
         if (result.Status != EResultStatus.Success || result.Data is null)
             return RequestResult<ListJobsResponse>.FromResult(result);
@@ -69,4 +72,8 @@ public class SearchJobsUseCase : IUseCase<ListJobsRequest, ListJobsResponse>
         var saved = await _savedJobs.ListSavedJobIdsAsync(candidateId.Value, jobIds);
         return saved.Status == EResultStatus.Success && saved.Data is not null ? saved.Data : [];
     }
+
+    // Filtros de enum são opcionais: valor desconhecido é ignorado em vez de derrubar a busca
+    private static TEnum? ParseEnum<TEnum>(string? value) where TEnum : struct, Enum =>
+        Enum.TryParse<TEnum>(value?.Trim(), ignoreCase: true, out var parsed) ? parsed : null;
 }
