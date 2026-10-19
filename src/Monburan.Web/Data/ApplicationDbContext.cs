@@ -28,6 +28,8 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
 
     public DbSet<Application> Applications => Set<Application>();
 
+    public DbSet<ApplicationStatusHistory> ApplicationStatusHistory => Set<ApplicationStatusHistory>();
+
     public DbSet<Candidate> Candidates => Set<Candidate>();
 
     public DbSet<CareerProfile> CareerProfiles => Set<CareerProfile>();

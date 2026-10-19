@@ -299,6 +299,7 @@ builder.Services.AddScoped<IBaseRepository<Advertiser>, AdvertiserRepository>();
 builder.Services.AddScoped<IAdvertiserRepository, AdvertiserRepository>();
 builder.Services.AddScoped<IBaseRepository<Application>, ApplicationRepository>();
 builder.Services.AddScoped<IApplicationRepository, ApplicationRepository>();
+builder.Services.AddScoped<IApplicationStatusHistoryRepository, ApplicationStatusHistoryRepository>();
 builder.Services.AddScoped<IBaseRepository<Resume>, ResumeRepository>();
 builder.Services.AddScoped<IResumeRepository, ResumeRepository>();
 builder.Services.AddScoped<ISavedJobRepository, SavedJobRepository>();
@@ -349,6 +350,7 @@ builder.Services.AddScoped<CreateApplicationUseCase>();
 builder.Services.AddScoped<ListApplicationsByJobUseCase>();
 builder.Services.AddScoped<ListApplicationsByCandidateUseCase>();
 builder.Services.AddScoped<UpdateApplicationStatusUseCase>();
+builder.Services.AddScoped<ListApplicationHistoryUseCase>();
 
 // Registrar Use Cases de Notifications
 builder.Services.AddScoped<NotifyOnApplicationCreatedUseCase>();

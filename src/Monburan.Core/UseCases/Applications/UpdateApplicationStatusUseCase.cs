@@ -4,6 +4,7 @@ using Monburan.Core.DTOs.Request;
 using Monburan.Core.DTOs.Response;
 using Monburan.Core.Entities;
 using Monburan.Core.Enums;
+using Monburan.Core.Interfaces.Repositories;
 using Monburan.Core.Interfaces.Repositories.Base;
 using Monburan.Core.Interfaces.UseCases;
 using Monburan.Core.Requests;
@@ -15,15 +16,18 @@ namespace Monburan.Core.UseCases.Applications;
 public class UpdateApplicationStatusUseCase : IUseCase<UpdateApplicationStatusRequest, ApplicationResponse>
 {
     private readonly IBaseRepository<Application> _applicationRepository;
+    private readonly IApplicationStatusHistoryRepository _historyRepository;
     private readonly NotifyOnApplicationStatusChangedUseCase _notifyOnStatusChangedUseCase;
     private readonly ILogger<UpdateApplicationStatusUseCase> _logger;
 
     public UpdateApplicationStatusUseCase(
         IBaseRepository<Application> applicationRepository,
+        IApplicationStatusHistoryRepository historyRepository,
         NotifyOnApplicationStatusChangedUseCase notifyOnStatusChangedUseCase,
         ILogger<UpdateApplicationStatusUseCase> logger)
     {
         _applicationRepository = applicationRepository;
+        _historyRepository = historyRepository;
         _notifyOnStatusChangedUseCase = notifyOnStatusChangedUseCase;
         _logger = logger;
     }
@@ -60,6 +64,10 @@ public class UpdateApplicationStatusUseCase : IUseCase<UpdateApplicationStatusRe
         if (updateResult.Status != EResultStatus.Success)
             return RequestResult<ApplicationResponse>.FromResult(updateResult);
 
+        // Histórico só registra mudança real de etapa (não bloqueante: a mudança já está gravada)
+        if (oldStatus != application.Status)
+            await TryWriteHistoryAsync(application, request.Notes, request.Responsible);
+
         // Enviar notificação por email para o candidato (não bloqueante)
         try
         {
@@ -75,6 +83,32 @@ public class UpdateApplicationStatusUseCase : IUseCase<UpdateApplicationStatusRe
         }
 
         return RequestResult<ApplicationResponse>.Success(MapToResponse(updateResult.Data!));
+    }
+
+    // Falha na gravação do histórico fica no log: a trilha é um extra e não pode derrubar a mudança de etapa
+    private async Task TryWriteHistoryAsync(Application application, string? note, string? responsible)
+    {
+        try
+        {
+            var historyResult = await _historyRepository.CreateAsync(new ApplicationStatusHistory
+            {
+                Id = Id.Create(Guid.NewGuid()),
+                ApplicationId = application.Id,
+                Status = application.Status,
+                Date = DateTime.UtcNow,
+                Note = note,
+                Responsible = responsible,
+                TenantId = application.TenantId
+            });
+
+            if (historyResult.Status != EResultStatus.Success)
+                _logger.LogWarning("Histórico da candidatura {ApplicationId} não foi gravado: {Detail}",
+                    application.Id.Value, historyResult.Message);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Falha ao gravar o histórico da candidatura {ApplicationId}", application.Id.Value);
+        }
     }
 
     private static ApplicationResponse MapToResponse(Application app) => new()
