@@ -149,7 +149,9 @@ public class JobRepository : IJobRepository
         // tocou — uma edição feita com dados antigos apagaria a moderação da administração
         // e os contadores da vaga. Por isso a gravação passa por uma cópia explícita: só
         // entram as colunas que a edição da vaga de fato controla.
-        var tracked = await context.Jobs.FirstOrDefaultAsync(job => job.Id == entity.Id);
+        var tracked = await context.Jobs
+            .Include(job => job.Advertiser)
+            .FirstOrDefaultAsync(job => job.Id == entity.Id);
         if (tracked is null)
             return RequestResult<Job>.EntityNotFound("Job", entity.Id.Value, "Vaga não encontrada.");
 
