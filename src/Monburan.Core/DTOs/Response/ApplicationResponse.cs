@@ -8,6 +8,7 @@ public class ApplicationResponse
     public string? CandidateEmail { get; set; }
     public Guid JobId { get; set; }
     public string? JobTitle { get; set; }
+    public string? AdvertiserName { get; set; }
     public string Status { get; set; } = string.Empty;
     public DateTime? AppliedAt { get; set; }
     public DateTime? ViewedAt { get; set; }

@@ -136,6 +136,8 @@
 .job-card__foot { display: flex; flex-wrap: wrap; gap: 0.25rem 0.9rem; margin-top: auto; padding-top: 0.7rem; border-top: 1px solid var(--border); color: var(--tx-2); font-size: 0.82rem; }
 .job-card__closing { color: var(--er); font-weight: 700; }
 .job-card__owner { margin-left: auto; color: var(--gold-d); font-weight: 700; }
+/* Acima do link esticado do título: o botão de salvar precisa receber o clique */
+.job-card__save { position: relative; z-index: 1; margin-left: auto; }
 .job-card--compact { gap: 0.6rem; padding: 0.95rem 1.05rem 0.85rem; }
 
 .job-logo {

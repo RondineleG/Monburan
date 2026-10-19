@@ -101,6 +101,7 @@ public class ApplicationRepository : IApplicationRepository
         var applications = await context.Applications
             .AsNoTracking()
             .Include(a => a.Job)
+            .ThenInclude(job => job.Advertiser)
             .Where(a => !a.IsDeleted && a.CandidateId == candidateKey)
             .OrderByDescending(a => a.CreatedAt)
             .ToListAsync();
