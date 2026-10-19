@@ -1,5 +1,7 @@
 using System.Security.Claims;
 
+using Microsoft.Extensions.Options;
+
 namespace Monburan.Web.Services;
 
 public sealed class CurrentUserHelper : ICurrentUserHelper
@@ -7,10 +9,13 @@ public sealed class CurrentUserHelper : ICurrentUserHelper
     private readonly IHttpContextAccessor _httpContextAccessor;
     private readonly CircuitUserAccessor _circuitUser;
 
-    public CurrentUserHelper(IHttpContextAccessor httpContextAccessor, CircuitUserAccessor circuitUser)
+    private readonly IOptionsMonitor<SecurityOptions> _security;
+
+    public CurrentUserHelper(IHttpContextAccessor httpContextAccessor, CircuitUserAccessor circuitUser, IOptionsMonitor<SecurityOptions> security)
     {
         _httpContextAccessor = httpContextAccessor;
         _circuitUser = circuitUser;
+        _security = security;
     }
 
     // Circuito interativo: usuário do AuthenticationStateProvider. Requisições HTTP
@@ -35,5 +40,13 @@ public sealed class CurrentUserHelper : ICurrentUserHelper
     public bool IsAuthenticated()
     {
         return User?.Identity?.IsAuthenticated ?? false;
+    }
+
+    public bool IsAdmin()
+    {
+        var user = User;
+        return user is not null
+            && user.IsInRole("Admin")
+            && (!_security.CurrentValue.RequireTwoFactorForAdmins || AdminTwoFactorHandler.HasTwoFactor(user));
     }
 }

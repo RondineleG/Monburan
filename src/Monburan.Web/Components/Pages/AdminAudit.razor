@@ -1,0 +1,149 @@
+@page "/admin/audit"
+@rendermode InteractiveServer
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Policy = "AdminOnly")]
+@using Monburan.Core.DTOs.Response
+@using Monburan.Core.Entities
+@using Monburan.Core.Interfaces.Services
+@using Monburan.Core.Services
+@inject IAdminAuditLog AuditLog
+@inject ILogger<AdminAudit> Logger
+
+<PageTitle>Auditoria - Monburan</PageTitle>
+
+<div class="container mt-4 admin-list-page">
+    <header class="page-heading">
+        <div class="page-heading__copy">
+            <span class="page-kicker">ADMINISTRAÇÃO</span>
+            <h1>Auditoria</h1>
+            <p>Quem fez o quê e quando nas áreas de administração. Os registros só se acrescentam: nada aqui é editado nem apagado.</p>
+        </div>
+    </header>
+
+    <div class="card mb-4">
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <label class="form-label" for="audit-search">Buscar</label>
+                    <input id="audit-search" type="text" class="form-control" @bind="searchTerm" @onkeydown="OnSearchKeyDown" placeholder="Quem fez, alvo ou motivo..." data-testid="audit-search" />
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label" for="audit-action">Ação</label>
+                    <select id="audit-action" class="form-select" @bind="actionFilter" data-testid="audit-action">
+                        <option value="">Todas</option>
+                        @foreach (var action in AdminAuditActions.All)
+                        {
+                            <option value="@action">@AdminAuditActions.Label(action)</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label" for="audit-target">Alvo</label>
+                    <select id="audit-target" class="form-select" @bind="targetFilter" data-testid="audit-target">
+                        <option value="">Todos</option>
+                        @foreach (var target in AdminAuditActions.Targets)
+                        {
+                            <option value="@target">@AdminAuditActions.TargetLabel(target)</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-md-2 d-flex align-items-end">
+                    <button type="button" class="btn btn-primary w-100" @onclick="() => LoadAsync(1)" disabled="@isLoading" data-testid="audit-apply">Filtrar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @if (isLoading)
+    {
+        <LoadingState Message="Carregando registros..." />
+    }
+    else if (loadFailed)
+    {
+        <ErrorState Title="Não foi possível carregar a auditoria"
+                    Message="Tivemos um problema ao buscar os registros. Tente novamente em instantes."
+                    OnRetry="() => LoadAsync(currentPage)" />
+    }
+    else if (entries is null || !entries.Data.Any())
+    {
+        <EmptyState Icon="◷" Title="Nenhum registro encontrado" Message="Ajuste a busca ou os filtros." TestId="audit-empty" />
+    }
+    else
+    {
+        <div class="card">
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover table-striped mb-0" data-testid="audit-table">
+                        <thead>
+                            <tr>
+                                <th>Quando</th>
+                                <th>Quem</th>
+                                <th>Ação</th>
+                                <th>Alvo</th>
+                                <th>Detalhes</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var entry in entries.Data)
+                            {
+                                <tr data-testid="audit-row" data-action="@entry.Action">
+                                    <td class="text-nowrap">@UiLabels.FormatMoment(entry.CreatedAt)</td>
+                                    <td>@entry.ActorEmail</td>
+                                    <td>@AdminAuditActions.Label(entry.Action)</td>
+                                    <td>
+                                        <span class="text-muted">@AdminAuditActions.TargetLabel(entry.TargetType):</span>
+                                        @entry.TargetLabel
+                                    </td>
+                                    <td>@(string.IsNullOrWhiteSpace(entry.Details) ? "—" : entry.Details)</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <Pager Page="entries.Page" TotalPages="entries.TotalPages" OnPageChanged="LoadAsync" AriaLabel="Paginação da auditoria" />
+
+        <div class="text-muted text-center mt-3">Mostrando @entries.Data.Count() de @entries.TotalCount registros</div>
+    }
+</div>
+
+@code {
+    private const int PageSize = 25;
+
+    private PagedResponse<AdminAuditEntry>? entries;
+    private string searchTerm = string.Empty;
+    private string actionFilter = string.Empty;
+    private string targetFilter = string.Empty;
+    private int currentPage = 1;
+    private bool isLoading = true;
+    private bool loadFailed;
+
+    protected override Task OnInitializedAsync() => LoadAsync(1);
+
+    private async Task OnSearchKeyDown(KeyboardEventArgs args)
+    {
+        if (args.Key == "Enter")
+            await LoadAsync(1);
+    }
+
+    private async Task LoadAsync(int page)
+    {
+        isLoading = true;
+        loadFailed = false;
+        currentPage = page;
+
+        try
+        {
+            entries = await AuditLog.ListAsync(
+                new AdminAuditFilter(searchTerm, actionFilter, targetFilter), page, PageSize);
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            Logger.LogError(exception, "Auditoria: falha ao listar os registros");
+            loadFailed = true;
+        }
+
+        isLoading = false;
+    }
+}

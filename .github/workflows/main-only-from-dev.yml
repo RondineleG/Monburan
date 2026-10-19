@@ -1,0 +1,32 @@
+name: Main só recebe da dev
+
+# A main só recebe pull request vindo da dev (promoção dev -> main), como diz o AGENTS.md. Qualquer outra origem reprova, para um PR de
+# branch de trabalho nunca cair na main por engano. Roda em todo PR para a main.
+on:
+  pull_request:
+    branches: [ main ]
+    types: [ opened, synchronize, reopened, edited ]
+
+permissions:
+  contents: read
+
+jobs:
+  origem-do-pr:
+    name: origem-do-pr
+    runs-on: ubuntu-latest
+    steps:
+    # O nome da branch e do repositório chegam por variável de ambiente, nunca interpolados no script: o nome da branch vem de quem abre o PR
+    - name: Só a dev promove para a main
+      env:
+        SOURCE_BRANCH: ${{ github.event.pull_request.head.ref }}
+        SOURCE_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name }}
+      run: |
+        if [[ "$SOURCE_REPOSITORY" != "$GITHUB_REPOSITORY" ]]; then
+          echo "::error::PR de outro repositório (fork) não promove para a main."
+          exit 1
+        fi
+        if [[ "$SOURCE_BRANCH" != "dev" ]]; then
+          echo "::error::A main só recebe PR vindo da dev (promoção). Este vem de '$SOURCE_BRANCH': refaça o PR com a base dev."
+          exit 1
+        fi
+        echo "PR da dev para a main: ok."

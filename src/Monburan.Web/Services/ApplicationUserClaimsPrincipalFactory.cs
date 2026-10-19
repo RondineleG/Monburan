@@ -27,6 +27,12 @@ public class ApplicationUserClaimsPrincipalFactory(UserManager<ApplicationUser> 
             identity.AddClaim(new Claim(identity.RoleClaimType, AdminRole));
         }
 
+        // Quem tem a verificação em duas etapas ligada: a política de administrador confere esta claim
+        if (user.TwoFactorEnabled)
+        {
+            identity.AddClaim(new Claim(ClaimsExtensions.TwoFactorEnabledClaimType, "true"));
+        }
+
         var email = user.Email;
         if (!string.IsNullOrEmpty(email))
         {
@@ -61,17 +67,5 @@ public class ApplicationUserClaimsPrincipalFactory(UserManager<ApplicationUser> 
     /// Só vale com o e-mail confirmado: sem isso, bastaria cadastrar o e-mail de outra pessoa para virar administrador.
     /// Tirar o e-mail da lista tira o acesso no próximo login (ou na próxima revalidação da sessão).
     /// </summary>
-    private bool IsConfiguredAdmin(ApplicationUser user)
-    {
-        if (!user.EmailConfirmed || string.IsNullOrWhiteSpace(user.Email))
-            return false;
-
-        var configured = configuration["Admin:Emails"];
-        if (string.IsNullOrWhiteSpace(configured))
-            return false;
-
-        return configured
-            .Split([',', ';'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-            .Contains(user.Email, StringComparer.OrdinalIgnoreCase);
-    }
+    private bool IsConfiguredAdmin(ApplicationUser user) => AdminEmails.IsConfiguredAdmin(user, AdminEmails.Read(configuration));
 }

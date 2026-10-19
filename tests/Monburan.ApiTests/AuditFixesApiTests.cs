@@ -125,8 +125,8 @@ public class AuditFixesApiTests : IClassFixture<MonburanApiFactory>
             AccountType = "advertiser",
             Name = "Empresa Limite",
             Email = email,
-            Password = "Senha123",
-            ConfirmPassword = "Senha123"
+            Password = "Limite#Plano2026",
+            ConfirmPassword = "Limite#Plano2026"
         });
         register.StatusCode.Should().Be(HttpStatusCode.Created);
         var token = (await register.Content.ReadFromJsonAsync<UserLoginResponse>())!.AccessToken;

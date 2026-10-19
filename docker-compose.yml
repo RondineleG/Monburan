@@ -42,6 +42,13 @@ services:
       - "App__PublicBaseUrl=${APP_PUBLIC_BASE_URL:-}"
       # Administradores por e-mail (separados por vírgula): valem só com o e-mail da conta confirmado.
       - "Admin__Emails=${ADMIN_EMAILS:-}"
+      # Administradores só abrem a administração com o 2FA ligado na conta. Em emergência (perdeu o aparelho e os códigos de
+      # recuperação), REQUIRE_ADMIN_2FA=false reabre o acesso até a pessoa reconfigurar; depois volte para true.
+      - "Security__RequireTwoFactorForAdmins=${REQUIRE_ADMIN_2FA:-true}"
+      # Hosts aceitos (separados por ponto e vírgula). Em produção restrinja ao domínio, por exemplo
+      # "monburan.com.br;www.monburan.com.br;127.0.0.1" (o 127.0.0.1 deixa o curl /health local funcionar).
+      - "AllowedHosts=${ALLOWED_HOSTS:-*}"
+      - "DataProtection__KeysPath=/app/keys"
     # Chaves dos provedores de IA (AI_KEY_*) no arquivo ai-keys.env (veja infra/vps/ai-keys.env.example); sem ele a IA fica desligada.
     env_file:
       - path: ./ai-keys.env
@@ -50,6 +57,7 @@ services:
       - "8080:80"
     volumes:
       - app_uploads:/app/wwwroot/uploads
+      - app_keys:/app/keys
     depends_on:
       postgres:
         condition: service_healthy
@@ -61,6 +69,8 @@ volumes:
   postgres_data:
     driver: local
   app_uploads:
+    driver: local
+  app_keys:
     driver: local
 
 networks:

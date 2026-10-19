@@ -23,7 +23,7 @@ só mostra se a variável existe no servidor ("definida no servidor" ou "não de
 
 Só o papel **Admin** (política `AdminOnly`); candidatos e empresas recebem acesso negado e visitantes vão para o login.
 
-- **Desenvolvimento:** o seed cria `admin@monburan.com.br` (senha de desenvolvimento do próprio seed).
+- **Desenvolvimento:** o seed cria `admin@monburan.com.br` e `adm@monburan.com.br` (senhas de desenvolvimento do próprio seed).
 - **Produção:** não existe usuário administrador pronto. Defina `ADMIN_EMAILS` no `.env` da VPS (e-mails separados por
   vírgula), cadastre-se no site com um desses e-mails e **confirme o e-mail** pelo link recebido. A conta só vira administradora
   com o e-mail confirmado: sem isso, bastaria cadastrar o e-mail de outra pessoa. Tirar o e-mail da lista tira o acesso no
@@ -31,6 +31,8 @@ Só o papel **Admin** (política `AdminOnly`); candidatos e empresas recebem ace
   confirmação não chega; nesse caso confirme uma vez direto no banco:
   `UPDATE "Identity"."Users" SET "EmailConfirmed" = true WHERE "NormalizedEmail" = 'SEU@EMAIL.COM';`
   (o e-mail normalizado é em maiúsculas)
+- **2FA obrigatório:** administradores só abrem as telas de administração com a verificação em duas etapas ligada na conta;
+  sem ela, a tela explica e leva à configuração. Detalhes e a saída de emergência em [SEGURANCA.md](SEGURANCA.md#administração-do-site).
 
 ## A tela
 

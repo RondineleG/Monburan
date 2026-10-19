@@ -1,6 +1,15 @@
+using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.DataProtection.KeyManagement;
+using Microsoft.AspNetCore.DataProtection.Repositories;
+using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
+
+using System.Security.Claims;
 
 using Monburan.Core.DTOs.Request;
 using Monburan.Core.DTOs.Response;
@@ -82,8 +91,12 @@ builder.Services.AddOptions<JwtOptions>()
     .Validate(o => System.Text.Encoding.UTF8.GetByteCount(o.SigningKey) >= 32, "Jwt:SigningKey precisa de pelo menos 32 bytes (HMAC-SHA256).")
     .Validate(o => !string.IsNullOrWhiteSpace(o.Issuer) && !string.IsNullOrWhiteSpace(o.Audience), "Jwt:Issuer e Jwt:Audience são obrigatórios.")
     .ValidateOnStart();
+builder.Services.AddSingleton<IAuthorizationHandler, AdminTwoFactorHandler>();
+builder.Services.AddMemoryCache();
+builder.Services.AddSingleton<ActiveAccountChecker>();
 builder.Services.AddScoped<IIdentityService, IdentityService>();
 builder.Services.AddScoped<AccountProfileService>();
+builder.Services.AddScoped<AdminAccountService>();
 
 // Feedback de UI: escopo por circuito (página e ToastHost do layout compartilham a instância)
 builder.Services.AddScoped<IToastService, ToastService>();
@@ -99,6 +112,15 @@ builder.Services.AddAuthentication(options =>
     options.TokenValidationParameters = jwt.ToTokenValidationParameters();
     options.Events = new JwtBearerEvents
     {
+        // O token vale até expirar; uma conta inativada pela administração deixa de usar a API em até 1 minuto
+        OnTokenValidated = async context =>
+        {
+            var userId = context.Principal?.FindFirstValue(System.IdentityModel.Tokens.Jwt.JwtRegisteredClaimNames.Sub)
+                ?? context.Principal?.FindFirstValue(System.Security.Claims.ClaimTypes.NameIdentifier);
+            var checker = context.HttpContext.RequestServices.GetRequiredService<ActiveAccountChecker>();
+            if (userId is null || !await checker.IsActiveAsync(userId))
+                context.Fail("Conta inativa ou inexistente.");
+        },
         OnChallenge = context =>
         {
             // API responde 401 em ProblemDetails, nunca redirect de cookie
@@ -113,7 +135,10 @@ builder.Services.AddAuthentication(options =>
 .AddIdentityCookies();
 
 builder.Services.AddAuthorizationBuilder()
-    .AddPolicy("AdminOnly", policy => policy.RequireRole("Admin"))
+    // Administrador: papel Admin e, fora do desenvolvimento, verificação em duas etapas ligada na conta
+    .AddPolicy("AdminOnly", policy => policy
+        .RequireRole("Admin")
+        .AddRequirements(new AdminTwoFactorRequirement()))
     // Páginas por papel: o perfil vem da claim user_type emitida no login
     .AddPolicy("CandidateOnly", policy => policy
         .RequireAuthenticatedUser()
@@ -141,16 +166,75 @@ builder.Services.AddIdentityCore<ApplicationUser>(options =>
     options.Password.RequireLowercase = true;
     options.Password.RequireNonAlphanumeric = false;
     options.Password.RequireUppercase = true;
-    options.Password.RequiredLength = 6;
+    options.Password.RequiredLength = PasswordPolicy.MinLength;
+
+    // Bloqueio por tentativas: depois de 5 senhas erradas seguidas a conta fica 15 minutos sem aceitar login (a API e a web
+    // contam as falhas; o acerto zera a contagem)
+    options.Lockout.AllowedForNewUsers = true;
+    options.Lockout.MaxFailedAccessAttempts = 5;
+    options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(15);
 })
 .AddRoles<IdentityRole<Guid>>()
 .AddEntityFrameworkStores<ApplicationDbContext>()
-.AddSignInManager()
+.AddSignInManager<ApplicationSignInManager>()
 .AddDefaultTokenProviders()
 .AddErrorDescriber<PortugueseIdentityErrorDescriber>()
+.AddPasswordValidator<CommonPasswordValidator>()
 .AddClaimsPrincipalFactory<ApplicationUserClaimsPrincipalFactory>();
 
 builder.Services.AddDatabaseDeveloperPageExceptionFilter();
+
+// Limites de requisição por IP (geral e, mais rígido, nos envios de login, cadastro e recuperação de senha)
+builder.Services.AddOptions<SecurityOptions>().Bind(builder.Configuration.GetSection(SecurityOptions.SectionName));
+builder.Services.AddRateLimiter(_ => { });
+builder.Services.AddOptions<RateLimiterOptions>().Configure<IOptionsMonitor<SecurityOptions>>(RateLimiting.Configure);
+
+// Atrás do nginx: IP real e https vêm dos cabeçalhos X-Forwarded-* (só de proxy local ou da rede interna)
+builder.Services.Configure<ForwardedHeadersOptions>(ForwardedHeadersSetup.Apply);
+
+// Cookies de sessão e antiforgery: Secure sempre fora do desenvolvimento, HttpOnly, SameSite=Lax
+builder.Services.AddSingleton<IPostConfigureOptions<CookieAuthenticationOptions>, CookieSecuritySetup>();
+builder.Services.AddAntiforgery(options =>
+{
+    options.Cookie.HttpOnly = true;
+    options.Cookie.SecurePolicy = CookieSecuritySetup.SecurePolicyFor(builder.Environment);
+});
+
+// Chaves do DataProtection (cookie de login, antiforgery e tokens dos links de e-mail). Em produção ficam numa pasta
+// persistente (volume do contêiner); sem ela, cada deploy recria o contêiner, gera chaves novas e desloga todo mundo.
+// A pasta é lida só quando o serviço é criado, com a configuração final (variável de ambiente ou appsettings).
+builder.Services.AddDataProtection().SetApplicationName("Monburan");
+builder.Services.AddSingleton<IConfigureOptions<KeyManagementOptions>>(services =>
+{
+    var keysPath = services.GetRequiredService<IConfiguration>()["DataProtection:KeysPath"];
+    var loggerFactory = services.GetService<ILoggerFactory>() ?? Microsoft.Extensions.Logging.Abstractions.NullLoggerFactory.Instance;
+    return new ConfigureOptions<KeyManagementOptions>(options =>
+    {
+        if (!string.IsNullOrWhiteSpace(keysPath))
+            options.XmlRepository = new FileSystemXmlRepository(new DirectoryInfo(keysPath), loggerFactory);
+    });
+});
+
+// Administrador sem 2FA que tenta abrir uma área de administração não vê "acesso negado": vai para a tela de configuração
+builder.Services.ConfigureApplicationCookie(options =>
+{
+    var accessDenied = options.Events.OnRedirectToAccessDenied;
+    options.Events.OnRedirectToAccessDenied = context =>
+    {
+        var security = context.HttpContext.RequestServices.GetRequiredService<IOptionsMonitor<SecurityOptions>>().CurrentValue;
+        var user = context.HttpContext.User;
+        if (security.RequireTwoFactorForAdmins && user.IsInRole("Admin") && !AdminTwoFactorHandler.HasTwoFactor(user))
+        {
+            context.Response.Redirect("/Account/Manage/TwoFactorAuthentication?adminRequired=true");
+            return Task.CompletedTask;
+        }
+
+        return accessDenied(context);
+    };
+});
+
+// A sessão é revalidada no banco a cada 2 minutos (padrão: 30): conta desativada, senha trocada ou 2FA ligado valem logo
+builder.Services.Configure<SecurityStampValidatorOptions>(options => options.ValidationInterval = TimeSpan.FromMinutes(2));
 
 // Registrar EmailSender: SMTP (Resend) quando Smtp:Host está configurado, senão SendGrid.
 builder.Services.AddScoped<Monburan.Web.Services.SmtpEmailSender>();
@@ -217,6 +301,10 @@ builder.Services.AddScoped<IApplicationRepository, ApplicationRepository>();
 builder.Services.AddScoped<IBaseRepository<Resume>, ResumeRepository>();
 builder.Services.AddScoped<IResumeRepository, ResumeRepository>();
 builder.Services.AddScoped<IAiProviderRepository, AiProviderRepository>();
+builder.Services.AddScoped<IAdminAuditLog, AdminAuditLog>();
+builder.Services.AddScoped<Monburan.Core.UseCases.Admin.AdminListJobsUseCase>();
+builder.Services.AddScoped<Monburan.Core.UseCases.Admin.AdminChangeJobStatusUseCase>();
+builder.Services.AddScoped<Monburan.Core.UseCases.Admin.AdminDeleteJobUseCase>();
 builder.Services.AddScoped<IBaseRepository<Notification>, NotificationRepository>();
 builder.Services.AddScoped<INotificationRepository, NotificationRepository>();
 builder.Services.AddScoped<IBaseRepository<TenantConfig>, TenantConfigRepository>();
@@ -328,6 +416,12 @@ builder.Services.AddScoped<AddressRepository>();
 builder.Services.AddScoped<AddressService>();
 var app = builder.Build();
 
+// Antes de tudo (HSTS, redirecionamento para https, autenticação, limites): esquema e IP reais do cliente
+app.UseForwardedHeaders();
+
+if (!app.Environment.IsDevelopment() && string.IsNullOrWhiteSpace(app.Configuration["DataProtection:KeysPath"]))
+    Log.Warning("DataProtection:KeysPath não definido: as chaves de sessão não sobrevivem ao contêiner e cada deploy desloga todos");
+
 if (app.Environment.IsDevelopment())
 {
     app.UseWebAssemblyDebugging();
@@ -354,7 +448,7 @@ app.UseRequestLocalization(new RequestLocalizationOptions()
     .SetDefaultCulture("pt-BR")
     .AddSupportedCultures("pt-BR")
     .AddSupportedUICultures("pt-BR"));
-app.UseRateLimit(100); // 100 requests per second
+app.UseRateLimiter();
 app.UseSecurityHeaders();
 // Re-execute para /404 só fora da API; na API, respostas de erro sem corpo (rota
 // inexistente, método não permitido) ganham ProblemDetails em vez de HTML do site
@@ -367,7 +461,9 @@ app.UseAntiforgery();
 
 app.MapStaticAssets();
 app.MapRazorComponents<App>()
-    .AddInteractiveServerRenderMode()
+    // O Blazor acrescentaria um segundo Content-Security-Policy (frame-ancestors 'self'); a política única, com
+    // frame-ancestors 'none', vem do SecurityHeadersMiddleware
+    .AddInteractiveServerRenderMode(options => options.ContentSecurityFrameAncestorsPolicy = null)
     .AddInteractiveWebAssemblyRenderMode()
     .AddAdditionalAssemblies(typeof(Monburan.Web.Client._Imports).Assembly);
 

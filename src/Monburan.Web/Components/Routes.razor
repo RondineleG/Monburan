@@ -1,8 +1,20 @@
-﻿<Router AppAssembly="typeof(Program).Assembly" AdditionalAssemblies="new[] { typeof(Client._Imports).Assembly }">
+﻿@using Microsoft.Extensions.Options
+@using Monburan.Web.Services
+<Router AppAssembly="typeof(Program).Assembly" AdditionalAssemblies="new[] { typeof(Client._Imports).Assembly }">
     <Found Context="routeData">
         <AuthorizeRouteView RouteData="routeData" DefaultLayout="typeof(Layout.MainLayout)">
             <NotAuthorized>
-                @if (context.User.Identity?.IsAuthenticated == true)
+                @if (context.User.Identity?.IsAuthenticated == true && NeedsTwoFactorSetup(context.User))
+                {
+                    @* Administrador sem 2FA: explica e leva à configuração, em vez de um "acesso negado" sem saída *@
+                    <section class="auth-message-page" data-testid="admin-2fa-required">
+                        <span class="page-kicker">SEGURANÇA DA CONTA</span>
+                        <h1>Ative a verificação em duas etapas</h1>
+                        <p>As áreas de administração exigem a verificação em duas etapas na sua conta.</p>
+                        <a class="btn btn-primary" href="/Account/Manage/TwoFactorAuthentication?adminRequired=true">Configurar agora</a>
+                    </section>
+                }
+                else if (context.User.Identity?.IsAuthenticated == true)
                 {
                     @* Logado, mas sem o perfil exigido (ex.: candidato em página de empresa) —
                        mandar para o login de novo criaria um ciclo sem explicação *@
@@ -31,3 +43,11 @@
         </LayoutView>
     </NotFound>
 </Router>
+
+@code {
+    [Inject]
+    private IOptionsMonitor<SecurityOptions> Security { get; set; } = default!;
+
+    private bool NeedsTwoFactorSetup(System.Security.Claims.ClaimsPrincipal user) =>
+        Security.CurrentValue.RequireTwoFactorForAdmins && user.IsInRole("Admin") && !AdminTwoFactorHandler.HasTwoFactor(user);
+}

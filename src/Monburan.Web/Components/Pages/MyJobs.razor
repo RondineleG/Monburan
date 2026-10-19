@@ -83,6 +83,10 @@
                                     </td>
                                     <td>
                                         <span class="badge @UiLabels.JobStatusBadge(job.Status)">@UiLabels.JobStatus(job.Status)</span>
+                                        @if (!string.IsNullOrWhiteSpace(job.ModerationReason))
+                                        {
+                                            <div class="text-muted small" data-testid="my-job-moderation">Motivo da moderação: @job.ModerationReason</div>
+                                        }
                                     </td>
                                     <td>@job.Views</td>
                                     <td>@job.Applications</td>

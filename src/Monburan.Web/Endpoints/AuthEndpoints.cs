@@ -13,6 +13,7 @@ using Monburan.Core.Requests;
 using Monburan.Core.UseCases.Advertisers;
 using Monburan.Core.UseCases.Candidates;
 using Monburan.Core.UseCases.Notifications;
+using Monburan.Core.Validations;
 using Monburan.Web.Data;
 using Monburan.Web.Models;
 using Monburan.Web.Services;
@@ -95,8 +96,8 @@ public static class AuthEndpoints
             errors["name"] = ["O nome deve ter entre 2 e 100 caracteres."];
         if (string.IsNullOrWhiteSpace(request.Email) || !new EmailAddressAttribute().IsValid(request.Email))
             errors["email"] = ["Informe um e-mail válido."];
-        if (string.IsNullOrEmpty(request.Password) || request.Password.Length is < 6 or > 100)
-            errors["password"] = ["A senha deve ter entre 6 e 100 caracteres."];
+        if (string.IsNullOrEmpty(request.Password) || request.Password.Length < PasswordPolicy.MinLength || request.Password.Length > PasswordPolicy.MaxLength)
+            errors["password"] = [$"A senha deve ter entre {PasswordPolicy.MinLength} e {PasswordPolicy.MaxLength} caracteres."];
         if (request.ConfirmPassword != request.Password)
             errors["confirmPassword"] = ["As senhas não conferem."];
 

@@ -4,6 +4,7 @@ using Monburan.Core.Enums;
 using Monburan.Core.Interfaces.Repositories.Base;
 using Monburan.Core.Interfaces.UseCases;
 using Monburan.Core.Requests;
+using Monburan.Core.Services;
 using Monburan.Core.ValueObjects;
 
 namespace Monburan.Core.UseCases.Jobs;
@@ -48,6 +49,7 @@ public class GetJobByIdUseCase : IUseCase<Guid, JobResponse>
             Tags = job.Tags,
             ExpirationDate = job.ExpirationDate,
             Status = job.Status.ToString(),
+            ModerationReason = JobModeration.VisibleReason(job),
             City = job.Location?.City,
             State = job.Location?.State,
             Country = job.Location?.Country ?? "BR",

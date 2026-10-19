@@ -1,4 +1,9 @@
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+
 using Monburan.Core.DTOs.Request;
+using Monburan.Core.DTOs.Response;
+using Monburan.Core.Requests;
 using Monburan.Core.UseCases.Jobs;
 using Monburan.Web.Services;
 
@@ -61,16 +66,28 @@ public static class JobEndpoints
         group.MapGet("/{id:guid}", async (
             Guid id,
             GetJobByIdUseCase useCase,
+            HttpContext httpContext,
             CancellationToken cancellationToken) =>
         {
             var result = await useCase.ExecuteAsync(id);
+
+            // Vaga pausada, oculta ou rejeitada só aparece para a empresa dona (que manda o token); para o resto do mundo
+            // é como se não existisse. Sem isso o conteúdo (e o motivo da moderação) vazaria para quem soubesse o id.
+            if (result.Data is { } job && job.Status is not ("Active" or "Expired"))
+            {
+                var auth = await httpContext.AuthenticateAsync(JwtBearerDefaults.AuthenticationScheme);
+                var ownerId = auth.Succeeded ? auth.Principal?.GetAdvertiserId() : null;
+                if (ownerId != job.AdvertiserId)
+                    return RequestResult<JobResponse>.EntityNotFound("Job", id, "Vaga não encontrada.").ToHttpResult();
+            }
+
             if (result.Data is not null)
                 HideUndisclosedSalary(result.Data);
 
             return result.ToHttpResult();
         })
         .AllowAnonymous()
-        .WithSummary("Detalhe de uma vaga");
+        .WithSummary("Detalhe de uma vaga (pausada, oculta ou rejeitada: só a empresa dona)");
 
         // Bearer — criar vaga (AdvertiserId sempre vem da claim, nunca do body)
         group.MapPost("/", async (

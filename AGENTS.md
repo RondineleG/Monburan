@@ -16,6 +16,7 @@ Este arquivo vale para qualquer agente ou ferramenta de IA que trabalhe neste re
 
 - Todo pull request de trabalho tem a `dev` como base. A `main` só recebe PR vindo da `dev` (promoção): nunca abra PR
   de uma branch de trabalho direto para a `main`.
+  O workflow `main-only-from-dev.yml` reprova o PR para a `main` que não venha da `dev`.
 - Crie as branches de trabalho a partir da `dev` atualizada.
 - Nada é publicado a partir da `dev`: os workflows que geram versão (APK, iOS e imagem Docker) publicam só no push
   na `main`. Enquanto a `dev` não é promovida, a versão publicada continua a antiga; ao promover, a esteira completa

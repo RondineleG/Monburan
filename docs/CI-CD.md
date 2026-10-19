@@ -8,6 +8,9 @@
 | `docker-ghcr.yml` | push na `main` com mudança em `src/**`, manual | constrói a imagem Docker e, na `main`, publica em `ghcr.io/rondineleg/monburan` (`latest` + tag com o sha do commit); em disparo manual de outra branch só constrói, sem enviar |
 | `android-release.yml` | push na `main` com mudança no app/Core, PR para a `main`, manual | compila, assina e confere o APK; na `main`, publica a release `v<versão>` com o APK |
 | `ios-build.yml` | push na `main` com mudança no app/Core, PR para a `main`, manual | em macOS: compila o app para o simulador, abre e tira print; gera o `.ipa` sem assinatura (anexado à release na `main`) |
+| `codeql.yml` | push e PR em `main`/`dev`, toda segunda-feira, manual | análise estática de segurança (C#, JavaScript e os próprios workflows); alertas em *Security → Code scanning*. Não publica nada |
+| `main-only-from-dev.yml` | PR para a `main` | reprova o PR que não vem da `dev` (a `main` só recebe a promoção); o nome da branch chega por variável de ambiente, nunca interpolado no script. Não publica nada |
+| `infra-scripts.yml` | push e PR em `main`/`dev` que mudam `infra/vps/**`, manual | ShellCheck e testes de verdade, em contêineres, do endurecimento da VPS, do backup com restauração e do `nginx.conf` (`infra/vps/tests`). Não publica nada |
 
 Os jobs `deploy-staging` e `deploy-production` (Azure Web App) só rodam quando existe a variável de repositório
 `AZURE_RESOURCE_GROUP` (mais os secrets do Azure). A produção atual é a VPS (abaixo), então eles ficam ignorados.
@@ -98,13 +101,21 @@ A imagem `latest` é construída e publicada pelo `docker-ghcr.yml` a cada push 
 > Para conferir depois de ajustar, rode o workflow na `main` (`gh workflow run docker-ghcr.yml --ref main`): fora da
 > `main` o disparo manual só constrói a imagem e não envia nada.
 
-A VPS baixa a imagem manualmente (não há deploy automático por SSH, que exigiria secrets de acesso ao servidor):
+Servidor novo: `provision.sh` (Docker, nginx, certbot...), `harden.sh` e `deploy.sh`, nessa ordem; o passo a passo está em
+[SEGURANCA.md](SEGURANCA.md#servidor-novo-do-zero). O `deploy.sh` também serve para atualizar (backup, tag de rollback, pull, reinício e
+espera do `/health`).
+
+Na `main`, o workflow `docker-ghcr.yml` publica a imagem e, na sequência, o job `deploy-vps` entra por SSH na VPS, envia
+`infra/vps` para `/opt/monburan` e roda o `deploy.sh` — o site é atualizado logo depois do push. O job usa os secrets do
+environment `prod` (`VPS_HOST`, `VPS_USER`, `VPS_SSH_KEY` e `VPS_KNOWN_HOSTS`) e uma chave dedicada ao GitHub Actions,
+separada da chave da sua máquina. O deploy é serializado e mantém a tag de rollback da imagem anterior.
+
+À mão, o equivalente é:
 
 ```bash
 cd /opt/monburan
 docker tag ghcr.io/rondineleg/monburan:latest ghcr.io/rondineleg/monburan:rollback-$(date +%Y%m%d-%H%M)   # imagem para voltar atrás
-docker exec monburan-postgres pg_dump -U "$(docker exec monburan-postgres printenv POSTGRES_USER)" \
-  -d "$(docker exec monburan-postgres printenv POSTGRES_DB)" | gzip > backups/monburan-$(date +%Y%m%d-%H%M).sql.gz
+bash backup.sh                                          # backup criptografado do banco e dos uploads, fora da VPS (docs/SEGURANCA.md)
 docker compose pull app && docker compose up -d app    # as migrations rodam no boot (APPLY_MIGRATIONS=true)
 curl -s http://127.0.0.1:8080/health
 ```
@@ -123,7 +134,10 @@ Para ativar as sugestões de currículo com IA depois do deploy (detalhes em [IA
 Para voltar à versão anterior: `docker tag ghcr.io/rondineleg/monburan:rollback-<data-hora> ghcr.io/rondineleg/monburan:latest && docker compose up -d app`.
 
 Voltar a imagem não desfaz migrations (elas rodam no boot da imagem nova): se a versão nova alterou o esquema, restaure antes
-o backup do `pg_dump` acima.
+o backup feito pelo `backup.sh` acima (o passo a passo da restauração está em [SEGURANCA.md](SEGURANCA.md#4-backup-criptografado-fora-do-servidor)).
+
+Firewall, SSH só por chave, fail2ban, atualizações automáticas, backup criptografado fora do servidor, as telas de
+administração e os ajustes de segurança do app: [SEGURANCA.md](SEGURANCA.md).
 
 Atenção: o `infra/vps/build-push.sh` constrói a imagem a partir da `main` da VPS; rodá-lo antes de mesclar um PR
 republica o `latest` com o código antigo.

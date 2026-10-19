@@ -329,6 +329,7 @@ h1[tabindex="-1"]:focus { outline: none; }
 .auth-message-page { display: flex; width: min(100%, 34rem); min-height: 16rem; flex-direction: column; align-items: flex-start; justify-content: center; gap: 0.7rem; margin-inline: auto; }
 .auth-message-page h1 { margin: 0; font-family: var(--f-display); font-size: clamp(1.7rem, 4vw, 2.4rem); font-weight: 600; }
 .auth-message-page p { margin: 0 0 0.5rem; color: var(--tx-2); }
+.auth-error-list { margin: 0 0 1rem; padding-left: 1.2rem; color: var(--er); font-size: 0.88rem; line-height: 1.5; }
 .auth-message-page .error-reference { color: var(--tx-3); font-family: var(--f-mono); font-size: 0.7rem; }
 .manage-heading { margin-bottom: 1.25rem; }
 .manage-heading h1 { margin: 0.35rem 0; font-family: var(--f-display); font-size: clamp(1.5rem, 3vw, 2.1rem); }
@@ -1145,3 +1146,20 @@ body:has(.confirm-backdrop) { overflow: hidden; }
 .ai-advanced { margin-top: 1.2rem; padding-top: 1rem; border-top: 1px solid var(--border); }
 .ai-advanced summary { cursor: pointer; color: var(--gold-d); font-weight: 600; }
 .ai-form__actions { display: flex; flex-wrap: wrap; gap: 0.6rem; margin-top: 1.5rem; }
+
+/* ---------- Gestão de contas e vagas (administração) ---------- */
+.admin-counters { display: grid; grid-template-columns: repeat(auto-fit, minmax(9.5rem, 1fr)); gap: 0.75rem; margin-bottom: 1.5rem; }
+.admin-counter { padding: 0.8rem 1rem; border: 1px solid var(--border); border-radius: var(--r-sm); background: var(--bg-card); }
+.admin-counter strong { display: block; color: var(--tx); font-family: var(--f-ui); font-size: 1.5rem; font-weight: 700; line-height: 1.2; }
+.admin-counter span { color: var(--tx-2); font-size: 0.8rem; }
+.acct-panel { margin-bottom: 1.5rem; border-color: var(--gold-border); box-shadow: var(--shadow-glow); }
+.acct-panel__head { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 0.75rem; margin-bottom: 1rem; }
+.acct-panel__head h2 { margin: 0; color: var(--tx); font-family: var(--f-ui); font-size: 1.15rem; font-weight: 700; letter-spacing: 0; }
+.acct-panel__email { margin: 0.15rem 0 0; color: var(--tx-2); font-size: 0.9rem; overflow-wrap: anywhere; }
+.acct-panel__meta { display: grid; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); gap: 0.75rem 1.5rem; margin: 0 0 1rem; }
+.acct-panel__meta > div { min-width: 0; }
+.acct-panel__meta dt { margin: 0 0 0.15rem; color: var(--tx-2); font-size: 0.72rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; }
+.acct-panel__meta dd { margin: 0; color: var(--tx); font-size: 0.92rem; overflow-wrap: anywhere; }
+.acct-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.75rem; }
+.acct-reason { margin-top: 0.75rem; }
+.acct-reason textarea { min-height: 5rem; }
