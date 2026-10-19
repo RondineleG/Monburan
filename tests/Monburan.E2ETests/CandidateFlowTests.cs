@@ -87,8 +87,8 @@ public class CandidateFlowTests : E2ETestBase
         await WaitForBlazorAsync();
 
         var submit = Page.GetByTestId("application-submit");
-        Assert.True(await submit.IsEnabledAsync(),
-            "Botão de candidatura deveria estar habilitado");
+        // Espera o circuito liberar o botão depois da confirmação: a leitura instantânea perdia a corrida no CI
+        await Assertions.Expect(submit).ToBeEnabledAsync(new LocatorAssertionsToBeEnabledOptions { Timeout = 20000 });
         await submit.ClickAsync();
         await Page.GetByTestId("application-feedback").WaitForAsync(new LocatorWaitForOptions
         {
