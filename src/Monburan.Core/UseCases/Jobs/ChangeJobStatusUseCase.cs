@@ -41,7 +41,7 @@ public sealed class ChangeJobStatusUseCase : IUseCase<ChangeJobStatusRequest, Jo
 
         var job = jobResult.Data;
         if (job.Status == request.NewStatus)
-            return RequestResult<JobResponse>.Success(MapToResponse(job));
+            return RequestResult<JobResponse>.Success(JobResponseMapper.ToResponse(job));
 
         if (request.NewStatus == EJobStatus.Paused && job.Status != EJobStatus.Active)
             return RequestResult<JobResponse>.WithDomainError("Só é possível pausar vagas ativas.");
@@ -71,39 +71,6 @@ public sealed class ChangeJobStatusUseCase : IUseCase<ChangeJobStatusRequest, Jo
         if (updateResult.Status != EResultStatus.Success)
             return RequestResult<JobResponse>.FromResult(updateResult);
 
-        return RequestResult<JobResponse>.Success(MapToResponse(job));
+        return RequestResult<JobResponse>.Success(JobResponseMapper.ToResponse(job));
     }
-
-    private static JobResponse MapToResponse(Job job) => new()
-    {
-        Id = job.Id.Value,
-        Title = job.Title,
-        Description = job.Description,
-        Requirements = job.Requirements,
-        Responsibilities = job.Responsibilities,
-        Benefits = job.Benefits,
-        ApplicationInstructions = job.ApplicationInstructions,
-        NumberOfOpenings = job.NumberOfOpenings,
-        Observations = job.Observations,
-        Category = job.Category,
-        Tags = job.Tags,
-        ExpirationDate = job.ExpirationDate,
-        Status = job.Status.ToString(),
-        City = job.Location?.City,
-        State = job.Location?.State,
-        Country = job.Location?.Country ?? "BR",
-        Type = job.Location?.Type ?? "OnSite",
-        IsRemote = job.Location?.IsRemote ?? false,
-        SalaryMin = job.Salary?.Min,
-        SalaryMax = job.Salary?.Max,
-        SalaryCurrency = job.Salary?.Currency ?? "BRL",
-        SalaryDisplay = job.Salary?.Display ?? true,
-        Views = job.Counters?.Views ?? 0,
-        Applications = job.Counters?.Applications ?? 0,
-        AdvertiserId = job.AdvertiserId.Value,
-        AdvertiserName = job.Advertiser?.Name,
-        AdvertiserLogoUrl = job.Advertiser?.LogoUrl,
-        CreatedAt = job.CreatedAt,
-        UpdatedAt = job.UpdatedAt
-    };
 }

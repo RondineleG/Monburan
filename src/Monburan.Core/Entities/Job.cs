@@ -23,6 +23,9 @@ public class Job : BaseEntity
 
     public string? Category { get; set; }
 
+    /// <summary>Tipo de contratação; nulo nas vagas criadas antes deste campo existir.</summary>
+    public EContractType? ContractType { get; set; }
+
     public JobCounters Counters { get; set; } = new();
 
     [Required]

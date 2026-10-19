@@ -1,4 +1,6 @@
-﻿namespace Monburan.Core.Entities;
+﻿using Monburan.Core.Enums;
+
+namespace Monburan.Core.Entities;
 
 public class SalaryRange
 {
@@ -9,4 +11,7 @@ public class SalaryRange
     public decimal? Max { get; set; }
 
     public decimal? Min { get; set; }
+
+    /// <summary>Período do valor (por hora, por mês...); nulo quando a vaga não informa.</summary>
+    public ESalaryPeriod? Period { get; set; }
 }

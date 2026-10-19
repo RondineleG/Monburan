@@ -12,6 +12,10 @@ public class JobResponse
     public int NumberOfOpenings { get; set; } = 1;
     public string? Observations { get; set; }
     public string? Category { get; set; }
+
+    /// <summary>Tipo de contratação ("Clt", "Pj"...); nulo quando a vaga não informa.</summary>
+    public string? ContractType { get; set; }
+
     public string? Tags { get; set; }
     public DateTime ExpirationDate { get; set; }
     public string Status { get; set; } = string.Empty;
@@ -31,10 +35,16 @@ public class JobResponse
     public decimal? SalaryMax { get; set; }
     public string SalaryCurrency { get; set; } = "BRL";
     public bool SalaryDisplay { get; set; } = true;
-    
+
+    /// <summary>Período do salário ("Hour", "Month"...); nulo quando a vaga não informa.</summary>
+    public string? SalaryPeriod { get; set; }
+
     // Counters
     public int Views { get; set; }
     public int Applications { get; set; }
+
+    /// <summary>Verdadeiro só quando o candidato autenticado salvou a vaga.</summary>
+    public bool IsSaved { get; set; }
     
     // Advertiser
     public Guid AdvertiserId { get; set; }

@@ -43,6 +43,7 @@ public class CreateJobUseCase : IUseCase<CreateJobRequest, JobResponse>
             Observations = request.Observations,
             Category = request.Category,
             Tags = request.Tags,
+            ContractType = request.ContractType,
             ExpirationDate = request.ExpirationDate,
             Status = EJobStatus.Active,
             TenantId = "default",
@@ -59,6 +60,7 @@ public class CreateJobUseCase : IUseCase<CreateJobRequest, JobResponse>
             {
                 Min = request.SalaryMin,
                 Max = request.SalaryMax,
+                Period = request.SalaryPeriod,
                 Currency = request.SalaryCurrency,
                 Display = request.SalaryDisplay
             },
@@ -95,37 +97,6 @@ public class CreateJobUseCase : IUseCase<CreateJobRequest, JobResponse>
         if (createJobResult.Status != EResultStatus.Success)
             return RequestResult<JobResponse>.FromResult(createJobResult);
 
-        return RequestResult<JobResponse>.Success(MapToResponse(createJobResult.Data!));
+        return RequestResult<JobResponse>.Success(JobResponseMapper.ToResponse(createJobResult.Data!));
     }
-
-    private static JobResponse MapToResponse(Job job) => new()
-    {
-        Id = job.Id.Value,
-        Title = job.Title,
-        Description = job.Description,
-        Requirements = job.Requirements,
-        Responsibilities = job.Responsibilities,
-        Benefits = job.Benefits,
-        ApplicationInstructions = job.ApplicationInstructions,
-        NumberOfOpenings = job.NumberOfOpenings,
-        Observations = job.Observations,
-        Category = job.Category,
-        Tags = job.Tags,
-        ExpirationDate = job.ExpirationDate,
-        Status = job.Status.ToString(),
-        City = job.Location?.City,
-        State = job.Location?.State,
-        Country = job.Location?.Country ?? "BR",
-        Type = job.Location?.Type ?? "OnSite",
-        IsRemote = job.Location?.IsRemote ?? false,
-        SalaryMin = job.Salary?.Min,
-        SalaryMax = job.Salary?.Max,
-        SalaryCurrency = job.Salary?.Currency ?? "BRL",
-        SalaryDisplay = job.Salary?.Display ?? true,
-        Views = job.Counters?.Views ?? 0,
-        Applications = job.Counters?.Applications ?? 0,
-        AdvertiserId = job.AdvertiserId.Value,
-        CreatedAt = job.CreatedAt,
-        UpdatedAt = job.UpdatedAt
-    };
 }
