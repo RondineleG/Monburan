@@ -1,0 +1,26 @@
+<div class="skeleton-block" style="@BuildStyle()" aria-hidden="true"></div>
+
+@code {
+    /// <summary>Largura do bloco (qualquer valor CSS).</summary>
+    [Parameter]
+    public string Width { get; set; } = "100%";
+
+    /// <summary>Altura do bloco (qualquer valor CSS).</summary>
+    [Parameter]
+    public string Height { get; set; } = "1rem";
+
+    /// <summary>Arredondamento do bloco; vazio usa o padrão do CSS.</summary>
+    [Parameter]
+    public string? Radius { get; set; }
+
+    private string BuildStyle()
+    {
+        var style = $"width: {Width}; height: {Height};";
+        if (!string.IsNullOrWhiteSpace(Radius))
+        {
+            style += $" border-radius: {Radius};";
+        }
+
+        return style;
+    }
+}

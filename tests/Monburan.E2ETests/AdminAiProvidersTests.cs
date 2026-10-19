@@ -107,6 +107,8 @@ public class AdminAiProvidersTests : E2ETestBase
         await Page.WaitForURLAsync(new Regex(Regex.Escape(PagePath), RegexOptions.IgnoreCase));
         await Page.GetByTestId("ai-status").WaitForAsync();
 
+        // Aguarda o circuito interativo terminar de recarregar a lista (o SSR sozinho pode ser substituído durante a navegação)
+        await Assertions.Expect(Page.GetByTestId("ai-provider-card")).Not.ToHaveCountAsync(0);
         Assert.True(await Page.GetByTestId("ai-provider-card").CountAsync() > 0, "Deveria haver provedores cadastrados");
         Assert.True(await Page.Locator("[data-testid='ai-provider-card'] .ai-badge--gold").CountAsync() <= 1,
             "No máximo um provedor pode ser o padrão");
