@@ -128,6 +128,12 @@
                     </select>
                     <Icon Name="chevron-down" Size="14" />
                 </label>
+                @if (isCandidate)
+                {
+                    <a class="btn btn-outline-primary btn-sm" href="@AlertUrl" data-testid="create-job-alert">
+                        <Icon Name="bell" Size="14" />Criar alerta com esta busca
+                    </a>
+                }
             </div>
 
             @if (!results.Jobs.Any())
@@ -147,7 +153,8 @@
                 <div class="jobs-grid" data-testid="jobs-grid">
                     @foreach (var job in results.Jobs)
                     {
-                        <JobCard @key="job.Id" Job="job" IsOwner="@(advertiserId.HasValue && job.AdvertiserId == advertiserId.Value)" />
+                        <JobCard @key="job.Id" Job="job" IsOwner="@(advertiserId.HasValue && job.AdvertiserId == advertiserId.Value)"
+                                 ShowSave="@(!isAdvertiser)" CanSave="isCandidate" SaveReturnUrl="@Navigation.Uri" />
                     }
                 </div>
 
@@ -244,6 +251,19 @@
 
     private bool isFiltered =>
         searchTerm.Length > 0 || locationText.Length > 0 || jobType.Length > 0 || salaryFloor.Length > 0;
+
+    // Leva a busca atual para o formulário de alerta da área do candidato
+    private string AlertUrl
+    {
+        get
+        {
+            var parts = new List<string> { "aba=alertas" };
+            if (searchTerm.Length > 0) parts.Add($"q={Uri.EscapeDataString(searchTerm)}");
+            if (locationText.Length > 0) parts.Add($"local={Uri.EscapeDataString(locationText)}");
+            if (jobType.Length > 0) parts.Add($"modo={Uri.EscapeDataString(jobType)}");
+            return $"/my-applications?{string.Join("&", parts)}";
+        }
+    }
 
     private string TitleText => searchTerm.Length > 0
         ? $"Vagas de {searchTerm} - Monburan"
