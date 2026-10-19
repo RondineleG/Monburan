@@ -105,7 +105,7 @@ public class AdminJobsTests : E2ETestBase
             await company.GetByTestId("login-password").FillAsync(TestPassword);
             await company.GetByTestId("login-submit").ClickAsync();
             await company.WaitForURLAsync(url => !url.Contains("/Account/Login", StringComparison.OrdinalIgnoreCase));
-            await company.GotoAsync(BaseUrl + "/my-jobs");
+            await company.GotoAsync(BaseUrl + "/my-jobs?situacao=ocultas");
             await Assertions.Expect(company.GetByTestId("my-job-moderation").First).ToContainTextAsync("Descrição sem as responsabilidades da função");
         }
 
