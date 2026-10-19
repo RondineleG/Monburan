@@ -92,21 +92,21 @@
                                 <div class="resume-item">
                                     <div class="row g-2">
                                         <div class="col-md-6">
-                                            <input class="form-control" placeholder="Cargo" @bind="exp.Position" />
+                                            <input class="form-control" placeholder="Cargo" aria-label="Cargo" @bind="exp.Position" />
                                         </div>
                                         <div class="col-md-6">
-                                            <input class="form-control" placeholder="Empresa" @bind="exp.Company" />
+                                            <input class="form-control" placeholder="Empresa" aria-label="Empresa" @bind="exp.Company" />
                                         </div>
                                         <div class="col-12">
-                                            <textarea class="form-control" rows="2" placeholder="Descrição das atividades" @bind="exp.Description"></textarea>
+                                            <textarea class="form-control" rows="2" placeholder="Descrição das atividades" aria-label="Descrição das atividades" @bind="exp.Description"></textarea>
                                         </div>
                                         <div class="col-md-4">
-                                            <label class="form-label small">Início</label>
-                                            <input type="date" class="form-control" @bind="exp.StartDate" />
+                                            <label class="form-label small" for="@($"exp-start-{index}")">Início</label>
+                                            <input id="@($"exp-start-{index}")" type="date" class="form-control" @bind="exp.StartDate" />
                                         </div>
                                         <div class="col-md-4">
-                                            <label class="form-label small">Fim</label>
-                                            <input type="date" class="form-control" @bind="exp.EndDate" />
+                                            <label class="form-label small" for="@($"exp-end-{index}")">Fim</label>
+                                            <input id="@($"exp-end-{index}")" type="date" class="form-control" @bind="exp.EndDate" />
                                         </div>
                                         <div class="col-md-4 d-flex align-items-end justify-content-between">
                                             <div class="form-check">
@@ -138,13 +138,13 @@
                                 <div class="resume-item">
                                     <div class="row g-2">
                                         <div class="col-md-6">
-                                            <input class="form-control" placeholder="Curso" @bind="edu.Course" />
+                                            <input class="form-control" placeholder="Curso" aria-label="Curso" @bind="edu.Course" />
                                         </div>
                                         <div class="col-md-6">
-                                            <input class="form-control" placeholder="Instituição" @bind="edu.Institution" />
+                                            <input class="form-control" placeholder="Instituição" aria-label="Instituição" @bind="edu.Institution" />
                                         </div>
                                         <div class="col-md-4">
-                                            <select class="form-select" @bind="edu.Level">
+                                            <select class="form-select" aria-label="Nível de formação" @bind="edu.Level">
                                                 @foreach (var level in Enum.GetValues<EEducationLevel>())
                                                 {
                                                     <option value="@level">@level</option>
@@ -152,7 +152,7 @@
                                             </select>
                                         </div>
                                         <div class="col-md-4">
-                                            <select class="form-select" @bind="edu.Status">
+                                            <select class="form-select" aria-label="Situação do curso" @bind="edu.Status">
                                                 @foreach (var st in Enum.GetValues<EEducationStatus>())
                                                 {
                                                     <option value="@st">@st</option>
@@ -185,10 +185,10 @@
                                 <div class="resume-item">
                                     <div class="row g-2 align-items-end">
                                         <div class="col-md-6">
-                                            <input class="form-control" placeholder="Idioma" @bind="lang.Language" />
+                                            <input class="form-control" placeholder="Idioma" aria-label="Idioma" @bind="lang.Language" />
                                         </div>
                                         <div class="col-md-4">
-                                            <select class="form-select" @bind="lang.Level">
+                                            <select class="form-select" aria-label="Nível do idioma" @bind="lang.Level">
                                                 @foreach (var level in Enum.GetValues<ELanguageLevel>())
                                                 {
                                                     <option value="@level">@level</option>
@@ -221,15 +221,15 @@
                                 <div class="resume-item">
                                     <div class="row g-2 align-items-end">
                                         <div class="col-md-6">
-                                            <input class="form-control" placeholder="Habilidade" @bind="skill.Skill" />
+                                            <input class="form-control" placeholder="Habilidade" aria-label="Habilidade" @bind="skill.Skill" />
                                         </div>
                                         <div class="col-md-3">
-                                            <label class="form-label small">Nível (1-5)</label>
-                                            <input type="number" class="form-control" min="1" max="5" @bind="skill.Level" />
+                                            <label class="form-label small" for="@($"skill-level-{index}")">Nível (1-5)</label>
+                                            <input id="@($"skill-level-{index}")" type="number" class="form-control" min="1" max="5" @bind="skill.Level" />
                                         </div>
                                         <div class="col-md-2">
-                                            <label class="form-label small">Anos</label>
-                                            <input type="number" class="form-control" min="0" @bind="skill.YearsOfExperience" />
+                                            <label class="form-label small" for="@($"skill-years-{index}")">Anos</label>
+                                            <input id="@($"skill-years-{index}")" type="number" class="form-control" min="0" @bind="skill.YearsOfExperience" />
                                         </div>
                                         <div class="col-md-1 d-flex justify-content-end">
                                             <button type="button" class="btn btn-outline-danger btn-sm" @onclick="() => skills.RemoveAt(index)">Remover</button>
