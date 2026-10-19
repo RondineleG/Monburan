@@ -71,7 +71,7 @@ jobs:
         java-version: '17'
 
     - name: Install MAUI Android workload
-      run: dotnet workload install maui-android
+      run: dotnet workload install maui-android --version 10.0.402
 
     - name: Ler a versão do csproj
       id: version

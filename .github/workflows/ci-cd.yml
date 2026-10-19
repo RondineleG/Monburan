@@ -36,7 +36,7 @@ jobs:
         dotnet-version: ${{ env.DOTNET_VERSION }}
 
     - name: Install MAUI Android workload
-      run: dotnet workload install maui-android
+      run: dotnet workload install maui-android --version 10.0.402
 
     - name: Restore dependencies
       run: dotnet restore
@@ -180,7 +180,7 @@ jobs:
         echo "Nenhum segredo de formato conhecido nos arquivos versionados."
 
     - name: Install MAUI Android workload
-      run: dotnet workload install maui-android
+      run: dotnet workload install maui-android --version 10.0.402
 
     - name: Restore dependencies
       run: dotnet restore Monburan.sln

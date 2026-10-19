@@ -54,7 +54,7 @@ jobs:
         dotnet-version: ${{ env.DOTNET_VERSION }}
 
     - name: Install MAUI iOS workload
-      run: dotnet workload install maui-ios
+      run: dotnet workload install maui-ios --version 10.0.402
 
     # O compilador de assets do Xcode (actool) exige um runtime de simulador da mesma versão do iOS que o SDK do Xcode em
     # uso (compara major.minor; o build do runtime difere do do SDK). O runner só guarda os runtimes mais novos, então o
@@ -243,7 +243,7 @@ jobs:
         dotnet-version: ${{ env.DOTNET_VERSION }}
 
     - name: Install MAUI iOS workload
-      run: dotnet workload install maui-ios
+      run: dotnet workload install maui-ios --version 10.0.402
 
     # O compilador de assets do Xcode (actool) exige um runtime de simulador da mesma versão do iOS que o SDK do Xcode em
     # uso (compara major.minor; o build do runtime difere do do SDK). O runner só guarda os runtimes mais novos, então o
