@@ -4,6 +4,10 @@ A candidata ou o candidato abre o próprio currículo, autoriza o envio e recebe
 reescrito, frases de destaque por experiência, habilidades que valem destacar, o que falta e dicas gerais. **Nada é
 alterado nem guardado**: o resultado só existe na tela (e na resposta da API), e a pessoa decide o que aproveitar.
 
+O recurso é **exclusivo do plano Premium do candidato**: só planos com o flag `HasAiAssistant` liberam o assistente
+(administração aplica o plano em `/admin/accounts`; sem ele a tela mostra o painel como vitrine do Premium e a API
+responde erro de domínio).
+
 A aplicação não depende de um provedor específico. Ela fala dois protocolos: o de **"chat completions" da OpenAI**
 (`POST {endereço}/chat/completions`, que serve OpenAI, OpenRouter, DeepSeek, Xiaomi, Ollama e os demais compatíveis) e o de
 **mensagens da Anthropic** (`POST {endereço}/v1/messages`). Quais serviços existem, qual é o padrão, o modelo e o nome mostrado
@@ -13,10 +17,12 @@ A aplicação não depende de um provedor específico. Ela fala dois protocolos:
 ## Como funciona
 
 1. A tela do currículo mostra o painel **só quando a IA está configurada**: há um provedor padrão ativo e a chave dele
-   existe no servidor. Sem isso nada aparece no site nem no app.
+   existe no servidor. Sem isso nada aparece no site nem no app. Com a IA configurada, quem não tem plano com
+   assistente vê o painel como vitrine do Premium (sem o botão de gerar).
 2. A pessoa marca a autorização expressa de envio e pede as sugestões. A API exige o mesmo
    (`acceptsExternalProcessing: true` no corpo), então nenhum cliente envia sem autorização.
-3. O caso de uso (`ImproveResumeUseCase`) confere que o currículo é da própria pessoa, aplica o limite de usos e
+3. O caso de uso (`ImproveResumeUseCase`) confere que o currículo é da própria pessoa, que o plano ativo dela tem o
+   assistente (`HasAiAssistant`), aplica o limite de usos e
    monta a conversa. Sai **só conteúdo profissional**: título, resumo, experiências, formação, habilidades e idiomas.
    Não vão nome, e-mail, telefone nem endereço, e e-mails, telefones, CPF/CNPJ, CEP e links digitados em campos
    livres são trocados por marcadores (`[e-mail]`, `[telefone]`, `[documento]`, `[cep]`, `[link]`). O texto é
@@ -67,13 +73,14 @@ No `appsettings.json` ficam só os ajustes gerais, seção `Ai` (sem segredo):
 
 Ambos exigem o perfil de candidato (JWT `ApiBearer`):
 
-- `GET /api/v1/resumes/improvements/availability` devolve `{ "enabled": bool, "provider": string|null }`. O app deve
-  esconder o recurso quando `enabled` for falso.
+- `GET /api/v1/resumes/improvements/availability` devolve `{ "enabled": bool, "provider": string|null, "premium": bool }`.
+  `enabled` só é verdadeiro quando a IA está configurada **e** o candidato tem plano com assistente; `premium` diz se a
+  conta já tem o benefício. O app deve esconder o recurso quando `enabled` for falso.
 - `POST /api/v1/resumes/{id}/improvements` com `{ "acceptsExternalProcessing": true }` devolve
   `ResumeImprovementResponse` (`summary`, `experiences[]`, `skillsToAdd[]`, `missingSections[]`, `tips[]`, `model`,
-  `generatedAt`). Erros: `400` sem autorização, IA desligada, currículo sem conteúdo, limite de uso ou falha do
-  provedor (mensagem segura em `detail`); `403` para quem não é candidato; `404` para currículo inexistente ou de
-  outra pessoa.
+  `generatedAt`). Erros: `400` sem autorização, IA desligada, plano sem assistente (só Premium), currículo sem conteúdo,
+  limite de uso ou falha do provedor (mensagem segura em `detail`); `403` para quem não é candidato; `404` para
+  currículo inexistente ou de outra pessoa.
 
 ## Privacidade (LGPD)
 
