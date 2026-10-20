@@ -181,7 +181,8 @@ start_stack() {
     safety_net
     if [[ $SKIP_PULL -eq 1 ]]; then
         warn "--skip-pull: sobe a imagem que já está no servidor, sem baixar a nova"
-    elif ! docker compose pull app; then
+    # Todas as imagens, a do app e a do Postgres: o rebuild semanal traz os patches das duas, e o up só recria o que mudou
+    elif ! docker compose pull; then
         # Antes só avisava e seguia com a imagem antiga: o deploy terminava "concluído" sem trocar a versão
         fail "não consegui baixar a imagem nova e nada foi trocado (confira o acesso ao ghcr.io; para subir a imagem que já está no servidor, use --skip-pull)"
     fi
