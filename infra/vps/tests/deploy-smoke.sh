@@ -7,6 +7,7 @@
 #     repositório do Docker, confere a impressão digital e confirma que o docker-ce está disponível para o Debian 13;
 #   - deploy.sh: primeira vez (sem certificado: nginx em HTTP, certbot, nginx.conf completo), segunda vez, backup que falha,
 #     certbot que falha, --skip-tls, site com outro nome e nginx.conf recusado.
+#   - deploy.sh, permissões: arquivos com outro dono voltam a ser só do root.
 # Docker, certbot e systemctl são trocados por registradores de chamadas (o contêiner não tem systemd nem Docker); o nginx é o de
 # verdade. Não altera a máquina de quem roda: precisa só de Docker.
 #
@@ -274,6 +275,21 @@ deploy --email teste@example.com
 expect "falha" test "$status" -ne 0
 expect "volta à configuração anterior" cmp -s /tmp/site.good /etc/nginx/sites-available/monburan.conf
 expect_soon "o nginx continua válido e respondendo" bash -c "nginx -t && curl -sk --resolve monburan.com.br:443:127.0.0.1 https://monburan.com.br/health | grep -q ok"
+
+echo
+echo "13. deploy.sh: arquivos com outro dono (o tar do deploy automático gravava o uid do runner) voltam para o root"
+fresh_dir
+reset_site
+deploy --email teste@example.com
+expect "a instalação de base termina sem erro" test "$status" -eq 0
+chown -R 1001:1001 "$DIR"
+chmod g+w "$DIR/nginx.conf"
+deploy
+expect "termina sem erro" test "$status" -eq 0
+expect "a pasta e os arquivos voltam a ser do root" bash -c "! find $DIR \\( ! -user 0 -o ! -group 0 \\) | grep -q ."
+expect "sem escrita para grupo e outros" bash -c "! find $DIR -perm /022 | grep -q ."
+expect "o .env continua só do dono (600)" test "$(stat -c %a "$DIR/.env")" = 600
+expect "avisa do que corrigiu" grep -q 'outro dono' "$OUT"
 
 echo
 echo "$passed ok, $failed falhas"

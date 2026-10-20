@@ -9,6 +9,7 @@
 # existe, o nginx sobe só em HTTP, o certbot emite o certificado e só então entra o nginx.conf completo (que depende dele).
 # Nas vezes seguintes: tira um backup (se o backup.sh estiver configurado), guarda a imagem atual como rollback, baixa a nova,
 # reinicia o app e espera o /health.
+# Arquivos de /opt/monburan com outro dono (ou com escrita para grupo e outros) voltam a ser só do root.
 #
 # Uso (como root, na VPS):
 #   cd /opt/monburan
@@ -117,6 +118,17 @@ safety_net() {
         echo "    backup antes de trocar a versão"
         BACKUP_CONFIG="$INSTALL_DIR/backup.env" bash "$INSTALL_DIR/backup.sh" || fail "o backup falhou: não vou trocar a versão sem backup (use --no-backup para pular)"
     fi
+}
+
+# deploy.sh e backup.sh (pelo timer) rodam como root: quem puder editar esses arquivos vira root. Arquivos copiados com tar,
+# scp ou rsync -a chegam com o dono da máquina de origem (o deploy automático gravava o uid 1001 do runner)
+fix_ownership() {
+    local foreign
+    foreign=$(find "$INSTALL_DIR" -xdev \( ! -user 0 -o ! -group 0 -o -perm /022 \) -print 2>/dev/null | head -1)
+    [[ -n "$foreign" ]] || return 0
+    chown -R root:root "$INSTALL_DIR"
+    chmod -R go-w "$INSTALL_DIR"
+    warn "havia arquivos em $INSTALL_DIR com outro dono ou com escrita para grupo/outros (ex.: $foreign): agora são só do root"
 }
 
 wait_for_health() {
@@ -293,6 +305,7 @@ main() {
     require_tools
     [[ -d "$INSTALL_DIR" ]] || fail "falta a pasta $INSTALL_DIR (copie infra/vps para lá)"
     [[ -f "$INSTALL_DIR/nginx.conf" ]] || fail "falta $INSTALL_DIR/nginx.conf"
+    fix_ownership
 
     log ".env e compose"
     ensure_env
