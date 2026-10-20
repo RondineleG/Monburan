@@ -7,6 +7,8 @@ public class ResumeResponse
     public string Title { get; set; } = string.Empty;
     public string? Summary { get; set; }
     public bool IsActive { get; set; }
+    public string? SourceFileName { get; set; }
+    public string? SourceFileUrl { get; set; }
     public List<EducationResponse>? EducationHistory { get; set; }
     public List<ExperienceResponse>? ExperienceHistory { get; set; }
     public List<LanguageResponse>? Languages { get; set; }

@@ -1,0 +1,162 @@
+@using Monburan.Core.DTOs.Response
+
+@* Documento de currículo compartilhado: a tela de CV e a prévia da revisão de sugestões
+   usam a mesma folha. Seções vazias somem e datas inválidas (ano 0001) nunca aparecem. *@
+
+<div class="cv-sheet" data-testid="resume-document">
+    <header class="cv-header">
+        @if (ShowHeader)
+        {
+            <h1 class="cv-name">@(string.IsNullOrWhiteSpace(Name) ? "Currículo" : Name)</h1>
+        }
+        <p class="cv-headline">@Resume.Title</p>
+        @if (HasContact)
+        {
+            <p class="cv-contact">
+                @if (!string.IsNullOrWhiteSpace(Email))
+                {
+                    <span>@Email</span>
+                }
+                @if (!string.IsNullOrWhiteSpace(Phone))
+                {
+                    <span>@Phone</span>
+                }
+                @if (!string.IsNullOrWhiteSpace(LinkedIn))
+                {
+                    <span>@LinkedIn</span>
+                }
+            </p>
+        }
+    </header>
+
+    @if (!string.IsNullOrWhiteSpace(Resume.Summary))
+    {
+        <section class="cv-section" id="@SectionId("summary")">
+            <h2>Resumo</h2>
+            <p class="cv-pre">@Resume.Summary</p>
+        </section>
+    }
+
+    @if (Resume.ExperienceHistory is { Count: > 0 })
+    {
+        <section class="cv-section" id="@SectionId("experience")">
+            <h2>Experiência Profissional</h2>
+            @foreach (var experience in Resume.ExperienceHistory)
+            {
+                <article class="cv-item">
+                    <div class="cv-item__head">
+                        <strong>@experience.Position</strong>
+                        <span class="cv-period">@Period(experience.StartDate, experience.EndDate, experience.IsCurrent)</span>
+                    </div>
+                    <div class="cv-company">@experience.Company</div>
+                    @if (!string.IsNullOrWhiteSpace(experience.Description))
+                    {
+                        <p class="cv-pre">@experience.Description</p>
+                    }
+                </article>
+            }
+        </section>
+    }
+
+    @if (Resume.EducationHistory is { Count: > 0 })
+    {
+        <section class="cv-section" id="@SectionId("education")">
+            <h2>Formação Acadêmica</h2>
+            @foreach (var education in Resume.EducationHistory)
+            {
+                <article class="cv-item">
+                    <div class="cv-item__head">
+                        <strong>@education.Course</strong>
+                        <span class="cv-period">@Period(education.StartDate, education.EndDate, education.Status == "Ongoing")</span>
+                    </div>
+                    <div class="cv-company">@education.Institution · @EducationLevel(education.Level) · @EducationStatus(education.Status)</div>
+                </article>
+            }
+        </section>
+    }
+
+    @if (Resume.Languages is { Count: > 0 })
+    {
+        <section class="cv-section" id="@SectionId("languages")">
+            <h2>Idiomas</h2>
+            <p>@string.Join(" · ", Resume.Languages.Select(l => $"{l.Language} ({LanguageLevel(l.Level)})"))</p>
+        </section>
+    }
+
+    @if (Resume.Skills is { Count: > 0 })
+    {
+        <section class="cv-section" id="@SectionId("skills")">
+            <h2>Habilidades</h2>
+            <p>@string.Join(" · ", Resume.Skills.Select(s => s.Skill))</p>
+        </section>
+    }
+</div>
+
+@code {
+    /// Prefixo opcional: quando informado, as seções ganham IDs navegáveis ("resume-experience" etc).
+    [Parameter] public string? SectionIdPrefix { get; set; }
+    /// Mostra o cabeçalho com nome/contato (desligável quando a página já o exibe).
+    [Parameter] public bool ShowHeader { get; set; } = true;
+
+    private string? SectionId(string key) =>
+        SectionIdPrefix is null ? null : $"{SectionIdPrefix}-{key}";
+
+    [Parameter, EditorRequired]
+    public ResumeResponse Resume { get; set; } = new();
+
+    [Parameter]
+    public string? Name { get; set; }
+
+    [Parameter]
+    public string? Email { get; set; }
+
+    [Parameter]
+    public string? Phone { get; set; }
+
+    [Parameter]
+    public string? LinkedIn { get; set; }
+
+    private bool HasContact =>
+        !string.IsNullOrWhiteSpace(Email) || !string.IsNullOrWhiteSpace(Phone) || !string.IsNullOrWhiteSpace(LinkedIn);
+
+    internal static string Period(DateTime? start, DateTime? end, bool isCurrent)
+    {
+        string? from = start is { } s && s.Year > 1 ? s.ToString("MM/yyyy") : null;
+        string? to = isCurrent ? "atual" : end is { } e && e.Year > 1 ? e.ToString("MM/yyyy") : null;
+        return (from, to) switch
+        {
+            (not null, not null) => $"{from} — {to}",
+            (not null, null) => $"desde {from}",
+            (null, not null) => $"até {to}",
+            _ => string.Empty
+        };
+    }
+
+    internal static string EducationLevel(string? level) => level switch
+    {
+        "Elementary" => "Ensino fundamental",
+        "HighSchool" => "Ensino médio",
+        "Technical" => "Técnico",
+        "Postgraduate" => "Pós-graduação",
+        "Master" => "Mestrado",
+        "Doctorate" => "Doutorado",
+        _ => "Graduação"
+    };
+
+    internal static string EducationStatus(string? status) => status switch
+    {
+        "Ongoing" => "em andamento",
+        "Dropped" => "interrompido",
+        "Incomplete" => "incompleto",
+        _ => "concluído"
+    };
+
+    internal static string LanguageLevel(string? level) => level switch
+    {
+        "Basic" => "básico",
+        "Advanced" => "avançado",
+        "Fluent" => "fluente",
+        "Native" => "nativo",
+        _ => "intermediário"
+    };
+}

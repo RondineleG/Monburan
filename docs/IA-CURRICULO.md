@@ -1,8 +1,11 @@
 # Sugestões de melhoria de currículo com IA
 
 A candidata ou o candidato abre o próprio currículo, autoriza o envio e recebe sugestões: resumo profissional
-reescrito, frases de destaque por experiência, habilidades que valem destacar, o que falta e dicas gerais. **Nada é
-alterado nem guardado**: o resultado só existe na tela (e na resposta da API), e a pessoa decide o que aproveitar.
+reescrito, frases de destaque por experiência, habilidades que valem destacar, o que falta e dicas gerais. O
+resultado vira um **rascunho criptografado no armazenamento do navegador** (chave por candidato + currículo):
+a pessoa revisa, edita e escolhe o que aproveitar — **nada muda no currículo** até ela aplicar os selecionados.
+O rascunho não sincroniza entre dispositivos, pode ser descartado na tela (ou limpando os dados do site) e só o
+que for aplicado de fato é gravado no currículo do servidor.
 
 O recurso é **exclusivo do plano Premium do candidato**: só planos com o flag `HasAiAssistant` liberam o assistente
 (administração aplica o plano em `/admin/accounts`; sem ele a tela mostra o painel como vitrine do Premium e a API
@@ -16,9 +19,9 @@ A aplicação não depende de um provedor específico. Ela fala dois protocolos:
 
 ## Como funciona
 
-1. A tela do currículo mostra o painel **só quando a IA está configurada**: há um provedor padrão ativo e a chave dele
-   existe no servidor. Sem isso nada aparece no site nem no app. Com a IA configurada, quem não tem plano com
-   assistente vê o painel como vitrine do Premium (sem o botão de gerar).
+1. A ação **Melhorar currículo** abre o painel. Uma nova geração exige IA configurada e plano com assistente.
+   Rascunhos existentes continuam disponíveis para revisar, editar, aplicar ou descartar mesmo quando o serviço
+   está indisponível ou o plano mudou. Sem rascunho, o painel explica a indisponibilidade ou o requisito de plano.
 2. A pessoa marca a autorização expressa de envio e pede as sugestões. A API exige o mesmo
    (`acceptsExternalProcessing: true` no corpo), então nenhum cliente envia sem autorização.
 3. O caso de uso (`ImproveResumeUseCase`) confere que o currículo é da própria pessoa, que o plano ativo dela tem o
@@ -84,10 +87,13 @@ Ambos exigem o perfil de candidato (JWT `ApiBearer`):
 
 ## Privacidade (LGPD)
 
-O envio é um compartilhamento com terceiro, possivelmente fora do Brasil. Por isso: autorização expressa a cada uso
-(na tela e na API), conteúdo mínimo e sem identificadores, nada guardado do nosso lado, e a Política de Privacidade
-(`/privacy`, item 5) descreve o envio. O tratamento no provedor segue os termos dele, que a empresa deve
-conferir antes de ativar em produção, com apoio jurídico para o texto da política.
+O envio é um compartilhamento com terceiro, possivelmente fora do Brasil. Por isso: autorização expressa a cada nova
+geração (na tela e na API), conteúdo mínimo e sem identificadores, nada guardado do nosso lado, e a Política de
+Privacidade (`/privacy`, item 5) descreve o envio. O resultado vira um **rascunho criptografado (Data Protection)
+no armazenamento local do navegador**, com chave por candidato + currículo: nunca vai para o banco e nunca volta
+ao provedor. A pessoa revisa, edita e escolhe o que aplicar; só aí o `UpdateResumeUseCase` grava (recheca dono e
+detecta edição posterior ao rascunho, sem sobrescrever). Apagar os dados do site descarta o rascunho. O tratamento
+no provedor segue os termos dele, que a empresa deve conferir antes de ativar em produção, com apoio jurídico.
 
 ## Testes
 
@@ -104,4 +110,21 @@ conferir antes de ativar em produção, com apoio jurídico para o texto da pol�
 
 - O app (MAUI) ainda não tem a tela: deve consultar `availability` e chamar o `POST` com a mesma autorização.
 - O limite por hora é em memória: com mais de uma instância da aplicação cada uma conta por conta própria.
-- Aplicar uma sugestão direto no formulário de edição (hoje a pessoa copia o texto).
+- O rascunho é local ao navegador; ainda não existe sincronização entre dispositivos.
+
+## Importação de currículo em PDF
+
+No upload (`/resumes/upload`) o PDF deixa de ser só um anexo: o texto é extraído com PdfPig e transformado nos
+campos do currículo (título, resumo, experiências, formação, idiomas e habilidades).
+
+1. Com a autorização expressa da pessoa e um provedor ativo, a IA estrutura o texto em JSON (mesmo protocolo acima);
+   o resultado é lido com tolerância e **normalizado** — habilidades passam pelo `SkillNormalizer`, que leva apelidos
+   ao nome canônico ("csharp" → "C#", "dotnet core" → ".NET").
+2. Sem autorização (ou sem IA configurada), a leitura é **local por regras** (`ResumeTextHeuristics`): detecta as
+   seções usuais em pt-BR/en e monta o mesmo rascunho. O conteúdo nunca sai do servidor nesse caminho.
+3. PDF digitalizado (sem camada de texto) não gera nada: a tela avisa e o passo a passo cobre o preenchimento.
+4. O currículo é criado já preenchido e a pessoa cai no **wizard** (`/resumes/{id}/wizard`): um passo a passo por
+   seção, que abre direto na primeira etapa com algo faltando e pergunta só o que falta. "Novo currículo" usa o
+   mesmo wizard vazio (`/resumes/wizard`).
+5. O PDF de origem fica referenciado no currículo (`SourceFileName`/`SourceFileUrl`) e o CV padronizado fica em
+   `/resumes/{id}/cv`, com visualização própria para impressão/PDF.

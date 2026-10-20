@@ -1,0 +1,407 @@
+@page "/resumes/wizard"
+@page "/resumes/{resumeId:guid}/wizard"
+@rendermode InteractiveServer
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Policy = "CandidateOnly")]
+@using Monburan.Core.DTOs.Request
+@using Monburan.Core.DTOs.Response
+@using Monburan.Core.Enums
+@using Monburan.Core.UseCases.Resumes
+@using Monburan.Web.Services
+@inject GetResumeByIdUseCase GetResumeByIdUseCase
+@inject CreateResumeUseCase CreateResumeUseCase
+@inject UpdateResumeUseCase UpdateResumeUseCase
+@inject ICurrentUserHelper CurrentUserHelper
+@inject NavigationManager Navigation
+@inject IToastService Toast
+@inject ILogger<ResumeWizard> Logger
+
+<PageTitle>Montar Currículo - Monburan</PageTitle>
+
+<div class="container mt-4 page-form-shell resume-wizard-page">
+    <header class="page-heading">
+        <div class="page-heading__copy">
+            <span class="page-kicker">MINHA CARREIRA</span>
+            <h1>@(ResumeId.HasValue ? "Revisar currículo importado" : "Montar currículo")</h1>
+            <p>Responda o passo a passo abaixo. O que veio do PDF já está preenchido — confira e complete o que faltar.</p>
+        </div>
+        <button class="btn btn-secondary" @onclick="Cancel">Cancelar</button>
+    </header>
+    <div class="row">
+        <div class="col-lg-9 mx-auto">
+
+            @if (!string.IsNullOrEmpty(errorMessage))
+            {
+                <div class="alert alert-danger" role="alert">@errorMessage</div>
+            }
+
+            @if (isLoading)
+            {
+                <LoadingState Message="Carregando currículo..." />
+            }
+            else if (!isOwner)
+            {
+                <EmptyState Icon="!" Title="Currículo não disponível" Message="Ele não existe mais ou pertence a outra pessoa.">
+                    <a class="btn btn-primary" href="/resumes">Voltar para meus currículos</a>
+                </EmptyState>
+            }
+            else
+            {
+                <nav class="resume-wizard-steps mb-4" aria-label="Etapas">
+                    @for (var i = 0; i < StepTitles.Length; i++)
+                    {
+                        var index = i;
+                        <button type="button"
+                                class="wizard-step @(index == step ? "wizard-step--active" : "") @(index < step ? "wizard-step--done" : "")"
+                                @onclick="() => GoTo(index)">
+                            <span class="wizard-step__number">@(index + 1)</span>
+                            <span class="wizard-step__label">@StepTitles[index]</span>
+                            @if (StepMissing(index))
+                            {
+                                <span class="badge text-bg-warning">faltando</span>
+                            }
+                        </button>
+                    }
+                </nav>
+
+                <div class="card page-form-card">
+                    <div class="card-body">
+                        <h5 class="mb-1">@StepTitles[step]</h5>
+                        <p class="text-muted">@StepQuestions[step]</p>
+
+                        @if (step == 0)
+                        {
+                            <div class="mb-3">
+                                <label class="form-label" for="wizard-title">Título do Currículo *</label>
+                                <input type="text" class="form-control" @bind="title" id="wizard-title" placeholder="Ex.: Desenvolvedor Backend .NET" data-testid="wizard-title-input" />
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label" for="wizard-summary">Resumo Profissional</label>
+                                <textarea class="form-control" @bind="summary" id="wizard-summary" rows="5"
+                                               placeholder="Em 3 a 5 linhas: quem você é, o que faz e o que busca." />
+                                <div class="form-text">Máximo 2000 caracteres</div>
+                            </div>
+                            <div class="mb-3 form-check">
+                                <input type="checkbox" class="form-check-input" @bind="isActive" id="wizard-active" />
+                                <label class="form-check-label" for="wizard-active">Definir como currículo ativo</label>
+                            </div>
+                        }
+                        else if (step == 1)
+                        {
+                            @foreach (var item in ItemRows(experiences))
+                            {
+                                var exp = item;
+                                <div class="resume-item">
+                                    <div class="row g-2">
+                                        <div class="col-md-6"><input class="form-control" placeholder="Cargo" aria-label="Cargo" @bind="exp.Position" /></div>
+                                        <div class="col-md-6"><input class="form-control" placeholder="Empresa" aria-label="Empresa" @bind="exp.Company" /></div>
+                                        <div class="col-12"><textarea class="form-control" rows="2" placeholder="Descrição das atividades" aria-label="Descrição das atividades" @bind="exp.Description"></textarea></div>
+                                        <div class="col-md-4"><label class="form-label small">Início</label><input type="date" class="form-control" @bind="exp.StartDate" /></div>
+                                        <div class="col-md-4"><label class="form-label small">Fim</label><input type="date" class="form-control" @bind="exp.EndDate" /></div>
+                                        <div class="col-md-4 d-flex align-items-end justify-content-between">
+                                            <div class="form-check"><input type="checkbox" class="form-check-input" @bind="exp.IsCurrent" /><label class="form-check-label">Atual</label></div>
+                                            <button type="button" class="btn btn-outline-danger btn-sm" @onclick="() => experiences.Remove(exp)">Remover</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            }
+                            @if (experiences.Count == 0)
+                            {
+                                <p class="text-muted small">Nenhuma experiência ainda. Adicione pelo menos a mais recente.</p>
+                            }
+                            <button type="button" class="btn btn-outline-primary btn-sm" @onclick="() => experiences.Add(new ExperienceRequest())">+ Adicionar experiência</button>
+                        }
+                        else if (step == 2)
+                        {
+                            @foreach (var item in ItemRows(educations))
+                            {
+                                var edu = item;
+                                <div class="resume-item">
+                                    <div class="row g-2">
+                                        <div class="col-md-6"><input class="form-control" placeholder="Curso" aria-label="Curso" @bind="edu.Course" /></div>
+                                        <div class="col-md-6"><input class="form-control" placeholder="Instituição" aria-label="Instituição" @bind="edu.Institution" /></div>
+                                        <div class="col-md-4">
+                                            <select class="form-select" aria-label="Nível de formação" @bind="edu.Level">
+                                                @foreach (var level in Enum.GetValues<EEducationLevel>())
+                                                {
+                                                    <option value="@level">@level</option>
+                                                }
+                                            </select>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <select class="form-select" aria-label="Situação do curso" @bind="edu.Status">
+                                                @foreach (var st in Enum.GetValues<EEducationStatus>())
+                                                {
+                                                    <option value="@st">@st</option>
+                                                }
+                                            </select>
+                                        </div>
+                                        <div class="col-md-4 d-flex align-items-end justify-content-end">
+                                            <button type="button" class="btn btn-outline-danger btn-sm" @onclick="() => educations.Remove(edu)">Remover</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            }
+                            @if (educations.Count == 0)
+                            {
+                                <p class="text-muted small">Nenhuma formação ainda.</p>
+                            }
+                            <button type="button" class="btn btn-outline-primary btn-sm" @onclick="() => educations.Add(new EducationRequest())">+ Adicionar formação</button>
+                        }
+                        else if (step == 3)
+                        {
+                            @foreach (var item in ItemRows(languages))
+                            {
+                                var lang = item;
+                                <div class="resume-item">
+                                    <div class="row g-2 align-items-end">
+                                        <div class="col-md-6"><input class="form-control" placeholder="Idioma" aria-label="Idioma" @bind="lang.Language" /></div>
+                                        <div class="col-md-4">
+                                            <select class="form-select" aria-label="Nível do idioma" @bind="lang.Level">
+                                                @foreach (var level in Enum.GetValues<ELanguageLevel>())
+                                                {
+                                                    <option value="@level">@level</option>
+                                                }
+                                            </select>
+                                        </div>
+                                        <div class="col-md-2 d-flex justify-content-end">
+                                            <button type="button" class="btn btn-outline-danger btn-sm" @onclick="() => languages.Remove(lang)">Remover</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            }
+                            @if (languages.Count == 0)
+                            {
+                                <p class="text-muted small">Nenhum idioma ainda.</p>
+                            }
+                            <button type="button" class="btn btn-outline-primary btn-sm" @onclick="() => languages.Add(new LanguageRequest())">+ Adicionar idioma</button>
+                        }
+                        else if (step == 4)
+                        {
+                            @foreach (var item in ItemRows(skills))
+                            {
+                                var skill = item;
+                                <div class="resume-item">
+                                    <div class="row g-2 align-items-end">
+                                        <div class="col-md-6"><input class="form-control" placeholder="Habilidade" aria-label="Habilidade" @bind="skill.Skill" /></div>
+                                        <div class="col-md-3"><label class="form-label small">Nível (1-5)</label><input type="number" class="form-control" min="1" max="5" @bind="skill.Level" /></div>
+                                        <div class="col-md-2"><label class="form-label small">Anos</label><input type="number" class="form-control" min="0" @bind="skill.YearsOfExperience" /></div>
+                                        <div class="col-md-1 d-flex justify-content-end">
+                                            <button type="button" class="btn btn-outline-danger btn-sm" @onclick="() => skills.Remove(skill)">Remover</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            }
+                            @if (skills.Count == 0)
+                            {
+                                <p class="text-muted small">Nenhuma habilidade ainda.</p>
+                            }
+                            <button type="button" class="btn btn-outline-primary btn-sm" @onclick="() => skills.Add(new SkillRequest())">+ Adicionar habilidade</button>
+                        }
+                        else
+                        {
+                            <ul class="list-group mb-3">
+                                <li class="list-group-item d-flex justify-content-between"><span>Título</span><strong>@(string.IsNullOrWhiteSpace(title) ? "—" : title)</strong></li>
+                                <li class="list-group-item d-flex justify-content-between"><span>Resumo</span><strong>@(string.IsNullOrWhiteSpace(summary) ? "não informado" : "preenchido")</strong></li>
+                                <li class="list-group-item d-flex justify-content-between"><span>Experiências</span><strong>@FilledCount(experiences, e => e.Position, e => e.Company)</strong></li>
+                                <li class="list-group-item d-flex justify-content-between"><span>Formação</span><strong>@FilledCount(educations, e => e.Course, e => e.Institution)</strong></li>
+                                <li class="list-group-item d-flex justify-content-between"><span>Idiomas</span><strong>@FilledCount(languages, l => l.Language)</strong></li>
+                                <li class="list-group-item d-flex justify-content-between"><span>Habilidades</span><strong>@FilledCount(skills, s => s.Skill)</strong></li>
+                            </ul>
+                        }
+
+                        <div class="d-flex justify-content-between mt-4">
+                            <button type="button" class="btn btn-secondary" @onclick="Previous" disabled="@(step == 0)">← Anterior</button>
+                            @if (step < StepTitles.Length - 1)
+                            {
+                                <button type="button" class="btn btn-primary" @onclick="Next">Próximo →</button>
+                            }
+                            else
+                            {
+                                <button type="button" class="btn btn-success" @onclick="FinishAsync" disabled="@isSubmitting" data-testid="wizard-finish">
+                                    @if (isSubmitting)
+                                    {
+                                        <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                                    }
+                                    Concluir e salvar currículo
+                                </button>
+                            }
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public Guid? ResumeId { get; set; }
+
+    private static readonly string[] StepTitles = ["Sobre você", "Experiências", "Formação", "Idiomas", "Habilidades", "Revisão"];
+    private static readonly string[] StepQuestions =
+    [
+        "Qual é o objetivo deste currículo e como você se apresenta?",
+        "Onde você já trabalhou? Conte cargo, empresa e período.",
+        "Qual é a sua formação?",
+        "Quais idiomas você fala e em qual nível?",
+        "Quais são suas principais habilidades?",
+        "Confira o resumo: está tudo certo para salvar?"
+    ];
+
+    private int step;
+    private bool isLoading = true;
+    private bool isOwner = true;
+    private bool isSubmitting;
+    private string? errorMessage;
+
+    private string title = string.Empty;
+    private string? summary;
+    private bool isActive;
+    private List<ExperienceRequest> experiences = [];
+    private List<EducationRequest> educations = [];
+    private List<LanguageRequest> languages = [];
+    private List<SkillRequest> skills = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!ResumeId.HasValue)
+        {
+            isLoading = false;
+            return;
+        }
+
+        var candidateId = CurrentUserHelper.GetCandidateId();
+        var result = await GetResumeByIdUseCase.ExecuteAsync(ResumeId.Value);
+        if (result.Status != EResultStatus.Success || result.Data is null || !candidateId.HasValue || result.Data.CandidateId != candidateId.Value)
+        {
+            isOwner = false;
+            isLoading = false;
+            return;
+        }
+
+        var r = result.Data;
+        title = r.Title;
+        summary = r.Summary;
+        isActive = r.IsActive;
+        experiences = (r.ExperienceHistory ?? []).Select(e => new ExperienceRequest
+        {
+            Company = e.Company, Position = e.Position, Description = e.Description,
+            StartDate = e.StartDate, EndDate = e.EndDate, IsCurrent = e.IsCurrent
+        }).ToList();
+        educations = (r.EducationHistory ?? []).Select(e => new EducationRequest
+        {
+            Institution = e.Institution, Course = e.Course,
+            Level = Enum.TryParse<EEducationLevel>(e.Level, out var lv) ? lv : EEducationLevel.Bachelor,
+            StartDate = e.StartDate, EndDate = e.EndDate,
+            Status = Enum.TryParse<EEducationStatus>(e.Status, out var st) ? st : EEducationStatus.Completed
+        }).ToList();
+        languages = (r.Languages ?? []).Select(l => new LanguageRequest
+        {
+            Language = l.Language,
+            Level = Enum.TryParse<ELanguageLevel>(l.Level, out var lv) ? lv : ELanguageLevel.Intermediate
+        }).ToList();
+        skills = (r.Skills ?? []).Select(s => new SkillRequest
+        {
+            Skill = s.Skill, Level = s.Level, YearsOfExperience = s.YearsOfExperience
+        }).ToList();
+
+        // Abre direto na primeira etapa que tem algo faltando
+        for (var i = 0; i < StepTitles.Length - 1; i++)
+        {
+            if (StepMissing(i))
+            {
+                step = i;
+                break;
+            }
+            step = StepTitles.Length - 1;
+        }
+
+        isLoading = false;
+    }
+
+    private bool StepMissing(int index) => index switch
+    {
+        0 => string.IsNullOrWhiteSpace(title) || string.IsNullOrWhiteSpace(summary),
+        1 => experiences.Count == 0 || experiences.Any(e => string.IsNullOrWhiteSpace(e.Position) || string.IsNullOrWhiteSpace(e.Company) || e.StartDate is null),
+        2 => educations.Count == 0,
+        3 => languages.Count == 0,
+        4 => skills.Count == 0,
+        _ => false
+    };
+
+    private void GoTo(int index) => step = index;
+    private void Next() { if (step < StepTitles.Length - 1) step++; }
+    private void Previous() { if (step > 0) step--; }
+    private void Cancel() => Navigation.NavigateTo("/resumes");
+
+    private async Task FinishAsync()
+    {
+        if (isSubmitting)
+            return;
+
+        if (string.IsNullOrWhiteSpace(title))
+        {
+            errorMessage = "O título do currículo é obrigatório. Volte à primeira etapa para preenchê-lo.";
+            step = 0;
+            return;
+        }
+
+        isSubmitting = true;
+        errorMessage = null;
+
+        var experienceList = experiences.Where(e => !string.IsNullOrWhiteSpace(e.Position) || !string.IsNullOrWhiteSpace(e.Company)).ToList();
+        var educationList = educations.Where(e => !string.IsNullOrWhiteSpace(e.Course) || !string.IsNullOrWhiteSpace(e.Institution)).ToList();
+        var languageList = languages.Where(l => !string.IsNullOrWhiteSpace(l.Language)).ToList();
+        var skillList = skills.Where(s => !string.IsNullOrWhiteSpace(s.Skill)).ToList();
+
+        var candidateId = CurrentUserHelper.GetCandidateId();
+        if (!candidateId.HasValue)
+        {
+            errorMessage = "Esta área é exclusiva para candidatos.";
+            isSubmitting = false;
+            return;
+        }
+
+        var result = ResumeId.HasValue
+            ? await UpdateResumeUseCase.ExecuteAsync(new UpdateResumeRequest
+            {
+                Id = ResumeId.Value,
+                CandidateId = candidateId.Value,
+                Title = title,
+                Summary = summary,
+                IsActive = isActive,
+                ExperienceHistory = experienceList,
+                EducationHistory = educationList,
+                Languages = languageList,
+                Skills = skillList
+            })
+            : await CreateResumeUseCase.ExecuteAsync(new CreateResumeRequest
+            {
+                CandidateId = candidateId.Value,
+                Title = title,
+                Summary = summary,
+                IsActive = isActive,
+                ExperienceHistory = experienceList,
+                EducationHistory = educationList,
+                Languages = languageList,
+                Skills = skillList
+            });
+
+        if (result.Status == EResultStatus.Success && result.Data is not null)
+        {
+            Toast.ShowSuccess("Currículo salvo.", "Pronto!");
+            Navigation.NavigateTo($"/resumes/{result.Data.Id}");
+            return;
+        }
+
+        Logger.LogFailure(result, "Salvar currículo pelo wizard");
+        errorMessage = ResultMessages.ToUserMessage(result, "Não foi possível salvar o currículo. Tente novamente.");
+        isSubmitting = false;
+    }
+
+    private static int FilledCount<T>(List<T> items, params Func<T, string?>[] fields) =>
+        items.Count(item => fields.Any(field => !string.IsNullOrWhiteSpace(field(item))));
+
+    // Itera sem capturar variável de loop nos binds
+    private static IEnumerable<T> ItemRows<T>(List<T> items) => items;
+}

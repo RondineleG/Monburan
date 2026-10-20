@@ -1,4 +1,4 @@
-using Monburan.Core.DTOs.Response;
+﻿using Monburan.Core.DTOs.Response;
 using Monburan.Core.Entities;
 using Monburan.Core.Enums;
 using Monburan.Core.Interfaces.Repositories;
@@ -37,6 +37,8 @@ public class ListResumesByCandidateUseCase : IUseCase<Guid, IEnumerable<ResumeRe
         Title = r.Title,
         Summary = r.Summary,
         IsActive = r.IsActive,
+        SourceFileName = r.SourceFileName,
+        SourceFileUrl = r.SourceFileUrl,
         CreatedAt = r.CreatedAt,
         UpdatedAt = r.UpdatedAt,
         EducationHistory = r.EducationHistory?.Select(e => new EducationResponse

@@ -1,0 +1,107 @@
+@page "/resumes/{resumeId:guid}/cv"
+@rendermode InteractiveServer
+@attribute [Microsoft.AspNetCore.Authorization.Authorize]
+@using Monburan.Core.DTOs.Response
+@using Monburan.Core.Enums
+@using Monburan.Web.Services
+@inject ResumeViewerService ResumeViewer
+@inject ICurrentUserHelper CurrentUserHelper
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+@inject ILogger<ResumeCvView> Logger
+
+<PageTitle>@(viewer?.Resume.Title ?? "Currículo") - Monburan</PageTitle>
+
+@if (isLoading)
+{
+    <div class="container mt-4"><LoadingState Message="Montando o currículo..." /></div>
+}
+else if (loadFailed)
+{
+    <div class="container mt-4">
+        <ErrorState Title="Não foi possível carregar o currículo"
+                    Message="Tivemos um problema ao montar o documento. Tente novamente em instantes."
+                    OnRetry="LoadAsync" />
+    </div>
+}
+else if (viewer is null)
+{
+    <div class="container mt-4">
+        <EmptyState Icon="!" Title="Currículo não disponível" Message="Ele não existe mais ou você não tem acesso a ele.">
+            <a class="btn btn-primary" href="@BackHref">@(isOwnerView ? "Voltar para meus currículos" : "Voltar para candidaturas")</a>
+        </EmptyState>
+    </div>
+}
+else
+{
+    <div class="cv-toolbar container mt-4" data-testid="cv-toolbar">
+        <a class="btn btn-secondary" href="/resumes/@ResumeId">← Voltar ao currículo</a>
+        <div class="cv-toolbar__actions">
+            @if (viewer.IsOwner)
+            {
+                <a class="btn btn-outline-primary" href="/resumes/@ResumeId/edit">Editar currículo</a>
+                <a class="btn btn-outline-primary" href="/resumes/@ResumeId?melhorar=true">Melhorar currículo</a>
+            }
+            <button type="button" class="btn btn-primary" @onclick="PrintAsync" data-testid="cv-print">Imprimir / salvar PDF</button>
+        </div>
+    </div>
+    <p class="cv-print-hint container">Na janela de impressão do navegador, escolha <strong>Salvar como PDF</strong>. Se aparecerem data ou endereço da página, desative a opção <strong>Cabeçalhos e rodapés</strong>.</p>
+
+    <div class="container my-4 cv-print-area">
+        <ResumeDocument Resume="viewer.Resume"
+                        Name="@viewer.Name"
+                        Email="@viewer.Email"
+                        Phone="@viewer.Phone"
+                        LinkedIn="@viewer.LinkedIn" />
+    </div>
+}
+
+@code {
+    [Parameter]
+    public Guid ResumeId { get; set; }
+
+    private ResumeViewerResponse? viewer;
+    private bool isLoading = true;
+    private bool loadFailed;
+    private Guid? loadedId;
+    private int loadVersion;
+
+    private bool isCandidateView => CurrentUserHelper.GetCandidateId().HasValue;
+    private bool isOwnerView => isCandidateView && viewer?.Resume.CandidateId == CurrentUserHelper.GetCandidateId();
+    private string BackHref => isCandidateView ? "/resumes" : "/received-applications";
+
+    // Trocar de currículo reaproveita o componente: recarrega por id e zera o estado anterior
+    protected override async Task OnParametersSetAsync()
+    {
+        if (loadedId == ResumeId)
+            return;
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        var version = ++loadVersion;
+        var resumeId = ResumeId;
+        isLoading = true;
+        loadFailed = false;
+        viewer = null;
+        loadedId = resumeId;
+
+        var result = await ResumeViewer.GetAsync(resumeId);
+        if (version != loadVersion || resumeId != ResumeId)
+            return;
+        if (result.Status == EResultStatus.Success && result.Data is not null)
+        {
+            viewer = result.Data;
+        }
+        else if (result.Status != EResultStatus.EntityNotFound)
+        {
+            Logger.LogFailure(result, "Carregar currículo para visualização de CV");
+            loadFailed = true;
+        }
+
+        isLoading = false;
+    }
+
+    private async Task PrintAsync() => await JS.InvokeVoidAsync("print");
+}

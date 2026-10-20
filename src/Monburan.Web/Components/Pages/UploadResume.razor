@@ -2,24 +2,27 @@
 @rendermode InteractiveServer
 @attribute [Microsoft.AspNetCore.Authorization.Authorize(Policy = "CandidateOnly")]
 @using Monburan.Core.DTOs.Request
+@using Monburan.Core.DTOs.Response
+@using Monburan.Core.Interfaces.Services
 @using Monburan.Core.UseCases.Resumes
 @using Monburan.Core.UseCases.Storage
 @using Monburan.Web.Services
 @inject UploadFileUseCase UploadFileUseCase
-@inject CreateResumeUseCase CreateResumeUseCase
+@inject ImportResumeFromPdfUseCase ImportResumeFromPdfUseCase
+@inject IAiTextClient AiTextClient
 @inject ICurrentUserHelper CurrentUserHelper
 @inject NavigationManager Navigation
 @inject IToastService Toast
 @inject ILogger<UploadResume> Logger
 
-<PageTitle>Upload de Currículo - Monburan</PageTitle>
+<PageTitle>Importar Currículo - Monburan</PageTitle>
 
 <div class="container mt-4 page-form-shell upload-page">
     <header class="page-heading">
         <div class="page-heading__copy">
             <span class="page-kicker">MINHA CARREIRA</span>
-            <h1>Enviar currículo em PDF</h1>
-            <p>Adicione um currículo para agilizar suas próximas candidaturas.</p>
+            <h1>Importar currículo em PDF</h1>
+            <p>Nós lemos o seu PDF, preenchemos as seções do currículo e depois você revisa e completa o que faltar.</p>
         </div>
         <button class="btn btn-secondary" @onclick="Cancel">Voltar</button>
     </header>
@@ -30,39 +33,6 @@
             {
                 <div class="alert alert-danger">
                     <i class="bi bi-exclamation-triangle"></i> @errorMessage
-                </div>
-            }
-
-            @if (!string.IsNullOrEmpty(successMessage))
-            {
-                <div class="alert alert-success">
-                    <i class="bi bi-check-circle"></i> @successMessage
-                    <br />
-                    @if (!string.IsNullOrEmpty(fileUrl))
-                    {
-                        <div class="mt-3">
-                            <strong>Arquivo enviado:</strong>
-                            <div class="card mt-2">
-                                <div class="card-body">
-                                    <div class="d-flex align-items-center">
-                                        <i class="bi bi-file-earmark-pdf text-danger fs-2 me-3"></i>
-                                        <div>
-                                            <strong>@originalFileName</strong>
-                                            <br />
-                                            <small class="text-muted">Tamanho: @(fileSize / 1024) KB</small>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    }
-                    @if (importedResumeId.HasValue)
-                    {
-                        <div class="mt-3 d-flex gap-2">
-                            <a class="btn btn-primary" href="/resumes/@importedResumeId">Ver e melhorar currículo</a>
-                            <a class="btn btn-secondary" href="/resumes">Meus currículos</a>
-                        </div>
-                    }
                 </div>
             }
 
@@ -86,11 +56,31 @@
                         </div>
                     }
 
-                    <div class="d-grid gap-2">
-                        <button type="button" class="btn btn-success btn-lg" @onclick="UploadResumeAsync" disabled="@(!isFileSelected || isUploading)">
-                            @(isUploading ? "Enviando..." : "Enviar currículo")
-                        </button>
-                    </div>
+                    @if (AiTextClient.IsConfigured)
+                    {
+                        <p class="form-text" id="resume-import-ai-note">
+                            <strong>Importar com IA</strong> envia o texto do PDF a um serviço externo para preencher
+                            o currículo com mais precisão. <strong>Importar sem IA</strong> faz a leitura no Monburan
+                            e pode preencher menos campos. Você revisa o resultado antes de usar.
+                            <a href="/privacy" target="_blank" rel="noopener">Como tratamos seus dados</a>.
+                        </p>
+                        <div class="d-grid gap-2 d-sm-flex">
+                            <button type="button" class="btn btn-primary" @onclick="() => UploadResumeAsync(true)" disabled="@(!isFileSelected || isUploading)" aria-describedby="resume-import-ai-note" data-testid="resume-import-ai">
+                                @(isUploading ? "Lendo o PDF..." : "Importar com IA")
+                            </button>
+                            <button type="button" class="btn btn-outline-primary" @onclick="() => UploadResumeAsync(false)" disabled="@(!isFileSelected || isUploading)" data-testid="resume-import-local">
+                                @(isUploading ? "Lendo o PDF..." : "Importar sem IA")
+                            </button>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="d-grid gap-2">
+                            <button type="button" class="btn btn-primary btn-lg" @onclick="() => UploadResumeAsync(false)" disabled="@(!isFileSelected || isUploading)">
+                                @(isUploading ? "Lendo o PDF..." : "Importar currículo")
+                            </button>
+                        </div>
+                    }
                 </div>
             </div>
         </div>
@@ -102,11 +92,6 @@
     private bool isFileSelected;
     private bool isUploading;
     private string? errorMessage;
-    private string? successMessage;
-    private string? fileUrl;
-    private string? originalFileName;
-    private long fileSize;
-    private Guid? importedResumeId;
 
     private async Task OnFileSelected(InputFileChangeEventArgs e)
     {
@@ -118,7 +103,6 @@
 
             if (selectedFile != null)
             {
-                // Validar tamanho (10MB)
                 const long maxSize = 10 * 1024 * 1024;
                 if (selectedFile.Size > maxSize)
                 {
@@ -128,7 +112,6 @@
                     return;
                 }
 
-                // Validar tipo
                 if (!string.Equals(selectedFile.ContentType, "application/pdf", StringComparison.OrdinalIgnoreCase))
                 {
                     errorMessage = "Tipo de arquivo inválido. Use apenas PDF.";
@@ -145,8 +128,11 @@
         }
     }
 
-    private async Task UploadResumeAsync()
+    private async Task UploadResumeAsync(bool useAi)
     {
+        if (isUploading)
+            return;
+
         if (selectedFile == null)
         {
             errorMessage = "Selecione um arquivo primeiro.";
@@ -164,54 +150,60 @@
 
         isUploading = true;
         errorMessage = null;
-        successMessage = null;
         try
         {
             const long maxSize = 10 * 1024 * 1024;
-            await using var stream = selectedFile.OpenReadStream(maxSize);
+            string? fileUrl = null;
 
-            // UseCase valida tipo/tamanho/assinatura do PDF antes de gravar
-            var upload = await UploadFileUseCase.ExecuteAsync(new UploadFileRequest
+            // Primeiro grava o PDF como documento de origem
+            await using (var uploadStream = selectedFile.OpenReadStream(maxSize))
             {
-                FileStream = stream,
+                var upload = await UploadFileUseCase.ExecuteAsync(new UploadFileRequest
+                {
+                    FileStream = uploadStream,
+                    FileName = selectedFile.Name,
+                    ContentType = selectedFile.ContentType,
+                    FileType = EFileType.Pdf
+                });
+                if (upload.Status != EResultStatus.Success || upload.Data is null)
+                {
+                    Logger.LogFailure(upload, "Upload de currículo em PDF");
+                    errorMessage = ResultMessages.ToUserMessage(upload, "Não foi possível enviar o PDF. Tente novamente.");
+                    Toast.ShowError(errorMessage);
+                    return;
+                }
+
+                fileUrl = upload.Data.FileUrl;
+            }
+
+            // Depois lê o conteúdo e monta o currículo estruturado
+            await using var readStream = selectedFile.OpenReadStream(maxSize);
+            var import = await ImportResumeFromPdfUseCase.ExecuteAsync(new ImportResumeRequest
+            {
+                FileStream = readStream,
                 FileName = selectedFile.Name,
-                ContentType = selectedFile.ContentType,
-                FileType = EFileType.Pdf
-            });
-            if (upload.Status != EResultStatus.Success || upload.Data is null)
-            {
-                Logger.LogFailure(upload, "Upload de currículo em PDF");
-                errorMessage = ResultMessages.ToUserMessage(upload, "Não foi possível enviar o PDF. Tente novamente.");
-                Toast.ShowError(errorMessage);
-                return;
-            }
-
-            fileUrl = upload.Data.FileUrl;
-            originalFileName = selectedFile.Name;
-            fileSize = selectedFile.Size;
-
-            var title = Path.GetFileNameWithoutExtension(selectedFile.Name);
-            var createResult = await CreateResumeUseCase.ExecuteAsync(new CreateResumeRequest
-            {
+                FileUrl = fileUrl,
                 CandidateId = candidateId.Value,
-                Title = string.IsNullOrWhiteSpace(title) ? "Currículo importado" : title,
-                Summary = $"Currículo importado de PDF.\nArquivo: {upload.Data.FileUrl}\n\nComplete as seções abaixo para melhorar este currículo.",
-                IsActive = false
+                AcceptsExternalProcessing = useAi && AiTextClient.IsConfigured
             });
 
-            if (createResult.Status != EResultStatus.Success || createResult.Data is null)
+            if (import.Status != EResultStatus.Success || import.Data is null)
             {
-                Logger.LogFailure(createResult, "Registro do currículo importado");
-                errorMessage = "O PDF foi enviado, mas não foi possível adicioná-lo à sua lista de currículos. Tente novamente.";
+                Logger.LogFailure(import, "Leitura do PDF importado");
+                errorMessage = ResultMessages.ToUserMessage(import, "O PDF foi enviado, mas não conseguimos ler o conteúdo. Tente outro arquivo.");
                 Toast.ShowError(errorMessage);
                 return;
             }
 
-            importedResumeId = createResult.Data.Id;
-            selectedFile = null;
-            isFileSelected = false;
-            successMessage = "Currículo enviado e adicionado à sua lista!";
-            Toast.ShowSuccess(successMessage);
+            var result = import.Data;
+            var message = result.ExtractedBy switch
+            {
+                EResumeImportMode.Ai => $"A IA leu seu PDF e encontrou {result.SectionsFound} de 5 seções preenchidas. Revise e complete o que faltar.",
+                EResumeImportMode.Local => $"Lemos seu PDF e encontramos {result.SectionsFound} de 5 seções preenchidas. Revise e complete o que faltar.",
+                _ => "Este PDF parece digitalizado (sem texto selecionável), então não conseguimos ler nada. Preencha as seções pelo passo a passo."
+            };
+            Toast.ShowSuccess(message, result.ExtractedBy == EResumeImportMode.None ? "PDF sem texto legível" : "Currículo importado");
+            Navigation.NavigateTo($"/resumes/{result.ResumeId}/wizard");
         }
         catch (IOException ex)
         {

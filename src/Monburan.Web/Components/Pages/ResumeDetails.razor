@@ -3,15 +3,11 @@
 @attribute [Microsoft.AspNetCore.Authorization.Authorize]
 @using Monburan.Core.DTOs.Response
 @using Monburan.Core.Enums
-@using Monburan.Core.DTOs.Request
-@using Monburan.Core.UseCases.Applications
 @using Monburan.Core.UseCases.Resumes
-@inject GetResumeByIdUseCase GetResumeByIdUseCase
+@inject ResumeViewerService ResumeViewer
 @inject DeleteResumeUseCase DeleteResumeUseCase
-@inject ListApplicationsByJobUseCase ListApplicationsByJobUseCase
 @inject ICurrentUserHelper CurrentUserHelper
 @inject NavigationManager Navigation
-@inject IJSRuntime JS
 @inject IToastService Toast
 @inject ILogger<ResumeDetails> Logger
 
@@ -28,250 +24,109 @@
                     Message="Tivemos um problema ao abrir este currículo. Tente novamente em instantes."
                     OnRetry="LoadAsync" />
     }
-    else if (resume == null)
+    else if (viewer is null)
     {
         <EmptyState Icon="?" Title="Currículo não encontrado" Message="Ele pode ter sido excluído ou você não tem acesso a ele.">
-            <a class="btn btn-primary" href="/resumes">Ir para meus currículos</a>
+            <a class="btn btn-primary" href="@BackHref">@(isOwner ? "Ir para meus currículos" : "Voltar para candidaturas recebidas")</a>
         </EmptyState>
     }
     else
     {
-        <!-- Breadcrumb -->
-        <nav aria-label="breadcrumb" class="mb-4">
+        <nav aria-label="breadcrumb" class="mb-2">
             <ol class="breadcrumb">
                 <li class="breadcrumb-item"><a href="@BackHref">@(isOwner ? "Currículos" : "Candidaturas recebidas")</a></li>
-                <li class="breadcrumb-item active">@resume.Title</li>
+                <li class="breadcrumb-item active">@resume!.Title</li>
             </ol>
         </nav>
-
-        <div class="row">
-            <!-- Conteúdo Principal -->
-            <div class="col-lg-8">
-                <div class="card mb-4">
-                    <div class="card-body">
-                        <div class="d-flex justify-content-between align-items-start mb-3">
-                            <h1 class="card-title">@resume.Title</h1>
-                            @if (resume.IsActive)
-                            {
-                                <span class="badge bg-success fs-6">Ativo</span>
-                            }
-                            else
-                            {
-                                <span class="badge bg-secondary fs-6">Inativo</span>
-                            }
-                        </div>
-
-                        @if (!string.IsNullOrEmpty(resume.Summary))
-                        {
-                            <div class="mb-4">
-                                <h4><i class="bi bi-person"></i> Resumo Profissional</h4>
-                                <p class="mt-2">@resume.Summary</p>
-                            </div>
-                        }
-
-                        <!-- Formação Acadêmica -->
-                        @if (resume.EducationHistory != null && resume.EducationHistory.Any())
-                        {
-                            <div class="mb-4">
-                                <h4><i class="bi bi-mortarboard"></i> Formação Acadêmica</h4>
-                                <div class="mt-3">
-                                    @foreach (var edu in resume.EducationHistory)
-                                    {
-                                        <div class="card mb-2">
-                                            <div class="card-body">
-                                                <h5 class="card-title">@edu.Course</h5>
-                                                <p class="card-text mb-1">
-                                                    <strong>@edu.Institution</strong>
-                                                </p>
-                                                <p class="card-text mb-1">
-                                                    <span class="badge bg-info">@edu.Level</span>
-                                                    <span class="badge bg-secondary ms-2">@edu.Status</span>
-                                                </p>
-                                                <p class="card-text small text-muted mb-0">
-                                                    <i class="bi bi-calendar"></i>
-                                                    @(edu.StartDate?.ToString("MM/yyyy") ?? "N/A")
-                                                    @if (edu.EndDate.HasValue)
-                                                    {
-                                                        <span> - @edu.EndDate.Value.ToString("MM/yyyy")</span>
-                                                    }
-                                                </p>
-                                            </div>
-                                        </div>
-                                    }
-                                </div>
-                            </div>
-                        }
-
-                        <!-- Experiência Profissional -->
-                        @if (resume.ExperienceHistory != null && resume.ExperienceHistory.Any())
-                        {
-                            <div class="mb-4">
-                                <h4><i class="bi bi-briefcase"></i> Experiência Profissional</h4>
-                                <div class="mt-3">
-                                    @foreach (var exp in resume.ExperienceHistory)
-                                    {
-                                        <div class="card mb-2">
-                                            <div class="card-body">
-                                                <div class="d-flex justify-content-between align-items-start">
-                                                    <h5 class="card-title">@exp.Position</h5>
-                                                    @if (exp.IsCurrent)
-                                                    {
-                                                        <span class="badge bg-success">Atual</span>
-                                                    }
-                                                </div>
-                                                <p class="card-text mb-1">
-                                                    <strong>@exp.Company</strong>
-                                                </p>
-                                                @if (!string.IsNullOrEmpty(exp.Description))
-                                                {
-                                                    <p class="card-text small">@exp.Description</p>
-                                                }
-                                                <p class="card-text small text-muted mb-0">
-                                                    <i class="bi bi-calendar"></i>
-                                                    @(exp.StartDate?.ToString("MM/yyyy") ?? "N/A")
-                                                    @if (exp.EndDate.HasValue)
-                                                    {
-                                                        <span> - @exp.EndDate.Value.ToString("MM/yyyy")</span>
-                                                    }
-                                                </p>
-                                            </div>
-                                        </div>
-                                    }
-                                </div>
-                            </div>
-                        }
-
-                        <!-- Idiomas -->
-                        @if (resume.Languages != null && resume.Languages.Any())
-                        {
-                            <div class="mb-4">
-                                <h4><i class="bi bi-translate"></i> Idiomas</h4>
-                                <div class="mt-3">
-                                    <div class="row g-2">
-                                        @foreach (var lang in resume.Languages)
-                                        {
-                                            <div class="col-md-6">
-                                                <div class="card">
-                                                    <div class="card-body py-2">
-                                                        <strong>@lang.Language</strong>
-                                                        <span class="badge bg-info ms-2">@lang.Level</span>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        }
-                                    </div>
-                                </div>
-                            </div>
-                        }
-
-                        <!-- Habilidades -->
-                        @if (resume.Skills != null && resume.Skills.Any())
-                        {
-                            <div class="mb-4">
-                                <h4><i class="bi bi-star"></i> Habilidades</h4>
-                                <div class="mt-3">
-                                    <div class="row g-2">
-                                        @foreach (var skill in resume.Skills)
-                                        {
-                                            <div class="col-md-6">
-                                                <div class="card">
-                                                    <div class="card-body py-2">
-                                                        <div class="d-flex justify-content-between align-items-center">
-                                                            <strong>@skill.Skill</strong>
-                                                            <div>
-                                                                <span class="badge bg-primary me-1">@skill.Level</span>
-                                                                <span class="badge bg-secondary">@skill.YearsOfExperience @(skill.YearsOfExperience == 1 ? "ano" : "anos")</span>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        }
-                                    </div>
-                                </div>
-                            </div>
-                        }
-
-                        <div class="text-muted small mt-3">
-                            <i class="bi bi-calendar"></i> Criado em: @resume.CreatedAt.ToString("dd/MM/yyyy HH:mm")<br />
-                            @if (resume.UpdatedAt.HasValue)
-                            {
-                                <span><i class="bi bi-clock-history"></i> Atualizado em: @resume.UpdatedAt.Value.ToString("dd/MM/yyyy HH:mm")</span>
-                            }
-                        </div>
-                    </div>
-                </div>
-
-                @if (isOwner)
+        <header class="page-heading mb-3">
+            <div class="page-heading__copy">
+                <h1>@resume.Title <span class="badge @(resume.IsActive ? "bg-success" : "bg-secondary") fs-6">@(resume.IsActive ? "Ativo" : "Inativo")</span></h1>
+                @if (!string.IsNullOrWhiteSpace(viewer?.Name))
                 {
-                    <ResumeAiPanel ResumeId="resume.Id" />
+                    <p class="text-muted">@viewer.Name</p>
                 }
             </div>
-
-            <!-- Sidebar -->
-            <div class="col-lg-4">
-                <!-- Ações -->
-                <div class="card mb-3">
-                    <div class="card-body">
-                        <h5 class="card-title">Ações</h5>
-                        <div class="d-grid gap-2">
-                            @if (isOwner)
-                            {
-                                <button class="btn btn-primary" @onclick="EditResume">
-                                    <i class="bi bi-pencil"></i> Editar / Melhorar
-                                </button>
-                            }
-                            <button class="btn btn-outline-primary" @onclick="ExportPdf" data-testid="resume-export-pdf">
-                                <i class="bi bi-file-earmark-pdf"></i> @(isOwner ? "Exportar PDF" : "Imprimir / salvar PDF")
+            @if (isOwner)
+            {
+                <div class="d-flex gap-2 flex-wrap" hidden="@showWorkspace">
+                    <button class="btn btn-primary" @onclick="EditResume">Editar currículo</button>
+                    <button class="btn btn-outline-secondary" @onclick="ToggleImprovementAsync" data-testid="resume-improve-toggle">Melhorar currículo</button>
+                    <a class="btn btn-outline-secondary" href="/resumes/@ResumeId/cv" data-testid="resume-export-pdf">Ver CV</a>
+                    <details class="page-heading__more">
+                        <summary class="btn btn-outline-secondary">Outras ações</summary>
+                        <div class="page-heading__more-menu">
+                            <a href="/resumes/@ResumeId/wizard">Completar no passo a passo</a>
+                            <button type="button" class="link-danger" @onclick="DeleteAsync" disabled="@isDeleting" data-testid="resume-delete">
+                                @(isDeleting ? "Excluindo..." : "Excluir currículo")
                             </button>
-                            @if (isOwner)
-                            {
-                                <button class="btn btn-danger" @onclick="DeleteAsync" disabled="@isDeleting" data-testid="resume-delete">
-                                    @(isDeleting ? "Excluindo..." : "Excluir currículo")
-                                </button>
-                            }
                         </div>
-                    </div>
+                    </details>
                 </div>
+            }
+            else
+            {
+                <div class="d-flex gap-2">
+                    <a class="btn btn-outline-secondary" href="/resumes/@ResumeId/cv" data-testid="resume-export-pdf">Imprimir / salvar PDF</a>
+                </div>
+            }
+        </header>
 
-                <!-- Informações -->
-                <div class="card">
-                    <div class="card-body">
-                        <h6 class="card-title">Informações</h6>
-                        <ul class="list-unstyled mb-0">
-                            <li class="mb-2">
-                                <strong>Status:</strong>
-                                @(resume.IsActive ? "Ativo" : "Inativo")
-                            </li>
-                            <li class="mb-2">
-                                <strong>Formações:</strong>
-                                @(resume.EducationHistory?.Count ?? 0)
-                            </li>
-                            <li class="mb-2">
-                                <strong>Experiências:</strong>
-                                @(resume.ExperienceHistory?.Count ?? 0)
-                            </li>
-                            <li class="mb-2">
-                                <strong>Idiomas:</strong>
-                                @(resume.Languages?.Count ?? 0)
-                            </li>
-                            <li>
-                                <strong>Habilidades:</strong>
-                                @(resume.Skills?.Count ?? 0)
-                            </li>
-                        </ul>
-                    </div>
-                </div>
+        <div class="resume-overview">
+            @if (resume.ExperienceHistory?.Count > 0) { <span>@resume.ExperienceHistory.Count @(resume.ExperienceHistory.Count == 1 ? "experiência" : "experiências")</span> }
+            @if (resume.EducationHistory?.Count > 0) { <span>@resume.EducationHistory.Count @(resume.EducationHistory.Count == 1 ? "formação" : "formações")</span> }
+            @if (resume.Languages?.Count > 0) { <span>@resume.Languages.Count @(resume.Languages.Count == 1 ? "idioma" : "idiomas")</span> }
+            @if (resume.Skills?.Count > 0) { <span>@resume.Skills.Count @(resume.Skills.Count == 1 ? "habilidade" : "habilidades")</span> }
+            <span>Atualizado em @((resume.UpdatedAt ?? resume.CreatedAt).ToString("dd/MM/yyyy"))</span>
+        </div>
+        <div hidden="@showWorkspace">
+        @if (isOwner)
+        {
+            <ResumeAiPanel @key="@($"ai-panel-{ResumeId}")" Resume="resume"
+                           OpenRequested="openImprovement"
+                           OnReviewRequested="OpenWorkspace"
+                           OnDraftDiscarded="CloseWorkspace"
+                           @ref="aiPanel" />
+        }
+        </div>
+
+        @if (showWorkspace && workspaceDraft is not null)
+        {
+            <ResumeImprovementWorkspace @key="@($"ai-workspace-{ResumeId}")" Resume="resume"
+                                        Draft="workspaceDraft"
+                                        DraftPersisted="@(aiPanel?.DraftPersisted ?? true)"
+                                        ContactName="@viewer?.Name"
+                                        ContactEmail="@viewer?.Email"
+                                        ContactPhone="@viewer?.Phone"
+                                        ContactLinkedIn="@viewer?.LinkedIn"
+                                        OnApplied="OnImprovementAppliedAsync"
+                                        OnDraftPersisted="OnDraftPersisted"
+                                        OnClose="CloseWorkspace" />
+        }
+
+        <div hidden="@showWorkspace">
+            <div class="resume-layout">
+                <ResumeDocument Resume="resume"
+                                Name="@viewer?.Name" Email="@viewer?.Email" Phone="@viewer?.Phone" LinkedIn="@viewer?.LinkedIn"
+                                SectionIdPrefix="resume" ShowHeader="false" />
+                <aside class="resume-layout__aside" aria-label="Seções do currículo">
+                    <strong class="text-muted">Seções</strong>
+                    @if (!string.IsNullOrWhiteSpace(resume.Summary)) { <a href="#resume-summary">Resumo</a> }
+                    @if (resume.ExperienceHistory?.Count > 0) { <a href="#resume-experience">Experiência</a> }
+                    @if (resume.EducationHistory?.Count > 0) { <a href="#resume-education">Formação</a> }
+                    @if (resume.Languages?.Count > 0) { <a href="#resume-languages">Idiomas</a> }
+                    @if (resume.Skills?.Count > 0) { <a href="#resume-skills">Habilidades</a> }
+                    @if (viewer is not null && (!string.IsNullOrWhiteSpace(viewer.Phone) || !string.IsNullOrWhiteSpace(viewer.Email) || !string.IsNullOrWhiteSpace(viewer.LinkedIn)))
+                    {
+                        <small class="text-muted mt-2">Contato da pessoa candidata fica disponível apenas nesta visualização autorizada.</small>
+                    }
+                </aside>
             </div>
-        </div>
-
-        <!-- Botão Voltar -->
         <div class="mt-4">
-            <button class="btn btn-secondary" @onclick="NavigateBackToList">
-                @(isOwner ? "← Voltar para lista de currículos" : "← Voltar para candidaturas recebidas")
-            </button>
+            <a class="btn btn-outline-secondary" href="@BackHref">
+                @(isOwner ? "Voltar para lista de currículos" : "Voltar para candidaturas recebidas")
+            </a>
         </div>
-
+        </div>
     }
 </div>
 
@@ -281,25 +136,58 @@
     [Parameter]
     public Guid ResumeId { get; set; }
 
+    [SupplyParameterFromQuery(Name = "melhorar")]
+    public string? ImproveQuery { get; set; }
+
+    private ResumeViewerResponse? viewer;
     private ResumeResponse? resume;
     private bool isOwner;
     private bool isLoading = true;
     private bool loadFailed;
     private bool isDeleting;
+    private bool openImprovement;
+    private bool showWorkspace;
+    private Monburan.Web.Models.ResumeImprovementDraft? workspaceDraft;
+    private ResumeAiPanel? aiPanel;
     private ConfirmDialog confirmDialog = default!;
 
-    protected override Task OnInitializedAsync() => LoadAsync();
+    private Guid? loadedId;
+    private int loadVersion;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        // Outro currículo (ou mudança de ?melhorar) no mesmo componente: estado anterior some
+        openImprovement = ImproveQuery == "true";
+        if (loadedId != ResumeId)
+        {
+            showWorkspace = false;
+            workspaceDraft = null;
+            viewer = null;
+            resume = null;
+            isOwner = false;
+            await LoadAsync();
+        }
+    }
 
     private async Task LoadAsync()
     {
+        var version = ++loadVersion;
+        var resumeId = ResumeId;
         isLoading = true;
         loadFailed = false;
+        loadedId = resumeId;
+        viewer = null;
+        resume = null;
+        isOwner = false;
 
-        var result = await GetResumeByIdUseCase.ExecuteAsync(ResumeId);
-        if (result.Status == EResultStatus.Success && result.Data is not null
-            && await CanViewAsync(result.Data))
+        var result = await ResumeViewer.GetAsync(resumeId);
+        if (version != loadVersion || resumeId != ResumeId)
+            return;
+        if (result.Status == EResultStatus.Success && result.Data is not null)
         {
-            resume = result.Data;
+            viewer = result.Data;
+            resume = result.Data.Resume;
+            isOwner = result.Data.IsOwner;
         }
         else if (result.Status is EResultStatus.HasError or EResultStatus.EntityHasError)
         {
@@ -316,9 +204,37 @@
         Navigation.NavigateTo($"/resumes/{ResumeId}/edit");
     }
 
-    private async Task ExportPdf()
+    private async Task ToggleImprovementAsync()
     {
-        await JS.InvokeVoidAsync("print");
+        openImprovement = !openImprovement;
+        if (openImprovement && aiPanel?.Draft is { } draft)
+        {
+            workspaceDraft = draft;
+            showWorkspace = true;
+        }
+        await Task.CompletedTask;
+    }
+
+    private void OpenWorkspace(Monburan.Web.Models.ResumeImprovementDraft draft)
+    {
+        workspaceDraft = draft;
+        showWorkspace = true;
+    }
+
+    private void OnDraftPersisted(bool persisted)
+    {
+        // O painel reflete se o rascunho realmente ficou salvo no navegador
+        if (aiPanel is not null)
+            aiPanel.DraftPersisted = persisted;
+    }
+
+    private void CloseWorkspace() => showWorkspace = false;
+
+    private async Task OnImprovementAppliedAsync(ResumeResponse updated)
+    {
+        showWorkspace = false;
+        aiPanel?.ClearDraft();
+        await LoadAsync();
     }
 
     private async Task DeleteAsync()
@@ -351,35 +267,5 @@
         Toast.ShowError(ResultMessages.ToUserMessage(result, "Não foi possível excluir o currículo. Tente novamente."));
     }
 
-    private void NavigateBackToList()
-    {
-        Navigation.NavigateTo(BackHref);
-    }
-
     private string BackHref => isOwner ? "/resumes" : "/received-applications";
-
-    /// <summary>
-    /// Dono vê e gerencia o currículo; anunciante só lê quando o currículo foi enviado
-    /// em uma candidatura para vaga dele. Antes qualquer usuário logado lia e excluía
-    /// currículos de terceiros pelo id (IDOR).
-    /// </summary>
-    private async Task<bool> CanViewAsync(ResumeResponse candidateResume)
-    {
-        var candidateId = CurrentUserHelper.GetCandidateId();
-        isOwner = candidateId.HasValue && candidateResume.CandidateId == candidateId.Value;
-        if (isOwner)
-            return true;
-
-        var advertiserId = CurrentUserHelper.GetAdvertiserId();
-        if (!advertiserId.HasValue)
-            return false;
-
-        var received = await ListApplicationsByJobUseCase.ExecuteAsync(new ListApplicationsByJobRequest
-        {
-            AdvertiserId = advertiserId.Value
-        });
-
-        return received.Status == EResultStatus.Success
-            && received.Data!.Any(a => a.ResumeId == candidateResume.Id);
-    }
 }

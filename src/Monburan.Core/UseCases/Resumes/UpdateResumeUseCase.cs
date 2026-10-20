@@ -1,4 +1,4 @@
-using Monburan.Core.DTOs.Request;
+﻿using Monburan.Core.DTOs.Request;
 using Monburan.Core.DTOs.Response;
 using Monburan.Core.Entities;
 using Monburan.Core.Enums;
@@ -30,6 +30,11 @@ public class UpdateResumeUseCase : IUseCase<UpdateResumeRequest, ResumeResponse>
             return RequestResult<ResumeResponse>.EntityNotFound("Resume", request.Id, "Currículo não encontrado.");
 
         var existingResume = existingResumeResult.Data;
+
+        // O dono nunca muda por update: um CandidateId diferente tentando reatribuir
+        // o currículo responde como "não encontrado" (não confirma que o id existe)
+        if (existingResume.CandidateId != Id.Create(request.CandidateId))
+            return RequestResult<ResumeResponse>.EntityNotFound("Resume", request.Id, "Currículo não encontrado.");
 
         existingResume.CandidateId = Id.Create(request.CandidateId);
         existingResume.Title = request.Title;
@@ -111,6 +116,8 @@ public class UpdateResumeUseCase : IUseCase<UpdateResumeRequest, ResumeResponse>
         Title = r.Title,
         Summary = r.Summary,
         IsActive = r.IsActive,
+        SourceFileName = r.SourceFileName,
+        SourceFileUrl = r.SourceFileUrl,
         CreatedAt = r.CreatedAt,
         UpdatedAt = r.UpdatedAt,
         EducationHistory = r.EducationHistory?.Select(e => new EducationResponse

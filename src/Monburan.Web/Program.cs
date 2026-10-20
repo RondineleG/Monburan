@@ -106,6 +106,9 @@ builder.Services.AddScoped<AdminAccountService>();
 
 // Feedback de UI: escopo por circuito (página e ToastHost do layout compartilham a instância)
 builder.Services.AddScoped<IToastService, ToastService>();
+builder.Services.AddScoped<ApplicationLookupService>();
+builder.Services.AddScoped<ResumeViewerService>();
+builder.Services.AddScoped<ResumeImprovementDraftService>();
 
 builder.Services.AddAuthentication(options =>
 {
@@ -393,6 +396,8 @@ builder.Services.AddScoped<DeleteResumeUseCase>();
 builder.Services.AddScoped<ListResumesByCandidateUseCase>();
 builder.Services.AddScoped<GetResumeByIdUseCase>();
 builder.Services.AddScoped<ImproveResumeUseCase>();
+builder.Services.AddScoped<ImportResumeFromPdfUseCase>();
+builder.Services.AddSingleton<Monburan.Core.Interfaces.Services.IPdfTextExtractor, Monburan.Core.Services.PdfTextExtractor>();
 
 // Provedores de IA (administração)
 builder.Services.AddScoped<ListAiProvidersUseCase>();

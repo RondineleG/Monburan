@@ -1,0 +1,404 @@
+@using Monburan.Core.DTOs.Response
+@using Monburan.Core.Enums
+@using Monburan.Core.UseCases.Resumes
+@using Monburan.Web.Models
+@inject GetResumeByIdUseCase GetResumeByIdUseCase
+@inject UpdateResumeUseCase UpdateResumeUseCase
+@inject ResumeImprovementDraftService Drafts
+@inject ICurrentUserHelper CurrentUser
+@inject IToastService Toast
+@inject ILogger<ResumeImprovementWorkspace> Logger
+
+@* Revisão em largura total do rascunho de sugestões: original ao lado da sugestão editável,
+   seleção explícita por mudança (nada vem marcado) e prévia do documento final. Só o que
+   estiver marcado — e sem lacunas do tipo [X%] — é aplicado ao currículo. *@
+
+<section class="card mb-4 ai-workspace" aria-labelledby="ai-workspace-title" data-testid="resume-ai-workspace">
+    <div class="card-body">
+        <div class="ai-workspace__head">
+            <h2 id="ai-workspace-title">Revisar sugestões de melhoria</h2>
+            <button type="button" class="btn btn-outline-secondary btn-sm" @onclick="Close" disabled="@isApplying" data-testid="ai-workspace-close">Fechar</button>
+        </div>
+        <p class="text-muted">Marque o que quer aproveitar e edite à vontade. Só os itens marcados entram no currículo.</p>
+
+        <nav class="journey-tabs ai-workspace__nav" aria-label="Seções da revisão">
+            @foreach (var section in Sections)
+            {
+                <button type="button"
+                        class="journey-tab@(activeSection == section ? " journey-tab--active" : string.Empty)"
+                        aria-current="@(activeSection == section ? "true" : null)"
+                        @onclick="() => activeSection = section"
+                        data-testid="ai-workspace-section-@KeyOf(section)">@section</button>
+            }
+        </nav>
+
+        <p class="ai-save-status" role="status" aria-live="polite" data-testid="ai-save-status">
+            @(saveState switch
+            {
+                SaveState.Saving => "Salvando rascunho...",
+                SaveState.Failed => "Não foi possível salvar o rascunho neste navegador. As edições seguem nesta sessão.",
+                _ => "Rascunho salvo neste navegador."
+            })
+        </p>
+
+        <fieldset class="ai-workspace__fields" disabled="@(isApplying || applied)">
+        @if (activeSection == "Resumo")
+        {
+            if (!string.IsNullOrWhiteSpace(Draft.Result?.Summary))
+            {
+                <div class="ai-edit" data-testid="ai-edit-summary">
+                    <label class="ai-edit__check">
+                        <input type="checkbox" checked="@Draft.SummarySelected" @onchange="e => ToggleSummaryAsync(e)" data-testid="ai-select-summary" />
+                        Usar o resumo sugerido
+                    </label>
+                    <div class="ai-edit__columns">
+                        <div class="ai-edit__col">
+                            <h3 class="h6">Resumo atual</h3>
+                            <p class="ai-edit__original resume-pre">@(Draft.ResumeSnapshot?.Summary ?? "Sem resumo.")</p>
+                        </div>
+                        <div class="ai-edit__col">
+                            <h3 class="h6"><span class="ai-tag ai-tag--edit">Sua versão</span> <label for="ai-summary-text" class="visually-hidden">Sugestão (editável)</label></h3>
+                            <textarea id="ai-summary-text" class="form-control" rows="8"
+                                      value="@Draft.EditedSummary" @oninput="e => EditSummaryAsync(e)"
+                                      data-testid="ai-edit-summary-text"></textarea>
+                            @if (Draft.SummarySelected && ResumeImprovementEditor.ContainsPlaceholder(Draft.EditedSummary))
+                            {
+                                <p class="ai-edit__warning" role="alert">Preencha as lacunas como [X%] com seus números reais antes de aplicar.</p>
+                            }
+                        </div>
+                    </div>
+                </div>
+            }
+            else
+            {
+                <p class="text-muted">Nenhuma sugestão de resumo nesta geração.</p>
+            }
+        }
+        else if (activeSection == "Experiências")
+        {
+            @if (Draft.Experiences.Count == 0)
+            {
+                <p class="text-muted">Nenhuma sugestão de experiência nesta geração.</p>
+            }
+            @for (var i = 0; i < Draft.Experiences.Count; i++)
+            {
+                var index = i;
+                var experience = Draft.Experiences[index];
+                <div class="ai-edit" data-testid="ai-edit-experience-@index">
+                    @if (experience.MatchedIndex is null)
+                    {
+                        <p class="ai-edit__warning" role="status">
+                            Não foi possível associar a sugestão para <strong>@experience.Position</strong>
+                            @(string.IsNullOrWhiteSpace(experience.Company) ? "" : $"· {experience.Company}")
+                            a uma experiência única do currículo — ela não entra na aplicação.
+                        </p>
+                    }
+                    else
+                    {
+                        <label class="ai-edit__check">
+                            <input type="checkbox" checked="@experience.Selected" @onchange="e => ToggleExperienceAsync(index, e)" data-testid="ai-select-experience-@index" />
+                            Atualizar a descrição de @experience.Position
+                        </label>
+                    }
+                    <div class="ai-edit__columns">
+                        <div class="ai-edit__col">
+                            <h3 class="h6">Descrição atual</h3>
+                            <p class="ai-edit__original resume-pre">@(OriginalDescription(experience) ?? "Sem descrição.")</p>
+                        </div>
+                        <div class="ai-edit__col">
+                            <h3 class="h6"><span class="ai-tag ai-tag--edit">Sua versão</span> <label for="ai-exp-text-@index" class="visually-hidden">Nova descrição (editável)</label></h3>
+                            <textarea id="ai-exp-text-@index" class="form-control" rows="8" disabled="@(experience.MatchedIndex is null)"
+                                      value="@experience.EditedDescription" @oninput="e => EditExperienceAsync(index, e)"
+                                      data-testid="ai-edit-experience-text-@index"></textarea>
+                            @if (experience.Selected && ResumeImprovementEditor.ContainsPlaceholder(experience.EditedDescription))
+                            {
+                                <p class="ai-edit__warning" role="alert">Preencha as lacunas como [X%] com seus números reais antes de aplicar.</p>
+                            }
+                        </div>
+                    </div>
+                </div>
+            }
+        }
+        else if (activeSection == "Habilidades")
+        {
+            @if (Draft.Skills.Count == 0)
+            {
+                <p class="text-muted">Nenhuma habilidade nova sugerida.</p>
+            }
+            else
+            {
+                <p class="text-muted">Marque as habilidades que realmente fazem parte do seu perfil — entram sem nível nem anos.</p>
+                <ul class="ai-skill-picks">
+                    @for (var i = 0; i < Draft.Skills.Count; i++)
+                    {
+                        var index = i;
+                        <li class="ai-skill-picks__item">
+                            <input type="checkbox" id="ai-skill-@index" checked="@Draft.Skills[index].Selected" @onchange="e => ToggleSkillAsync(index, e)" data-testid="ai-select-skill-@index" aria-label="Incluir habilidade sugerida" />
+                            <input type="text" class="ai-skill-picks__text" aria-label="Habilidade sugerida @(index + 1)"
+                                   value="@Draft.Skills[index].Skill" @oninput="e => EditSkillAsync(index, e)"
+                                   data-testid="ai-edit-skill-@index" />
+                        </li>
+                    }
+                </ul>
+            }
+        }
+        else if (activeSection == "Orientações")
+        {
+            @if (Draft.Result?.MissingSections.Count > 0)
+            {
+                <section>
+                    <h3 class="h6">O que falta no currículo</h3>
+                    <ul>
+                        @foreach (var item in Draft.Result.MissingSections)
+                        {
+                            <li>@item</li>
+                        }
+                    </ul>
+                </section>
+            }
+            @if (Draft.Result?.Tips.Count > 0)
+            {
+                <section class="mt-3">
+                    <h3 class="h6">Dicas gerais</h3>
+                    <ul>
+                        @foreach (var tip in Draft.Result.Tips)
+                        {
+                            <li>@tip</li>
+                        }
+                    </ul>
+                </section>
+            }
+            @if (Draft.Result is null || (Draft.Result.MissingSections.Count == 0 && Draft.Result.Tips.Count == 0))
+            {
+                <p class="text-muted">Nenhuma orientação adicional nesta geração.</p>
+            }
+        }
+        else
+        {
+            @* Prévia do documento com as seleções aplicadas *@
+            <div class="ai-preview" data-testid="ai-preview">
+                <ResumeDocument Resume="PreviewResume" Name="@ContactName" Email="@ContactEmail" Phone="@ContactPhone" LinkedIn="@ContactLinkedIn" />
+            </div>
+        }
+        </fieldset>
+
+        @if (blockedFields.Count > 0)
+        {
+            <div class="alert alert-warning mt-3" role="alert" data-testid="ai-apply-blocked">
+                Preencha as lacunas em: <strong>@string.Join(", ", blockedFields)</strong>. Elas só entram quando substituídas por valores reais.
+            </div>
+        }
+        @if (conflictWarning)
+        {
+            <div class="alert alert-warning mt-3" role="alert" data-testid="ai-apply-conflict">
+                O currículo mudou depois que as sugestões foram geradas. Copie o que quiser aproveitar ou descarte este rascunho e gere outro — nada foi sobrescrito.
+            </div>
+        }
+
+        <div class="ai-workspace__foot ai-workspace__footer">
+            <button type="button" class="btn btn-primary" @onclick="ApplyAsync" disabled="@(isApplying || applied || blockedFields.Count > 0 || !HasChanges)" data-testid="ai-apply">
+                @(isApplying ? "Aplicando..." : $"Aplicar {ApplicableCount} selecionado{(ApplicableCount == 1 ? "" : "s")} ao currículo")
+            </button>
+            <button type="button" class="btn btn-outline-secondary" @onclick="Close" disabled="@isApplying">Cancelar</button>
+        </div>
+    </div>
+</section>
+
+@code {
+    private static readonly string[] Sections = ["Resumo", "Experiências", "Habilidades", "Orientações", "Prévia"];
+
+    [Parameter, EditorRequired]
+    public ResumeResponse Resume { get; set; } = new();
+
+    [Parameter, EditorRequired]
+    public ResumeImprovementDraft Draft { get; set; } = new();
+
+    [Parameter]
+    public string? ContactName { get; set; }
+
+    [Parameter]
+    public string? ContactEmail { get; set; }
+
+    [Parameter]
+    public string? ContactPhone { get; set; }
+
+    [Parameter]
+    public string? ContactLinkedIn { get; set; }
+
+    /// <summary>Aplicação bem-sucedida: a página recarrega o currículo.</summary>
+    [Parameter]
+    public EventCallback<ResumeResponse> OnApplied { get; set; }
+
+    [Parameter]
+    public EventCallback OnClose { get; set; }
+
+    /// <summary>Avisa a página/painel se o último rascunho gravou de verdade no navegador.</summary>
+    [Parameter]
+    public EventCallback<bool> OnDraftPersisted { get; set; }
+
+    private string activeSection = "Resumo";
+    private bool isApplying;
+    private bool conflictWarning;
+
+    private IReadOnlyList<string> blockedFields => ResumeImprovementEditor.PlaceholderBlocks(Draft);
+
+    private bool HasChanges => ResumeImprovementEditor.HasApplicableChanges(Draft);
+
+    private int ApplicableCount =>
+        (Draft.SummarySelected ? 1 : 0)
+        + Draft.Experiences.Count(e => e.Selected && e.MatchedIndex is not null)
+        + Draft.Skills.Count(s => s.Selected && !string.IsNullOrWhiteSpace(s.Skill));
+
+    private enum SaveState { Saved, Saving, Failed }
+    private SaveState saveState;
+
+    /// <summary>Se o rascunho atual confirmou gravação no navegador (o painel informa).</summary>
+    [Parameter]
+    public bool DraftPersisted { get; set; } = true;
+
+    protected override void OnInitialized() => saveState = DraftPersisted ? SaveState.Saved : SaveState.Failed;
+
+    // A prévia e a coluna "atual" comparam contra o snapshot do rascunho, não contra
+    // dados novos: um índice casado no snapshot nunca renderiza a experiência errada.
+    private ResumeResponse PreviewResume => ResumeImprovementEditor.Preview(Draft.ResumeSnapshot ?? Resume, Draft);
+
+    private static string KeyOf(string section) => section switch
+    {
+        "Experiências" => "experiencias",
+        "Habilidades" => "habilidades",
+        "Orientações" => "orientacoes",
+        "Prévia" => "previa",
+        _ => "resumo"
+    };
+
+    private string? OriginalDescription(ResumeImprovementDraftExperience experience)
+    {
+        var snapshot = Draft.ResumeSnapshot ?? Resume;
+        return experience.MatchedIndex is { } index && index >= 0 && index < (snapshot.ExperienceHistory?.Count ?? 0)
+            ? snapshot.ExperienceHistory![index].Description
+            : null;
+    }
+
+    // Cada edição/seleção grava de novo (o serviço serializa); o banner persiste até
+    // a próxima gravação confirmar — nada de toast por tecla.
+    private async Task PersistAsync()
+    {
+        saveState = SaveState.Saving;
+        saveState = await Drafts.SaveAsync(Draft) ? SaveState.Saved : SaveState.Failed;
+        await OnDraftPersisted.InvokeAsync(saveState == SaveState.Saved);
+    }
+
+    private Task EditSummaryAsync(ChangeEventArgs e)
+    {
+        Draft.EditedSummary = e.Value?.ToString();
+        return PersistAsync();
+    }
+
+    private Task EditExperienceAsync(int index, ChangeEventArgs e)
+    {
+        Draft.Experiences[index].EditedDescription = e.Value?.ToString() ?? string.Empty;
+        return PersistAsync();
+    }
+
+    private Task EditSkillAsync(int index, ChangeEventArgs e)
+    {
+        Draft.Skills[index].Skill = e.Value?.ToString() ?? string.Empty;
+        return PersistAsync();
+    }
+
+    private Task ToggleSummaryAsync(ChangeEventArgs e)
+    {
+        Draft.SummarySelected = e.Value is true;
+        return PersistAsync();
+    }
+
+    private Task ToggleExperienceAsync(int index, ChangeEventArgs e)
+    {
+        Draft.Experiences[index].Selected = e.Value is true;
+        return PersistAsync();
+    }
+
+    private Task ToggleSkillAsync(int index, ChangeEventArgs e)
+    {
+        Draft.Skills[index].Selected = e.Value is true;
+        return PersistAsync();
+    }
+
+    private bool applied;
+
+    private async Task ApplyAsync()
+    {
+        if (isApplying || applied || blockedFields.Count > 0 || !HasChanges)
+            return;
+
+        var candidateId = CurrentUser.GetCandidateId();
+        if (candidateId is null)
+            return;
+
+        isApplying = true;
+        conflictWarning = false;
+
+        try
+        {
+
+        // Releitura fresca: a propriedade e o conteúdo são conferidos de novo antes de gravar
+        var fresh = await GetResumeByIdUseCase.ExecuteAsync(Resume.Id);
+        if (fresh.Status != EResultStatus.Success || fresh.Data is null || fresh.Data.CandidateId != candidateId.Value)
+        {
+            Logger.LogFailure(fresh, "Reler currículo antes de aplicar sugestões");
+            Toast.ShowError("Não foi possível confirmar o currículo agora. Tente novamente.");
+            isApplying = false;
+            return;
+        }
+
+        var latest = fresh.Data;
+        if (ResumeImprovementEditor.SnapshotChanged(Draft.ResumeSnapshot, latest))
+        {
+            // Alguém editou o currículo depois da geração: o rascunho antigo não pode pisar em cima
+            conflictWarning = true;
+            isApplying = false;
+            return;
+        }
+
+            var result = await UpdateResumeUseCase.ExecuteAsync(ResumeImprovementEditor.BuildUpdateRequest(latest, Draft));
+            if (result.Status != EResultStatus.Success || result.Data is null)
+            {
+                Logger.LogFailure(result, "Aplicar sugestões ao currículo");
+                Toast.ShowError(ResultMessages.ToUserMessage(result, "Não foi possível aplicar as sugestões. Tente novamente."));
+                return;
+            }
+
+            applied = true; // sucesso: este rascunho não aplica de novo nesta sessão
+
+            if (!await Drafts.DeleteAsync(candidateId.Value, Resume.Id))
+            {
+                // A atualização já foi: o rascunho velho não pode ser reaplicado em silêncio depois
+                Toast.ShowError("Currículo atualizado, mas o rascunho antigo não saiu do navegador. Descarte-o se ele reaparecer.");
+            }
+            else
+            {
+                Toast.ShowSuccess("Currículo atualizado com as sugestões selecionadas.");
+            }
+
+            await OnApplied.InvokeAsync(result.Data);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            Logger.LogError(ex, "Falha ao aplicar sugestões ao currículo");
+            Toast.ShowError("Não foi possível aplicar as sugestões. Tente novamente.");
+        }
+        finally
+        {
+            isApplying = false;
+        }
+    }
+
+    private async Task Close()
+    {
+        if (isApplying || applied)
+            return;
+        // Sair sem clicar em nada não pode perder a última edição pendente
+        await PersistAsync();
+        await OnClose.InvokeAsync();
+    }
+}
