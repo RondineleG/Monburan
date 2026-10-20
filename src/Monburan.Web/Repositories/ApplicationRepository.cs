@@ -141,6 +141,38 @@ public class ApplicationRepository : IApplicationRepository
         return RequestResult<IEnumerable<Application>>.Success(applications);
     }
 
+    public async Task<RequestResult<Application?>> FindByCandidateAndJobAsync(Guid candidateId, Guid jobId, CancellationToken cancellationToken = default)
+    {
+        await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);
+        var application = await context.Applications
+            .AsNoTracking()
+            .FirstOrDefaultAsync(a => !a.IsDeleted &&
+                a.CandidateId == Id.Create(candidateId) &&
+                a.JobId == Id.Create(jobId),
+                cancellationToken);
+
+        return RequestResult<Application?>.Success(application);
+    }
+
+    public async Task<bool> CanAdvertiserViewResumeAsync(Guid advertiserId, Guid resumeId, Guid candidateId, CancellationToken cancellationToken = default)
+    {
+        await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);
+        var advertiserKey = Id.Create(advertiserId);
+        var candidateKey = Id.Create(candidateId);
+        // Join explícito (em vez de navegar a.Job): funciona igual no PostgreSQL e no InMemory dos testes
+        return await context.Applications
+            .AsNoTracking()
+            .Join(
+                context.Jobs.AsNoTracking().Where(job => job.AdvertiserId == advertiserKey),
+                application => application.JobId,
+                job => job.Id,
+                (application, _) => application)
+            .AnyAsync(a => !a.IsDeleted &&
+                a.ResumeId == resumeId &&
+                a.CandidateId == candidateKey,
+                cancellationToken);
+    }
+
     public async Task<RequestResult<IReadOnlyDictionary<EApplicationStatus, int>>> CountByStatusForCandidateAsync(Guid candidateId, CancellationToken cancellationToken = default)
     {
         await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);

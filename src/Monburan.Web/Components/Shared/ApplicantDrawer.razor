@@ -5,6 +5,7 @@
 @using Monburan.Web.Services
 @inject ListApplicationHistoryUseCase ListApplicationHistoryUseCase
 @inject UpdateApplicationStatusUseCase UpdateApplicationStatusUseCase
+@inject ResumeViewerService ResumeViewer
 @inject ICurrentUserHelper CurrentUserHelper
 @inject IToastService Toast
 @inject IJSRuntime JS
@@ -46,11 +47,68 @@
 
         @if (Application.ResumeId.HasValue)
         {
-            <p><a href="@($"/resumes/{Application.ResumeId}")" data-testid="applicant-resume">Ver currículo enviado</a></p>
+            <section aria-label="Currículo enviado" data-testid="applicant-resume-section">
+                <h3 class="h6">Currículo enviado</h3>
+                @if (resumeLoading)
+                {
+                    <p class="text-muted">Carregando currículo…</p>
+                }
+                else if (attachedResume is not null)
+                {
+                    <p class="mb-2"><strong>@attachedResume.Resume.Title</strong></p>
+                    @if (!string.IsNullOrWhiteSpace(attachedResume.Resume.Summary))
+                    {
+                        <p class="small resume-pre">@attachedResume.Resume.Summary</p>
+                    }
+                    @if (attachedResume.Resume.ExperienceHistory is { Count: > 0 })
+                    {
+                        <details class="applicant-resume__details">
+                            <summary>Experiências (@attachedResume.Resume.ExperienceHistory.Count)</summary>
+                            <ul class="small mt-1">
+                                @foreach (var exp in attachedResume.Resume.ExperienceHistory)
+                                {
+                                    <li><strong>@exp.Position</strong> — @exp.Company</li>
+                                }
+                            </ul>
+                        </details>
+                    }
+                    @if (attachedResume.Resume.EducationHistory is { Count: > 0 })
+                    {
+                        <details class="applicant-resume__details">
+                            <summary>Formação (@attachedResume.Resume.EducationHistory.Count)</summary>
+                            <ul class="small mt-1">
+                                @foreach (var edu in attachedResume.Resume.EducationHistory)
+                                {
+                                    <li>@edu.Course — @edu.Institution</li>
+                                }
+                            </ul>
+                        </details>
+                    }
+                    @if (attachedResume.Resume.Skills is { Count: > 0 })
+                    {
+                        <details class="applicant-resume__details">
+                            <summary>Habilidades (@attachedResume.Resume.Skills.Count)</summary>
+                            <p class="small mt-1">@string.Join(" · ", attachedResume.Resume.Skills.Select(s => s.Skill))</p>
+                        </details>
+                    }
+                    @if (SafeLinkedIn is not null)
+                    {
+                        <p class="small mb-2"><a href="@SafeLinkedIn" target="_blank" rel="noopener noreferrer">LinkedIn do candidato</a></p>
+                    }
+                    <div class="d-flex flex-wrap gap-2 mt-2">
+                        <a class="btn btn-outline-primary btn-sm" href="@($"/resumes/{Application.ResumeId}")" data-testid="applicant-resume">Ver currículo completo</a>
+                        <a class="btn btn-outline-primary btn-sm" href="@($"/resumes/{Application.ResumeId}/cv")" data-testid="applicant-resume-cv">Visualizar CV</a>
+                    </div>
+                }
+                else
+                {
+                    <p class="text-muted">Não foi possível carregar o currículo enviado.</p>
+                }
+            </section>
         }
         else
         {
-            <p class="text-muted">Sem currículo anexado.</p>
+            <p class="text-muted">O candidato não enviou currículo nesta candidatura.</p>
         }
 
         @if (!string.IsNullOrWhiteSpace(Application.Notes))
@@ -118,9 +176,20 @@
 
     private ElementReference drawerElement;
     private List<(string Status, DateTime Date, string? Note, string? Responsible)> timeline = [];
+    private ResumeViewerResponse? attachedResume;
+    private bool resumeLoading;
+    private Guid? loadedResumeFor;
     private string statusNote = string.Empty;
     private bool isUpdating;
     private bool trapInstalled;
+
+    // LinkedIn só vira link quando é URL absoluta http(s) — texto solto nunca vira href
+    private string? SafeLinkedIn =>
+        attachedResume?.LinkedIn is { } url
+        && Uri.TryCreate(url, UriKind.Absolute, out var uri)
+        && uri.Scheme is "https" or "http"
+            ? uri.ToString()
+            : null;
 
     protected override async Task OnParametersSetAsync()
     {
@@ -128,7 +197,33 @@
         {
             statusNote = string.Empty;
             await LoadTimelineAsync();
+            // Cada candidatura aberta recarrega o currículo anexado (não reusa o da anterior)
+            if (loadedResumeFor != Application.Id)
+            {
+                loadedResumeFor = Application.Id;
+                attachedResume = null;
+                await LoadResumeAsync();
+            }
         }
+        else
+        {
+            loadedResumeFor = null;
+            attachedResume = null;
+        }
+    }
+
+    private async Task LoadResumeAsync()
+    {
+        if (Application?.ResumeId is not { } resumeId)
+            return;
+
+        resumeLoading = true;
+        var result = await ResumeViewer.GetAsync(resumeId);
+        if (result.Status == EResultStatus.Success)
+            attachedResume = result.Data;
+        else if (result.Status is not EResultStatus.EntityNotFound)
+            Logger.LogFailure(result, "Carregar currículo anexado à candidatura");
+        resumeLoading = false;
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)

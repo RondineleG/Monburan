@@ -23,30 +23,31 @@
 @inject IToastService Toast
 @inject ILogger<MyApplications> Logger
 
-<PageTitle>Minhas vagas - Monburan</PageTitle>
+<PageTitle>Candidaturas e vagas salvas - Monburan</PageTitle>
 
 <div class="container my-applications-page">
     <header class="page-heading">
         <div class="page-heading__copy">
             <span class="page-kicker">MINHA CARREIRA</span>
-            <h1>Minhas vagas</h1>
+            <h1>Candidaturas e vagas salvas</h1>
             <p>Acompanhe suas candidaturas, as vagas que você salvou e seus alertas de oportunidades.</p>
         </div>
+        <a class="btn btn-outline-primary" href="/jobs">Explorar vagas</a>
     </header>
 
-    <nav class="journey-tabs" aria-label="Seções de Minhas vagas">
+    <nav class="journey-tabs" aria-label="Seções de Candidaturas e vagas salvas">
         <a class="journey-tab@(Tab == "candidaturas" ? " journey-tab--active" : string.Empty)"
            href="/my-applications?aba=candidaturas"
            aria-current="@(Tab == "candidaturas" ? "page" : null)"
-           data-testid="tab-candidaturas">Candidaturas</a>
+           data-testid="tab-candidaturas">Candidaturas <span class="journey-tab__count">@applications.Count</span></a>
         <a class="journey-tab@(Tab == "salvas" ? " journey-tab--active" : string.Empty)"
            href="/my-applications?aba=salvas"
            aria-current="@(Tab == "salvas" ? "page" : null)"
-           data-testid="tab-salvas">Vagas salvas</a>
+           data-testid="tab-salvas">Vagas salvas <span class="journey-tab__count">@savedJobs.Count</span></a>
         <a class="journey-tab@(Tab == "alertas" ? " journey-tab--active" : string.Empty)"
            href="/my-applications?aba=alertas"
            aria-current="@(Tab == "alertas" ? "page" : null)"
-           data-testid="tab-alertas">Alertas</a>
+           data-testid="tab-alertas">Alertas <span class="journey-tab__count">@alerts.Count</span></a>
     </nav>
 
     @if (isLoading)
@@ -84,7 +85,14 @@
                             <p class="text-muted mb-0">@job.AdvertiserName · @JobDisplay.Location(job)</p>
                         </div>
                         <div class="saved-jobs-list__actions">
-                            <a class="btn btn-primary btn-sm" href="/apply/@job.Id">Candidatar-se</a>
+                            @if (applications.Any(app => app.JobId == job.Id))
+                            {
+                                <a class="btn btn-outline-primary btn-sm" href="/my-applications?aba=candidaturas" data-testid="saved-job-track">Acompanhar</a>
+                            }
+                            else
+                            {
+                                <a class="btn btn-outline-primary btn-sm" href="/jobs/@job.Id" data-testid="saved-job-view">Ver oportunidade</a>
+                            }
                             <button type="button" class="btn btn-outline-danger btn-sm" @onclick="() => RemoveSavedAsync(job)" data-testid="saved-job-remove">
                                 Remover
                             </button>
@@ -209,18 +217,22 @@
             </div>
         </div>
     }
-    else if (filteredApplications.Count > 0)
+    else
     {
+        @* Filtros sempre visíveis na aba de candidaturas, mesmo com a lista vazia ou filtrada a zero *@
         <nav class="journey-filters" aria-label="Filtrar candidaturas por situação">
             @foreach (var filter in Filters)
             {
-                <a class="journey-filter@(Situation == ApplicationJourneyRules.Parse(filter.Value) ? " journey-filter--active" : string.Empty)"
+                var filterValue = ApplicationJourneyRules.Parse(filter.Value);
+                <a class="journey-filter@(Situation == filterValue ? " journey-filter--active" : string.Empty)"
                    href="@FilterUrl(filter.Value)"
-                   aria-current="@(Situation == ApplicationJourneyRules.Parse(filter.Value) ? "true" : null)"
-                   data-testid="application-filter-@filter.Value">@filter.Label</a>
+                   aria-current="@(Situation == filterValue ? "true" : null)"
+                   data-testid="application-filter-@filter.Value">@filter.Label <span class="journey-tab__count">@CountFor(filterValue)</span></a>
             }
         </nav>
 
+        @if (filteredApplications.Count > 0)
+        {
         <ul class="applications-list">
             @foreach (var app in filteredApplications)
             {
@@ -238,6 +250,11 @@
                             <span class="applications-list__date">@UiLabels.FormatMoment(app.AppliedAt ?? app.CreatedAt)</span>
                         </div>
                     </div>
+                    <p class="applications-list__next">@ApplicationJourneyRules.NextStep(app.Status)</p>
+                    @if (app.ResumeId.HasValue)
+                    {
+                        <a class="applications-list__resume small" href="/resumes/@app.ResumeId" data-testid="application-resume-link">Ver currículo enviado</a>
+                    }
                     <button type="button"
                             class="btn btn-link applications-list__toggle"
                             aria-expanded="@expandedIds.Contains(app.Id)"
@@ -253,23 +270,26 @@
                 </li>
             }
         </ul>
-    }
-    else if (applications.Count > 0)
-    {
-        <EmptyState Icon="⌕"
-                    Title="Nenhuma candidatura nesta situação"
-                    Message="Tente outro filtro para ver suas outras candidaturas."
-                    TestId="applications-filtered-empty" />
-    }
-    else
-    {
-        <EmptyState Icon="↗"
-                    Kicker="SUA PRÓXIMA OPORTUNIDADE"
-                    Title="Sua jornada começa com uma candidatura"
-                    Message="Quando você se candidatar, poderá acompanhar aqui as atualizações de cada processo seletivo."
-                    TestId="applications-empty">
-            <a href="/jobs" class="btn btn-primary">Explorar vagas <span aria-hidden="true">↗</span></a>
-        </EmptyState>
+        }
+        else if (applications.Count > 0)
+        {
+            <EmptyState Icon="⌕"
+                        Title="Nenhuma candidatura nesta situação"
+                        Message="Tente outro filtro para ver suas outras candidaturas."
+                        TestId="applications-filtered-empty">
+                <a class="btn btn-outline-primary" href="/my-applications?aba=candidaturas">Limpar filtro</a>
+            </EmptyState>
+        }
+        else
+        {
+            <EmptyState Icon="↗"
+                        Kicker="SUA PRÓXIMA OPORTUNIDADE"
+                        Title="Sua jornada começa com uma candidatura"
+                        Message="Quando você se candidatar, poderá acompanhar aqui as atualizações de cada processo seletivo."
+                        TestId="applications-empty">
+                <a href="/jobs" class="btn btn-primary">Explorar vagas <span aria-hidden="true">↗</span></a>
+            </EmptyState>
+        }
     }
 </div>
 
@@ -378,6 +398,9 @@
         filteredApplications = applications
             .Where(app => ApplicationJourneyRules.Matches(app.Status, Situation))
             .ToList();
+
+    private int CountFor(ApplicationJourneyFilter filter) =>
+        applications.Count(app => ApplicationJourneyRules.Matches(app.Status, filter));
 
     private string FilterUrl(string value) =>
         value == "todas" ? "/my-applications?aba=candidaturas" : $"/my-applications?aba=candidaturas&situacao={value}";

@@ -3,6 +3,7 @@
 @inject GetJobByIdUseCase GetJobByIdUseCase
 @inject SearchJobsUseCase SearchJobsUseCase
 @inject RegisterJobViewUseCase RegisterJobViewUseCase
+@inject ApplicationLookupService ApplicationLookup
 @inject ICurrentUserHelper CurrentUserHelper
 @inject NavigationManager Navigation
 @inject IConfiguration Configuration
@@ -179,7 +180,18 @@
                 {
                     <section class="aside-card job-apply-card" data-testid="job-apply-card">
                         <h2 class="aside-card__title">Interessado nesta vaga?</h2>
-                        @if (isCandidate)
+                        @if (existingApplication is not null)
+                        {
+                            <p>Você já se candidatou a esta vaga.</p>
+                            <p class="mb-3">Situação: <span class="badge @UiLabels.ApplicationStatusBadge(existingApplication.Status)">@UiLabels.ApplicationStatus(existingApplication.Status)</span></p>
+                            <a class="btn btn-primary btn-cta" href="/my-applications?aba=candidaturas" data-testid="job-track-application">Acompanhar candidatura</a>
+                        }
+                        else if (applicationLookupFailed)
+                        {
+                            <p>Não foi possível verificar se você já se candidatou.</p>
+                            <a class="btn btn-primary btn-cta" href="@applyUrl" data-testid="job-apply">Verificar candidatura</a>
+                        }
+                        else if (isCandidate)
                         {
                             <p>Envie sua candidatura em poucos cliques.</p>
                             <a class="btn btn-primary btn-cta" href="@applyUrl" data-testid="job-apply">Candidatar-se <span aria-hidden="true">↗</span></a>
@@ -226,6 +238,9 @@
                             </span>
                             <strong>@job.AdvertiserName</strong>
                         </div>
+                        <a class="btn btn-outline-primary btn-sm mt-2" href="/companies/@job.AdvertiserId">
+                            Ver perfil da empresa e todas as vagas
+                        </a>
                     </section>
                 }
             </aside>
@@ -251,9 +266,18 @@
                         data-title="@job.Title" data-url="@canonicalUrl" aria-label="Compartilhar vaga">
                     <Icon Name="share" Size="18" />
                 </button>
-                <a class="btn btn-primary btn-cta" href="@(isCandidate ? applyUrl : loginUrl)" data-testid="job-apply-mobile">
-                    @(isCandidate ? "Candidatar-se" : "Entrar para se candidatar")
-                </a>
+                @if (existingApplication is not null)
+                {
+                    <a class="btn btn-primary btn-cta" href="/my-applications?aba=candidaturas" data-testid="job-track-application-mobile">
+                        Acompanhar candidatura
+                    </a>
+                }
+                else
+                {
+                    <a class="btn btn-primary btn-cta" href="@(isCandidate || applicationLookupFailed ? applyUrl : loginUrl)" data-testid="job-apply-mobile">
+                        @(applicationLookupFailed ? "Verificar candidatura" : isCandidate ? "Candidatar-se" : "Entrar para se candidatar")
+                    </a>
+                }
             </div>
         }
     }
@@ -270,6 +294,8 @@
     private List<JobResponse> similar = [];
     private IReadOnlyList<string> tags = [];
     private bool loadFailed;
+    private ApplicationResponse? existingApplication;
+    private bool applicationLookupFailed;
     private bool isAuthenticated;
     private bool isCandidate;
     private bool isOwner;
@@ -307,13 +333,35 @@
         }
     }
 
-    protected override async Task OnInitializedAsync()
+    private int loadGeneration;
+
+    protected override async Task OnParametersSetAsync()
     {
+        // OnParametersSet (e não OnInitialized): navegar de uma vaga para outra reaproveita
+        // o componente. Tudo é zerado antes — dados da vaga anterior nunca "vazam" para a nova.
+        var generation = ++loadGeneration;
+        var jobId = JobId;
+
+        job = null;
+        similar = [];
+        tags = [];
+        loadFailed = false;
+        existingApplication = null;
+        applicationLookupFailed = false;
+        isOwner = false;
+        isAdmin = false;
+        salary = null;
+        closing = null;
+        canonicalUrl = string.Empty;
+        structuredData = string.Empty;
+
         isAuthenticated = CurrentUserHelper.IsAuthenticated();
         isCandidate = CurrentUserHelper.GetCandidateId().HasValue;
         var advertiserId = CurrentUserHelper.GetAdvertiserId();
 
-        var result = await GetJobByIdUseCase.ExecuteAsync(JobId, CurrentUserHelper.GetCandidateId());
+        var result = await GetJobByIdUseCase.ExecuteAsync(jobId, CurrentUserHelper.GetCandidateId());
+        if (generation != loadGeneration)
+            return; // já navegou para outra vaga: descarta a resposta atrasada
         if (result.Status == EResultStatus.Success && result.Data is { } found)
         {
             isOwner = advertiserId.HasValue && found.AdvertiserId == advertiserId.Value;
@@ -323,6 +371,8 @@
             // Fora da empresa dona e da administração, só vagas ativas ou encerradas ficam visíveis (pausadas, ocultas e reprovadas, não)
             if (isOwner || isAdmin || found.Status is "Active" or "Expired")
                 job = found;
+            else
+                job = null;
         }
         else if (result.Status != EResultStatus.EntityNotFound)
         {
@@ -333,7 +383,10 @@
 
         // A visita conta uma vez por renderização da página (a do próprio anunciante não conta)
         if (job is not null)
-            await RegisterJobViewUseCase.ExecuteAsync(new RegisterJobViewRequest(JobId, advertiserId));
+            await RegisterJobViewUseCase.ExecuteAsync(new RegisterJobViewRequest(jobId, advertiserId));
+
+        if (generation != loadGeneration)
+            return;
 
         // Vaga inexistente ou indisponível responde 404 (buscadores deixam de indexar) e mostra a tela "Vaga não
         // encontrada". O status só é trocado quando os cabeçalhos vão ser enviados: com 404 já definido aqui o Blazor
@@ -347,6 +400,22 @@
 
         if (job is null)
             return;
+
+        // Pré-verificação: já candidatado vê a situação em vez do botão de candidatura.
+        // Falha na consulta nunca vira "não se candidatou" — oferece o link de verificação.
+        if (isCandidate)
+        {
+            var lookup = await ApplicationLookup.GetAsync(jobId);
+            if (generation != loadGeneration)
+                return;
+            if (lookup.Status == EResultStatus.Success)
+                existingApplication = lookup.Data;
+            else
+            {
+                Logger.LogFailure(lookup, "Verificar candidatura existente na vaga");
+                applicationLookupFailed = true;
+            }
+        }
 
         salary = JobDisplay.Salary(job);
         closing = JobDisplay.ClosingNotice(job.ExpirationDate);

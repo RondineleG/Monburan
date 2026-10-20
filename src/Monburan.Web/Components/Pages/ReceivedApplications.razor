@@ -65,7 +65,7 @@
     {
         <form class="received-filters" method="get" action="@FilterAction" data-clean-query data-testid="applications-filters">
             <label class="received-filter">
-                <span class="visually-hidden">Vaga</span>
+                <span class="received-filter__label">Vaga</span>
                 <select name="vaga" data-autosubmit data-default="" data-testid="filter-job">
                     <option value="">Todas as vagas</option>
                     @foreach (var job in advertiserJobs)
@@ -75,7 +75,7 @@
                 </select>
             </label>
             <label class="received-filter">
-                <span class="visually-hidden">Situação</span>
+                <span class="received-filter__label">Situação</span>
                 <select name="situacao" data-autosubmit data-default="" data-testid="filter-status">
                     <option value="">Todas as situações</option>
                     <option value="sent" selected="@(FilterStatus == "sent")">Enviada</option>
@@ -86,7 +86,7 @@
                 </select>
             </label>
             <label class="received-filter">
-                <span class="visually-hidden">Período</span>
+                <span class="received-filter__label">Período</span>
                 <select name="periodo" data-autosubmit data-default="" data-testid="filter-period">
                     <option value="">Todo o período</option>
                     <option value="7" selected="@(FilterPeriod == "7")">Últimos 7 dias</option>
@@ -94,10 +94,11 @@
                 </select>
             </label>
             <label class="received-filter received-filter--search">
-                <span class="visually-hidden">Buscar por nome</span>
+                <span class="received-filter__label">Buscar por nome</span>
                 <input type="search" name="busca" value="@FilterSearch" maxlength="80" placeholder="Buscar por nome" data-testid="filter-search" />
             </label>
             <button type="submit" class="btn btn-outline-primary btn-sm">Filtrar</button>
+            <span class="received-filters__count" data-testid="applications-count">@filteredApplications.Count @(filteredApplications.Count == 1 ? "candidatura" : "candidaturas")</span>
             @if (isFiltered)
             {
                 <a class="chip-clear" href="@FilterAction" data-enhance-nav="false" data-testid="filters-clear">
@@ -114,11 +115,11 @@
                         <table class="table table-hover table-cards">
                             <thead>
                                 <tr>
-                                    <th>Candidato</th>
-                                    <th>Vaga</th>
-                                    <th>Situação</th>
-                                    <th>Data</th>
-                                    <th>Ações</th>
+                                    <th scope="col">Candidato</th>
+                                    <th scope="col">Vaga</th>
+                                    <th scope="col">Situação</th>
+                                    <th scope="col">Data</th>
+                                    <th scope="col">Ações</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -126,7 +127,13 @@
                                 {
                                     <tr data-testid="received-application-row">
                                         <td data-label="Candidato">
-                                            <strong>@app.CandidateName</strong>
+                                            <span class="candidate-initials" aria-hidden="true">@Initials(app.CandidateName)</span> <button type="button"
+                                                    id="application-open-@app.Id"
+                                                    class="btn btn-link p-0 candidate-name-btn"
+                                                    data-testid="application-open"
+                                                    @onclick="() => OpenDrawerAsync(app)">
+                                                <strong>@app.CandidateName</strong>
+                                            </button>
                                             <br />
                                             <small class="text-muted">@app.CandidateEmail</small>
                                             @if (app.ResumeId.HasValue)
@@ -145,11 +152,9 @@
                                         <td data-label="Data">@UiLabels.FormatMoment(app.AppliedAt)</td>
                                         <td data-label="Ações">
                                             <button type="button"
-                                                    id="application-open-@app.Id"
                                                     class="btn btn-outline-primary btn-sm"
-                                                    data-testid="application-open"
                                                     @onclick="() => OpenDrawerAsync(app)">
-                                                Ver candidato
+                                                Perfil e currículo
                                             </button>
                                         </td>
                                     </tr>
@@ -188,6 +193,10 @@
 <ConfirmDialog @ref="confirmDialog" />
 
 @code {
+    private static string Initials(string? name) =>
+        string.IsNullOrWhiteSpace(name) ? "?"
+            : string.Concat(name.Split(' ', StringSplitOptions.RemoveEmptyEntries).Take(2).Select(w => char.ToUpper(w[0])));
+
     [Parameter]
     public Guid? JobId { get; set; }
 

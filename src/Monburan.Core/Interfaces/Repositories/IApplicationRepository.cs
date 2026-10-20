@@ -27,6 +27,18 @@ public interface IApplicationRepository : IBaseRepository<Application>
     Task<RequestResult<IReadOnlyDictionary<EApplicationStatus, int>>> CountByStatusForCandidateAsync(Guid candidateId, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// A candidatura do candidato em uma vaga específica (ou nulo). Consulta exata no banco,
+    /// sem teto de listagem: nunca "adivinhar" pela página carregada.
+    /// </summary>
+    Task<RequestResult<Application?>> FindByCandidateAndJobAsync(Guid candidateId, Guid jobId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// O anunciante só lê o currículo quando ele foi anexado a uma candidatura deste candidato
+    /// em uma vaga dele. Consulta exata (AnyAsync): não passa pela listagem com teto.
+    /// </summary>
+    Task<bool> CanAdvertiserViewResumeAsync(Guid advertiserId, Guid resumeId, Guid candidateId, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Maior quantidade que uma listagem devolve sem paginação. Uma empresa com dezenas de
     /// milhares de candidaturas não pode materializar tudo em memória a cada requisição.
     /// </summary>

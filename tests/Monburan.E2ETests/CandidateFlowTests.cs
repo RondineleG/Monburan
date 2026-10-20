@@ -102,25 +102,37 @@ public class CandidateFlowTests : E2ETestBase
     [Fact]
     public async Task Candidate_DuplicateApplication_ShouldShowFriendlyFeedback()
     {
+        // Vaga "Desenvolvedor Full Stack Pleno" já tem candidatura do candidato seedado:
+        // a página da vaga oferece acompanhamento (não candidatura) e /apply barra de cara.
         await LoginAsCandidateAsync();
         await GotoAsync("/jobs");
         await WaitForBlazorAsync();
 
         await Page.GetByTestId("job-search").FillAsync("Desenvolvedor Full Stack Pleno");
         await Page.GetByTestId("job-search-submit").ClickAsync();
-        await Page.WaitForFunctionAsync("() => document.querySelector('.job-card__title')?.textContent?.trim() === 'Desenvolvedor Full Stack Pleno'")
-            ;
+        await Page.WaitForFunctionAsync("() => document.querySelector('.job-card__title')?.textContent?.trim() === 'Desenvolvedor Full Stack Pleno'");
         await Page.GetByTestId("job-card").First.ClickAsync();
-        await Page.GetByTestId("job-apply").ClickAsync();
-        await Page.WaitForFunctionAsync("() => location.pathname.startsWith('/apply/')");
+        await Page.GetByTestId("job-detail-title").WaitForAsync();
         await WaitForBlazorAsync();
-        await Page.GetByTestId("application-continue").ClickAsync();
-        await Page.GetByTestId("application-confirm").CheckAsync();
-        await WaitForBlazorAsync();
-        await Page.GetByTestId("application-submit").ClickAsync();
-        await Page.GetByTestId("application-feedback").WaitForAsync();
 
-        Assert.Contains("já se candidatou", await Page.GetByTestId("application-feedback").InnerTextAsync(), StringComparison.OrdinalIgnoreCase);
+        var jobId = new Uri(Page.Url).Segments.Last();
+        await Page.GetByTestId("job-track-application").WaitForAsync();
+        Assert.Equal(0, await Page.GetByTestId("job-apply").CountAsync());
+
+        // Voltar direto à URL de candidatura mostra a situação, nunca o formulário de novo
+        await GotoAsync($"/apply/{jobId}");
+        await WaitForBlazorAsync();
+        var already = Page.GetByTestId("application-already");
+        await already.WaitForAsync();
+        Assert.Contains("já se candidatou", await already.InnerTextAsync(), StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(0, await Page.GetByTestId("application-continue").CountAsync());
+        Assert.Equal(0, await Page.GetByTestId("application-submit").CountAsync());
+
+        // No celular a barra fixa também oferece acompanhamento
+        await Page.SetViewportSizeAsync(390, 844);
+        await GotoAsync($"/jobs/{jobId}");
+        await WaitForBlazorAsync();
+        await Page.GetByTestId("job-track-application-mobile").WaitForAsync();
     }
 
     [Fact]

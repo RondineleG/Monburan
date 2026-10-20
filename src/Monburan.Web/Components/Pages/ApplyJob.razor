@@ -4,6 +4,7 @@
 @using Monburan.Core.DTOs.Request
 @using Monburan.Core.DTOs.Response
 @using Monburan.Core.Enums
+@using Monburan.Core.Requests
 @using Monburan.Core.UseCases.Applications
 @using Monburan.Core.UseCases.Jobs
 @using Monburan.Core.UseCases.Resumes
@@ -11,6 +12,7 @@
 @inject CreateApplicationUseCase CreateApplicationUseCase
 @inject GetJobByIdUseCase GetJobByIdUseCase
 @inject ListResumesByCandidateUseCase ListResumesByCandidateUseCase
+@inject ApplicationLookupService ApplicationLookup
 @inject ILogger<ApplyJob> Logger
 @inject ICurrentUserHelper CurrentUserHelper
 @inject NavigationManager Navigation
@@ -41,6 +43,26 @@
                     Esta etapa é exclusiva para candidatos. Entre com uma conta de candidato para enviar sua candidatura.
                     <a href="/dashboard">Voltar ao início</a>
                 </div>
+            }
+            else if (lookupFailed)
+            {
+                <ErrorState Title="Não foi possível verificar sua candidatura"
+                            Message="Tivemos um problema ao conferir se você já se candidatou a esta vaga. Sem essa verificação não dá para enviar de novo — tente novamente em instantes."
+                            OnRetry="LoadAsync" />
+            }
+            else if (existingApplication is not null)
+            {
+                <section class="card" data-testid="application-already" aria-live="polite">
+                    <div class="card-body">
+                        <h2 class="h4" id="apply-step-title" tabindex="-1">Você já se candidatou a esta vaga</h2>
+                        <p>Situação atual: <span class="badge @UiLabels.ApplicationStatusBadge(existingApplication.Status)">@UiLabels.ApplicationStatus(existingApplication.Status)</span></p>
+                        <p>A empresa já recebeu seu perfil. Você pode acompanhar as etapas do processo seletivo em Minhas vagas.</p>
+                        <div class="d-flex gap-2">
+                            <a class="btn btn-primary" href="/my-applications?aba=candidaturas" data-testid="application-track">Acompanhar candidatura</a>
+                            <a class="btn btn-outline-primary" href="/jobs/@JobId">Voltar à vaga</a>
+                        </div>
+                    </div>
+                </section>
             }
             else if (submitted)
             {
@@ -213,12 +235,34 @@
     private bool isLoading = true;
     private int step = 1;
     private List<ResumeResponse> resumes = [];
+    private ApplicationResponse? existingApplication;
+    private bool lookupFailed;
 
     private string? SelectedResumeTitle =>
         resumes.FirstOrDefault(resume => resume.Id == model.ResumeId)?.Title;
 
-    protected override async Task OnInitializedAsync()
+    protected override async Task OnParametersSetAsync()
     {
+        // Trocar de vaga reaproveita o componente: zera tudo e recarrega para o novo JobId
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        isLoading = true;
+        model = new CreateApplicationRequest { JobId = JobId };
+        job = null;
+        salary = null;
+        resumes = [];
+        step = 1;
+        submitted = false;
+        confirmed = false;
+        isSubmitting = false;
+        errorMessage = string.Empty;
+        jobUnavailableMessage = null;
+        existingApplication = null;
+        lookupFailed = false;
+
         var jobResult = await GetJobByIdUseCase.ExecuteAsync(JobId, CurrentUserHelper.GetCandidateId());
         if (jobResult.Status == EResultStatus.Success && jobResult.Data is not null)
         {
@@ -242,19 +286,51 @@
 
         var candidateId = CurrentUserHelper.GetCandidateId();
         isCandidate = candidateId.HasValue;
-        if (candidateId.HasValue)
+        if (!isCandidate || jobUnavailableMessage is not null)
         {
-            model.CandidateId = candidateId.Value;
-
-            // Antes a tela prometia enviar "o currículo ativo", mas nenhum era anexado
-            var resumesResult = await ListResumesByCandidateUseCase.ExecuteAsync(candidateId.Value);
-            if (resumesResult.Status == EResultStatus.Success && resumesResult.Data is not null)
-            {
-                resumes = resumesResult.Data.ToList();
-                model.ResumeId = resumes.FirstOrDefault(r => r.IsActive)?.Id ?? resumes.FirstOrDefault()?.Id;
-            }
+            isLoading = false;
+            return;
         }
-        model.JobId = JobId;
+
+        model.CandidateId = candidateId!.Value;
+
+        // Verificação ANTES do formulário: já candidatado vê a situação e não o wizard;
+        // falha na consulta bloqueia o envio (nunca fingir "não se candidatou")
+        RequestResult<ApplicationResponse?> lookup;
+        try
+        {
+            lookup = await ApplicationLookup.GetAsync(JobId);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            Logger.LogError(ex, "Falha ao verificar candidatura existente antes do formulário");
+            lookupFailed = true;
+            isLoading = false;
+            return;
+        }
+        if (lookup.Status != EResultStatus.Success)
+        {
+            Logger.LogFailure(lookup, "Verificar candidatura existente antes do formulário");
+            lookupFailed = true;
+            isLoading = false;
+            return;
+        }
+
+        if (lookup.Data is not null)
+        {
+            existingApplication = lookup.Data;
+            isLoading = false;
+            return;
+        }
+
+        // Antes a tela prometia enviar "o currículo ativo", mas nenhum era anexado
+        var resumesResult = await ListResumesByCandidateUseCase.ExecuteAsync(candidateId.Value);
+        if (resumesResult.Status == EResultStatus.Success && resumesResult.Data is not null)
+        {
+            resumes = resumesResult.Data.ToList();
+            model.ResumeId = resumes.FirstOrDefault(r => r.IsActive)?.Id ?? resumes.FirstOrDefault()?.Id;
+        }
+
         isLoading = false;
     }
 
