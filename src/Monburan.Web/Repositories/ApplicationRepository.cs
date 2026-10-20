@@ -102,7 +102,7 @@ public class ApplicationRepository : IApplicationRepository
         var query = context.Applications
             .AsNoTracking()
             .Include(a => a.Job)
-            .ThenInclude(job => job.Advertiser)
+            .ThenInclude(job => job!.Advertiser)
             .Where(a => !a.IsDeleted && a.CandidateId == candidateKey)
             .OrderByDescending(a => a.CreatedAt);
 

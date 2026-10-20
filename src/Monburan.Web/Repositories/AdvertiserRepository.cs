@@ -96,11 +96,25 @@ public class AdvertiserRepository : IAdvertiserRepository
 
         if (!string.IsNullOrWhiteSpace(searchTerm))
         {
-            var term = searchTerm.Trim().ToLower();
-            query = query.Where(a =>
-                a.Name.ToLower().Contains(term) ||
-                a.Email.ToLower().Contains(term) ||
-                (a.TaxId != null && a.TaxId.ToLower().Contains(term)));
+            var term = searchTerm.Trim();
+            // No Postgres a busca usa ILike, que aproveita o índice de trigramas; no InMemory
+            // (testes de API) cai para ToLower().Contains, que o provider sabe traduzir.
+            if (TextSearch.SupportsILike(context))
+            {
+                var pattern = TextSearch.Pattern(term);
+                query = query.Where(a =>
+                    EF.Functions.ILike(a.Name, pattern)
+                    || EF.Functions.ILike(a.Email, pattern)
+                    || (a.TaxId != null && EF.Functions.ILike(a.TaxId, pattern)));
+            }
+            else
+            {
+                var lowered = term.ToLower();
+                query = query.Where(a =>
+                    a.Name.ToLower().Contains(lowered)
+                    || a.Email.ToLower().Contains(lowered)
+                    || (a.TaxId != null && a.TaxId.ToLower().Contains(lowered)));
+            }
         }
 
         if (status.HasValue)

@@ -86,11 +86,25 @@ public class CandidateRepository : ICandidateRepository
 
         if (!string.IsNullOrWhiteSpace(searchTerm))
         {
-            var term = searchTerm.Trim().ToLower();
-            query = query.Where(c =>
-                c.Name.ToLower().Contains(term) ||
-                c.Email.ToLower().Contains(term) ||
-                (c.Phone != null && c.Phone.ToLower().Contains(term)));
+            var term = searchTerm.Trim();
+            // No Postgres a busca usa ILike, que aproveita o índice de trigramas; no InMemory
+            // (testes de API) cai para ToLower().Contains, que o provider sabe traduzir.
+            if (TextSearch.SupportsILike(context))
+            {
+                var pattern = TextSearch.Pattern(term);
+                query = query.Where(c =>
+                    EF.Functions.ILike(c.Name, pattern)
+                    || EF.Functions.ILike(c.Email, pattern)
+                    || (c.Phone != null && EF.Functions.ILike(c.Phone, pattern)));
+            }
+            else
+            {
+                var lowered = term.ToLower();
+                query = query.Where(c =>
+                    c.Name.ToLower().Contains(lowered)
+                    || c.Email.ToLower().Contains(lowered)
+                    || (c.Phone != null && c.Phone.ToLower().Contains(lowered)));
+            }
         }
 
         if (status.HasValue)

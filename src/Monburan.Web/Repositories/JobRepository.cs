@@ -74,11 +74,25 @@ public class JobRepository : IJobRepository
 
         if (!string.IsNullOrWhiteSpace(searchTerm))
         {
-            var term = searchTerm.Trim().ToLower();
-            query = query.Where(j =>
-                j.Title.ToLower().Contains(term)
-                || (j.Category != null && j.Category.ToLower().Contains(term))
-                || (j.Advertiser != null && j.Advertiser.Name.ToLower().Contains(term)));
+            var term = searchTerm.Trim();
+            // No Postgres a busca usa ILike, que aproveita o índice de trigramas; no InMemory
+            // (testes de API) cai para ToLower().Contains, que o provider sabe traduzir.
+            if (TextSearch.SupportsILike(context))
+            {
+                var pattern = TextSearch.Pattern(term);
+                query = query.Where(j =>
+                    EF.Functions.ILike(j.Title, pattern)
+                    || (j.Category != null && EF.Functions.ILike(j.Category, pattern))
+                    || (j.Advertiser != null && EF.Functions.ILike(j.Advertiser.Name, pattern)));
+            }
+            else
+            {
+                var lowered = term.ToLower();
+                query = query.Where(j =>
+                    j.Title.ToLower().Contains(lowered)
+                    || (j.Category != null && j.Category.ToLower().Contains(lowered))
+                    || (j.Advertiser != null && j.Advertiser.Name.ToLower().Contains(lowered)));
+            }
         }
 
         var totalCount = await query.CountAsync(cancellationToken);
@@ -264,16 +278,28 @@ public class JobRepository : IJobRepository
         }
 
         // Filtro por busca textual (aplicado no WHERE do SQL).
-        // Usa ToLower().Contains() em vez de EF.Functions.ILike para manter a consulta
-        // executável no provider InMemory dos testes de API — funciona igual no Npgsql
-        // (embora sem pg_trgm/citext). Para buscas maiores, considerar Testcontainers.
+        // No Postgres usa ILike, que aproveita o índice de trigramas (pg_trgm); sem ele o banco
+        // fazia varredura sequencial da tabela, porque o índice comum não serve para um padrão
+        // com "%" na frente. No provider InMemory dos testes de API cai para ToLower().Contains.
         if (!string.IsNullOrWhiteSpace(searchTerm))
         {
-            var term = searchTerm.ToLower();
-            query = query.Where(j =>
-                j.Title.ToLower().Contains(term) ||
-                j.Description.ToLower().Contains(term) ||
-                (j.Category != null && j.Category.ToLower().Contains(term)));
+            var term = searchTerm.Trim();
+            if (TextSearch.SupportsILike(context))
+            {
+                var pattern = TextSearch.Pattern(term);
+                query = query.Where(j =>
+                    EF.Functions.ILike(j.Title, pattern)
+                    || EF.Functions.ILike(j.Description, pattern)
+                    || (j.Category != null && EF.Functions.ILike(j.Category, pattern)));
+            }
+            else
+            {
+                var lowered = term.ToLower();
+                query = query.Where(j =>
+                    j.Title.ToLower().Contains(lowered)
+                    || j.Description.ToLower().Contains(lowered)
+                    || (j.Category != null && j.Category.ToLower().Contains(lowered)));
+            }
         }
 
         // Filtro por cidade

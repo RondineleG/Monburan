@@ -30,9 +30,16 @@ public static class JobDisplay
         };
     }
 
-    /// <summary>Cidade e UF; sem endereço, vaga remota vira "Brasil" e as demais "Local a combinar".</summary>
-    public static string Location(JobResponse job)
+    /// <summary>
+    /// Cidade e UF; sem endereço, vaga remota vira "Brasil" e as demais "Local a combinar".
+    /// A vaga pode não estar carregada (a página abre antes do carregamento): nesse caso,
+    /// devolve o texto de "local a combinar".
+    /// </summary>
+    public static string Location(JobResponse? job)
     {
+        if (job is null)
+            return "Local a combinar";
+
         var city = job.City?.Trim();
         var state = job.State?.Trim();
 
