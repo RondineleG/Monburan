@@ -14,8 +14,7 @@ namespace Monburan.IntegrationTests.Infrastructure;
 /// </summary>
 public sealed class PostgresDatabase : IAsyncLifetime
 {
-    private readonly PostgreSqlContainer _container = new PostgreSqlBuilder()
-        .WithImage("postgres:16-alpine")
+    private readonly PostgreSqlContainer _container = new PostgreSqlBuilder("postgres:16-alpine")
         .Build();
 
     private ServiceProvider _services = null!;
