@@ -40,8 +40,21 @@ public class IdentityService : IIdentityService
 
     private const string LockedOutMessage = "Conta bloqueada por excesso de tentativas. Tente novamente em alguns minutos.";
 
+    private const string InvalidCredentialsMessage = "E-mail ou senha incorretos.";
+
+    private const string TwoFactorRequiredMessage =
+        "Esta conta usa a verificação em duas etapas, que o app ainda não suporta. Entre pelo site.";
+
     public async Task<UserLoginResponse> Login(UserLoginRequest request)
     {
+        // Corpo sem e-mail ou sem senha: o FindByEmailAsync e o CheckPasswordAsync lançariam exceção (erro 500)
+        if (string.IsNullOrWhiteSpace(request.Email) || string.IsNullOrEmpty(request.Password))
+        {
+            var missing = new UserLoginResponse();
+            missing.AddErro(InvalidCredentialsMessage);
+            return missing;
+        }
+
         // CheckPasswordSignInAsync não emite cookie Identity — a API só entrega JWT
         var user = await _userManager.FindByEmailAsync(request.Email).ConfigureAwait(false);
         var result = user is null
@@ -58,6 +71,15 @@ public class IdentityService : IIdentityService
                 return blocked;
             }
 
+            // O CheckPasswordSignInAsync confere só a senha e o bloqueio: com a verificação em duas etapas ligada ele devolve
+            // sucesso sem pedir o código. A API não tem o passo do código, então essas contas entram só pelo site
+            if (await _userManager.GetTwoFactorEnabledAsync(user).ConfigureAwait(false))
+            {
+                var twoFactor = new UserLoginResponse();
+                twoFactor.AddErro(TwoFactorRequiredMessage);
+                return twoFactor;
+            }
+
             return await GenerateCredentials(request.Email).ConfigureAwait(false);
         }
 
@@ -68,10 +90,8 @@ public class IdentityService : IIdentityService
                 response.AddErro(LockedOutMessage);
             else if (result.IsNotAllowed)
                 response.AddErro(InactiveAccountMessage);
-            else if (result.RequiresTwoFactor)
-                response.AddErro("Esta conta usa a verificação em duas etapas, que o app ainda não suporta. Entre pelo site.");
             else
-                response.AddErro("E-mail ou senha incorretos.");
+                response.AddErro(InvalidCredentialsMessage);
         }
 
         return response;
