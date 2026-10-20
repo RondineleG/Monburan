@@ -85,6 +85,7 @@ expect "criou /opt/monburan e os backups só do dono (700)" bash -c "test \"\$(s
 expect "criou /var/www/certbot" test -d /var/www/certbot
 expect "removeu o site padrão do nginx" test ! -e /etc/nginx/sites-enabled/default
 expect "limitou os registros do Docker" grep -q '"max-size": "10m"' /etc/docker/daemon.json
+expect "limitou o journal do sistema" grep -q '^SystemMaxUse=300M$' /etc/systemd/journald.conf.d/monburan.conf
 runit bash "$PROVISION" --apply --skip-docker --skip-swap
 expect "rodar de novo também funciona (idempotente)" test "$status" -eq 0
 
