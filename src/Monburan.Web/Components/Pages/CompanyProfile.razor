@@ -1,0 +1,107 @@
+@page "/companies/{advertiserId:guid}"
+@rendermode InteractiveServer
+@using Monburan.Core.DTOs.Request
+@using Monburan.Core.DTOs.Response
+@using Monburan.Core.Enums
+@using Monburan.Core.Interfaces.Repositories
+@using Monburan.Core.UseCases.Jobs
+@using Monburan.Core.ValueObjects
+@using Monburan.Web.Services
+@inject SearchJobsUseCase SearchJobsUseCase
+@inject IAdvertiserRepository AdvertiserRepository
+@inject ICurrentUserHelper CurrentUserHelper
+@inject ILogger<CompanyProfile> Logger
+
+<PageTitle>@(advertiser?.Name ?? "Empresa") - Monburan</PageTitle>
+
+<div class="container mt-4">
+    @if (isLoading)
+    {
+        <LoadingState Message="Carregando empresa..." />
+    }
+    else if (advertiser is null)
+    {
+        <EmptyState Icon="?" Title="Empresa não encontrada" Message="Ela pode ter sido removida ou o link está incorreto.">
+            <a class="btn btn-primary" href="/jobs">Ver vagas abertas</a>
+        </EmptyState>
+    }
+    else
+    {
+        <header class="page-heading">
+            <div class="page-heading__copy">
+                <span class="page-kicker">EMPRESA</span>
+                <h1>@advertiser.Name</h1>
+                @if (!string.IsNullOrWhiteSpace(advertiser.CompanyDescription))
+                {
+                    <p>@advertiser.CompanyDescription</p>
+                }
+            </div>
+            @if (isOwner)
+            {
+                <a class="btn btn-primary" href="/jobs/create">+ Criar nova vaga</a>
+            }
+        </header>
+
+        @if (!string.IsNullOrWhiteSpace(advertiser.Website))
+        {
+            <p class="mb-4"><a href="@advertiser.Website" target="_blank" rel="noopener noreferrer">@advertiser.Website</a></p>
+        }
+
+        <h2 class="h4 mb-3">Vagas abertas (@jobs.TotalCount)</h2>
+
+        @if (jobs.Jobs.Any())
+        {
+            <div class="jobs-grid">
+                @foreach (var job in jobs.Jobs)
+                {
+                    <JobCard @key="job.Id" Job="job" />
+                }
+            </div>
+        }
+        else
+        {
+            <EmptyState Icon="0" Title="Nenhuma vaga aberta" Message="Esta empresa não tem vagas publicadas no momento.">
+                <a class="btn btn-secondary" href="/jobs">Ver todas as vagas</a>
+            </EmptyState>
+        }
+    }
+</div>
+
+@code {
+    [Parameter]
+    public Guid AdvertiserId { get; set; }
+
+    private Monburan.Core.Entities.Advertiser? advertiser;
+    private ListJobsResponse jobs = new();
+    private bool isLoading = true;
+    private bool isOwner;
+
+    protected override async Task OnInitializedAsync()
+    {
+        isOwner = CurrentUserHelper.GetAdvertiserId() == AdvertiserId;
+
+        var found = AdvertiserId == Guid.Empty
+            ? null
+            : await AdvertiserRepository.GetByIdAsync(Id.Create(AdvertiserId));
+        if (found?.Status == EResultStatus.Success && found.Data is not null)
+            advertiser = found.Data;
+
+        if (advertiser is null)
+        {
+            isLoading = false;
+            return;
+        }
+
+        var result = await SearchJobsUseCase.ExecuteAsync(new ListJobsRequest
+        {
+            AdvertiserId = AdvertiserId,
+            Size = 50
+        });
+        if (result.Status == EResultStatus.Success && result.Data is not null)
+            jobs = result.Data;
+        else if (result.Status != EResultStatus.Success)
+            Logger.LogFailure(result, "Listar vagas da empresa");
+
+        isLoading = false;
+    }
+}

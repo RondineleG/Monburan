@@ -1,18 +1,18 @@
 // Tema, sidebar e favicon antes do primeiro paint (evita o flash). Arquivo próprio para o CSP não precisar de 'unsafe-inline'.
 // Aplica tema e estado da sidebar antes do primeiro paint (evita flash).
 (function () {
-    var theme = 'dark';
-    try { theme = localStorage.getItem('monburan-theme') || 'dark'; } catch (e) { }
+    var theme = 'light';
+    try { theme = localStorage.getItem('monburan-theme') || 'light'; } catch (e) { }
     document.documentElement.setAttribute('data-theme', theme);
-    var rail = true;
-    try { rail = localStorage.getItem('monburan-sidebar') !== 'expanded'; } catch (e) { }
+    var rail = false;
+    try { rail = localStorage.getItem('monburan-sidebar') === 'rail'; } catch (e) { }
     if (rail) document.documentElement.classList.add('sidebar-rail');
     else document.documentElement.classList.remove('sidebar-rail');
 })();
 
 // Troca favicon + theme-color conforme o tema ativo.
 (function () {
-    var isDark = (document.documentElement.getAttribute('data-theme') || 'dark') === 'dark';
+    var isDark = (document.documentElement.getAttribute('data-theme') || 'light') === 'dark';
     var meta = document.querySelector('meta[name="theme-color"]');
     if (meta) meta.setAttribute('content', isDark ? '#0A0806' : '#F2EBD9');
     var f32 = document.getElementById('favicon-32');

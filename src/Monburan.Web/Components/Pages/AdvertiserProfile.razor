@@ -32,24 +32,22 @@
     }
     else if (_advertiser != null)
     {
-        <div class="row mt-4">
-            <div class="col-md-8">
-                <div class="card profile-form-card">
-                    <div class="card-header">
-                        <h5 class="mb-0">Dados da Empresa</h5>
-                    </div>
-                    <div class="card-body">
+        <div class="settings-layout">
+                <section class="settings-main" aria-labelledby="company-heading">
+                    <h2 id="company-heading">Dados da empresa</h2>
+                    <div>
                         <EditForm Model="_editModel" OnValidSubmit="HandleSaveAsync">
+                            <div class="form-grid">
                             <DataAnnotationsValidator />
                             <ServerValidationErrors @ref="_serverErrors" />
 
-                            <div class="mb-3">
+                            <div class="mb-3 col-span-2">
                                 <label class="form-label" for="_editModel.Name">Nome da Empresa *</label>
                                 <InputText @bind-Value="_editModel.Name" class="form-control" id="_editModel.Name" data-testid="advertiser-profile-name" />
                                 <ValidationMessage For="@(() => _editModel.Name)" />
                             </div>
 
-                            <div class="mb-3">
+                            <div class="mb-3 col-span-2">
                                 <label class="form-label" for="_editModel.Email">Email</label>
                                 <InputText @bind-Value="_editModel.Email" class="form-control" id="_editModel.Email" disabled />
                                 <small class="text-muted">Email não pode ser alterado</small>
@@ -76,19 +74,19 @@
                                 <ValidationMessage For="@(() => _editModel.PersonType)" />
                             </div>
 
-                            <div class="mb-3">
+                            <div class="mb-3 col-span-2">
                                 <label class="form-label" for="_editModel.CompanyDescription">Descrição da Empresa</label>
                                 <InputTextArea @bind-Value="_editModel.CompanyDescription" class="form-control" id="_editModel.CompanyDescription" rows="4" placeholder="Descreva sua empresa, cultura e benefícios..." />
                                 <ValidationMessage class="text-danger" For="@(() => _editModel.CompanyDescription)" />
                             </div>
 
-                            <div class="mb-3">
+                            <div class="mb-3 col-span-2">
                                 <label class="form-label" for="_editModel.Website">Website</label>
                                 <InputText @bind-Value="_editModel.Website" class="form-control" id="_editModel.Website" placeholder="https://www.suaempresa.com.br" />
                                 <ValidationMessage class="text-danger" For="@(() => _editModel.Website)" />
                             </div>
 
-                            <div class="mb-3">
+                            <div class="mb-3 col-span-2">
                                 <label class="form-label" for="_editModel.LogoUrl">Logo da empresa</label>
                                 <InputText @bind-Value="_editModel.LogoUrl" class="form-control" id="_editModel.LogoUrl" placeholder="https://www.suaempresa.com.br/logo.png" />
                                 <ValidationMessage class="text-danger" For="@(() => _editModel.LogoUrl)" />
@@ -101,7 +99,8 @@
                                 }
                             </div>
 
-                            <div class="d-flex gap-2">
+                            </div>
+                            <div class="form-actions">
                                 <button type="submit" class="btn btn-primary" disabled="@_isSaving">
                                     @if (_isSaving)
                                     {
@@ -113,63 +112,28 @@
                             </div>
                         </EditForm>
                     </div>
+                </section>
+
+            <aside class="settings-aside" aria-label="Informações da conta">
+                <div class="settings-group">
+                    <h3>Conta</h3>
+                    <p class="small"><span class="badge @(GetStatusBadgeClass())">@UiLabels.AccountStatus(_advertiser.Status)</span></p>
+                    <p class="small">Plano: <a class="badge bg-info" href="/my-subscription">@(_advertiser.ActivePlan ?? "Free")</a></p>
+                    <p class="small">E-mail verificado:
+                        @if (_advertiser.IsEmailVerified) { <span class="badge bg-success">Sim</span> }
+                        else { <span class="badge bg-warning">Não</span> }
+                    </p>
+                    <p class="small text-muted">Desde @UiLabels.FormatMomentDate(_advertiser.CreatedAt)</p>
                 </div>
-            </div>
-
-            <div class="col-md-4">
-                <div class="card mb-3">
-                    <div class="card-header">
-                        <h5 class="mb-0">Informações da Conta</h5>
-                    </div>
-                    <div class="card-body">
-                        <dl class="mb-0">
-                            <dt>Status</dt>
-                            <dd>
-                                <span class="badge @(GetStatusBadgeClass())">@UiLabels.AccountStatus(_advertiser.Status)</span>
-                            </dd>
-
-                            <dt>Plano Ativo</dt>
-                            <dd>
-                                <a class="badge bg-info" href="/my-subscription">@(_advertiser.ActivePlan ?? "Free")</a>
-                            </dd>
-
-                            <dt>E-mail verificado</dt>
-                            <dd>
-                                @if (_advertiser.IsEmailVerified)
-                                {
-                                    <span class="badge bg-success">Sim</span>
-                                }
-                                else
-                                {
-                                    <span class="badge bg-warning">Não</span>
-                                }
-                            </dd>
-
-                            <dt>Membro desde</dt>
-                            <dd>@UiLabels.FormatMomentDate(_advertiser.CreatedAt)</dd>
-                        </dl>
-                    </div>
+                <div class="settings-group">
+                    <h3>Atalhos</h3>
+                    <a class="btn btn-outline-secondary btn-sm" href="/my-jobs">Minhas vagas</a>
+                    <a class="btn btn-outline-secondary btn-sm" href="/received-applications">Candidaturas recebidas</a>
+                    <a class="btn btn-outline-secondary btn-sm" href="/advertiser/upload-logo">Enviar logo</a>
+                    <a class="btn btn-outline-secondary btn-sm" href="/address/list">Endereço da empresa</a>
+                    <a class="btn btn-outline-secondary btn-sm" href="/Account/Manage">Senha e segurança</a>
                 </div>
-
-                <div class="card">
-                    <div class="card-header">
-                        <h5 class="mb-0">Ações Rápidas</h5>
-                    </div>
-                    <div class="card-body">
-                        <div class="d-grid gap-2">
-                            <button class="btn btn-outline-primary btn-sm" @onclick="NavigateToJobs">
-                                <i class="bi bi-briefcase"></i> Minhas Vagas
-                            </button>
-                            <button class="btn btn-outline-primary btn-sm" @onclick="NavigateToApplications">
-                                <i class="bi bi-send"></i> Candidaturas Recebidas
-                            </button>
-                            <a class="btn btn-outline-primary btn-sm" href="/advertiser/upload-logo">Enviar logo</a>
-                            <a class="btn btn-outline-primary btn-sm" href="/address/list">Endereço da empresa</a>
-                            <a class="btn btn-outline-primary btn-sm" href="/Account/Manage">Senha e segurança da conta</a>
-                        </div>
-                    </div>
-                </div>
-            </div>
+            </aside>
         </div>
     }
     else

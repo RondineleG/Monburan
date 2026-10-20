@@ -51,6 +51,9 @@
                 <h1>@(isAdvertiser ? "Visão geral" : "Continue sua jornada")</h1>
                 <p>@(isAdvertiser ? "Acompanhe suas vagas e candidaturas em um só lugar." : "Acompanhe suas candidaturas e descubra a próxima oportunidade.")</p>
             </div>
+            <a class="btn btn-primary" href="@(isAdvertiser ? "/jobs/create" : "/jobs")" data-testid="dashboard-primary">
+                @(isAdvertiser ? "Publicar vaga" : "Explorar vagas")
+            </a>
         </header>
     }
 
@@ -234,160 +237,51 @@
                     </article>
                 </div>
                 <div class="col-lg-6">
-                    <div class="row g-3 h-100">
-                        <div class="col-6">
-                            <article class="card dashboard-metric h-100">
-                                <div class="card-body">
-                                    <span class="dashboard-metric__label">Candidaturas</span>
-                                    <strong class="dashboard-metric__value">@progress.Applications.Total</strong>
-                                    <small class="dashboard-metric__hint">@InProgressApplications em andamento</small>
-                                </div>
-                            </article>
-                        </div>
-                        <div class="col-6">
-                            <article class="card dashboard-metric h-100">
-                                <div class="card-body">
-                                    <span class="dashboard-metric__label">Selecionadas</span>
-                                    <strong class="dashboard-metric__value">@progress.Applications.Selected</strong>
-                                </div>
-                            </article>
-                        </div>
-                        <div class="col-6">
-                            <a class="card dashboard-metric dashboard-metric--link h-100" href="/my-applications?aba=salvas">
-                                <div class="card-body">
-                                    <span class="dashboard-metric__label">Vagas salvas</span>
-                                    <strong class="dashboard-metric__value">@progress.SavedJobs</strong>
-                                    <small class="dashboard-metric__hint">Ver salvas <span aria-hidden="true">→</span></small>
-                                </div>
-                            </a>
-                        </div>
-                        <div class="col-6">
-                            <a class="card dashboard-metric dashboard-metric--link h-100" href="/my-applications?aba=alertas">
-                                <div class="card-body">
-                                    <span class="dashboard-metric__label">Alertas ativos</span>
-                                    <strong class="dashboard-metric__value">@progress.ActiveAlerts</strong>
-                                    <small class="dashboard-metric__hint">Ver alertas <span aria-hidden="true">→</span></small>
-                                </div>
-                            </a>
-                        </div>
-                    </div>
+                    <nav class="dashboard-summary" aria-label="Resumo das suas candidaturas">
+                        <a class="dashboard-summary__cell" href="/my-applications?aba=candidaturas">
+                            <strong>@progress.Applications.Total</strong>
+                            <span>Candidaturas</span>
+                            <small>@InProgressApplications em andamento</small>
+                        </a>
+                        <a class="dashboard-summary__cell" href="/my-applications?aba=candidaturas">
+                            <strong>@progress.Applications.Selected</strong>
+                            <span>Selecionadas</span>
+                        </a>
+                        <a class="dashboard-summary__cell" href="/my-applications?aba=salvas">
+                            <strong>@progress.SavedJobs</strong>
+                            <span>Vagas salvas</span>
+                        </a>
+                        <a class="dashboard-summary__cell" href="/my-applications?aba=alertas">
+                            <strong>@progress.ActiveAlerts</strong>
+                            <span>Alertas ativos</span>
+                        </a>
+                    </nav>
                 </div>
             </div>
         </section>
     }
 
-    <section class="page-section dashboard-actions">
-        <div class="page-section__heading">
-            <div>
-                <span class="page-kicker">@(isAnonymous ? "COMECE POR AQUI" : "PRÓXIMOS PASSOS")</span>
-                <h2>Acessos rápidos</h2>
-            </div>
-        </div>        @if (isAdvertiser)
+    <nav class="page-section shortcut-nav" aria-label="Acessos rápidos">
+        <span class="page-kicker">ACESSOS RÁPIDOS</span>
+        @if (isAdvertiser)
         {
-            <div class="row g-3">
-                <div class="col-md-4">
-                    <article class="card dashboard-action-card">
-                        <div class="card-body">
-                            <span class="dashboard-action-card__icon" aria-hidden="true">▣</span>
-                            <h3>Minhas vagas</h3>
-                            <p>Revise suas publicações e acompanhe o interesse.</p>
-                            <button class="btn btn-outline-primary" @onclick="NavigateToMyJobs">Acompanhar vagas <span aria-hidden="true">→</span></button>
-                        </div>
-                    </article>
-                </div>
-                <div class="col-md-4">
-                    <article class="card dashboard-action-card dashboard-action-card--featured">
-                        <div class="card-body">
-                            <span class="dashboard-action-card__icon" aria-hidden="true">＋</span>
-                            <h3>Publique uma vaga</h3>
-                            <p>Conte o que você procura e encontre novas pessoas.</p>
-                            <button class="btn btn-primary" @onclick="NavigateToCreateJob">Criar vaga <span aria-hidden="true">↗</span></button>
-                        </div>
-                    </article>
-                </div>
-                <div class="col-md-4">
-                    <article class="card dashboard-action-card">
-                        <div class="card-body">
-                            <span class="dashboard-action-card__icon" aria-hidden="true">◎</span>
-                            <h3>Candidaturas recebidas</h3>
-                            <p>Conheça os profissionais interessados nas suas vagas.</p>
-                            <button class="btn btn-outline-primary" @onclick="NavigateToApplications">Ver candidatos <span aria-hidden="true">→</span></button>
-                        </div>
-                    </article>
-                </div>
-            </div>
+            <a href="/my-jobs">Minhas vagas</a>
+            <a href="/received-applications">Candidaturas recebidas</a>
+            <a href="/profile/advertiser">Perfil da empresa</a>
         }
         else if (isCandidate)
         {
-            <div class="row g-3">
-                <div class="col-md-4">
-                    <article class="card dashboard-action-card dashboard-action-card--featured">
-                        <div class="card-body">
-                            <span class="dashboard-action-card__icon" aria-hidden="true">⌕</span>
-                            <h3>Explorar vagas</h3>
-                            <p>Encontre oportunidades que combinam com o seu momento.</p>
-                            <button class="btn btn-primary" @onclick="NavigateToJobs">Ver vagas <span aria-hidden="true">→</span></button>
-                        </div>
-                    </article>
-                </div>
-                <div class="col-md-4">
-                    <article class="card dashboard-action-card">
-                        <div class="card-body">
-                            <span class="dashboard-action-card__icon" aria-hidden="true">↗</span>
-                            <h3>Minhas candidaturas</h3>
-                            <p>Acompanhe o retorno das vagas em que você se candidatou.</p>
-                            <button class="btn btn-outline-primary" @onclick="NavigateToMyApplications">Acompanhar <span aria-hidden="true">→</span></button>
-                        </div>
-                    </article>
-                </div>
-                <div class="col-md-4">
-                    <article class="card dashboard-action-card">
-                        <div class="card-body">
-                            <span class="dashboard-action-card__icon" aria-hidden="true">▤</span>
-                            <h3>Meus currículos</h3>
-                            <p>Mantenha seu currículo pronto para se candidatar rápido.</p>
-                            <button class="btn btn-outline-primary" @onclick="NavigateToResumes">Organizar <span aria-hidden="true">→</span></button>
-                        </div>
-                    </article>
-                </div>
-            </div>
+            <a href="/my-applications">Candidaturas e salvas</a>
+            <a href="/resumes">Meus currículos</a>
+            <a href="/profile/candidate">Meu perfil</a>
         }
         else
         {
-            <div class="row g-3">
-                <div class="col-md-4">
-                    <article class="card dashboard-action-card dashboard-action-card--featured">
-                        <div class="card-body">
-                            <span class="dashboard-action-card__icon" aria-hidden="true">⌕</span>
-                            <h3>Buscar vagas</h3>
-                            <p>Veja as oportunidades abertas agora, sem precisar de conta.</p>
-                            <a class="btn btn-primary" href="/jobs">Explorar vagas <span aria-hidden="true">→</span></a>
-                        </div>
-                    </article>
-                </div>
-                <div class="col-md-4">
-                    <article class="card dashboard-action-card">
-                        <div class="card-body">
-                            <span class="dashboard-action-card__icon" aria-hidden="true">✦</span>
-                            <h3>Candidatos</h3>
-                            <p>Crie seu perfil gratuito e candidate-se em poucos passos.</p>
-                            <a class="btn btn-outline-primary" href="/Account/Register?AccountType=candidate">Criar conta de candidato <span aria-hidden="true">→</span></a>
-                        </div>
-                    </article>
-                </div>
-                <div class="col-md-4">
-                    <article class="card dashboard-action-card">
-                        <div class="card-body">
-                            <span class="dashboard-action-card__icon" aria-hidden="true">▣</span>
-                            <h3>Empresas</h3>
-                            <p>Publique vagas e receba candidaturas organizadas.</p>
-                            <a class="btn btn-outline-primary" href="/Account/Register?AccountType=advertiser">Criar conta de empresa <span aria-hidden="true">→</span></a>
-                        </div>
-                    </article>
-                </div>
-            </div>
+            <a href="/Account/Register">Criar conta</a>
+            <a href="/Account/Login">Entrar</a>
+            <a href="/jobs">Explorar vagas</a>
         }
-    </section>
+    </nav>
 
     <!-- Vagas recomendadas para o candidato; sem recomendações, as recentes como fallback -->
     <div class="row">

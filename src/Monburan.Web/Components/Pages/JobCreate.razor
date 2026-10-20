@@ -18,6 +18,7 @@
 <PageTitle>Criar Nova Vaga - Monburan</PageTitle>
 
 <div class="container mt-4 page-form-shell">
+    <nav aria-label="breadcrumb" class="mb-2"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="/my-jobs">Minhas vagas</a></li><li class="breadcrumb-item active">Nova vaga</li></ol></nav>
     @if (isAdvertiser)
     {
         <header class="page-heading">
@@ -28,7 +29,7 @@
             </div>
         </header>
         <div class="row">
-            <div class="col-lg-8 mx-auto">
+            <div class="col-12">
 
                 @if (jobLimit is { CanCreate: false })
                 {
@@ -59,7 +60,7 @@
         <section class="auth-message-page">
             <h1>Área de recrutadores</h1>
             <p>Somente perfis de recrutador podem publicar vagas. Entre com uma conta de empresa para continuar.</p>
-            <a class="btn btn-primary" href="/dashboard">Voltar ao início</a>
+            <a class="btn btn-outline-secondary" href="/dashboard">Voltar ao início</a>
         </section>
     }
 </div>

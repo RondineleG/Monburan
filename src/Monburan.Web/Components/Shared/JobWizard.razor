@@ -31,6 +31,8 @@
         }
     </ol>
 
+    <div class="job-wizard__layout">
+    <div class="job-wizard__main">
     @if (stepErrors.Count > 0)
     {
         <div class="alert alert-danger" role="alert" data-testid="job-wizard-errors">
@@ -268,6 +270,29 @@
         </dl>
     }
 
+    </div>
+    <aside class="job-wizard__guide" aria-label="Ajuda desta etapa">
+        @switch (step)
+        {
+            case 1:
+                <h3>Sobre a vaga</h3>
+                <p>Um título claro e o modo de trabalho correto ajudam a oportunidade a aparecer nas buscas certas.</p>
+                break;
+            case 2:
+                <h3>Descrição</h3>
+                <p>Separe o que é essencial do que é diferencial: quem candidata entende melhor para que tipo de perfil a vaga foi pensada.</p>
+                break;
+            case 3:
+                <h3>Remuneração</h3>
+                <p>Mostrar faixa salarial deixa a oferta transparente; mantenha oculta só quando fizer sentido para a vaga.</p>
+                break;
+            default:
+                <h3>Revisão</h3>
+                <p>Confira o que será publicado: título, descrição e local ficam visíveis para quem explora as vagas.</p>
+                break;
+        }
+    </aside>
+    </div>
     <div class="job-wizard__actions">
         <button type="button" class="btn btn-secondary" @onclick="CancelAsync">Cancelar</button>
         @if (step > 1)

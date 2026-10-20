@@ -4,6 +4,7 @@
 @attribute [Microsoft.AspNetCore.Authorization.Authorize(Policy = "CandidateOnly")]
 @inject Monburan.Core.UseCases.Candidates.UpdateCandidateUseCase UpdateCandidateUseCase
 @inject Monburan.Core.Interfaces.Repositories.Base.IBaseRepository<Monburan.Core.Entities.Candidate> CandidateRepository
+@inject Monburan.Core.UseCases.Resumes.ListResumesByCandidateUseCase ListResumesByCandidateUseCase
 @inject Monburan.Web.Services.ICurrentUserHelper CurrentUserHelper
 @inject Microsoft.AspNetCore.Components.NavigationManager Navigation
 @inject ILogger<CandidateProfile> Logger
@@ -36,105 +37,87 @@
     }
     else if (_candidate != null)
     {
-        <div class="row mt-4">
-            <div class="col-md-8">
-                <div class="card profile-form-card">
-                    <div class="card-header">
-                        <h5 class="mb-0">Dados Pessoais</h5>
-                    </div>
-                    <div class="card-body">
+        <div class="profile-identity">
+            <span class="profile-identity__avatar" aria-hidden="true">@Initials(_candidate.Name)</span>
+            <div>
+                <strong>@_candidate.Name</strong>
+                <span class="text-muted d-block small">@_candidate.Email</span>
+            </div>
+        </div>
+
+        <div class="settings-layout">
+            <section class="settings-main" aria-labelledby="personal-heading">
+                <h2 id="personal-heading">Dados pessoais e contato</h2>
+                <p class="text-muted small"><Icon Name="shield" Size="14" /> Seu e-mail e telefone são compartilhados com a empresa quando você se candidata a uma vaga.</p>
                         <EditForm Model="_editModel" OnValidSubmit="HandleSaveAsync">
                             <DataAnnotationsValidator />
                             <ServerValidationErrors @ref="_serverErrors" />
+                            <div class="form-grid">
 
-                            <div class="mb-3">
+                            <div class="mb-3 col-span-2">
                                 <label class="form-label" for="candidate-name">Nome Completo *</label>
-                                <InputText @bind-Value="_editModel.Name" class="form-control" id="candidate-name" data-testid="candidate-profile-name" />
+                                <InputText @bind-Value="_editModel.Name" class="form-control" id="candidate-name" autocomplete="name" data-testid="candidate-profile-name" />
                                 <ValidationMessage For="@(() => _editModel.Name)" />
                             </div>
 
-                            <div class="mb-3">
+                            <div class="mb-3 col-span-2">
                                 <label class="form-label" for="candidate-email">Email</label>
-                                <InputText @bind-Value="_editModel.Email" class="form-control" id="candidate-email" disabled />
+                                <InputText @bind-Value="_editModel.Email" type="email" class="form-control" id="candidate-email" autocomplete="email" disabled />
                                 <small class="text-muted">Email não pode ser alterado</small>
                             </div>
 
                             <div class="mb-3">
                                 <label class="form-label" for="candidate-phone">Telefone</label>
-                                <InputText @bind-Value="_editModel.Phone" class="form-control" id="candidate-phone" placeholder="(00) 00000-0000" />
+                                <InputText @bind-Value="_editModel.Phone" type="tel" class="form-control" id="candidate-phone" autocomplete="tel" placeholder="(00) 00000-0000" />
                                 <ValidationMessage class="text-danger" For="@(() => _editModel.Phone)" />
                             </div>
 
                             <div class="mb-3">
                                 <label class="form-label" for="candidate-dob">Data de Nascimento *</label>
-                                <InputDate ParsingErrorMessage="Informe uma data válida." @bind-Value="_editModel.DateOfBirth" class="form-control" id="candidate-dob" max="@DateTime.Today.AddYears(-14).ToString("yyyy-MM-dd")" />
+                                <InputDate ParsingErrorMessage="Informe uma data válida." @bind-Value="_editModel.DateOfBirth" class="form-control" id="candidate-dob" autocomplete="bday" max="@DateTime.Today.AddYears(-14).ToString("yyyy-MM-dd")" />
                                 <ValidationMessage For="@(() => _editModel.DateOfBirth)" />
                             </div>
 
-                            <div class="mb-3">
+                            <div class="mb-3 col-span-2">
                                 <label class="form-label" for="candidate-linkedin">LinkedIn</label>
-                                <InputText @bind-Value="_editModel.LinkedIn" class="form-control" id="candidate-linkedin" placeholder="https://linkedin.com/in/seu-perfil" />
+                                <InputText @bind-Value="_editModel.LinkedIn" type="url" class="form-control" id="candidate-linkedin" autocomplete="url" placeholder="https://linkedin.com/in/seu-perfil" />
                                 <ValidationMessage class="text-danger" For="@(() => _editModel.LinkedIn)" />
                             </div>
 
-                            <div class="d-flex gap-2">
+                            </div>
+                            <div class="form-actions">
                                 <button type="submit" class="btn btn-primary" disabled="@_isSaving">
                                     @if (_isSaving)
                                     {
                                         <span class="spinner-border spinner-border-sm me-2" role="status"></span>
                                     }
-                                    Salvar Alterações
+                                    Salvar alterações
                                 </button>
-                                <button type="button" class="btn btn-outline-secondary" @onclick="CancelEdit" disabled="@_isSaving">Cancelar</button>
+                                <button type="button" class="btn btn-outline-secondary" @onclick="CancelEdit" disabled="@_isSaving">Desfazer alterações</button>
                             </div>
                         </EditForm>
-                    </div>
+            </section>
+
+            <aside class="settings-aside" aria-label="Links da conta">
+                <div class="settings-group">
+                    <h3>Currículo</h3>
+                    <p class="text-muted small">Experiências e habilidades ficam no currículo enviado nas candidaturas.</p>
+                    @if (_mainResume is not null)
+                    {
+                        <p class="small"><strong>@_mainResume.Title</strong></p>
+                        <a class="btn btn-outline-secondary btn-sm" href="/resumes/@_mainResume.Id/edit">Editar currículo</a>
+                        <a class="btn btn-outline-secondary btn-sm" href="/resumes/@_mainResume.Id/cv">Ver CV</a>
+                    }
+                    <a class="btn btn-outline-secondary btn-sm" href="/resumes">Meus currículos</a>
                 </div>
-            </div>
-
-            <div class="col-md-4">
-                <div class="card">
-                    <div class="card-header">
-                        <h5 class="mb-0">Informações da Conta</h5>
-                    </div>
-                    <div class="card-body">
-                        <dl class="row mb-0">
-                            <dt class="col-sm-5">Status</dt>
-                            <dd class="col-sm-7">
-                                <span class="badge @(GetStatusBadgeClass())">@UiLabels.AccountStatus(_candidate.Status)</span>
-                            </dd>
-
-                            <dt class="col-sm-5">E-mail verificado</dt>
-                            <dd class="col-sm-7">
-                                @if (_candidate.IsEmailVerified)
-                                {
-                                    <span class="badge bg-success">Sim</span>
-                                }
-                                else
-                                {
-                                    <span class="badge bg-warning">Não</span>
-                                }
-                            </dd>
-
-                            <dt class="col-sm-5">Membro desde</dt>
-                            <dd class="col-sm-7">@UiLabels.FormatMomentDate(_candidate.CreatedAt)</dd>
-                        </dl>
-                    </div>
+                <div class="settings-group">
+                    <h3>Conta</h3>
+                    <p class="small"><span class="badge @(GetStatusBadgeClass())">@UiLabels.AccountStatus(_candidate.Status)</span>
+                        <span class="text-muted"> desde @UiLabels.FormatMomentDate(_candidate.CreatedAt)</span></p>
+                    <a class="btn btn-outline-secondary btn-sm" href="/address/list">Meu endereço</a>
+                    <a class="btn btn-outline-secondary btn-sm" href="/Account/Manage">Senha e segurança</a>
                 </div>
-
-                <div class="card mt-3">
-                    <div class="card-header">
-                        <h5 class="mb-0">Atalhos</h5>
-                    </div>
-                    <div class="card-body">
-                        <div class="d-grid gap-2">
-                            <a class="btn btn-outline-primary btn-sm" href="/resumes">Meus currículos</a>
-                            <a class="btn btn-outline-primary btn-sm" href="/address/list">Meu endereço</a>
-                            <a class="btn btn-outline-primary btn-sm" href="/Account/Manage">Senha e segurança da conta</a>
-                        </div>
-                    </div>
-                </div>
-            </div>
+            </aside>
         </div>
     }
     else
@@ -146,7 +129,14 @@
 </div>
 
 @code {
+    private static string Initials(string? name) =>
+        string.IsNullOrWhiteSpace(name)
+            ? "?"
+            : string.Concat(name.Split(' ', StringSplitOptions.RemoveEmptyEntries)
+                .Where(w => w.Length > 0).Take(2).Select(w => char.ToUpper(w[0])));
+
     private Monburan.Core.Entities.Candidate? _candidate;
+    private Monburan.Core.DTOs.Response.ResumeResponse? _mainResume;
     private EditModel _editModel = new();
     private bool _isLoading = true;
     private bool _isSaving = false;
@@ -176,15 +166,8 @@
                 else if (result.Status == Monburan.Core.Enums.EResultStatus.Success && result.Data != null)
                 {
                     _candidate = result.Data;
-                    _editModel = new EditModel
-                    {
-                        Id = _candidate.Id.Value,
-                        Name = _candidate.Name,
-                        Email = _candidate.Email,
-                        Phone = _candidate.Phone,
-                        DateOfBirth = _candidate.DateOfBirth,
-                        LinkedIn = _candidate.LinkedIn
-                    };
+                    _editModel = NewEditModel(_candidate);
+                    await LoadMainResumeAsync(candidateId.Value);
                 }
             }
         }
@@ -242,19 +225,32 @@
         }
     }
 
+    private async Task LoadMainResumeAsync(Guid candidateId)
+    {
+        // Atalho para o currículo enviado nas candidaturas: o ativo, senão o primeiro da lista
+        var result = await ListResumesByCandidateUseCase.ExecuteAsync(candidateId);
+        _mainResume = result.Status == Monburan.Core.Enums.EResultStatus.Success
+            ? result.Data?.FirstOrDefault(resume => resume.IsActive) ?? result.Data?.FirstOrDefault()
+            : null;
+    }
+
+    // O AddressId mora fora do formulário: sem ele aqui, carregar/desfazer apagava o endereço no salvar
+    private static EditModel NewEditModel(Monburan.Core.Entities.Candidate candidate) => new()
+    {
+        Id = candidate.Id.Value,
+        Name = candidate.Name,
+        Email = candidate.Email,
+        Phone = candidate.Phone,
+        DateOfBirth = candidate.DateOfBirth,
+        LinkedIn = candidate.LinkedIn,
+        AddressId = candidate.AddressId?.Value
+    };
+
     private void CancelEdit()
     {
         if (_candidate != null)
         {
-            _editModel = new EditModel
-            {
-                Id = _candidate.Id.Value,
-                Name = _candidate.Name,
-                Email = _candidate.Email,
-                Phone = _candidate.Phone,
-                DateOfBirth = _candidate.DateOfBirth,
-                LinkedIn = _candidate.LinkedIn
-            };
+            _editModel = NewEditModel(_candidate);
             _serverErrors.Clear();
         }
     }

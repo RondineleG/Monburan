@@ -2,7 +2,26 @@
 @layout Monburan.Web.Components.Layout.MainLayout
 @inject NavigationManager NavigationManager
 
-<main class="auth-layout">
+@if (IsManagePage)
+{
+    @* Gerenciamento de conta roda dentro do app shell (MainLayout já fornece o <main>) *@
+    <section class="container account-settings-page">
+        @if (HttpContext is null)
+        {
+            <div class="loading-state loading-state--compact">
+                <span class="spinner-border" aria-hidden="true"></span>
+                <span>Carregando...</span>
+            </div>
+        }
+        else
+        {
+            @Body
+        }
+    </section>
+}
+else
+{
+<div class="auth-layout">
     <aside class="auth-hero">
         <div class="auth-hero__grid" aria-hidden="true"></div>
         <div class="auth-hero__content">
@@ -38,7 +57,8 @@
             @Body
         }
     </section>
-</main>
+</div>
+}
 
 @code {
     private bool IsManagePage => NavigationManager.Uri.Contains("/Account/Manage", StringComparison.OrdinalIgnoreCase);

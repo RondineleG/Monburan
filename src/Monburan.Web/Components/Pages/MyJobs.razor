@@ -66,21 +66,39 @@
             }
         </nav>
 
+        <div class="list-toolbar">
+        <form class="my-jobs-search" method="get" action="/my-jobs" data-clean-query role="search">
+            <input type="hidden" name="situacao" value="@Situation" />
+            <label class="my-jobs-search__field" for="my-jobs-search">
+                <span class="form-label">Buscar vagas</span>
+                <input type="search" name="busca" id="my-jobs-search" value="@SearchQuery" maxlength="80" placeholder="Buscar nas suas vagas" data-testid="my-jobs-search" />
+            </label>
+            <button type="submit" class="btn btn-outline-primary btn-sm">Buscar</button>
+            @if (!string.IsNullOrWhiteSpace(SearchQuery))
+            {
+                <a class="chip-clear" href="@ClearSearchUrl" data-enhance-nav="false" data-testid="my-jobs-clear-search">
+                    <Icon Name="rotate-ccw" Size="14" />Limpar busca
+                </a>
+            }
+        </form>
+        <span class="received-filters__count" data-testid="my-jobs-count">@visibleJobs.Count @(visibleJobs.Count == 1 ? "vaga" : "vagas")</span>
+        </div>
+
         @if (visibleJobs.Count > 0)
         {
-            <div class="card jobs-management-card">
+            <div class="jobs-management-card">
                 <div class="card-body p-0">
                     <div class="table-responsive">
                         <table class="table table-hover table-cards">
                             <thead>
                                 <tr>
-                                    <th>Vaga</th>
-                                    <th>Local</th>
-                                    <th>Situação</th>
-                                    <th>Visualizações</th>
-                                    <th>Candidaturas</th>
-                                    <th>Validade</th>
-                                    <th>Ações</th>
+                                    <th scope="col">Vaga</th>
+                                    <th scope="col">Local</th>
+                                    <th scope="col">Situação</th>
+                                    <th scope="col">Visualizações</th>
+                                    <th scope="col">Candidaturas</th>
+                                    <th scope="col">Validade</th>
+                                    <th scope="col">Ações</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -88,7 +106,7 @@
                                 {
                                     <tr data-testid="my-job-row">
                                         <td data-label="Vaga">
-                                            <strong>@job.Title</strong>
+                                            <a class="my-job-title" href="/jobs/@job.Id"><strong>@job.Title</strong></a>
                                             @if (!string.IsNullOrEmpty(job.Category))
                                             {
                                                 <br />
@@ -104,7 +122,9 @@
                                             }
                                         </td>
                                         <td data-label="Visualizações">@job.Views</td>
-                                        <td data-label="Candidaturas">@job.Applications</td>
+                                        <td data-label="Candidaturas">
+                                            <a href="/jobs/@job.Id/applications" data-testid="my-job-applications-link">@job.Applications @(job.Applications == 1 ? "candidatura" : "candidaturas")</a>
+                                        </td>
                                         <td data-label="Validade">
                                             @if (job.ExpirationDate.Date < DateTime.UtcNow.Date)
                                             {
@@ -117,6 +137,7 @@
                                         </td>
                                         <td data-label="Ações">
                                             <div class="job-actions" @onkeydown="OnMenuKeyDown">
+                                                <a class="btn btn-outline-primary btn-sm" href="/jobs/edit/@job.Id" data-testid="my-job-edit">Editar</a>
                                                 <button type="button"
                                                         id="job-actions-@job.Id"
                                                         class="btn btn-outline-secondary btn-sm"
@@ -129,7 +150,7 @@
                                                 @if (openMenuId == job.Id)
                                                 {
                                                     <div class="job-actions__menu" role="menu" aria-label="Ações da vaga @job.Title">
-                                                        <a role="menuitem" class="job-actions__item" href="@($"/jobs/edit/{job.Id}")" data-testid="my-job-edit">Editar</a>
+                                                        <a role="menuitem" class="job-actions__item" href="@($"/jobs/{job.Id}")">Ver página da vaga</a>
                                                         <a role="menuitem" class="job-actions__item" href="@($"/jobs/{job.Id}/applications")" data-testid="my-job-applications">Ver candidaturas</a>
                                                         @if (job.Status == "Active")
                                                         {
@@ -165,10 +186,17 @@
         else if (jobs.Count > 0)
         {
             <EmptyState Icon="⌕"
-                        Title="Nenhuma vaga nesta situação"
-                        Message="Tente outra aba para ver suas outras publicações."
+                        Title="@(HasSearch ? "Nenhuma vaga encontrada na busca" : "Nenhuma vaga nesta situação")"
+                        Message="@(HasSearch ? "Tente outro termo ou limpe a busca para ver suas publicações." : "Tente outra aba para ver suas outras publicações.")"
                         TestId="my-jobs-tab-empty">
-                <a class="btn btn-primary" href="/jobs/create">Criar vaga</a>
+                @if (HasSearch)
+                {
+                    <a class="btn btn-outline-primary" href="@ClearSearchUrl">Limpar busca</a>
+                }
+                else
+                {
+                    <a class="btn btn-primary" href="/jobs/create">Criar vaga</a>
+                }
             </EmptyState>
         }
         else
@@ -198,6 +226,9 @@
     [SupplyParameterFromQuery(Name = "situacao")]
     public string? SituationQuery { get; set; }
 
+    [SupplyParameterFromQuery(Name = "busca")]
+    public string? SearchQuery { get; set; }
+
     private List<JobResponse> jobs = [];
     private List<JobResponse> visibleJobs = [];
     private bool isLoading = true;
@@ -216,6 +247,12 @@
     protected override async Task OnInitializedAsync()
     {
         await LoadAsync();
+    }
+
+    protected override void OnParametersSet()
+    {
+        // O GET do formulário de busca troca só a query string: refiltra sem recarregar
+        ApplyFilter();
     }
 
     private async Task LoadAsync()
@@ -253,7 +290,21 @@
         isLoading = false;
     }
 
-    private void ApplyFilter() => visibleJobs = jobs.Where(job => MatchesTab(job.Status, Situation)).ToList();
+    private bool HasSearch => !string.IsNullOrWhiteSpace(SearchQuery);
+
+    private void ApplyFilter()
+    {
+        IEnumerable<JobResponse> query = jobs.Where(job => MatchesTab(job.Status, Situation));
+
+        // Busca só em memória, sobre as vagas já carregadas — sem novo endpoint
+        var term = SearchQuery?.Trim();
+        if (!string.IsNullOrEmpty(term))
+            query = query.Where(job =>
+                job.Title.Contains(term, StringComparison.OrdinalIgnoreCase)
+                || (job.Category?.Contains(term, StringComparison.OrdinalIgnoreCase) ?? false));
+
+        visibleJobs = query.ToList();
+    }
 
     private static bool MatchesTab(string status, string tab) => tab switch
     {
@@ -266,7 +317,17 @@
 
     private int CountFor(string tab) => jobs.Count(job => MatchesTab(job.Status, tab));
 
-    private static string TabUrl(string tab) => tab == "ativas" ? "/my-jobs" : $"/my-jobs?situacao={tab}";
+    private string TabUrl(string tab)
+    {
+        var baseUrl = tab == "ativas" ? "/my-jobs" : $"/my-jobs?situacao={tab}";
+        // A busca sobrevive à troca de aba; só o "limpar busca" a remove de propósito
+        return HasSearch
+            ? baseUrl + (baseUrl.Contains('?') ? "&" : "?") + $"busca={Uri.EscapeDataString(SearchQuery!.Trim())}"
+            : baseUrl;
+    }
+
+    private string ClearSearchUrl =>
+        Situation == "ativas" ? "/my-jobs" : $"/my-jobs?situacao={Situation}";
 
     private void ToggleMenu(Guid jobId) => openMenuId = openMenuId == jobId ? null : jobId;
 
