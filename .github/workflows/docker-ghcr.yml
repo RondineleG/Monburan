@@ -56,6 +56,8 @@ jobs:
           context: .
           file: src/Monburan.Web/Dockerfile
           push: ${{ github.ref == 'refs/heads/main' }}
+          # Sempre baixa as imagens base de novo: o rebuild semanal existe para pegar os patches delas
+          pull: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha

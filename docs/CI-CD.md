@@ -5,7 +5,8 @@
 | Workflow | Quando roda | O que faz |
 |---|---|---|
 | `ci-cd.yml` | push e PR em `main`/`dev`, manual | build Release da solução (inclui o app Android), testes unitários, de integração e de API com coverage, **E2E** (Playwright contra o app em Development + Postgres de serviço, com 1 retentativa), scan de segredos, auditoria de pacotes NuGet vulneráveis e `dotnet publish` da web como artefato |
-| `docker-ghcr.yml` | push na `main` com mudança em `src/**`, manual | constrói a imagem Docker e, na `main`, publica em `ghcr.io/rondineleg/monburan` (`latest` + tag com o sha do commit); em disparo manual de outra branch só constrói, sem enviar |
+| `docker-ghcr.yml` | push na `main` com mudança em `src/**` ou `infra/vps/**`, rebuild semanal, manual | constrói a imagem Docker (baixando as imagens base de novo) e, na `main`, publica em `ghcr.io/rondineleg/monburan` (`latest` + tag com o sha do commit) e faz o deploy na VPS (job `deploy-vps`, environment `prod`, que só aceita a `main`); em disparo manual de outra branch só constrói, sem enviar |
+| `rebuild-semanal.yml` | toda segunda às 03:00 de Brasília, manual | dispara o `docker-ghcr.yml` na `main` para a imagem receber os patches das imagens base (.NET e Postgres) mesmo sem mudança no código. Roda na branch padrão (`dev`), mas não constrói nada a partir dela |
 | `android-release.yml` | push na `main` com mudança no app/Core, PR para a `main`, manual | compila, assina e confere o APK; na `main`, publica a release `v<versão>` com o APK |
 | `ios-build.yml` | push na `main` com mudança no app/Core, PR para a `main`, manual | em macOS: compila o app para o simulador, abre e tira print; gera o `.ipa` sem assinatura (anexado à release na `main`) |
 | `codeql.yml` | push e PR em `main`/`dev`, toda segunda-feira, manual | análise estática de segurança (C#, JavaScript e os próprios workflows); alertas em *Security → Code scanning*. Não publica nada |
