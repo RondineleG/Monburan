@@ -2,6 +2,12 @@
 bin/
 obj/
 out/
+# Sem o **/ o padrão só vale na raiz do contexto: o obj/ do host (com caminhos da máquina de quem builda), os uploads de teste e
+# os logs locais iam para dentro da imagem
+**/bin/
+**/obj/
+**/wwwroot/uploads/
+**/logs/
 
 # Visual Studio
 .vs/
