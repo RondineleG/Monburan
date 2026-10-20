@@ -10,7 +10,14 @@
         </span>
         <div class="job-card__heading">
             <h3 class="job-card__title">
-                <a class="job-card__link" href="/jobs/@Job.Id" data-testid="job-card-link">@Job.Title</a>
+                @if (Preview)
+                {
+                    @Job.Title
+                }
+                else
+                {
+                    <a class="job-card__link" href="/jobs/@Job.Id" data-testid="job-card-link">@Job.Title</a>
+                }
             </h3>
             @if (!string.IsNullOrWhiteSpace(Job.AdvertiserName))
             {
@@ -93,6 +100,13 @@
     /// <summary>Página atual para retorno depois do login.</summary>
     [Parameter]
     public string? SaveReturnUrl { get; set; }
+
+    /// <summary>
+    /// Pré-visualização do assistente de vaga: a vaga ainda não existe (Id vazio), então o título não é link. O link cobria o
+    /// cartão inteiro e levava para /jobs/{Guid.Empty}, uma página de erro, perdendo o rascunho.
+    /// </summary>
+    [Parameter]
+    public bool Preview { get; set; }
 
     private bool isNew;
     private string? salary;

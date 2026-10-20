@@ -1,3 +1,5 @@
+using System.Net;
+
 using Monburan.Core.DTOs.Response;
 using Monburan.Mobile.Shared.Api;
 
@@ -37,13 +39,19 @@ public class AuthStateService
     /// <summary>
     /// Carrega a sessão persistida e valida o perfil — chamar no start do app.
     /// Lazy-task: chamadas concorrentes compartilham a mesma inicialização em vez de
-    /// ler estado parcial enquanto a primeira ainda está em voo.
+    /// ler estado parcial enquanto a primeira ainda está em voo. Uma inicialização que falhou não fica guardada: a
+    /// próxima chamada tenta de novo (senão toda a área logada ficaria presa ao erro até fechar o app).
     /// </summary>
-    public Task InitializeAsync() => _initTask ??= InitializeCoreAsync();
+    public Task InitializeAsync()
+    {
+        var task = _initTask;
+        if (task is null || task.IsFaulted || task.IsCanceled)
+            _initTask = task = InitializeCoreAsync();
+        return task;
+    }
 
     private async Task InitializeCoreAsync()
     {
-
         var session = await _tokens.GetSessionAsync();
         if (session is null)
             return;
@@ -53,15 +61,16 @@ public class AuthStateService
             CurrentCandidate = await _api.GetMyCandidateAsync();
             IsAuthenticated = true;
         }
-        catch (ApiException ex) when (ex.IsNetworkError)
+        catch (ApiException ex) when (ex.IsUnauthorized || ex.IsForbidden || ex.StatusCode == HttpStatusCode.NotFound)
         {
-            // Offline no boot: considera autenticado pela sessão persistida
-            IsAuthenticated = true;
-        }
-        catch (ApiException ex) when (ex.IsUnauthorized || ex.IsForbidden)
-        {
-            // 401: sessão inválida. 403: conta sem perfil de candidato (ex.: anunciante)
+            // 401: sessão inválida. 403/404: conta sem perfil de candidato (anunciante, perfil apagado)
             await _tokens.ClearSessionAsync();
+        }
+        catch (ApiException)
+        {
+            // Offline, servidor em deploy (502), 5xx ou 429: falha temporária. A sessão salva continua valendo e o
+            // perfil é carregado quando a pessoa abrir uma tela que precise dele
+            IsAuthenticated = true;
         }
         finally
         {
@@ -79,7 +88,7 @@ public class AuthStateService
             CurrentCandidate = await _api.GetMyCandidateAsync();
             IsAuthenticated = true;
         }
-        catch (ApiException ex) when (ex.IsForbidden)
+        catch (ApiException ex) when (ex.IsForbidden || ex.StatusCode == HttpStatusCode.NotFound)
         {
             await _tokens.ClearSessionAsync();
             IsAuthenticated = false;
@@ -88,9 +97,18 @@ public class AuthStateService
             throw new ApiException(ex.StatusCode!.Value,
                 "Este aplicativo é para candidatos. Esta conta não possui perfil de candidato.");
         }
-        catch (ApiException ex) when (ex.IsNetworkError)
+        catch (ApiException ex) when (ex.IsUnauthorized)
         {
-            // Offline: deixa entrar pela sessão; o perfil será carregado depois
+            // O token acabou de ser emitido e foi recusado: não deixa a sessão salva pela metade
+            await _tokens.ClearSessionAsync();
+            IsAuthenticated = false;
+            CurrentCandidate = null;
+            NotifyChanged();
+            throw;
+        }
+        catch (ApiException)
+        {
+            // Offline ou servidor instável logo depois do login: deixa entrar pela sessão; o perfil será carregado depois
             IsAuthenticated = true;
             CurrentCandidate = null;
         }

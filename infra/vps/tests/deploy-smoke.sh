@@ -7,6 +7,9 @@
 #     repositório do Docker, confere a impressão digital e confirma que o docker-ce está disponível para o Debian 13;
 #   - deploy.sh: primeira vez (sem certificado: nginx em HTTP, certbot, nginx.conf completo), segunda vez, backup que falha,
 #     certbot que falha, --skip-tls, site com outro nome e nginx.conf recusado.
+#   - deploy.sh, permissões: arquivos com outro dono voltam a ser só do root.
+#   - deploy.sh, versão nova: download da imagem que falha (--skip-pull) e app que fica na imagem anterior.
+#   - deploy.sh, disco: limpeza das tags de rollback antigas.
 # Docker, certbot e systemctl são trocados por registradores de chamadas (o contêiner não tem systemd nem Docker); o nginx é o de
 # verdade. Não altera a máquina de quem roda: precisa só de Docker.
 #
@@ -82,6 +85,7 @@ expect "criou /opt/monburan e os backups só do dono (700)" bash -c "test \"\$(s
 expect "criou /var/www/certbot" test -d /var/www/certbot
 expect "removeu o site padrão do nginx" test ! -e /etc/nginx/sites-enabled/default
 expect "limitou os registros do Docker" grep -q '"max-size": "10m"' /etc/docker/daemon.json
+expect "limitou o journal do sistema" grep -q '^SystemMaxUse=300M$' /etc/systemd/journald.conf.d/monburan.conf
 runit bash "$PROVISION" --apply --skip-docker --skip-swap
 expect "rodar de novo também funciona (idempotente)" test "$status" -eq 0
 
@@ -113,6 +117,18 @@ cat >/stubs/docker <<'STUB'
 #!/bin/sh
 echo "docker $*" >> /tmp/docker-calls.log
 if [ "$1 $2" = "compose version" ]; then echo "Docker Compose version v2.test"; exit 0; fi
+# Download da imagem que falha (token do GHCR vencido, registro fora do ar)
+if [ "$1 $2" = "compose pull" ] && [ -e /tmp/docker-pull-fail ]; then echo "pull: falha simulada" >&2; exit 1; fi
+if [ "$1 $2" = "compose up" ]; then touch /tmp/docker-has-app; exit 0; fi
+# A imagem baixada; com /tmp/docker-stale o contêiner ficou na anterior
+if [ "$1 $2" = "image inspect" ]; then
+    if [ -e /tmp/docker-stale ]; then echo "sha256:def456"; else echo "sha256:abc123"; fi
+    exit 0
+fi
+if [ "$1 $2" = "image ls" ]; then
+    [ -e /tmp/docker-rollback-tags ] && cat /tmp/docker-rollback-tags
+    exit 0
+fi
 if [ "$1" = "inspect" ]; then
     [ -e /tmp/docker-has-app ] || exit 1
     case "$*" in
@@ -165,6 +181,8 @@ fresh_dir() {
     mkdir -p "$DIR"
     cp /repo/infra/vps/nginx.conf /repo/infra/vps/env.example /repo/infra/vps/docker-compose.prod.yml "$DIR/"
     rm -f /tmp/docker-has-app /tmp/certbot-fail
+    rm -f /tmp/docker-pull-fail /tmp/docker-stale
+    rm -f /tmp/docker-rollback-tags
     : >"$DOCKER_CALLS"
     : >"$CERTBOT_CALLS"
 }
@@ -189,7 +207,7 @@ expect "hosts permitidos restritos ao domínio" grep -q '^ALLOWED_HOSTS=monburan
 expect "ADMIN_EMAILS definido" grep -q '^ADMIN_EMAILS=adm@example.com$' "$DIR/.env"
 expect "os segredos gerados não aparecem na saída" bash -c "! grep -qF \"\$(awk -F= '/^DB_PASSWORD=/ { print \$2 }' '$DIR/.env')\" $OUT"
 expect "criou o docker-compose.yml" test -f "$DIR/docker-compose.yml"
-expect "baixou a imagem e subiu a stack" bash -c "grep -q 'compose pull app' $DOCKER_CALLS && grep -q 'compose up -d --remove-orphans' $DOCKER_CALLS"
+expect "baixou as imagens (app e Postgres) e subiu a stack" bash -c "grep -qx 'docker compose pull' $DOCKER_CALLS && grep -q 'compose up -d --remove-orphans' $DOCKER_CALLS"
 expect "pediu o certificado ao certbot com o e-mail" grep -q 'certbot --nginx -d monburan.com.br -d www.monburan.com.br --non-interactive --agree-tos -m teste@example.com' "$CERTBOT_CALLS"
 expect "o nginx.conf completo entrou no lugar do provisório" cmp -s "$DIR/nginx.conf" "$SITE"
 expect "o site está habilitado" test -L /etc/nginx/sites-enabled/monburan.com.br
@@ -274,6 +292,60 @@ deploy --email teste@example.com
 expect "falha" test "$status" -ne 0
 expect "volta à configuração anterior" cmp -s /tmp/site.good /etc/nginx/sites-available/monburan.conf
 expect_soon "o nginx continua válido e respondendo" bash -c "nginx -t && curl -sk --resolve monburan.com.br:443:127.0.0.1 https://monburan.com.br/health | grep -q ok"
+
+echo
+echo "13. deploy.sh: arquivos com outro dono (o tar do deploy automático gravava o uid do runner) voltam para o root"
+fresh_dir
+reset_site
+deploy --email teste@example.com
+expect "a instalação de base termina sem erro" test "$status" -eq 0
+chown -R 1001:1001 "$DIR"
+chmod g+w "$DIR/nginx.conf"
+deploy
+expect "termina sem erro" test "$status" -eq 0
+expect "a pasta e os arquivos voltam a ser do root" bash -c "! find $DIR \\( ! -user 0 -o ! -group 0 \\) | grep -q ."
+expect "sem escrita para grupo e outros" bash -c "! find $DIR -perm /022 | grep -q ."
+expect "o .env continua só do dono (600)" test "$(stat -c %a "$DIR/.env")" = 600
+expect "avisa do que corrigiu" grep -q 'outro dono' "$OUT"
+
+echo
+echo "14. deploy.sh: o download da imagem nova falha (token do GHCR vencido, registro fora do ar)"
+fresh_dir
+reset_site
+deploy --email teste@example.com
+expect "a instalação de base termina sem erro" test "$status" -eq 0
+touch /tmp/docker-pull-fail
+: >"$DOCKER_CALLS"
+deploy
+expect "falha (antes terminava como concluído, ainda na versão antiga)" test "$status" -ne 0
+expect "explica que nada foi trocado" grep -q 'nada foi trocado' "$OUT"
+expect "não sobe a stack depois do download que falhou" bash -c "! grep -q 'compose up' $DOCKER_CALLS"
+: >"$DOCKER_CALLS"
+deploy --skip-pull
+expect "--skip-pull sobe a imagem que já está no servidor" test "$status" -eq 0
+expect "e não tenta baixar" bash -c "! grep -q 'compose pull' $DOCKER_CALLS"
+rm -f /tmp/docker-pull-fail
+
+echo
+echo "15. deploy.sh: o app continua na imagem anterior depois do up"
+touch /tmp/docker-stale
+deploy
+expect "falha" test "$status" -ne 0
+expect "explica que o app ficou na imagem anterior" grep -q 'continua na imagem anterior' "$OUT"
+rm -f /tmp/docker-stale
+
+echo
+echo "16. deploy.sh: as tags de rollback antigas são apagadas (ficam as 3 últimas)"
+printf '%s\n' latest rollback-20261017-090925 rollback-20261019-175235 rollback-20261018-130942 \
+    rollback-20261019-101313 rollback-20261019-105510 >/tmp/docker-rollback-tags
+: >"$DOCKER_CALLS"
+deploy
+expect "termina sem erro" test "$status" -eq 0
+expect "apaga as duas mais antigas" bash -c "grep -q 'rmi ghcr.io/rondineleg/monburan:rollback-20261017-090925' $DOCKER_CALLS && grep -q 'rmi ghcr.io/rondineleg/monburan:rollback-20261018-130942' $DOCKER_CALLS"
+expect "mantém as três mais recentes" bash -c "! grep -qE 'rmi .*rollback-20261019-(175235|101313|105510)' $DOCKER_CALLS"
+expect "não mexe na imagem em uso" bash -c "! grep -q 'rmi .*:latest' $DOCKER_CALLS"
+expect "limpa as imagens sem tag" grep -q 'image prune -f' "$DOCKER_CALLS"
+rm -f /tmp/docker-rollback-tags
 
 echo
 echo "$passed ok, $failed falhas"

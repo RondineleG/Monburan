@@ -3,7 +3,8 @@
 # Monburan — Preparação de um servidor novo (Debian 12/13 ou Ubuntu 22.04/24.04)
 #
 # Instala o que o Monburan usa: Docker (repositório oficial, com a chave conferida), nginx, certbot, age e rclone; limita o tamanho
-# dos registros do Docker (o disco da VPS é pequeno), cria swap quando a máquina tem pouca memória e deixa /opt/monburan pronto.
+# dos registros do Docker e do journal do sistema (o disco da VPS é pequeno), cria swap quando a máquina tem pouca memória e deixa
+# /opt/monburan pronto.
 # NÃO liga o firewall nem mexe no SSH: isso é o harden.sh, que vem a seguir.
 #
 # NADA é alterado sem --apply: sem argumentos o script só mostra o plano. Pode rodar de novo: cada passo confere antes de agir.
@@ -164,6 +165,18 @@ EOF
     fi
 }
 
+limit_journal() {
+    log "Journal do sistema: no máximo 300 MB em disco"
+    # O padrão do journald é 10% do disco: 1,5 GB numa VPS de 15 GB
+    write_file /etc/systemd/journald.conf.d/monburan.conf 644 <<'EOF'
+[Journal]
+SystemMaxUse=300M
+EOF
+    if [[ $APPLY -eq 1 ]]; then
+        systemctl restart systemd-journald >/dev/null 2>&1 || true
+    fi
+}
+
 ensure_swap() {
     if [[ $SKIP_SWAP -eq 1 ]]; then
         log "Swap: pulado (--skip-swap)"
@@ -247,6 +260,7 @@ main() {
     install_base_packages
     install_docker
     configure_docker_logs
+    limit_journal
     ensure_swap
     prepare_directories
     summary

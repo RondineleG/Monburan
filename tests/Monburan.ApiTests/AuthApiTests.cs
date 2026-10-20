@@ -4,10 +4,12 @@ using System.Net.Http.Json;
 
 using FluentAssertions;
 
+using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.DependencyInjection;
 
 using Monburan.Core.DTOs.Request;
 using Monburan.Core.DTOs.Response;
+using Monburan.Web.Models;
 
 namespace Monburan.ApiTests;
 
@@ -326,6 +328,45 @@ public class AuthApiTests : IClassFixture<MonburanApiFactory>
         });
 
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
+    [Fact]
+    public async Task Login_WithTwoFactorEnabled_IsRefused_WithoutTokens()
+    {
+        // A API não tem o passo do código: só a senha não pode render tokens para quem ligou a verificação em duas etapas
+        const string password = "Cavalo-Azul-Bateria-7";
+        var email = $"dois.fatores.{Guid.NewGuid():N}@teste.com";
+        (await _client.PostAsJsonAsync("/api/auth/register", new RegisterRequest
+        {
+            AccountType = "candidate",
+            Name = "Pessoa com 2FA",
+            Email = email,
+            Password = password,
+            ConfirmPassword = password
+        })).EnsureSuccessStatusCode();
+
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var users = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+            var user = await users.FindByEmailAsync(email);
+            (await users.SetTwoFactorEnabledAsync(user!, true)).Succeeded.Should().BeTrue();
+        }
+
+        var response = await _client.PostAsJsonAsync("/api/auth/login", new UserLoginRequest { Email = email, Password = password });
+
+        response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+        var body = await response.Content.ReadAsStringAsync();
+        body.Should().Contain("duas etapas").And.NotContain("accessToken").And.NotContain("refreshToken");
+    }
+
+    [Fact]
+    public async Task Login_WithoutEmailOrPassword_IsUnauthorized_NotAServerError()
+    {
+        var withoutEmail = await _client.PostAsJsonAsync("/api/auth/login", new { email = (string?)null, password = "Qualquer-Senha-1" });
+        var withoutPassword = await _client.PostAsJsonAsync("/api/auth/login", new { email = "joao.silva@email.com", password = (string?)null });
+
+        withoutEmail.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+        withoutPassword.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
     }
 
     internal async Task<UserLoginResponse> LoginAsAsync(string email, string password = "Monburan123")

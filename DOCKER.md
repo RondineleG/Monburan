@@ -203,31 +203,30 @@ A stack de produção fica em `infra/vps/` e serve `https://monburan.com.br`:
 infra/vps/
 ├── docker-compose.prod.yml  # app (imagem GHCR) + postgres, app só em 127.0.0.1:8080
 ├── nginx.conf               # reverse proxy: 80→443, WebSocket p/ Blazor Server
-├── deploy.sh                # provisiona a VPS: deps, stack, nginx, certbot
-├── build-push.sh            # build + push da imagem no GHCR (roda na VPS)
-├── docker-bake.hcl          # alvo do docker buildx bake
+├── provision.sh             # prepara um servidor novo: Docker, nginx, certbot, age, rclone
+├── harden.sh                # firewall, SSH só por chave, fail2ban, atualizações automáticas
+├── deploy.sh                # sobe/atualiza a stack e o nginx; na 1ª vez cria o .env e emite o TLS
+├── validate.sh              # confere o servidor, só lendo (de fora e por dentro)
 └── env.example              # template do .env de produção
 ```
 
 ### Fluxo de publicação
 
-1. **CI**: o workflow `.github/workflows/docker-ghcr.yml` faz build + push de
-   `ghcr.io/rondineleg/monburan:latest` (e tag por SHA) a cada push na `main`.
-2. **Build manual na VPS** (alternativa, quando o Actions está indisponível):
-   ```bash
-   export GHCR_TOKEN=ghp_xxx   # PAT com write:packages + read:packages
-   bash infra/vps/build-push.sh
-   ```
-3. **Deploy** (como root, na VPS):
+1. **CI/CD**: a cada push na `main` (e toda segunda, pelo `rebuild-semanal.yml`) o workflow
+   `.github/workflows/docker-ghcr.yml` constrói e publica `ghcr.io/rondineleg/monburan:latest`
+   (e a tag do commit); em seguida o job `deploy-vps` envia `infra/vps` para `/opt/monburan` e
+   roda o `deploy.sh` na VPS. Só a `main` publica e faz deploy.
+2. **Servidor novo** (como root): `bash provision.sh --apply`, `bash harden.sh --apply`, copiar
+   `infra/vps` para `/opt/monburan` e rodar:
    ```bash
    cd /opt/monburan
-   cp infra/vps/env.example .env   # preencher DB_PASSWORD, JWT_SIGNING_KEY, SMTP_*
-   bash infra/vps/deploy.sh
+   bash deploy.sh --email voce@exemplo.com --admin-email adm@exemplo.com
    ```
 
-O `deploy.sh` instala `nginx`, `certbot` e `curl`, sobe a stack com
-`docker compose -f docker-compose.prod.yml up -d`, configura o site no nginx e
-emite o TLS quando o DNS de `monburan.com.br` aponta para a VPS.
+Na primeira vez o `deploy.sh` cria o `.env` com a senha do banco e a chave JWT geradas no
+servidor, sobe a stack, emite o certificado (certbot) e instala o `nginx.conf`. Nas seguintes,
+tira um backup, guarda a imagem atual para rollback, baixa as imagens novas e reinicia o app.
+Passo a passo e rollback em [docs/CI-CD.md](docs/CI-CD.md) e [docs/SEGURANCA.md](docs/SEGURANCA.md).
 
 ### Arquitetura de produção
 
@@ -241,12 +240,6 @@ Internet → nginx (host, :443 TLS certbot)
 - Uploads persistem no volume `app_uploads`; banco no volume `postgres_data`.
 - `APPLY_MIGRATIONS=true` aplica migrations no boot.
 - E-mail sai via SMTP (Resend) usando as variáveis `Smtp__*`.
-
-### Deploy alternativo (sem Docker)
-
-`deploy/deploy.sh` + `deploy/monburan.service` instalam a app publicada
-(`dotnet publish`) como serviço systemd em `/opt/monburan`, com segredos em
-`/opt/monburan/monburan.env` (chmod 600). Usa Postgres local ou via Docker.
 
 ## 🐛 Solução de Problemas
 

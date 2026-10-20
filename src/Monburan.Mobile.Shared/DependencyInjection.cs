@@ -24,6 +24,14 @@ public static class DependencyInjection
             })
             .AddHttpMessageHandler<AuthHeaderHandler>();
 
+        // Um PDF de 10 MB em 4G fraco passa dos 25 s: o envio de arquivo tem cliente próprio, com mais tempo
+        services.AddHttpClient(ApiClientNames.Upload, client =>
+            {
+                client.BaseAddress = baseUrl;
+                client.Timeout = TimeSpan.FromMinutes(3);
+            })
+            .AddHttpMessageHandler<AuthHeaderHandler>();
+
         services.AddHttpClient(ApiClientNames.Auth, client =>
         {
             client.BaseAddress = baseUrl;
@@ -35,6 +43,7 @@ public static class DependencyInjection
         services.AddSingleton<MonburanApiClient>();
         services.AddSingleton<AuthApiClient>();
         services.AddSingleton<IToastService, ToastService>();
+        services.AddSingleton<NotificationBadgeState>();
 
         return services;
     }

@@ -167,6 +167,12 @@ if command -v docker >/dev/null 2>&1; then
     [ -n "$users" ] && emit info "contas no banco: ${users}"
 fi
 
+if [ -d /opt/monburan ]; then
+    # deploy.sh e backup.sh rodam como root: quem puder editá-los vira root
+    foreign=$(find /opt/monburan -xdev \( ! -user 0 -o ! -group 0 -o -perm /022 \) -print 2>/dev/null | head -3 | tr '\n' ' ')
+    if [ -z "$foreign" ]; then emit ok "arquivos de /opt/monburan só do root"; else emit falha "arquivos de /opt/monburan com outro dono ou com escrita para grupo/outros: ${foreign}(o deploy.sh corrige)"; fi
+fi
+
 if [ -f /opt/monburan/.env ]; then
     mode=$(stat -c %a /opt/monburan/.env 2>/dev/null)
     if [ "$mode" = "600" ]; then emit ok ".env com permissão 600"; else emit aviso ".env com permissão ${mode} (use chmod 600)"; fi
