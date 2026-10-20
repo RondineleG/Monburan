@@ -140,9 +140,6 @@ o backup feito pelo `backup.sh` acima (o passo a passo da restauração está em
 Firewall, SSH só por chave, fail2ban, atualizações automáticas, backup criptografado fora do servidor, as telas de
 administração e os ajustes de segurança do app: [SEGURANCA.md](SEGURANCA.md).
 
-Atenção: o `infra/vps/build-push.sh` constrói a imagem a partir da `main` da VPS; rodá-lo antes de mesclar um PR
-republica o `latest` com o código antigo.
-
 ## Testes
 
 - **Unitários, integração e API** rodam no job `build-and-test` (EF InMemory, sem dependências externas).
