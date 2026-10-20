@@ -9,6 +9,7 @@
 #     certbot que falha, --skip-tls, site com outro nome e nginx.conf recusado.
 #   - deploy.sh, permissões: arquivos com outro dono voltam a ser só do root.
 #   - deploy.sh, versão nova: download da imagem que falha (--skip-pull) e app que fica na imagem anterior.
+#   - deploy.sh, disco: limpeza das tags de rollback antigas.
 # Docker, certbot e systemctl são trocados por registradores de chamadas (o contêiner não tem systemd nem Docker); o nginx é o de
 # verdade. Não altera a máquina de quem roda: precisa só de Docker.
 #
@@ -123,6 +124,10 @@ if [ "$1 $2" = "image inspect" ]; then
     if [ -e /tmp/docker-stale ]; then echo "sha256:def456"; else echo "sha256:abc123"; fi
     exit 0
 fi
+if [ "$1 $2" = "image ls" ]; then
+    [ -e /tmp/docker-rollback-tags ] && cat /tmp/docker-rollback-tags
+    exit 0
+fi
 if [ "$1" = "inspect" ]; then
     [ -e /tmp/docker-has-app ] || exit 1
     case "$*" in
@@ -176,6 +181,7 @@ fresh_dir() {
     cp /repo/infra/vps/nginx.conf /repo/infra/vps/env.example /repo/infra/vps/docker-compose.prod.yml "$DIR/"
     rm -f /tmp/docker-has-app /tmp/certbot-fail
     rm -f /tmp/docker-pull-fail /tmp/docker-stale
+    rm -f /tmp/docker-rollback-tags
     : >"$DOCKER_CALLS"
     : >"$CERTBOT_CALLS"
 }
@@ -326,6 +332,19 @@ deploy
 expect "falha" test "$status" -ne 0
 expect "explica que o app ficou na imagem anterior" grep -q 'continua na imagem anterior' "$OUT"
 rm -f /tmp/docker-stale
+
+echo
+echo "16. deploy.sh: as tags de rollback antigas são apagadas (ficam as 3 últimas)"
+printf '%s\n' latest rollback-20261017-090925 rollback-20261019-175235 rollback-20261018-130942 \
+    rollback-20261019-101313 rollback-20261019-105510 >/tmp/docker-rollback-tags
+: >"$DOCKER_CALLS"
+deploy
+expect "termina sem erro" test "$status" -eq 0
+expect "apaga as duas mais antigas" bash -c "grep -q 'rmi ghcr.io/rondineleg/monburan:rollback-20261017-090925' $DOCKER_CALLS && grep -q 'rmi ghcr.io/rondineleg/monburan:rollback-20261018-130942' $DOCKER_CALLS"
+expect "mantém as três mais recentes" bash -c "! grep -qE 'rmi .*rollback-20261019-(175235|101313|105510)' $DOCKER_CALLS"
+expect "não mexe na imagem em uso" bash -c "! grep -q 'rmi .*:latest' $DOCKER_CALLS"
+expect "limpa as imagens sem tag" grep -q 'image prune -f' "$DOCKER_CALLS"
+rm -f /tmp/docker-rollback-tags
 
 echo
 echo "$passed ok, $failed falhas"

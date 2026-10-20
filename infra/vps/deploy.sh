@@ -10,6 +10,7 @@
 # Nas vezes seguintes: tira um backup (se o backup.sh estiver configurado), guarda a imagem atual como rollback, baixa a nova,
 # reinicia o app e espera o /health.
 # Se o download da imagem nova falhar, para sem trocar nada; depois de subir, confere que o app ficou na imagem baixada.
+# Das tags de rollback, ficam só as 3 mais recentes.
 # Arquivos de /opt/monburan com outro dono (ou com escrita para grupo e outros) voltam a ser só do root.
 #
 # Uso (como root, na VPS):
@@ -36,6 +37,7 @@ SKIP_TLS=0
 NO_BACKUP=0
 SKIP_PULL=0
 TLS_PENDING=0
+ROLLBACK_KEEP=3
 
 usage() {
     sed -n '2,/^# =====/p' "$0" | sed 's/^# \{0,1\}//' | sed '$d'
@@ -146,6 +148,20 @@ check_app_image() {
     echo "    o app está na imagem ${expected#sha256:}"
 }
 
+# Cada deploy guarda a imagem anterior com uma tag de rollback: sem limpeza, elas enchem o disco da VPS
+prune_rollback_images() {
+    local reference repo old tag
+    reference=$(docker inspect -f '{{.Config.Image}}' monburan-app 2>/dev/null) || return 0
+    repo=${reference%%:*}
+    old=$(docker image ls "$repo" --format '{{.Tag}}' 2>/dev/null | grep '^rollback-' | sort -r | tail -n +"$((ROLLBACK_KEEP + 1))" || true)
+    for tag in $old; do
+        if docker rmi "$repo:$tag" >/dev/null 2>&1; then
+            echo "    tag de rollback antiga removida: $repo:$tag"
+        fi
+    done
+    docker image prune -f >/dev/null 2>&1 || true
+}
+
 wait_for_health() {
     local code _
     for _ in $(seq 1 60); do
@@ -172,6 +188,7 @@ start_stack() {
     docker compose up -d --remove-orphans
     wait_for_health
     check_app_image
+    prune_rollback_images
 }
 
 # ---------------------------------------------------------------------------------------------------------------------
