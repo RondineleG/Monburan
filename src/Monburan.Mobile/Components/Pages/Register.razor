@@ -95,8 +95,8 @@
             _fieldErrors["name"] = "Informe seu nome.";
         if (string.IsNullOrWhiteSpace(_email) || !_email.Contains('@'))
             _fieldErrors["email"] = "Informe um e-mail válido.";
-        if (_password.Length < PasswordPolicy.MinLength)
-            _fieldErrors["password"] = PasswordPolicy.MinLengthMessage;
+        if (PasswordProblem(_password) is { } passwordProblem)
+            _fieldErrors["password"] = passwordProblem;
         else if (_password != _confirm)
             _fieldErrors["confirmPassword"] = "As senhas não conferem.";
 
@@ -139,5 +139,22 @@
         {
             _busy = false;
         }
+    }
+
+    // As mesmas regras que o servidor aplica (Identity: só letras e números ASCII contam); a lista de senhas comuns fica
+    // só no servidor e chega como erro geral
+    private static string? PasswordProblem(string password)
+    {
+        if (password.Length < PasswordPolicy.MinLength)
+            return PasswordPolicy.MinLengthMessage;
+        if (password.Length > PasswordPolicy.MaxLength)
+            return $"A senha pode ter no máximo {PasswordPolicy.MaxLength} caracteres.";
+        if (!password.Any(c => c is >= 'A' and <= 'Z'))
+            return "A senha precisa ter ao menos uma letra maiúscula.";
+        if (!password.Any(c => c is >= 'a' and <= 'z'))
+            return "A senha precisa ter ao menos uma letra minúscula.";
+        if (!password.Any(c => c is >= '0' and <= '9'))
+            return "A senha precisa ter ao menos um número.";
+        return null;
     }
 }

@@ -75,11 +75,11 @@
         }
         catch (ApiException ex)
         {
-            _error = ex.IsNetworkError
-                ? ex.Message
-                : ex.IsUnauthorized
-                    ? "E-mail ou senha incorretos."
-                    : ex.Message;
+            // O servidor explica a recusa (senha errada, conta bloqueada por tentativas ou inativa, verificação em duas
+            // etapas ligada): mostra o motivo dele. Só um 401 sem explicação vira a mensagem padrão
+            _error = ex.IsUnauthorized && ex.Message == ApiException.SessionExpiredMessage
+                ? "E-mail ou senha incorretos."
+                : ex.Message;
         }
         finally
         {

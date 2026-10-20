@@ -2,6 +2,7 @@
 @inherits ProtectedPage
 @inject MonburanApiClient Api
 @inject IToastService Toast
+@inject NotificationBadgeState Badge
 
 <h1 class="page-title">Avisos</h1>
 <p class="page-subtitle">Notificações sobre suas candidaturas</p>
@@ -87,6 +88,7 @@ else
             await Api.MarkNotificationAsReadAsync(n.Id);
             n.IsRead = true;
             n.ReadAt = DateTime.UtcNow;
+            Badge.Invalidate();
         }
         catch (ApiException ex)
         {
@@ -111,6 +113,7 @@ else
                 n.ReadAt = now;
             }
 
+            Badge.Invalidate();
             Toast.ShowSuccess("Todos os avisos foram marcados como lidos.");
         }
         catch (ApiException ex)
