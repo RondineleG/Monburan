@@ -17,9 +17,9 @@ public sealed class GetCandidateByIdUseCase : IUseCase<Guid, CandidateResponse>
         _candidateRepository = candidateRepository;
     }
 
-    public async Task<RequestResult<CandidateResponse>> ExecuteAsync(Guid request)
+    public async Task<RequestResult<CandidateResponse>> ExecuteAsync(Guid request, CancellationToken cancellationToken = default)
     {
-        var result = await _candidateRepository.GetByIdAsync(Id.Create(request));
+        var result = await _candidateRepository.GetByIdAsync(Id.Create(request), cancellationToken);
         if (result.Status != EResultStatus.Success)
             return RequestResult<CandidateResponse>.FromResult(result);
 

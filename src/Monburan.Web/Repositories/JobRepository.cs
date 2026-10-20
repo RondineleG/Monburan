@@ -18,18 +18,18 @@ public class JobRepository : IJobRepository
         _contextFactory = contextFactory;
     }
 
-    public async Task<RequestResult<Job>> CreateAsync(Job entity)
+    public async Task<RequestResult<Job>> CreateAsync(Job entity, CancellationToken cancellationToken = default)
     {
-        await using var context = await _contextFactory.CreateDbContextAsync();
+        await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);
         context.Jobs.Add(entity);
-        await context.SaveChangesAsync();
+        await context.SaveChangesAsync(cancellationToken);
         return RequestResult<Job>.Success(entity);
     }
 
-    public async Task<RequestResult<Job>> DeleteAsync(Id id)
+    public async Task<RequestResult<Job>> DeleteAsync(Id id, CancellationToken cancellationToken = default)
     {
-        await using var context = await _contextFactory.CreateDbContextAsync();
-        var job = await context.Jobs.FindAsync(id);
+        await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);
+        var job = await context.Jobs.FindAsync([id], cancellationToken);
         if (job == null)
             return RequestResult<Job>.EntityNotFound("Job", id.Value, "Vaga não encontrada.");
 
@@ -37,27 +37,27 @@ public class JobRepository : IJobRepository
         job.DeletedAt = DateTime.UtcNow;
         
         context.Jobs.Update(job);
-        await context.SaveChangesAsync();
+        await context.SaveChangesAsync(cancellationToken);
         return RequestResult<Job>.Success(job);
     }
 
-    public async Task<RequestResult<IEnumerable<Job>>> GetAllAsync(int page, int size)
+    public async Task<RequestResult<IEnumerable<Job>>> GetAllAsync(int page, int size, CancellationToken cancellationToken = default)
     {
-        await using var context = await _contextFactory.CreateDbContextAsync();
+        await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);
         var jobs = await context.Jobs
             .Include(j => j.Advertiser)
             .Where(j => !j.IsDeleted && j.Status == EJobStatus.Active)
             .OrderByDescending(j => j.CreatedAt)
             .Skip((page - 1) * size)
             .Take(size)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         return RequestResult<IEnumerable<Job>>.Success(jobs);
     }
 
-    public async Task<PagedResponse<Job>> AdminSearchAsync(string? searchTerm, EJobStatus? status, Guid? advertiserId, int page, int size)
+    public async Task<PagedResponse<Job>> AdminSearchAsync(string? searchTerm, EJobStatus? status, Guid? advertiserId, int page, int size, CancellationToken cancellationToken = default)
     {
-        await using var context = await _contextFactory.CreateDbContextAsync();
+        await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);
         var query = context.Jobs
             .AsNoTracking()
             .Include(j => j.Advertiser)
@@ -81,42 +81,42 @@ public class JobRepository : IJobRepository
                 || (j.Advertiser != null && j.Advertiser.Name.ToLower().Contains(term)));
         }
 
-        var totalCount = await query.CountAsync();
+        var totalCount = await query.CountAsync(cancellationToken);
         var jobs = await query
             .OrderByDescending(j => j.CreatedAt)
             .Skip((page - 1) * size)
             .Take(size)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         return new PagedResponse<Job> { Data = jobs, TotalCount = totalCount, Page = page, Size = size };
     }
 
-    public async Task<IReadOnlyDictionary<EJobStatus, int>> CountByStatusAsync()
+    public async Task<IReadOnlyDictionary<EJobStatus, int>> CountByStatusAsync(CancellationToken cancellationToken = default)
     {
-        await using var context = await _contextFactory.CreateDbContextAsync();
+        await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);
         var groups = await context.Jobs
             .AsNoTracking()
             .Where(j => !j.IsDeleted)
             .GroupBy(j => j.Status)
             .Select(group => new { Status = group.Key, Count = group.Count() })
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         return groups.ToDictionary(group => group.Status, group => group.Count);
     }
 
-    public async Task<PagedResponse<Job>> GetAllPagedAsync(int page, int size)
+    public async Task<PagedResponse<Job>> GetAllPagedAsync(int page, int size, CancellationToken cancellationToken = default)
     {
-        await using var context = await _contextFactory.CreateDbContextAsync();
+        await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);
         var query = context.Jobs
             .Include(j => j.Advertiser)
             .Where(j => !j.IsDeleted && j.Status == EJobStatus.Active);
 
-        var totalCount = await query.CountAsync();
+        var totalCount = await query.CountAsync(cancellationToken);
         var jobs = await query
             .OrderByDescending(j => j.CreatedAt)
             .Skip((page - 1) * size)
             .Take(size)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         return new PagedResponse<Job>
         {
@@ -127,12 +127,12 @@ public class JobRepository : IJobRepository
         };
     }
 
-    public async Task<RequestResult<Job>> GetByIdAsync(Id id)
+    public async Task<RequestResult<Job>> GetByIdAsync(Id id, CancellationToken cancellationToken = default)
     {
-        await using var context = await _contextFactory.CreateDbContextAsync();
+        await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);
         var job = await context.Jobs
             .Include(j => j.Advertiser)
-            .FirstOrDefaultAsync(j => j.Id == id && !j.IsDeleted);
+            .FirstOrDefaultAsync(j => j.Id == id && !j.IsDeleted, cancellationToken);
 
         if (job == null)
             return RequestResult<Job>.EntityNotFound("Job", id.Value, "Vaga não encontrada.");
@@ -140,9 +140,9 @@ public class JobRepository : IJobRepository
         return RequestResult<Job>.Success(job);
     }
 
-    public async Task<RequestResult<Job>> UpdateAsync(Job entity)
+    public async Task<RequestResult<Job>> UpdateAsync(Job entity, CancellationToken cancellationToken = default)
     {
-        await using var context = await _contextFactory.CreateDbContextAsync();
+        await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);
 
         // A vaga chega desanexada (lida em outra unidade de trabalho). Gravar com Update()
         // marcaria TODAS as colunas como modificadas, incluindo as que esta edição não
@@ -151,7 +151,7 @@ public class JobRepository : IJobRepository
         // entram as colunas que a edição da vaga de fato controla.
         var tracked = await context.Jobs
             .Include(job => job.Advertiser)
-            .FirstOrDefaultAsync(job => job.Id == entity.Id);
+            .FirstOrDefaultAsync(job => job.Id == entity.Id, cancellationToken);
         if (tracked is null)
             return RequestResult<Job>.EntityNotFound("Job", entity.Id.Value, "Vaga não encontrada.");
 
@@ -173,7 +173,7 @@ public class JobRepository : IJobRepository
         CopyLocation(tracked.Location, entity.Location);
         CopySalary(tracked.Salary, entity.Salary);
 
-        await context.SaveChangesAsync();
+        await context.SaveChangesAsync(cancellationToken);
         return RequestResult<Job>.Success(tracked);
     }
 
@@ -209,10 +209,10 @@ public class JobRepository : IJobRepository
     /// atualização geral da vaga de propósito: são campos da administração, e uma edição
     /// da empresa não pode sobrescrever o que a administração gravou.
     /// </summary>
-    public async Task<RequestResult<Job>> UpdateModerationAsync(Id jobId, ModerationInfo moderation)
+    public async Task<RequestResult<Job>> UpdateModerationAsync(Id jobId, ModerationInfo moderation, CancellationToken cancellationToken = default)
     {
-        await using var context = await _contextFactory.CreateDbContextAsync();
-        var tracked = await context.Jobs.FirstOrDefaultAsync(job => job.Id == jobId);
+        await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);
+        var tracked = await context.Jobs.FirstOrDefaultAsync(job => job.Id == jobId, cancellationToken);
         if (tracked is null)
             return RequestResult<Job>.EntityNotFound("Job", jobId.Value, "Vaga não encontrada.");
 
@@ -222,7 +222,7 @@ public class JobRepository : IJobRepository
         tracked.Moderation.ModeratorId = moderation.ModeratorId;
         tracked.Moderation.ModerationDate = moderation.ModerationDate;
 
-        await context.SaveChangesAsync();
+        await context.SaveChangesAsync(cancellationToken);
         return RequestResult<Job>.Success(tracked);
     }
 
@@ -242,9 +242,10 @@ public class JobRepository : IJobRepository
         bool? sortDescending = null,
         EContractType? contractType = null,
         ESalaryPeriod? salaryPeriod = null,
-        int? publishedWithinDays = null)
+        int? publishedWithinDays = null,
+        CancellationToken cancellationToken = default)
     {
-        await using var context = await _contextFactory.CreateDbContextAsync();
+        await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);
         var query = context.Jobs
             .AsNoTracking()
             .Include(j => j.Advertiser)
@@ -359,11 +360,11 @@ public class JobRepository : IJobRepository
         };
 
         // Paginação com OFFSET/FETCH — TotalCount é o total filtrado, não o tamanho da página
-        var totalJobs = await query.CountAsync();
+        var totalJobs = await query.CountAsync(cancellationToken);
         var jobs = await query
             .Skip((page - 1) * size)
             .Take(size)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         return RequestResult<PagedResponse<Job>>.Success(new PagedResponse<Job>
         {
@@ -374,51 +375,52 @@ public class JobRepository : IJobRepository
         });
     }
 
-    public async Task<int> CountActiveByAdvertiserAsync(Guid advertiserId)
+    public async Task<int> CountActiveByAdvertiserAsync(Guid advertiserId, CancellationToken cancellationToken = default)
     {
-        await using var context = await _contextFactory.CreateDbContextAsync();
+        await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);
         var advertiserKey = Id.Create(advertiserId);
         return await context.Jobs
             .AsNoTracking()
-            .CountAsync(j => !j.IsDeleted && j.AdvertiserId == advertiserKey && j.Status == EJobStatus.Active);
+            .CountAsync(j => !j.IsDeleted && j.AdvertiserId == advertiserKey && j.Status == EJobStatus.Active, cancellationToken);
     }
 
-    public async Task<RequestResult<IEnumerable<Job>>> ListActiveForRecommendationsAsync()
+    public async Task<RequestResult<IEnumerable<Job>>> ListActiveForRecommendationsAsync(CancellationToken cancellationToken = default)
     {
-        await using var context = await _contextFactory.CreateDbContextAsync();
+        await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);
         var now = DateTime.UtcNow;
         var jobs = await context.Jobs
             .AsNoTracking()
             .Include(j => j.Advertiser)
             .Where(j => !j.IsDeleted && j.Status == EJobStatus.Active && j.ExpirationDate >= now)
             .OrderByDescending(j => j.CreatedAt)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         return RequestResult<IEnumerable<Job>>.Success(jobs);
     }
 
-    public async Task<RequestResult<bool>> IncrementViewsAsync(Guid jobId)
+    public async Task<RequestResult<bool>> IncrementViewsAsync(Guid jobId, CancellationToken cancellationToken = default)
     {
-        await using var context = await _contextFactory.CreateDbContextAsync();
+        await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);
         var jobKey = Id.Create(jobId);
 
         // O EF InMemory (provider dos testes de API) não traduz ExecuteUpdate; no banco de verdade,
         // o incremento é atômico, feito numa instrução só
         if (context.Database.ProviderName == "Microsoft.EntityFrameworkCore.InMemory")
         {
-            var job = await context.Jobs.FirstOrDefaultAsync(item => item.Id == jobKey);
+            var job = await context.Jobs.FirstOrDefaultAsync(item => item.Id == jobKey, cancellationToken);
             if (job is null)
                 return RequestResult<bool>.Success(false);
 
             job.Counters.Views++;
-            await context.SaveChangesAsync();
+            await context.SaveChangesAsync(cancellationToken);
             return RequestResult<bool>.Success(true);
         }
 
         var updated = await context.Jobs
             .Where(job => job.Id == jobKey)
             .ExecuteUpdateAsync(setters => setters
-                .SetProperty(job => job.Counters.Views, job => job.Counters.Views + 1));
+                .SetProperty(job => job.Counters.Views, job => job.Counters.Views + 1),
+                cancellationToken);
 
         return RequestResult<bool>.Success(updated > 0);
     }
@@ -428,28 +430,29 @@ public class JobRepository : IJobRepository
     /// Contar no código (ler, somar, gravar a vaga inteira) perdia a contagem quando duas
     /// candidaturas entravam ao mesmo tempo e ainda sobrescrevia a moderação da vaga.
     /// </summary>
-    public async Task<RequestResult<bool>> IncrementApplicationsAsync(Guid jobId)
+    public async Task<RequestResult<bool>> IncrementApplicationsAsync(Guid jobId, CancellationToken cancellationToken = default)
     {
-        await using var context = await _contextFactory.CreateDbContextAsync();
+        await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);
         var jobKey = Id.Create(jobId);
 
         // O EF InMemory (provider dos testes de API) não traduz ExecuteUpdate; no banco de verdade,
         // o incremento é atômico, feito numa instrução só
         if (context.Database.ProviderName == "Microsoft.EntityFrameworkCore.InMemory")
         {
-            var job = await context.Jobs.FirstOrDefaultAsync(item => item.Id == jobKey);
+            var job = await context.Jobs.FirstOrDefaultAsync(item => item.Id == jobKey, cancellationToken);
             if (job is null)
                 return RequestResult<bool>.Success(false);
 
             job.Counters.Applications++;
-            await context.SaveChangesAsync();
+            await context.SaveChangesAsync(cancellationToken);
             return RequestResult<bool>.Success(true);
         }
 
         var updated = await context.Jobs
             .Where(job => job.Id == jobKey)
             .ExecuteUpdateAsync(setters => setters
-                .SetProperty(job => job.Counters.Applications, job => job.Counters.Applications + 1));
+                .SetProperty(job => job.Counters.Applications, job => job.Counters.Applications + 1),
+                cancellationToken);
 
         return RequestResult<bool>.Success(updated > 0);
     }

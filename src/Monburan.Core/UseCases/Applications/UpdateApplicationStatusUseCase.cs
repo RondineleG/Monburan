@@ -32,9 +32,9 @@ public class UpdateApplicationStatusUseCase : IUseCase<UpdateApplicationStatusRe
         _logger = logger;
     }
 
-    public async Task<RequestResult<ApplicationResponse>> ExecuteAsync(UpdateApplicationStatusRequest request)
+    public async Task<RequestResult<ApplicationResponse>> ExecuteAsync(UpdateApplicationStatusRequest request, CancellationToken cancellationToken = default)
     {
-        var result = await _applicationRepository.GetByIdAsync(Id.Create(request.ApplicationId));
+        var result = await _applicationRepository.GetByIdAsync(Id.Create(request.ApplicationId), cancellationToken);
         if (result.Status != EResultStatus.Success)
             return RequestResult<ApplicationResponse>.EntityNotFound("Application", request.ApplicationId, "Candidatura não encontrada.");
 
@@ -60,7 +60,7 @@ public class UpdateApplicationStatusUseCase : IUseCase<UpdateApplicationStatusRe
                 break;
         }
 
-        var updateResult = await _applicationRepository.UpdateAsync(application);
+        var updateResult = await _applicationRepository.UpdateAsync(application, cancellationToken);
         if (updateResult.Status != EResultStatus.Success)
             return RequestResult<ApplicationResponse>.FromResult(updateResult);
 
@@ -71,7 +71,7 @@ public class UpdateApplicationStatusUseCase : IUseCase<UpdateApplicationStatusRe
         // Enviar notificação por email para o candidato (não bloqueante)
         try
         {
-            var notify = await _notifyOnStatusChangedUseCase.ExecuteAsync(new NotifyOnApplicationStatusChangedRequest(updateResult.Data!.Id.Value));
+            var notify = await _notifyOnStatusChangedUseCase.ExecuteAsync(new NotifyOnApplicationStatusChangedRequest(updateResult.Data!.Id.Value), cancellationToken);
             if (notify.Status != EResultStatus.Success)
                 _logger.LogWarning("Status da candidatura {ApplicationId} atualizado, mas o candidato não foi notificado: {Detail}",
                     updateResult.Data.Id.Value, notify.Message);
@@ -86,7 +86,7 @@ public class UpdateApplicationStatusUseCase : IUseCase<UpdateApplicationStatusRe
     }
 
     // Falha na gravação do histórico fica no log: a trilha é um extra e não pode derrubar a mudança de etapa
-    private async Task TryWriteHistoryAsync(Application application, string? note, string? responsible)
+    private async Task TryWriteHistoryAsync(Application application, string? note, string? responsible, CancellationToken cancellationToken = default)
     {
         try
         {
@@ -99,7 +99,8 @@ public class UpdateApplicationStatusUseCase : IUseCase<UpdateApplicationStatusRe
                 Note = note,
                 Responsible = responsible,
                 TenantId = application.TenantId
-            });
+            },
+            cancellationToken);
 
             if (historyResult.Status != EResultStatus.Success)
                 _logger.LogWarning("Histórico da candidatura {ApplicationId} não foi gravado: {Detail}",

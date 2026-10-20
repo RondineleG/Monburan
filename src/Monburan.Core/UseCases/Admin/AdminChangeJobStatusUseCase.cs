@@ -46,7 +46,7 @@ public sealed class AdminChangeJobStatusUseCase : IUseCase<AdminChangeJobStatusR
         _time = time;
     }
 
-    public async Task<RequestResult<AdminJobResponse>> ExecuteAsync(AdminChangeJobStatusRequest request)
+    public async Task<RequestResult<AdminJobResponse>> ExecuteAsync(AdminChangeJobStatusRequest request, CancellationToken cancellationToken = default)
     {
         if (!Allowed.Contains(request.NewStatus))
             return RequestResult<AdminJobResponse>.WithValidationError("Situação inválida para a administração.", nameof(request.NewStatus));
@@ -61,7 +61,7 @@ public sealed class AdminChangeJobStatusUseCase : IUseCase<AdminChangeJobStatusR
         if (reason is { Length: > ReasonMaxLength })
             return RequestResult<AdminJobResponse>.WithValidationError($"O motivo deve ter no máximo {ReasonMaxLength} caracteres.", nameof(request.Reason));
 
-        var found = await _jobs.GetByIdAsync(Id.Create(request.JobId));
+        var found = await _jobs.GetByIdAsync(Id.Create(request.JobId), cancellationToken);
         if (found.Status != EResultStatus.Success || found.Data is null)
             return RequestResult<AdminJobResponse>.EntityNotFound("Job", request.JobId, "Vaga não encontrada.");
 
@@ -75,7 +75,7 @@ public sealed class AdminChangeJobStatusUseCase : IUseCase<AdminChangeJobStatusR
 
         if (request.NewStatus == EJobStatus.Active)
         {
-            var advertiser = await _advertisers.GetByIdAsync(job.AdvertiserId);
+            var advertiser = await _advertisers.GetByIdAsync(job.AdvertiserId, cancellationToken);
             if (advertiser.Data?.Status == EAdvertiserStatus.Blocked)
                 return RequestResult<AdminJobResponse>.WithDomainError("A conta da empresa está inativa: reative a conta antes de ativar as vagas dela.");
 
@@ -114,24 +114,25 @@ public sealed class AdminChangeJobStatusUseCase : IUseCase<AdminChangeJobStatusR
         // A moderação é gravada por via própria: a atualização geral da vaga não escreve a
         // moderação, para uma edição da empresa (com dados antigos) não apagar o que a
         // administração gravou.
-        var moderationUpdated = await _jobs.UpdateModerationAsync(job.Id, job.Moderation!);
+        var moderationUpdated = await _jobs.UpdateModerationAsync(job.Id, job.Moderation!, cancellationToken);
         if (moderationUpdated.Status != EResultStatus.Success)
             return RequestResult<AdminJobResponse>.FromResult(moderationUpdated);
 
-        var updated = await _jobs.UpdateAsync(job);
+        var updated = await _jobs.UpdateAsync(job, cancellationToken);
         if (updated.Status != EResultStatus.Success)
             return RequestResult<AdminJobResponse>.FromResult(updated);
 
         await NotifyAsync(job, request.NewStatus, reason);
         await _audit.RecordAsync(new AdminAuditRecord(
             AdminAuditActions.JobStatusChanged, request.Actor, AdminAuditActions.JobTarget, job.Id.Value.ToString(), job.Title,
-            $"{StatusLabel(previous)} → {StatusLabel(request.NewStatus)}" + (string.IsNullOrWhiteSpace(reason) ? string.Empty : $". Motivo: {reason}")));
+            $"{StatusLabel(previous)} → {StatusLabel(request.NewStatus)}" + (string.IsNullOrWhiteSpace(reason) ? string.Empty : $". Motivo: {reason}")),
+            cancellationToken: cancellationToken);
 
         return RequestResult<AdminJobResponse>.Success(AdminJobMapper.ToResponse(job, today));
     }
 
     /// <summary>Aviso dentro da plataforma para a empresa. Se falhar, a moderação já foi feita e vale.</summary>
-    private async Task NotifyAsync(Job job, EJobStatus status, string? reason)
+    private async Task NotifyAsync(Job job, EJobStatus status, string? reason, CancellationToken cancellationToken = default)
     {
         var (title, message) = status switch
         {
@@ -151,7 +152,8 @@ public sealed class AdminChangeJobStatusUseCase : IUseCase<AdminChangeJobStatusR
             Title = title,
             Message = message,
             Type = ENotificationType.System
-        });
+        },
+        cancellationToken);
     }
 
     internal static string StatusLabel(EJobStatus status) => status switch

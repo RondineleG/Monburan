@@ -17,9 +17,9 @@ public class ListSavedJobsUseCase : IUseCase<Guid, ListJobsResponse>
         _savedJobs = savedJobs;
     }
 
-    public async Task<RequestResult<ListJobsResponse>> ExecuteAsync(Guid request)
+    public async Task<RequestResult<ListJobsResponse>> ExecuteAsync(Guid request, CancellationToken cancellationToken = default)
     {
-        var result = await _savedJobs.ListByCandidateAsync(request);
+        var result = await _savedJobs.ListByCandidateAsync(request, cancellationToken: cancellationToken);
         if (result.Status != EResultStatus.Success || result.Data is null)
             return RequestResult<ListJobsResponse>.FromResult(result);
 

@@ -16,14 +16,15 @@ public class ApplicationRepository : IApplicationRepository
         _contextFactory = contextFactory;
     }
 
-    public async Task<RequestResult<Application>> CreateAsync(Application entity)
+    public async Task<RequestResult<Application>> CreateAsync(Application entity, CancellationToken cancellationToken = default)
     {
-        await using var context = await _contextFactory.CreateDbContextAsync();
+        await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);
         var alreadyApplied = await context.Applications
             .AsNoTracking()
             .AnyAsync(application => !application.IsDeleted &&
                 application.CandidateId == entity.CandidateId &&
-                application.JobId == entity.JobId);
+                application.JobId == entity.JobId,
+                cancellationToken);
         if (alreadyApplied)
             return RequestResult<Application>.EntityAlreadyExists(
                 "Application", $"{entity.CandidateId.Value}/{entity.JobId.Value}",
@@ -32,7 +33,7 @@ public class ApplicationRepository : IApplicationRepository
         try
         {
             context.Applications.Add(entity);
-            await context.SaveChangesAsync();
+            await context.SaveChangesAsync(cancellationToken);
             return RequestResult<Application>.Success(entity);
         }
         catch (DbUpdateException)
@@ -42,10 +43,10 @@ public class ApplicationRepository : IApplicationRepository
         }
     }
 
-    public async Task<RequestResult<Application>> DeleteAsync(Id id)
+    public async Task<RequestResult<Application>> DeleteAsync(Id id, CancellationToken cancellationToken = default)
     {
-        await using var context = await _contextFactory.CreateDbContextAsync();
-        var application = await context.Applications.FindAsync(id);
+        await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);
+        var application = await context.Applications.FindAsync([id], cancellationToken);
         if (application == null)
             return RequestResult<Application>.EntityNotFound("Application", id.Value, "Candidatura não encontrada.");
 
@@ -53,13 +54,13 @@ public class ApplicationRepository : IApplicationRepository
         application.DeletedAt = DateTime.UtcNow;
         
         context.Applications.Update(application);
-        await context.SaveChangesAsync();
+        await context.SaveChangesAsync(cancellationToken);
         return RequestResult<Application>.Success(application);
     }
 
-    public async Task<RequestResult<IEnumerable<Application>>> GetAllAsync(int page, int size)
+    public async Task<RequestResult<IEnumerable<Application>>> GetAllAsync(int page, int size, CancellationToken cancellationToken = default)
     {
-        await using var context = await _contextFactory.CreateDbContextAsync();
+        await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);
         var applications = await context.Applications
             .Include(a => a.Candidate)
             .Include(a => a.Job)
@@ -67,18 +68,18 @@ public class ApplicationRepository : IApplicationRepository
             .OrderByDescending(a => a.CreatedAt)
             .Skip((page - 1) * size)
             .Take(size)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         return RequestResult<IEnumerable<Application>>.Success(applications);
     }
 
-    public async Task<RequestResult<Application>> GetByIdAsync(Id id)
+    public async Task<RequestResult<Application>> GetByIdAsync(Id id, CancellationToken cancellationToken = default)
     {
-        await using var context = await _contextFactory.CreateDbContextAsync();
+        await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);
         var application = await context.Applications
             .Include(a => a.Candidate)
             .Include(a => a.Job)
-            .FirstOrDefaultAsync(a => a.Id == id && !a.IsDeleted);
+            .FirstOrDefaultAsync(a => a.Id == id && !a.IsDeleted, cancellationToken);
 
         if (application == null)
             return RequestResult<Application>.EntityNotFound("Application", id.Value, "Candidatura não encontrada.");
@@ -86,17 +87,17 @@ public class ApplicationRepository : IApplicationRepository
         return RequestResult<Application>.Success(application);
     }
 
-    public async Task<RequestResult<Application>> UpdateAsync(Application entity)
+    public async Task<RequestResult<Application>> UpdateAsync(Application entity, CancellationToken cancellationToken = default)
     {
-        await using var context = await _contextFactory.CreateDbContextAsync();
+        await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);
         context.Applications.Update(entity);
-        await context.SaveChangesAsync();
+        await context.SaveChangesAsync(cancellationToken);
         return RequestResult<Application>.Success(entity);
     }
 
-    public async Task<RequestResult<IEnumerable<Application>>> ListByCandidateAsync(Guid candidateId, int page = 1, int size = 0)
+    public async Task<RequestResult<IEnumerable<Application>>> ListByCandidateAsync(Guid candidateId, int page = 1, int size = 0, CancellationToken cancellationToken = default)
     {
-        await using var context = await _contextFactory.CreateDbContextAsync();
+        await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);
         var candidateKey = Id.Create(candidateId);
         var query = context.Applications
             .AsNoTracking()
@@ -108,14 +109,14 @@ public class ApplicationRepository : IApplicationRepository
         // Sem paginação, a listagem para no teto: materializar todas as candidaturas de um
         // candidato com dezenas de milhares de registros estourava a memória do servidor
         var (skip, take) = Pagination.For(page, size, IApplicationRepository.MaxListSize);
-        var applications = await query.Skip(skip).Take(take).ToListAsync();
+        var applications = await query.Skip(skip).Take(take).ToListAsync(cancellationToken);
 
         return RequestResult<IEnumerable<Application>>.Success(applications);
     }
 
-    public async Task<RequestResult<IEnumerable<Application>>> ListByAdvertiserAsync(Guid advertiserId, Guid? jobId = null, int page = 1, int size = 0)
+    public async Task<RequestResult<IEnumerable<Application>>> ListByAdvertiserAsync(Guid advertiserId, Guid? jobId = null, int page = 1, int size = 0, CancellationToken cancellationToken = default)
     {
-        await using var context = await _contextFactory.CreateDbContextAsync();
+        await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);
         var advertiserKey = Id.Create(advertiserId);
         var query = context.Applications
             .AsNoTracking()
@@ -135,21 +136,21 @@ public class ApplicationRepository : IApplicationRepository
         var applications = await query
             .OrderByDescending(a => a.CreatedAt)
             .Skip(skip).Take(take)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         return RequestResult<IEnumerable<Application>>.Success(applications);
     }
 
-    public async Task<RequestResult<IReadOnlyDictionary<EApplicationStatus, int>>> CountByStatusForCandidateAsync(Guid candidateId)
+    public async Task<RequestResult<IReadOnlyDictionary<EApplicationStatus, int>>> CountByStatusForCandidateAsync(Guid candidateId, CancellationToken cancellationToken = default)
     {
-        await using var context = await _contextFactory.CreateDbContextAsync();
+        await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);
         var candidateKey = Id.Create(candidateId);
         var grouped = await context.Applications
             .AsNoTracking()
             .Where(a => !a.IsDeleted && a.CandidateId == candidateKey)
             .GroupBy(a => a.Status)
             .Select(group => new { Status = group.Key, Count = group.Count() })
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         return RequestResult<IReadOnlyDictionary<EApplicationStatus, int>>.Success(
             grouped.ToDictionary(item => item.Status, item => item.Count));

@@ -121,13 +121,13 @@ public static class AuthEndpoints
         // A conta e o perfil entram na mesma transação: o perfil é gravado na mesma unidade
         // de trabalho da conta (o mesmo DbContext do escopo), então uma falha no fim não
         // deixa um perfil órfão sem conta nem uma conta sem perfil.
-        await using var transaction = await dbContext.Database.BeginTransactionAsync();
+        await using var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
         try
         {
             var identityResult = await userManager.CreateAsync(user, request.Password);
             if (!identityResult.Succeeded)
             {
-                await transaction.RollbackAsync();
+                await transaction.RollbackAsync(cancellationToken);
                 return Results.ValidationProblem(new Dictionary<string, string[]>
                 {
                     [string.Empty] = identityResult.Errors.Select(e => e.Description).ToArray()
@@ -141,25 +141,25 @@ public static class AuthEndpoints
                 {
                     Name = request.Name.Trim(),
                     Email = request.Email.Trim()
-                })
+                }, cancellationToken)
                 : await createAdvertiser.ExecuteAsync(new CreateAdvertiserRequest
                 {
                     Name = request.Name.Trim(),
                     Email = request.Email.Trim(),
                     PersonType = EPersonType.Company
-                });
+                }, cancellationToken);
 
             if (profileResult.Status != EResultStatus.Success)
             {
-                await transaction.RollbackAsync();
+                await transaction.RollbackAsync(cancellationToken);
                 return profileResult.ToHttpResult();
             }
 
-            await transaction.CommitAsync();
+            await transaction.CommitAsync(cancellationToken);
         }
         catch (DbUpdateException)
         {
-            await transaction.RollbackAsync();
+            await transaction.RollbackAsync(cancellationToken);
             return Results.Problem(
                 statusCode: StatusCodes.Status409Conflict,
                 title: "E-mail já cadastrado",
@@ -167,7 +167,7 @@ public static class AuthEndpoints
         }
         catch (Exception ex)
         {
-            await transaction.RollbackAsync();
+            await transaction.RollbackAsync(cancellationToken);
             logger.LogError(ex, "Falha ao criar perfil {AccountType} para {Email}; cadastro desfeito",
                 request.AccountType, request.Email);
             return Results.Problem(
@@ -193,7 +193,7 @@ public static class AuthEndpoints
                 Email = request.Email,
                 UserName = request.Email.Split('@').FirstOrDefault() ?? request.Email,
                 ConfirmationLink = callbackUrl
-            });
+            }, cancellationToken);
         }
         catch (Exception ex)
         {
@@ -248,7 +248,7 @@ public static class AuthEndpoints
         {
             Email = request.Email,
             ResetLink = resetLink
-        });
+        }, cancellationToken);
 
         return Results.Ok();
     }

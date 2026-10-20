@@ -1,7 +1,9 @@
 using Microsoft.EntityFrameworkCore;
 
 using Monburan.Core.Entities;
+using Monburan.Core.Entities.Base;
 using Monburan.Core.Enums;
+using Monburan.Core.Interfaces;
 using Monburan.Core.Interfaces.Repositories;
 using Monburan.Core.Requests;
 using Monburan.Core.ValueObjects;
@@ -17,18 +19,18 @@ public class SubscriptionRepository : ISubscriptionRepository
         _contextFactory = contextFactory;
     }
 
-    public async Task<RequestResult<Subscription>> CreateAsync(Subscription entity)
+    public async Task<RequestResult<Subscription>> CreateAsync(Subscription entity, CancellationToken cancellationToken = default)
     {
-        await using var context = await _contextFactory.CreateDbContextAsync();
+        await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);
         context.Subscriptions.Add(entity);
-        await context.SaveChangesAsync();
+        await context.SaveChangesAsync(cancellationToken);
         return RequestResult<Subscription>.Success(entity);
     }
 
-    public async Task<RequestResult<Subscription>> DeleteAsync(Id id)
+    public async Task<RequestResult<Subscription>> DeleteAsync(Id id, CancellationToken cancellationToken = default)
     {
-        await using var context = await _contextFactory.CreateDbContextAsync();
-        var subscription = await context.Subscriptions.FindAsync(id);
+        await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);
+        var subscription = await context.Subscriptions.FindAsync([id], cancellationToken);
         if (subscription == null)
             return RequestResult<Subscription>.EntityNotFound("Subscription", id.Value, "Assinatura não encontrada.");
 
@@ -36,30 +38,30 @@ public class SubscriptionRepository : ISubscriptionRepository
         subscription.DeletedAt = DateTime.UtcNow;
 
         context.Subscriptions.Update(subscription);
-        await context.SaveChangesAsync();
+        await context.SaveChangesAsync(cancellationToken);
         return RequestResult<Subscription>.Success(subscription);
     }
 
-    public async Task<RequestResult<IEnumerable<Subscription>>> GetAllAsync(int page, int size)
+    public async Task<RequestResult<IEnumerable<Subscription>>> GetAllAsync(int page, int size, CancellationToken cancellationToken = default)
     {
-        await using var context = await _contextFactory.CreateDbContextAsync();
+        await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);
         var subscriptions = await context.Subscriptions
             .Include(s => s.Plan)
             .Where(s => !s.IsDeleted)
             .OrderByDescending(s => s.StartDate)
             .Skip((page - 1) * size)
             .Take(size)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         return RequestResult<IEnumerable<Subscription>>.Success(subscriptions);
     }
 
-    public async Task<RequestResult<Subscription>> GetByIdAsync(Id id)
+    public async Task<RequestResult<Subscription>> GetByIdAsync(Id id, CancellationToken cancellationToken = default)
     {
-        await using var context = await _contextFactory.CreateDbContextAsync();
+        await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);
         var subscription = await context.Subscriptions
             .Include(s => s.Plan)
-            .FirstOrDefaultAsync(s => s.Id == id && !s.IsDeleted);
+            .FirstOrDefaultAsync(s => s.Id == id && !s.IsDeleted, cancellationToken);
 
         if (subscription == null)
             return RequestResult<Subscription>.EntityNotFound("Subscription", id.Value, "Assinatura não encontrada.");
@@ -67,25 +69,25 @@ public class SubscriptionRepository : ISubscriptionRepository
         return RequestResult<Subscription>.Success(subscription);
     }
 
-    public async Task<RequestResult<Subscription>> UpdateAsync(Subscription entity)
+    public async Task<RequestResult<Subscription>> UpdateAsync(Subscription entity, CancellationToken cancellationToken = default)
     {
-        await using var context = await _contextFactory.CreateDbContextAsync();
+        await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);
         context.Subscriptions.Update(entity);
-        await context.SaveChangesAsync();
+        await context.SaveChangesAsync(cancellationToken);
         return RequestResult<Subscription>.Success(entity);
     }
 
     /// <summary>
     /// Busca todas as assinaturas de um anunciante.
     /// </summary>
-    public async Task<RequestResult<IEnumerable<Subscription>>> GetByAdvertiserIdAsync(Id advertiserId)
+    public async Task<RequestResult<IEnumerable<Subscription>>> GetByAdvertiserIdAsync(Id advertiserId, CancellationToken cancellationToken = default)
     {
-        await using var context = await _contextFactory.CreateDbContextAsync();
+        await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);
         var subscriptions = await context.Subscriptions
             .Include(s => s.Plan)
             .Where(s => s.AdvertiserId == advertiserId && !s.IsDeleted)
             .OrderByDescending(s => s.StartDate)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         return RequestResult<IEnumerable<Subscription>>.Success(subscriptions);
     }
@@ -93,14 +95,31 @@ public class SubscriptionRepository : ISubscriptionRepository
     /// <summary>
     /// Busca a assinatura ativa de um anunciante.
     /// </summary>
-    public async Task<RequestResult<Subscription?>> GetActiveByAdvertiserIdAsync(Id advertiserId)
+    public async Task<RequestResult<Subscription?>> GetActiveByAdvertiserIdAsync(Id advertiserId, CancellationToken cancellationToken = default)
     {
-        await using var context = await _contextFactory.CreateDbContextAsync();
+        await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);
         var subscription = await context.Subscriptions
             .Include(s => s.Plan)
             .FirstOrDefaultAsync(s => s.AdvertiserId == advertiserId
                 && s.Status == ESubscriptionStatus.Active
-                && !s.IsDeleted);
+                && !s.IsDeleted,
+                cancellationToken);
+
+        return RequestResult<Subscription?>.Success(subscription);
+    }
+
+    /// <summary>
+    /// Busca a assinatura ativa de um candidato.
+    /// </summary>
+    public async Task<RequestResult<Subscription?>> GetActiveByCandidateIdAsync(Id candidateId, CancellationToken cancellationToken = default)
+    {
+        await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);
+        var subscription = await context.Subscriptions
+            .Include(s => s.Plan)
+            .FirstOrDefaultAsync(s => s.CandidateId == candidateId
+                && s.Status == ESubscriptionStatus.Active
+                && !s.IsDeleted,
+                cancellationToken);
 
         return RequestResult<Subscription?>.Success(subscription);
     }
@@ -110,38 +129,38 @@ public class SubscriptionRepository : ISubscriptionRepository
     /// As entidades são recarregadas no mesmo contexto para gravar só as colunas que mudaram
     /// (nada de reescrever a linha inteira) e o commit é único.
     /// </summary>
-    public async Task<RequestResult<Advertiser>> CancelAsync(
+    public async Task<RequestResult<IHasActivePlan>> CancelAsync(
         Subscription subscription,
-        Advertiser advertiser,
-        string fallbackPlan)
+        IHasActivePlan owner,
+        string fallbackPlan,
+        CancellationToken cancellationToken = default)
     {
-        await using var context = await _contextFactory.CreateDbContextAsync();
+        await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);
         await using var transaction = context.Database.IsRelational()
-            ? await context.Database.BeginTransactionAsync()
+            ? await context.Database.BeginTransactionAsync(cancellationToken)
             : null;
 
         var trackedSubscription = await context.Subscriptions
-            .FirstOrDefaultAsync(s => s.Id == subscription.Id);
+            .FirstOrDefaultAsync(s => s.Id == subscription.Id, cancellationToken);
         if (trackedSubscription is null)
-            return RequestResult<Advertiser>.EntityNotFound("Subscription", subscription.Id.Value, "Assinatura não encontrada.");
+            return RequestResult<IHasActivePlan>.EntityNotFound("Subscription", subscription.Id.Value, "Assinatura não encontrada.");
 
         trackedSubscription.Status = subscription.Status;
         trackedSubscription.EndDate = subscription.EndDate;
         trackedSubscription.CancellationReason = subscription.CancellationReason;
 
-        var trackedAdvertiser = await context.Advertisers
-            .FirstOrDefaultAsync(a => a.Id == advertiser.Id);
-        if (trackedAdvertiser is null)
-            return RequestResult<Advertiser>.EntityNotFound("Advertiser", advertiser.Id.Value, "Anunciante não encontrado.");
+        var trackedOwner = await FindOwnerAsync(context, owner, cancellationToken);
+        if (trackedOwner is null)
+            return RequestResult<IHasActivePlan>.EntityNotFound(owner.GetType().Name, GetOwnerKey(owner), "Perfil não encontrado.");
 
-        trackedAdvertiser.ActivePlan = fallbackPlan;
+        trackedOwner.ActivePlan = fallbackPlan;
 
-        await context.SaveChangesAsync();
+        await context.SaveChangesAsync(cancellationToken);
 
         if (transaction is not null)
-            await transaction.CommitAsync();
+            await transaction.CommitAsync(cancellationToken);
 
-        return RequestResult<Advertiser>.Success(trackedAdvertiser);
+        return RequestResult<IHasActivePlan>.Success(trackedOwner);
     }
 
     /// <summary>
@@ -151,17 +170,18 @@ public class SubscriptionRepository : ISubscriptionRepository
     public async Task<RequestResult<Subscription>> ChangePlanAsync(
         Subscription? previousSubscription,
         Subscription newSubscription,
-        Advertiser advertiser)
+        IHasActivePlan owner,
+        CancellationToken cancellationToken = default)
     {
-        await using var context = await _contextFactory.CreateDbContextAsync();
+        await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);
         await using var transaction = context.Database.IsRelational()
-            ? await context.Database.BeginTransactionAsync()
+            ? await context.Database.BeginTransactionAsync(cancellationToken)
             : null;
 
         if (previousSubscription is not null)
         {
             var trackedPrevious = await context.Subscriptions
-                .FirstOrDefaultAsync(s => s.Id == previousSubscription.Id);
+                .FirstOrDefaultAsync(s => s.Id == previousSubscription.Id, cancellationToken);
             if (trackedPrevious is not null)
             {
                 trackedPrevious.Status = previousSubscription.Status;
@@ -172,18 +192,32 @@ public class SubscriptionRepository : ISubscriptionRepository
 
         context.Subscriptions.Add(newSubscription);
 
-        var trackedAdvertiser = await context.Advertisers
-            .FirstOrDefaultAsync(a => a.Id == advertiser.Id);
-        if (trackedAdvertiser is null)
-            return RequestResult<Subscription>.EntityNotFound("Advertiser", advertiser.Id.Value, "Anunciante não encontrado.");
+        var trackedOwner = await FindOwnerAsync(context, owner, cancellationToken);
+        if (trackedOwner is null)
+            return RequestResult<Subscription>.EntityNotFound(owner.GetType().Name, GetOwnerKey(owner), "Perfil não encontrado.");
 
-        trackedAdvertiser.ActivePlan = advertiser.ActivePlan;
+        trackedOwner.ActivePlan = owner.ActivePlan;
 
-        await context.SaveChangesAsync();
+        await context.SaveChangesAsync(cancellationToken);
 
         if (transaction is not null)
-            await transaction.CommitAsync();
+            await transaction.CommitAsync(cancellationToken);
 
         return RequestResult<Subscription>.Success(newSubscription);
     }
+
+    /// <summary>Recarrega o perfil dono (empresa ou candidato) no contexto da transação.</summary>
+    private static async Task<IHasActivePlan?> FindOwnerAsync(
+        ApplicationDbContext context, IHasActivePlan owner, CancellationToken cancellationToken) =>
+        owner switch
+        {
+            Advertiser advertiser => await context.Advertisers
+                .FirstOrDefaultAsync(a => a.Id == advertiser.Id, cancellationToken),
+            Candidate candidate => await context.Candidates
+                .FirstOrDefaultAsync(c => c.Id == candidate.Id, cancellationToken),
+            _ => null
+        };
+
+    private static Guid GetOwnerKey(IHasActivePlan owner) =>
+        owner is BaseEntity entity ? entity.Id.Value : Guid.Empty;
 }

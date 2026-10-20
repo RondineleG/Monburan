@@ -38,10 +38,10 @@ public class CreateApplicationUseCase : IUseCase<CreateApplicationRequest, Appli
         _logger = logger;
     }
 
-    public async Task<RequestResult<ApplicationResponse>> ExecuteAsync(CreateApplicationRequest request)
+    public async Task<RequestResult<ApplicationResponse>> ExecuteAsync(CreateApplicationRequest request, CancellationToken cancellationToken = default)
     {
         // Verificar se vaga existe e está ativa
-        var jobResult = await _jobRepository.GetByIdAsync(Id.Create(request.JobId));
+        var jobResult = await _jobRepository.GetByIdAsync(Id.Create(request.JobId), cancellationToken);
         if (jobResult.Status != EResultStatus.Success)
             return RequestResult<ApplicationResponse>.EntityNotFound("Job", request.JobId, "Vaga não encontrada.");
 
@@ -52,7 +52,7 @@ public class CreateApplicationUseCase : IUseCase<CreateApplicationRequest, Appli
         // Currículo anexado deve existir e pertencer ao candidato
         if (request.ResumeId.HasValue)
         {
-            var resumeResult = await _resumeRepository.GetByIdAsync(Id.Create(request.ResumeId.Value));
+            var resumeResult = await _resumeRepository.GetByIdAsync(Id.Create(request.ResumeId.Value), cancellationToken);
             if (resumeResult.Status != EResultStatus.Success || resumeResult.Data is null
                 || resumeResult.Data.CandidateId.Value != request.CandidateId)
             {
@@ -74,7 +74,7 @@ public class CreateApplicationUseCase : IUseCase<CreateApplicationRequest, Appli
             TenantId = "default"
         };
 
-        var result = await _applicationRepository.CreateAsync(application);
+        var result = await _applicationRepository.CreateAsync(application, cancellationToken);
         if (result.Status != EResultStatus.Success)
             return RequestResult<ApplicationResponse>.FromResult(result);
 
@@ -84,12 +84,12 @@ public class CreateApplicationUseCase : IUseCase<CreateApplicationRequest, Appli
         // Incrementar contador de aplicações da vaga — de forma atômica. Contar no código
         // (ler a vaga, somar, gravar a vaga inteira) perdia a contagem quando duas
         // candidaturas entravam ao mesmo tempo e ainda sobrescrevia a moderação da vaga.
-        await _jobRepository.IncrementApplicationsAsync(request.JobId);
+        await _jobRepository.IncrementApplicationsAsync(request.JobId, cancellationToken);
 
         // Enviar notificação por email para o anunciante (não bloqueante)
         try
         {
-            var notify = await _notifyOnCreatedUseCase.ExecuteAsync(new NotifyOnApplicationCreatedRequest(result.Data!.Id.Value));
+            var notify = await _notifyOnCreatedUseCase.ExecuteAsync(new NotifyOnApplicationCreatedRequest(result.Data!.Id.Value), cancellationToken);
             if (notify.Status != EResultStatus.Success)
                 _logger.LogWarning("Candidatura {ApplicationId} criada, mas o anunciante não foi notificado: {Detail}",
                     result.Data.Id.Value, notify.Message);
@@ -104,7 +104,7 @@ public class CreateApplicationUseCase : IUseCase<CreateApplicationRequest, Appli
     }
 
     // Falha na gravação do histórico fica no log: a trilha é um extra e não pode derrubar a candidatura
-    private async Task TryWriteHistoryAsync(Application application, string? note, string? responsible)
+    private async Task TryWriteHistoryAsync(Application application, string? note, string? responsible, CancellationToken cancellationToken = default)
     {
         try
         {
@@ -117,7 +117,8 @@ public class CreateApplicationUseCase : IUseCase<CreateApplicationRequest, Appli
                 Note = note,
                 Responsible = responsible,
                 TenantId = application.TenantId
-            });
+            },
+            cancellationToken);
 
             if (historyResult.Status != EResultStatus.Success)
                 _logger.LogWarning("Histórico da candidatura {ApplicationId} não foi gravado: {Detail}",

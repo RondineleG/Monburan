@@ -40,12 +40,12 @@ public sealed class NotifyOnApplicationStatusChangedUseCase : IUseCase<NotifyOnA
         _logger = logger;
     }
 
-    public async Task<RequestResult<bool>> ExecuteAsync(NotifyOnApplicationStatusChangedRequest request)
+    public async Task<RequestResult<bool>> ExecuteAsync(NotifyOnApplicationStatusChangedRequest request, CancellationToken cancellationToken = default)
     {
         try
         {
             // Buscar candidatura
-            var applicationResult = await _applicationRepository.GetByIdAsync(Id.Create(request.ApplicationId));
+            var applicationResult = await _applicationRepository.GetByIdAsync(Id.Create(request.ApplicationId), cancellationToken);
             if (applicationResult.Status != EResultStatus.Success)
             {
                 _logger.LogWarning("Candidatura não encontrada: {ApplicationId}", request.ApplicationId);
@@ -55,7 +55,7 @@ public sealed class NotifyOnApplicationStatusChangedUseCase : IUseCase<NotifyOnA
             var application = applicationResult.Data!;
 
             // Buscar candidato para obter email
-            var candidateResult = await _candidateRepository.GetByIdAsync(application.CandidateId);
+            var candidateResult = await _candidateRepository.GetByIdAsync(application.CandidateId, cancellationToken);
             if (candidateResult.Status != EResultStatus.Success)
             {
                 _logger.LogWarning("Candidato não encontrado: {CandidateId}", application.CandidateId.Value);
@@ -65,7 +65,7 @@ public sealed class NotifyOnApplicationStatusChangedUseCase : IUseCase<NotifyOnA
             var candidate = candidateResult.Data!;
 
             // Buscar vaga para obter título
-            var jobResult = await _jobRepository.GetByIdAsync(application.JobId);
+            var jobResult = await _jobRepository.GetByIdAsync(application.JobId, cancellationToken);
             if (jobResult.Status != EResultStatus.Success)
             {
                 _logger.LogWarning("Vaga não encontrada: {JobId}", application.JobId.Value);
@@ -89,7 +89,7 @@ public sealed class NotifyOnApplicationStatusChangedUseCase : IUseCase<NotifyOnA
                 HtmlContent = html
             };
 
-            var emailResult = await _sendEmailUseCase.ExecuteAsync(emailRequest);
+            var emailResult = await _sendEmailUseCase.ExecuteAsync(emailRequest, cancellationToken);
 
             if (emailResult.Status != EResultStatus.Success)
             {
@@ -129,7 +129,7 @@ public sealed class NotifyOnApplicationStatusChangedUseCase : IUseCase<NotifyOnA
         _ => "Em análise"
     };
 
-    private async Task CreateInAppNotificationAsync(Candidate candidate, Job job, EApplicationStatus status)
+    private async Task CreateInAppNotificationAsync(Candidate candidate, Job job, EApplicationStatus status, CancellationToken cancellationToken = default)
     {
         var (title, message) = status switch
         {
@@ -147,7 +147,8 @@ public sealed class NotifyOnApplicationStatusChangedUseCase : IUseCase<NotifyOnA
                 Type = ENotificationType.ApplicationStatus,
                 Title = title,
                 Message = message
-            });
+            },
+            cancellationToken);
 
             if (result.Status != EResultStatus.Success)
                 _logger.LogWarning("Notificação in-app de status não criada: {Detail}", result.Message);

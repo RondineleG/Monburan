@@ -24,9 +24,9 @@ public sealed class UpdateAdvertiserUseCase : IUseCase<UpdateAdvertiserRequest, 
         _advertiserValidator = advertiserValidator;
     }
 
-    public async Task<RequestResult<AdvertiserResponse>> ExecuteAsync(UpdateAdvertiserRequest request)
+    public async Task<RequestResult<AdvertiserResponse>> ExecuteAsync(UpdateAdvertiserRequest request, CancellationToken cancellationToken = default)
     {
-        var getResult = await _advertiserRepository.GetByIdAsync(Id.Create(request.Id));
+        var getResult = await _advertiserRepository.GetByIdAsync(Id.Create(request.Id), cancellationToken);
 
         if (getResult.Status != EResultStatus.Success || getResult.Data == null)
             return RequestResult<AdvertiserResponse>.EntityNotFound("Advertiser", request.Id, "Anunciante não encontrado.");
@@ -76,7 +76,7 @@ public sealed class UpdateAdvertiserUseCase : IUseCase<UpdateAdvertiserRequest, 
                 return ToValidationError(blockingErrors);
         }
 
-        var result = await _advertiserRepository.UpdateAsync(advertiser);
+        var result = await _advertiserRepository.UpdateAsync(advertiser, cancellationToken);
 
         if (result.Status != EResultStatus.Success)
             return RequestResult<AdvertiserResponse>.FromResult(result);

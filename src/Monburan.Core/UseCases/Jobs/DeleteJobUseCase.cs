@@ -16,9 +16,9 @@ public class DeleteJobUseCase : IUseCase<Guid, bool>
         _jobRepository = jobRepository;
     }
 
-    public async Task<RequestResult<bool>> ExecuteAsync(Guid request)
+    public async Task<RequestResult<bool>> ExecuteAsync(Guid request, CancellationToken cancellationToken = default)
     {
-        var result = await _jobRepository.DeleteAsync(Id.Create(request));
+        var result = await _jobRepository.DeleteAsync(Id.Create(request), cancellationToken);
         if (result.Status != EResultStatus.Success)
             return RequestResult<bool>.FromResult(result);
 

@@ -23,10 +23,10 @@ public sealed class CancelSubscriptionUseCase : IUseCase<CancelSubscriptionReque
         _advertiserRepository = advertiserRepository;
     }
 
-    public async Task<RequestResult<SubscriptionResponse>> ExecuteAsync(CancelSubscriptionRequest request)
+    public async Task<RequestResult<SubscriptionResponse>> ExecuteAsync(CancelSubscriptionRequest request, CancellationToken cancellationToken = default)
     {
         // Buscar assinatura
-        var subscriptionResult = await _subscriptionRepository.GetByIdAsync(Id.Create(request.SubscriptionId));
+        var subscriptionResult = await _subscriptionRepository.GetByIdAsync(Id.Create(request.SubscriptionId), cancellationToken);
         if (subscriptionResult.Status != EResultStatus.Success || subscriptionResult.Data == null)
             return RequestResult<SubscriptionResponse>.EntityNotFound("Subscription", request.SubscriptionId, "Assinatura não encontrada.");
 
@@ -34,14 +34,18 @@ public sealed class CancelSubscriptionUseCase : IUseCase<CancelSubscriptionReque
 
         // A assinatura precisa ser do anunciante autenticado: sem esta checagem, qualquer
         // anunciante cancelaria a assinatura de outro.
-        if (request.AdvertiserId.HasValue && subscription.AdvertiserId.Value != request.AdvertiserId.Value)
+        if (request.AdvertiserId.HasValue && subscription.AdvertiserId?.Value != request.AdvertiserId.Value)
+            return RequestResult<SubscriptionResponse>.EntityNotFound("Subscription", request.SubscriptionId, "Assinatura não encontrada.");
+
+        // Assinatura de candidato não é cancelável por este fluxo (é de anunciante)
+        if (subscription.AdvertiserId is null)
             return RequestResult<SubscriptionResponse>.EntityNotFound("Subscription", request.SubscriptionId, "Assinatura não encontrada.");
 
         // Verificar se está ativa
         if (subscription.Status != ESubscriptionStatus.Active)
             return RequestResult<SubscriptionResponse>.WithDomainError("A assinatura não está ativa e não pode ser cancelada.");
 
-        var advertiserResult = await _advertiserRepository.GetByIdAsync(subscription.AdvertiserId);
+        var advertiserResult = await _advertiserRepository.GetByIdAsync(subscription.AdvertiserId, cancellationToken);
         if (advertiserResult.Status != EResultStatus.Success || advertiserResult.Data == null)
             return RequestResult<SubscriptionResponse>.FromResult(advertiserResult);
 
@@ -54,7 +58,7 @@ public sealed class CancelSubscriptionUseCase : IUseCase<CancelSubscriptionReque
         subscription.CancellationReason = request.Reason;
         advertiser.ActivePlan = "Free";
 
-        var cancelResult = await _subscriptionRepository.CancelAsync(subscription, advertiser, "Free");
+        var cancelResult = await _subscriptionRepository.CancelAsync(subscription, advertiser, "Free", cancellationToken);
         if (cancelResult.Status != EResultStatus.Success)
             return RequestResult<SubscriptionResponse>.FromResult(cancelResult);
 

@@ -30,13 +30,10 @@ public class TestAiProviderUseCase : IUseCase<AiProviderActionRequest, AiProvide
         _ai = ai;
     }
 
-    public Task<RequestResult<AiProviderTestResponse>> ExecuteAsync(AiProviderActionRequest request) =>
-        ExecuteAsync(request, CancellationToken.None);
-
     public async Task<RequestResult<AiProviderTestResponse>> ExecuteAsync(
-        AiProviderActionRequest request, CancellationToken cancellationToken)
+        AiProviderActionRequest request, CancellationToken cancellationToken = default)
     {
-        var found = await _repository.GetByIdAsync(Id.Create(request.Id));
+        var found = await _repository.GetByIdAsync(Id.Create(request.Id), cancellationToken);
         if (found.Status != EResultStatus.Success || found.Data is null)
             return RequestResult<AiProviderTestResponse>.EntityNotFound("AiProvider", request.Id, "Provedor não encontrado.");
 

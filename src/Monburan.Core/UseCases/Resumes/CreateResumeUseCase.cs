@@ -23,7 +23,7 @@ public class CreateResumeUseCase : IUseCase<CreateResumeRequest, ResumeResponse>
         _validator = validator;
     }
 
-    public async Task<RequestResult<ResumeResponse>> ExecuteAsync(CreateResumeRequest request)
+    public async Task<RequestResult<ResumeResponse>> ExecuteAsync(CreateResumeRequest request, CancellationToken cancellationToken = default)
     {
         var resume = new Resume
         {
@@ -43,7 +43,7 @@ public class CreateResumeUseCase : IUseCase<CreateResumeRequest, ResumeResponse>
         if (!validationResult.IsValid)
             return RequestResult<ResumeResponse>.WithValidationError(validationResult.Errors.First().Message);
 
-        var result = await _resumeRepository.CreateAsync(resume);
+        var result = await _resumeRepository.CreateAsync(resume, cancellationToken);
         if (result.Status != EResultStatus.Success)
             return RequestResult<ResumeResponse>.FromResult(result);
 

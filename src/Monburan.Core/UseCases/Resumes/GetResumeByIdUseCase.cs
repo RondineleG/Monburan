@@ -17,9 +17,9 @@ public class GetResumeByIdUseCase : IUseCase<Guid, ResumeResponse>
         _resumeRepository = resumeRepository;
     }
 
-    public async Task<RequestResult<ResumeResponse>> ExecuteAsync(Guid request)
+    public async Task<RequestResult<ResumeResponse>> ExecuteAsync(Guid request, CancellationToken cancellationToken = default)
     {
-        var result = await _resumeRepository.GetByIdAsync(Id.Create(request));
+        var result = await _resumeRepository.GetByIdAsync(Id.Create(request), cancellationToken);
         if (result.Status != EResultStatus.Success)
             return RequestResult<ResumeResponse>.EntityNotFound("Resume", request, "Currículo não encontrado.");
 

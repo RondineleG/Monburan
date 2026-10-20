@@ -18,16 +18,16 @@ public class DeleteJobAlertUseCase : IUseCase<DeleteJobAlertCommand, bool>
         _alerts = alerts;
     }
 
-    public async Task<RequestResult<bool>> ExecuteAsync(DeleteJobAlertCommand request)
+    public async Task<RequestResult<bool>> ExecuteAsync(DeleteJobAlertCommand request, CancellationToken cancellationToken = default)
     {
-        var found = await _alerts.GetByIdAsync(Id.Create(request.AlertId));
+        var found = await _alerts.GetByIdAsync(Id.Create(request.AlertId), cancellationToken);
         if (found.Status != EResultStatus.Success || found.Data is null
             || found.Data.CandidateId.Value != request.CandidateId)
         {
             return RequestResult<bool>.EntityNotFound("JobAlert", request.AlertId, "Alerta não encontrado.");
         }
 
-        var result = await _alerts.DeleteAsync(found.Data.Id);
+        var result = await _alerts.DeleteAsync(found.Data.Id, cancellationToken);
         if (result.Status != EResultStatus.Success)
             return RequestResult<bool>.FromResult(result);
 

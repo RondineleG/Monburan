@@ -26,15 +26,15 @@ public sealed class UpgradePlanUseCase : IUseCase<UpgradePlanRequest, Subscripti
         _subscriptionRepository = subscriptionRepository;
     }
 
-    public async Task<RequestResult<SubscriptionResponse>> ExecuteAsync(UpgradePlanRequest request)
+    public async Task<RequestResult<SubscriptionResponse>> ExecuteAsync(UpgradePlanRequest request, CancellationToken cancellationToken = default)
     {
         // Validar se anunciante existe
-        var advertiserResult = await _advertiserRepository.GetByIdAsync(Id.Create(request.AdvertiserId));
+        var advertiserResult = await _advertiserRepository.GetByIdAsync(Id.Create(request.AdvertiserId), cancellationToken);
         if (advertiserResult.Status != EResultStatus.Success || advertiserResult.Data == null)
             return RequestResult<SubscriptionResponse>.EntityNotFound("Advertiser", request.AdvertiserId, "Anunciante não encontrado.");
 
         // Validar se plano existe
-        var planResult = await _planRepository.GetByIdAsync(Id.Create(request.NewPlanId));
+        var planResult = await _planRepository.GetByIdAsync(Id.Create(request.NewPlanId), cancellationToken);
         if (planResult.Status != EResultStatus.Success || planResult.Data == null)
             return RequestResult<SubscriptionResponse>.EntityNotFound("SubscriptionPlan", request.NewPlanId, "Plano não encontrado.");
 
@@ -42,9 +42,13 @@ public sealed class UpgradePlanUseCase : IUseCase<UpgradePlanRequest, Subscripti
         if (!plan.IsActive)
             return RequestResult<SubscriptionResponse>.WithDomainError("O plano selecionado não está ativo.");
 
+        // Plano de candidato não pode ser assinado por empresa (e vice-versa)
+        if (plan.Audience != EPlanAudience.Advertiser)
+            return RequestResult<SubscriptionResponse>.WithDomainError("O plano selecionado não é válido para esta conta.");
+
         // Cancelar assinatura anterior se existir (consulta direta — a busca antiga
         // varria só as 100 primeiras assinaturas da plataforma e podia deixar duas ativas)
-        var activeResult = await _subscriptionRepository.GetActiveByAdvertiserIdAsync(Id.Create(request.AdvertiserId));
+        var activeResult = await _subscriptionRepository.GetActiveByAdvertiserIdAsync(Id.Create(request.AdvertiserId), cancellationToken);
         if (activeResult.Status != EResultStatus.Success)
             return RequestResult<SubscriptionResponse>.FromResult(activeResult);
 
@@ -69,7 +73,12 @@ public sealed class UpgradePlanUseCase : IUseCase<UpgradePlanRequest, Subscripti
             AdvertiserId = Id.Create(request.AdvertiserId),
             PlanId = Id.Create(request.NewPlanId),
             StartDate = DateTime.UtcNow,
-            EndDate = plan.Name == "Free" ? null : DateTime.UtcNow.AddMonths(1),
+            EndDate = plan.Period switch
+            {
+                ESubscriptionPeriod.Monthly => DateTime.UtcNow.AddMonths(1),
+                ESubscriptionPeriod.Annual => DateTime.UtcNow.AddYears(1),
+                _ => null
+            },
             Status = ESubscriptionStatus.Active,
             PaymentId = !string.IsNullOrEmpty(request.PaymentMethod) ? $"manual_{request.PaymentMethod}" : null,
             TenantId = "default"
@@ -79,7 +88,7 @@ public sealed class UpgradePlanUseCase : IUseCase<UpgradePlanRequest, Subscripti
         var advertiser = advertiserResult.Data;
         advertiser.ActivePlan = plan.Name;
 
-        var changeResult = await _subscriptionRepository.ChangePlanAsync(activeSubscription, newSubscription, advertiser);
+        var changeResult = await _subscriptionRepository.ChangePlanAsync(activeSubscription, newSubscription, advertiser, cancellationToken);
         if (changeResult.Status != EResultStatus.Success)
             return RequestResult<SubscriptionResponse>.FromResult(changeResult);
 

@@ -3,6 +3,7 @@ using FluentAssertions;
 using Monburan.Core.DTOs.Request;
 using Monburan.Core.Entities;
 using Monburan.Core.Enums;
+using Monburan.Core.Interfaces.Repositories;
 using Monburan.Core.Interfaces.Repositories.Base;
 using Monburan.Core.Interfaces.Services;
 using Monburan.Core.Requests;
@@ -23,6 +24,7 @@ public class ImproveResumeUseCaseTests
     private readonly IBaseRepository<Resume> _resumes = Substitute.For<IBaseRepository<Resume>>();
     private readonly IAiTextClient _ai = Substitute.For<IAiTextClient>();
     private readonly IAiUsageLimiter _limiter = Substitute.For<IAiUsageLimiter>();
+    private readonly ISubscriptionRepository _subscriptions = Substitute.For<ISubscriptionRepository>();
     private readonly Guid _candidateId = Guid.NewGuid();
     private readonly Guid _resumeId = Guid.NewGuid();
     private readonly ImproveResumeUseCase _useCase;
@@ -40,9 +42,24 @@ public class ImproveResumeUseCaseTests
             return true;
         });
 
-        _resumes.GetByIdAsync(Arg.Any<Id>()).Returns(RequestResult<Resume>.Success(ResumeOf(_candidateId)));
+        _resumes.GetByIdAsync(Arg.Any<Id>(), Arg.Any<CancellationToken>()).Returns(RequestResult<Resume>.Success(ResumeOf(_candidateId)));
+        _subscriptions.GetActiveByCandidateIdAsync(Arg.Any<Id>(), Arg.Any<CancellationToken>())
+            .Returns(RequestResult<Subscription?>.Success(PremiumSubscription()));
 
-        _useCase = new ImproveResumeUseCase(new GetResumeByIdUseCase(_resumes), _ai, _limiter);
+        _useCase = new ImproveResumeUseCase(new GetResumeByIdUseCase(_resumes), _ai, _limiter, _subscriptions);
+    }
+
+    private Subscription PremiumSubscription()
+    {
+        var plan = new SubscriptionPlan { Id = Id.Create(Guid.NewGuid()), Name = "Premium", HasAiAssistant = true };
+        return new Subscription
+        {
+            Id = Id.Create(Guid.NewGuid()),
+            CandidateId = Id.Create(_candidateId),
+            PlanId = plan.Id,
+            Plan = plan,
+            Status = ESubscriptionStatus.Active
+        };
     }
 
     private ImproveResumeRequest Request(bool consent = true, Guid? candidateId = null) => new()
@@ -86,9 +103,43 @@ public class ImproveResumeUseCaseTests
     }
 
     [Fact]
+    public async Task ExecuteAsync_WithoutPremiumPlan_ReturnsDomainErrorAndNeverCallsTheProvider()
+    {
+        _subscriptions.GetActiveByCandidateIdAsync(Arg.Any<Id>(), Arg.Any<CancellationToken>())
+            .Returns(RequestResult<Subscription?>.Success(null));
+
+        var result = await _useCase.ExecuteAsync(Request());
+
+        result.Status.Should().Be(EResultStatus.DomainError);
+        result.Message.Should().Contain("Premium");
+        await _ai.DidNotReceiveWithAnyArgs().CompleteAsync(default!, default);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_WithPlanWithoutAiAssistant_ReturnsDomainError()
+    {
+        var freePlan = new SubscriptionPlan { Id = Id.Create(Guid.NewGuid()), Name = "Free", HasAiAssistant = false };
+        _subscriptions.GetActiveByCandidateIdAsync(Arg.Any<Id>(), Arg.Any<CancellationToken>())
+            .Returns(RequestResult<Subscription?>.Success(new Subscription
+            {
+                Id = Id.Create(Guid.NewGuid()),
+                CandidateId = Id.Create(_candidateId),
+                PlanId = freePlan.Id,
+                Plan = freePlan,
+                Status = ESubscriptionStatus.Active
+            }));
+
+        var result = await _useCase.ExecuteAsync(Request());
+
+        result.Status.Should().Be(EResultStatus.DomainError);
+        result.Message.Should().Contain("Premium");
+        await _ai.DidNotReceiveWithAnyArgs().CompleteAsync(default!, default);
+    }
+
+    [Fact]
     public async Task ExecuteAsync_WhenResumeDoesNotExist_ReturnsNotFound()
     {
-        _resumes.GetByIdAsync(Arg.Any<Id>()).Returns(RequestResult<Resume>.EntityNotFound("Resume", _resumeId, "x"));
+        _resumes.GetByIdAsync(Arg.Any<Id>(), Arg.Any<CancellationToken>()).Returns(RequestResult<Resume>.EntityNotFound("Resume", _resumeId, "x"));
 
         var result = await _useCase.ExecuteAsync(Request());
 
@@ -109,7 +160,7 @@ public class ImproveResumeUseCaseTests
     [Fact]
     public async Task ExecuteAsync_WhenResumeHasOnlyATitle_AsksToFillItIn()
     {
-        _resumes.GetByIdAsync(Arg.Any<Id>()).Returns(RequestResult<Resume>.Success(
+        _resumes.GetByIdAsync(Arg.Any<Id>(), Arg.Any<CancellationToken>()).Returns(RequestResult<Resume>.Success(
             new Resume { Id = Id.Create(_resumeId), CandidateId = Id.Create(_candidateId), Title = "Só título" }));
 
         var result = await _useCase.ExecuteAsync(Request());

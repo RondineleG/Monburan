@@ -38,7 +38,7 @@ public class UploadFileUseCase : IUseCase<UploadFileRequest, UploadFileResponse>
         _storageProvider = storageProvider;
     }
 
-    public async Task<RequestResult<UploadFileResponse>> ExecuteAsync(UploadFileRequest request)
+    public async Task<RequestResult<UploadFileResponse>> ExecuteAsync(UploadFileRequest request, CancellationToken cancellationToken = default)
     {
         // Streams sem seek (ex.: upload do Blazor, que entrega IBrowserFile.OpenReadStream) são
         // bufferizados ANTES de validar: medir o tamanho e ler o cabeçalho exigem seek, e a

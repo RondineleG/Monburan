@@ -23,9 +23,9 @@ public class UpdateResumeUseCase : IUseCase<UpdateResumeRequest, ResumeResponse>
         _validator = validator;
     }
 
-    public async Task<RequestResult<ResumeResponse>> ExecuteAsync(UpdateResumeRequest request)
+    public async Task<RequestResult<ResumeResponse>> ExecuteAsync(UpdateResumeRequest request, CancellationToken cancellationToken = default)
     {
-        var existingResumeResult = await _resumeRepository.GetByIdAsync(Id.Create(request.Id));
+        var existingResumeResult = await _resumeRepository.GetByIdAsync(Id.Create(request.Id), cancellationToken);
         if (existingResumeResult.Status != EResultStatus.Success || existingResumeResult.Data == null)
             return RequestResult<ResumeResponse>.EntityNotFound("Resume", request.Id, "Currículo não encontrado.");
 
@@ -44,7 +44,7 @@ public class UpdateResumeUseCase : IUseCase<UpdateResumeRequest, ResumeResponse>
         if (!validationResult.IsValid)
             return RequestResult<ResumeResponse>.WithValidationError(validationResult.Errors.First().Message);
 
-        var result = await _resumeRepository.UpdateAsync(existingResume);
+        var result = await _resumeRepository.UpdateAsync(existingResume, cancellationToken);
         if (result.Status != EResultStatus.Success)
             return RequestResult<ResumeResponse>.FromResult(result);
 

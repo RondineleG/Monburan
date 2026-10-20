@@ -322,18 +322,27 @@
         isLoading = true;
         loadFailed = false;
 
-        var result = await ListUseCase.ExecuteAsync();
-        if (result.Status == EResultStatus.Success && result.Data is not null)
+        try
         {
-            providers = result.Data.ToList();
+            var result = await ListUseCase.ExecuteAsync(cancellation.Token);
+            if (result.Status == EResultStatus.Success && result.Data is not null)
+            {
+                providers = result.Data.ToList();
+            }
+            else
+            {
+                Logger.LogFailure(result, "Listar provedores de IA");
+                loadFailed = true;
+            }
         }
-        else
+        catch (OperationCanceledException)
         {
-            Logger.LogFailure(result, "Listar provedores de IA");
-            loadFailed = true;
+            // A pessoa saiu da página: nada a mostrar
         }
-
-        isLoading = false;
+        finally
+        {
+            isLoading = false;
+        }
     }
 
     private bool IsBusy(Guid id) => busyId == id || testing.Contains(id);
@@ -377,14 +386,14 @@
         isSaving = true;
         try
         {
-            var result = await SaveUseCase.ExecuteAsync(form.ToRequest(admin));
+            var result = await SaveUseCase.ExecuteAsync(form.ToRequest(admin), cancellation.Token);
             if (result.Status == EResultStatus.Success && result.Data is not null)
             {
                 Logger.LogInformation("IA: provedor {Provider} salvo por {Admin}", result.Data.Name, admin);
                 await AuditLog.RecordAsync(new AdminAuditRecord(
                     AdminAuditActions.AiProviderSaved, actor, AdminAuditActions.AiProviderTarget, result.Data.Id.ToString(), result.Data.Name,
                     $"{ProtocolLabel(result.Data.Protocol)}, modelo {result.Data.Model}, variável {result.Data.ApiKeyEnvVar}"
-                    + (result.Data.IsDefault ? ", padrão" : string.Empty) + (result.Data.IsEnabled ? string.Empty : ", desativado")));
+                    + (result.Data.IsDefault ? ", padrão" : string.Empty) + (result.Data.IsEnabled ? string.Empty : ", desativado")), cancellation.Token);
                 Toast.ShowSuccess($"Provedor “{result.Data.Name}” salvo.");
                 form = null;
                 await LoadAsync();
@@ -399,6 +408,10 @@
                 foreach (var message in unmatched)
                     Toast.ShowError(message);
         }
+        catch (OperationCanceledException)
+        {
+            // A pessoa saiu da página: nada a mostrar
+        }
         finally
         {
             isSaving = false;
@@ -410,13 +423,13 @@
         busyId = provider.Id;
         try
         {
-            var result = await SetDefaultUseCase.ExecuteAsync(new AiProviderActionRequest { Id = provider.Id, UpdatedBy = admin });
+            var result = await SetDefaultUseCase.ExecuteAsync(new AiProviderActionRequest { Id = provider.Id, UpdatedBy = admin }, cancellation.Token);
             if (result.Status == EResultStatus.Success)
             {
                 Logger.LogInformation("IA: provedor {Provider} virou o padrão por {Admin}", provider.Name, admin);
                 await AuditLog.RecordAsync(new AdminAuditRecord(
                     AdminAuditActions.AiProviderDefaultChanged, actor, AdminAuditActions.AiProviderTarget, provider.Id.ToString(), provider.Name,
-                    "passou a ser o provedor padrão"));
+                    "passou a ser o provedor padrão"), cancellation.Token);
                 Toast.ShowSuccess($"“{provider.Name}” agora é o provedor padrão.");
                 await LoadAsync();
             }
@@ -424,6 +437,10 @@
             {
                 Toast.ShowError(ResultMessages.ToUserMessage(result, "Não foi possível mudar o provedor padrão."));
             }
+        }
+        catch (OperationCanceledException)
+        {
+            // A pessoa saiu da página: nada a mostrar
         }
         finally
         {
@@ -440,19 +457,23 @@
             request.IsEnabled = !provider.IsEnabled;
             request.MakeDefault = false;
 
-            var result = await SaveUseCase.ExecuteAsync(request);
+            var result = await SaveUseCase.ExecuteAsync(request, cancellation.Token);
             if (result.Status == EResultStatus.Success)
             {
                 Logger.LogInformation("IA: provedor {Provider} {Action} por {Admin}", provider.Name, request.IsEnabled ? "ativado" : "desativado", admin);
                 await AuditLog.RecordAsync(new AdminAuditRecord(
                     AdminAuditActions.AiProviderSaved, actor, AdminAuditActions.AiProviderTarget, provider.Id.ToString(), provider.Name,
-                    request.IsEnabled ? "ativado" : "desativado"));
+                    request.IsEnabled ? "ativado" : "desativado"), cancellation.Token);
                 await LoadAsync();
             }
             else
             {
                 Toast.ShowError(ResultMessages.ToUserMessage(result, "Não foi possível alterar o provedor."));
             }
+        }
+        catch (OperationCanceledException)
+        {
+            // A pessoa saiu da página: nada a mostrar
         }
         finally
         {
@@ -475,12 +496,12 @@
         busyId = provider.Id;
         try
         {
-            var result = await DeleteUseCase.ExecuteAsync(new AiProviderActionRequest { Id = provider.Id, UpdatedBy = admin });
+            var result = await DeleteUseCase.ExecuteAsync(new AiProviderActionRequest { Id = provider.Id, UpdatedBy = admin }, cancellation.Token);
             if (result.Status == EResultStatus.Success)
             {
                 Logger.LogInformation("IA: provedor {Provider} excluído por {Admin}", provider.Name, admin);
                 await AuditLog.RecordAsync(new AdminAuditRecord(
-                    AdminAuditActions.AiProviderDeleted, actor, AdminAuditActions.AiProviderTarget, provider.Id.ToString(), provider.Name));
+                    AdminAuditActions.AiProviderDeleted, actor, AdminAuditActions.AiProviderTarget, provider.Id.ToString(), provider.Name), cancellation.Token);
                 testResults.Remove(provider.Id);
                 Toast.ShowSuccess($"Provedor “{provider.Name}” excluído.");
                 await LoadAsync();
@@ -489,6 +510,10 @@
             {
                 Toast.ShowError(ResultMessages.ToUserMessage(result, "Não foi possível excluir o provedor."));
             }
+        }
+        catch (OperationCanceledException)
+        {
+            // A pessoa saiu da página: nada a mostrar
         }
         finally
         {

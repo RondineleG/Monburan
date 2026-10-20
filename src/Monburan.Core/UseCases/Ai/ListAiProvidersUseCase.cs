@@ -18,9 +18,9 @@ public class ListAiProvidersUseCase
         _secrets = secrets;
     }
 
-    public async Task<RequestResult<IReadOnlyList<AiProviderResponse>>> ExecuteAsync()
+    public async Task<RequestResult<IReadOnlyList<AiProviderResponse>>> ExecuteAsync(CancellationToken cancellationToken = default)
     {
-        var result = await _repository.ListAsync();
+        var result = await _repository.ListAsync(cancellationToken);
         if (result.Status != EResultStatus.Success || result.Data is null)
             return RequestResult<IReadOnlyList<AiProviderResponse>>.FromResult(result);
 

@@ -24,7 +24,7 @@ public sealed class CreateCandidateUseCase : IUseCase<CreateCandidateRequest, Ca
         _candidateValidator = candidateValidator;
     }
 
-    public async Task<RequestResult<CandidateResponse>> ExecuteAsync(CreateCandidateRequest request)
+    public async Task<RequestResult<CandidateResponse>> ExecuteAsync(CreateCandidateRequest request, CancellationToken cancellationToken = default)
     {
         var candidate = new Candidate
         {
@@ -57,7 +57,7 @@ public sealed class CreateCandidateUseCase : IUseCase<CreateCandidateRequest, Ca
                 return ToValidationError(blockingErrors);
         }
 
-        var result = await _profileRepository.CreateCandidateAsync(candidate);
+        var result = await _profileRepository.CreateCandidateAsync(candidate, cancellationToken);
         if (result.Status != EResultStatus.Success)
             return RequestResult<CandidateResponse>.FromResult(result);
 

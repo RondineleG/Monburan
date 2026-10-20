@@ -29,14 +29,14 @@ public class SaveAiProviderUseCase : IUseCase<AiProviderRequest, AiProviderRespo
         _secrets = secrets;
     }
 
-    public async Task<RequestResult<AiProviderResponse>> ExecuteAsync(AiProviderRequest request)
+    public async Task<RequestResult<AiProviderResponse>> ExecuteAsync(AiProviderRequest request, CancellationToken cancellationToken = default)
     {
         var errors = AiProviderValidator.Validate(request);
 
         AiProvider? current = null;
         if (request.Id is { } providerId)
         {
-            var found = await _repository.GetByIdAsync(Id.Create(providerId));
+            var found = await _repository.GetByIdAsync(Id.Create(providerId), cancellationToken);
             if (found.Status != EResultStatus.Success || found.Data is null)
                 return RequestResult<AiProviderResponse>.EntityNotFound("AiProvider", providerId, "Provedor não encontrado.");
 
@@ -44,7 +44,7 @@ public class SaveAiProviderUseCase : IUseCase<AiProviderRequest, AiProviderRespo
         }
 
         var name = request.Name?.Trim() ?? string.Empty;
-        if (errors.All(error => error.Field != nameof(request.Name)) && await _repository.NameExistsAsync(name, current?.Id))
+        if (errors.All(error => error.Field != nameof(request.Name)) && await _repository.NameExistsAsync(name, current?.Id, cancellationToken: cancellationToken))
             errors.Add((nameof(request.Name), "Já existe um provedor com esse nome."));
 
         if (current is { IsDefault: true } && !request.IsEnabled)
@@ -82,14 +82,14 @@ public class SaveAiProviderUseCase : IUseCase<AiProviderRequest, AiProviderRespo
         if (current is null)
         {
             // O primeiro provedor ativo vira o padrão sozinho
-            if (request.IsEnabled && await _repository.CountAsync() == 0)
+            if (request.IsEnabled && await _repository.CountAsync(cancellationToken) == 0)
                 makeDefault = true;
 
-            saved = await _repository.CreateAsync(provider);
+            saved = await _repository.CreateAsync(provider, cancellationToken);
         }
         else
         {
-            saved = await _repository.UpdateAsync(provider);
+            saved = await _repository.UpdateAsync(provider, cancellationToken);
         }
 
         if (saved.Status != EResultStatus.Success || saved.Data is null)
@@ -97,7 +97,7 @@ public class SaveAiProviderUseCase : IUseCase<AiProviderRequest, AiProviderRespo
 
         if (makeDefault && !saved.Data.IsDefault)
         {
-            saved = await _repository.SetDefaultAsync(saved.Data.Id, request.UpdatedBy);
+            saved = await _repository.SetDefaultAsync(saved.Data.Id, request.UpdatedBy, cancellationToken);
             if (saved.Status != EResultStatus.Success || saved.Data is null)
                 return RequestResult<AiProviderResponse>.FromResult(saved);
         }

@@ -37,25 +37,26 @@ public sealed class CheckJobLimitUseCase : IUseCase<CheckJobLimitRequest, CheckJ
         _jobRepository = jobRepository;
     }
 
-    public async Task<RequestResult<CheckJobLimitResponse>> ExecuteAsync(CheckJobLimitRequest request)
+    public async Task<RequestResult<CheckJobLimitResponse>> ExecuteAsync(CheckJobLimitRequest request, CancellationToken cancellationToken = default)
     {
-        var activeResult = await _subscriptionRepository.GetActiveByAdvertiserIdAsync(Id.Create(request.AdvertiserId));
+        var activeResult = await _subscriptionRepository.GetActiveByAdvertiserIdAsync(Id.Create(request.AdvertiserId), cancellationToken);
         if (activeResult.Status != EResultStatus.Success)
             return RequestResult<CheckJobLimitResponse>.FromResult(activeResult);
 
         var plan = activeResult.Data?.Plan;
         if (plan is null && activeResult.Data is { } subscription)
         {
-            var planResult = await _planRepository.GetByIdAsync(subscription.PlanId);
+            var planResult = await _planRepository.GetByIdAsync(subscription.PlanId, cancellationToken);
             plan = planResult.Status == EResultStatus.Success ? planResult.Data : null;
         }
 
         // Sem assinatura ativa = plano Free
         if (plan is null)
         {
-            var allPlansResult = await _planRepository.GetAllAsync(1, 100);
+            var allPlansResult = await _planRepository.GetAllAsync(1, 100, cancellationToken);
             plan = allPlansResult.Status == EResultStatus.Success
-                ? allPlansResult.Data!.FirstOrDefault(p => p.Name == FreePlanName && p.IsActive)
+                ? allPlansResult.Data!.FirstOrDefault(p => p.Name == FreePlanName
+                    && p.Audience == EPlanAudience.Advertiser && p.IsActive)
                 : null;
         }
 
@@ -65,7 +66,7 @@ public sealed class CheckJobLimitUseCase : IUseCase<CheckJobLimitRequest, CheckJ
         var planName = plan?.Name ?? FreePlanName;
 
         var currentJobs = request.CurrentActiveJobs
-            ?? await _jobRepository.CountActiveByAdvertiserAsync(request.AdvertiserId);
+            ?? await _jobRepository.CountActiveByAdvertiserAsync(request.AdvertiserId, cancellationToken);
 
         var canCreate = maxJobs == -1 || currentJobs < maxJobs;
         var remaining = maxJobs == -1 ? int.MaxValue : Math.Max(0, maxJobs - currentJobs);

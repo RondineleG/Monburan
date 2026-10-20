@@ -16,18 +16,18 @@ public class ResumeRepository : IResumeRepository
         _contextFactory = contextFactory;
     }
 
-    public async Task<RequestResult<Resume>> CreateAsync(Resume entity)
+    public async Task<RequestResult<Resume>> CreateAsync(Resume entity, CancellationToken cancellationToken = default)
     {
-        await using var context = await _contextFactory.CreateDbContextAsync();
+        await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);
         context.Resumes.Add(entity);
-        await context.SaveChangesAsync();
+        await context.SaveChangesAsync(cancellationToken);
         return RequestResult<Resume>.Success(entity);
     }
 
-    public async Task<RequestResult<Resume>> DeleteAsync(Id id)
+    public async Task<RequestResult<Resume>> DeleteAsync(Id id, CancellationToken cancellationToken = default)
     {
-        await using var context = await _contextFactory.CreateDbContextAsync();
-        var resume = await context.Resumes.FindAsync(id);
+        await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);
+        var resume = await context.Resumes.FindAsync([id], cancellationToken);
         if (resume == null)
             return RequestResult<Resume>.EntityNotFound("Resume", id.Value, "Currículo não encontrado.");
 
@@ -35,33 +35,33 @@ public class ResumeRepository : IResumeRepository
         resume.DeletedAt = DateTime.UtcNow;
 
         context.Resumes.Update(resume);
-        await context.SaveChangesAsync();
+        await context.SaveChangesAsync(cancellationToken);
         return RequestResult<Resume>.Success(resume);
     }
 
-    public async Task<RequestResult<IEnumerable<Resume>>> GetAllAsync(int page, int size)
+    public async Task<RequestResult<IEnumerable<Resume>>> GetAllAsync(int page, int size, CancellationToken cancellationToken = default)
     {
-        await using var context = await _contextFactory.CreateDbContextAsync();
+        await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);
         var resumes = await context.Resumes
             .Include(r => r.Candidate)
             .Where(r => !r.IsDeleted)
             .OrderByDescending(r => r.CreatedAt)
             .Skip((page - 1) * size)
             .Take(size)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         return RequestResult<IEnumerable<Resume>>.Success(resumes);
     }
 
-    public async Task<RequestResult<Resume>> GetByIdAsync(Id id)
+    public async Task<RequestResult<Resume>> GetByIdAsync(Id id, CancellationToken cancellationToken = default)
     {
-        await using var context = await _contextFactory.CreateDbContextAsync();
+        await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);
         // Habilidades são entidade própria (não owned): sem Include nunca apareciam no detalhe/edição
         var resume = await context.Resumes
             .AsNoTracking()
             .Include(r => r.Candidate)
             .Include(r => r.Skills)
-            .FirstOrDefaultAsync(r => r.Id == id && !r.IsDeleted);
+            .FirstOrDefaultAsync(r => r.Id == id && !r.IsDeleted, cancellationToken);
 
         if (resume == null)
             return RequestResult<Resume>.EntityNotFound("Resume", id.Value, "Currículo não encontrado.");
@@ -69,16 +69,16 @@ public class ResumeRepository : IResumeRepository
         return RequestResult<Resume>.Success(resume);
     }
 
-    public async Task<RequestResult<Resume>> UpdateAsync(Resume entity)
+    public async Task<RequestResult<Resume>> UpdateAsync(Resume entity, CancellationToken cancellationToken = default)
     {
-        await using var context = await _contextFactory.CreateDbContextAsync();
+        await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);
 
         // Formação, experiência e idiomas são coleções owned com chave sombra: Update() num
         // grafo desanexado falhava ("shadow key property 'Education.Id' is unknown") e editar
         // o currículo com essas seções dava erro. Aplica as mudanças na versão rastreada.
         var tracked = await context.Resumes
             .Include(r => r.Skills)
-            .FirstOrDefaultAsync(r => r.Id == entity.Id && !r.IsDeleted);
+            .FirstOrDefaultAsync(r => r.Id == entity.Id && !r.IsDeleted, cancellationToken);
         if (tracked is null)
             return RequestResult<Resume>.EntityNotFound("Resume", entity.Id.Value, "Currículo não encontrado.");
 
@@ -92,7 +92,7 @@ public class ResumeRepository : IResumeRepository
         ReplaceOwned(tracked.Languages, entity.Languages);
         MergeSkills(context, tracked, entity.Skills);
 
-        await context.SaveChangesAsync();
+        await context.SaveChangesAsync(cancellationToken);
         return RequestResult<Resume>.Success(tracked);
     }
 
@@ -142,9 +142,9 @@ public class ResumeRepository : IResumeRepository
         }
     }
 
-    public async Task<RequestResult<IEnumerable<Resume>>> ListByCandidateAsync(Guid candidateId, int page = 1, int size = 0)
+    public async Task<RequestResult<IEnumerable<Resume>>> ListByCandidateAsync(Guid candidateId, int page = 1, int size = 0, CancellationToken cancellationToken = default)
     {
-        await using var context = await _contextFactory.CreateDbContextAsync();
+        await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);
         var candidateKey = Id.Create(candidateId);
         var query = context.Resumes
             .AsNoTracking()
@@ -154,30 +154,30 @@ public class ResumeRepository : IResumeRepository
         // Sem paginação, a listagem para no teto: materializar todos os currículos de um
         // candidato com dezenas de milhares de registros estourava a memória do servidor
         var (skip, take) = Pagination.For(page, size, IResumeRepository.MaxListSize);
-        var resumes = await query.Skip(skip).Take(take).ToListAsync();
+        var resumes = await query.Skip(skip).Take(take).ToListAsync(cancellationToken);
 
         return RequestResult<IEnumerable<Resume>>.Success(resumes);
     }
 
-    public async Task<RequestResult<Resume?>> GetActiveWithSkillsAsync(Guid candidateId)
+    public async Task<RequestResult<Resume?>> GetActiveWithSkillsAsync(Guid candidateId, CancellationToken cancellationToken = default)
     {
-        await using var context = await _contextFactory.CreateDbContextAsync();
+        await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);
         var candidateKey = Id.Create(candidateId);
         var resume = await context.Resumes
             .AsNoTracking()
             .Include(r => r.Skills)
-            .FirstOrDefaultAsync(r => !r.IsDeleted && r.IsActive && r.CandidateId == candidateKey);
+            .FirstOrDefaultAsync(r => !r.IsDeleted && r.IsActive && r.CandidateId == candidateKey, cancellationToken);
 
         return RequestResult<Resume?>.Success(resume);
     }
 
-    public async Task<RequestResult<int>> CountByCandidateAsync(Guid candidateId)
+    public async Task<RequestResult<int>> CountByCandidateAsync(Guid candidateId, CancellationToken cancellationToken = default)
     {
-        await using var context = await _contextFactory.CreateDbContextAsync();
+        await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);
         var candidateKey = Id.Create(candidateId);
         var count = await context.Resumes
             .AsNoTracking()
-            .CountAsync(r => !r.IsDeleted && r.CandidateId == candidateKey);
+            .CountAsync(r => !r.IsDeleted && r.CandidateId == candidateKey, cancellationToken);
 
         return RequestResult<int>.Success(count);
     }

@@ -10,13 +10,13 @@ public interface IResumeRepository : IBaseRepository<Resume>
     /// Currículos do candidato. <paramref name="size"/> em 0 devolve até o teto da listagem
     /// (<see cref="MaxListSize"/>); com tamanho maior, devolve a página pedida.
     /// </summary>
-    Task<RequestResult<IEnumerable<Resume>>> ListByCandidateAsync(Guid candidateId, int page = 1, int size = 0);
+    Task<RequestResult<IEnumerable<Resume>>> ListByCandidateAsync(Guid candidateId, int page = 1, int size = 0, CancellationToken cancellationToken = default);
 
     /// <summary>Currículo ativo do candidato com as habilidades carregadas (base das recomendações).</summary>
-    Task<RequestResult<Resume?>> GetActiveWithSkillsAsync(Guid candidateId);
+    Task<RequestResult<Resume?>> GetActiveWithSkillsAsync(Guid candidateId, CancellationToken cancellationToken = default);
 
     /// <summary>Quantidade de currículos cadastrados (não excluídos) do candidato.</summary>
-    Task<RequestResult<int>> CountByCandidateAsync(Guid candidateId);
+    Task<RequestResult<int>> CountByCandidateAsync(Guid candidateId, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Maior quantidade que uma listagem devolve sem paginação. Um candidato com dezenas de

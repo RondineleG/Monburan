@@ -10,7 +10,10 @@ public class SubscriptionConfiguration : IEntityTypeConfiguration<Subscription>
 {
     public void Configure(EntityTypeBuilder<Subscription> builder)
     {
-        builder.ToTable("Subscriptions");
+        builder.ToTable("Subscriptions", table =>
+            // Toda assinatura tem exatamente um dono: empresa ou candidato, nunca os dois nem nenhum
+            table.HasCheckConstraint("CK_Subscriptions_Owner",
+                "(\"AdvertiserId\" IS NOT NULL) <> (\"CandidateId\" IS NOT NULL)"));
 
         builder.HasKey(s => s.Id);
 
@@ -23,11 +26,17 @@ public class SubscriptionConfiguration : IEntityTypeConfiguration<Subscription>
 
         builder.Property(s => s.AdvertiserId)
             .HasConversion(
-                id => id.Value,
+                id => id!.Value,
                 value => Id.Create(value)
             )
-            .HasColumnType("uuid")
-            .IsRequired();
+            .HasColumnType("uuid");
+
+        builder.Property(s => s.CandidateId)
+            .HasConversion(
+                id => id!.Value,
+                value => Id.Create(value)
+            )
+            .HasColumnType("uuid");
 
         builder.Property(s => s.PlanId)
             .HasConversion(
@@ -55,6 +64,11 @@ public class SubscriptionConfiguration : IEntityTypeConfiguration<Subscription>
             .HasForeignKey(s => s.AdvertiserId)
             .OnDelete(DeleteBehavior.Restrict);
 
+        builder.HasOne(s => s.Candidate)
+            .WithMany()
+            .HasForeignKey(s => s.CandidateId)
+            .OnDelete(DeleteBehavior.Restrict);
+
         builder.HasOne(s => s.Plan)
             .WithMany()
             .HasForeignKey(s => s.PlanId)
@@ -62,6 +76,9 @@ public class SubscriptionConfiguration : IEntityTypeConfiguration<Subscription>
 
         builder.HasIndex(s => s.AdvertiserId)
             .HasDatabaseName("IX_Subscriptions_AdvertiserId");
+
+        builder.HasIndex(s => s.CandidateId)
+            .HasDatabaseName("IX_Subscriptions_CandidateId");
 
         builder.HasIndex(s => s.PlanId)
             .HasDatabaseName("IX_Subscriptions_PlanId");

@@ -18,18 +18,18 @@ public class AdvertiserRepository : IAdvertiserRepository
         _contextFactory = contextFactory;
     }
 
-    public async Task<RequestResult<Advertiser>> CreateAsync(Advertiser entity)
+    public async Task<RequestResult<Advertiser>> CreateAsync(Advertiser entity, CancellationToken cancellationToken = default)
     {
-        await using var context = await _contextFactory.CreateDbContextAsync();
+        await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);
         context.Advertisers.Add(entity);
-        await context.SaveChangesAsync();
+        await context.SaveChangesAsync(cancellationToken);
         return RequestResult<Advertiser>.Success(entity);
     }
 
-    public async Task<RequestResult<Advertiser>> DeleteAsync(Id id)
+    public async Task<RequestResult<Advertiser>> DeleteAsync(Id id, CancellationToken cancellationToken = default)
     {
-        await using var context = await _contextFactory.CreateDbContextAsync();
-        var advertiser = await context.Advertisers.FindAsync(id);
+        await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);
+        var advertiser = await context.Advertisers.FindAsync([id], cancellationToken);
         if (advertiser == null)
             return RequestResult<Advertiser>.EntityNotFound("Advertiser", id.Value, "Anunciante não encontrado.");
 
@@ -37,30 +37,30 @@ public class AdvertiserRepository : IAdvertiserRepository
         advertiser.DeletedAt = DateTime.UtcNow;
         
         context.Advertisers.Update(advertiser);
-        await context.SaveChangesAsync();
+        await context.SaveChangesAsync(cancellationToken);
         return RequestResult<Advertiser>.Success(advertiser);
     }
 
-    public async Task<RequestResult<IEnumerable<Advertiser>>> GetAllAsync(int page, int size)
+    public async Task<RequestResult<IEnumerable<Advertiser>>> GetAllAsync(int page, int size, CancellationToken cancellationToken = default)
     {
-        await using var context = await _contextFactory.CreateDbContextAsync();
+        await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);
         var advertisers = await context.Advertisers
             .Include(a => a.Address)
             .Where(a => !a.IsDeleted)
             .OrderByDescending(a => a.CreatedAt)
             .Skip((page - 1) * size)
             .Take(size)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         return RequestResult<IEnumerable<Advertiser>>.Success(advertisers);
     }
 
-    public async Task<RequestResult<Advertiser>> GetByIdAsync(Id id)
+    public async Task<RequestResult<Advertiser>> GetByIdAsync(Id id, CancellationToken cancellationToken = default)
     {
-        await using var context = await _contextFactory.CreateDbContextAsync();
+        await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);
         var advertiser = await context.Advertisers
             .Include(a => a.Address)
-            .FirstOrDefaultAsync(a => a.Id == id && !a.IsDeleted);
+            .FirstOrDefaultAsync(a => a.Id == id && !a.IsDeleted, cancellationToken);
 
         if (advertiser == null)
             return RequestResult<Advertiser>.EntityNotFound("Advertiser", id.Value, "Anunciante não encontrado.");
@@ -68,13 +68,13 @@ public class AdvertiserRepository : IAdvertiserRepository
         return RequestResult<Advertiser>.Success(advertiser);
     }
 
-    public async Task<RequestResult<Advertiser>> UpdateAsync(Advertiser entity)
+    public async Task<RequestResult<Advertiser>> UpdateAsync(Advertiser entity, CancellationToken cancellationToken = default)
     {
-        await using var context = await _contextFactory.CreateDbContextAsync();
+        await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);
         context.Advertisers.Update(entity);
         try
         {
-            await context.SaveChangesAsync();
+            await context.SaveChangesAsync(cancellationToken);
         }
         catch (DbUpdateException ex) when (ex.InnerException is Npgsql.PostgresException { SqlState: Npgsql.PostgresErrorCodes.UniqueViolation })
         {
@@ -86,9 +86,9 @@ public class AdvertiserRepository : IAdvertiserRepository
         return RequestResult<Advertiser>.Success(entity);
     }
 
-    public async Task<RequestResult<PagedResponse<Advertiser>>> SearchAsync(string? searchTerm, EAdvertiserStatus? status, int page, int size)
+    public async Task<RequestResult<PagedResponse<Advertiser>>> SearchAsync(string? searchTerm, EAdvertiserStatus? status, int page, int size, CancellationToken cancellationToken = default)
     {
-        await using var context = await _contextFactory.CreateDbContextAsync();
+        await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);
         var query = context.Advertisers
             .AsNoTracking()
             .Include(a => a.Address)
@@ -107,12 +107,12 @@ public class AdvertiserRepository : IAdvertiserRepository
             query = query.Where(a => a.Status == status.Value);
 
         // Filtro antes da paginação — TotalCount é o total filtrado, não o tamanho da página
-        var total = await query.CountAsync();
+        var total = await query.CountAsync(cancellationToken);
         var advertisers = await query
             .OrderByDescending(a => a.CreatedAt)
             .Skip((page - 1) * size)
             .Take(size)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         return RequestResult<PagedResponse<Advertiser>>.Success(new PagedResponse<Advertiser>
         {

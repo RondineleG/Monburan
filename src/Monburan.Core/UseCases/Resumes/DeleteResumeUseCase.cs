@@ -17,9 +17,9 @@ public class DeleteResumeUseCase : IUseCase<Guid, ResumeResponse>
         _resumeRepository = resumeRepository;
     }
 
-    public async Task<RequestResult<ResumeResponse>> ExecuteAsync(Guid resumeId)
+    public async Task<RequestResult<ResumeResponse>> ExecuteAsync(Guid resumeId, CancellationToken cancellationToken = default)
     {
-        var existingResumeResult = await _resumeRepository.GetByIdAsync(Id.Create(resumeId));
+        var existingResumeResult = await _resumeRepository.GetByIdAsync(Id.Create(resumeId), cancellationToken);
         if (existingResumeResult.Status != EResultStatus.Success || existingResumeResult.Data == null)
             return RequestResult<ResumeResponse>.EntityNotFound("Resume", resumeId, "Currículo não encontrado.");
 
@@ -27,7 +27,7 @@ public class DeleteResumeUseCase : IUseCase<Guid, ResumeResponse>
 
         // Exclusão lógica (IsDeleted): antes só desativava (IsActive = false) e o
         // currículo "excluído" continuava na lista do site e do app
-        var result = await _resumeRepository.DeleteAsync(existingResume.Id);
+        var result = await _resumeRepository.DeleteAsync(existingResume.Id, cancellationToken);
         if (result.Status != EResultStatus.Success)
             return RequestResult<ResumeResponse>.FromResult(result);
 

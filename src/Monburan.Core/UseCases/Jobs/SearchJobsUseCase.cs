@@ -20,7 +20,7 @@ public class SearchJobsUseCase : IUseCase<ListJobsRequest, ListJobsResponse>
         _savedJobs = savedJobs;
     }
 
-    public async Task<RequestResult<ListJobsResponse>> ExecuteAsync(ListJobsRequest request)
+    public async Task<RequestResult<ListJobsResponse>> ExecuteAsync(ListJobsRequest request, CancellationToken cancellationToken = default)
     {
         var result = await _jobRepository.SearchAsync(
             searchTerm: request.SearchTerm,
@@ -38,7 +38,8 @@ public class SearchJobsUseCase : IUseCase<ListJobsRequest, ListJobsResponse>
             sortDescending: request.SortDescending,
             contractType: ParseEnum<EContractType>(request.ContractType),
             salaryPeriod: ParseEnum<ESalaryPeriod>(request.SalaryPeriod),
-            publishedWithinDays: request.PublishedWithinDays is > 0 ? request.PublishedWithinDays : null);
+            publishedWithinDays: request.PublishedWithinDays is > 0 ? request.PublishedWithinDays : null,
+            cancellationToken: cancellationToken);
 
         if (result.Status != EResultStatus.Success || result.Data is null)
             return RequestResult<ListJobsResponse>.FromResult(result);
@@ -61,7 +62,7 @@ public class SearchJobsUseCase : IUseCase<ListJobsRequest, ListJobsResponse>
     }
 
     // Uma consulta em lote por página; falha na marcação não derruba a listagem (as vagas só perdem o coração preenchido)
-    private async Task<IReadOnlyCollection<Guid>> GetSavedJobIdsAsync(Guid? candidateId, IEnumerable<Job> jobs)
+    private async Task<IReadOnlyCollection<Guid>> GetSavedJobIdsAsync(Guid? candidateId, IEnumerable<Job> jobs, CancellationToken cancellationToken = default)
     {
         if (!candidateId.HasValue)
             return [];
@@ -70,7 +71,7 @@ public class SearchJobsUseCase : IUseCase<ListJobsRequest, ListJobsResponse>
         if (jobIds.Count == 0)
             return [];
 
-        var saved = await _savedJobs.ListSavedJobIdsAsync(candidateId.Value, jobIds);
+        var saved = await _savedJobs.ListSavedJobIdsAsync(candidateId.Value, jobIds, cancellationToken);
         return saved.Status == EResultStatus.Success && saved.Data is not null ? saved.Data : [];
     }
 

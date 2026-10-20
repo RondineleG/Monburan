@@ -22,9 +22,9 @@ public class UpdateJobUseCase : IUseCase<UpdateJobRequest, JobResponse>
         _jobValidator = jobValidator;
     }
 
-    public async Task<RequestResult<JobResponse>> ExecuteAsync(UpdateJobRequest request)
+    public async Task<RequestResult<JobResponse>> ExecuteAsync(UpdateJobRequest request, CancellationToken cancellationToken = default)
     {
-        var existingJobResult = await _jobRepository.GetByIdAsync(Id.Create(request.Id));
+        var existingJobResult = await _jobRepository.GetByIdAsync(Id.Create(request.Id), cancellationToken);
         if (existingJobResult.Status != EResultStatus.Success)
             return RequestResult<JobResponse>.EntityNotFound("Job", request.Id, "Vaga não encontrada.");
 
@@ -73,7 +73,7 @@ public class UpdateJobUseCase : IUseCase<UpdateJobRequest, JobResponse>
             return updateValidationResult;
         }
 
-        var updateResult = await _jobRepository.UpdateAsync(existingJob);
+        var updateResult = await _jobRepository.UpdateAsync(existingJob, cancellationToken);
         if (updateResult.Status != EResultStatus.Success)
             return RequestResult<JobResponse>.FromResult(updateResult);
 

@@ -34,7 +34,7 @@ public static class SubscriptionEndpoints
             }
 
             var advertiserId = currentUser.GetAdvertiserId() ?? Guid.Empty;
-            var result = await useCase.ExecuteAsync(advertiserId);
+            var result = await useCase.ExecuteAsync(advertiserId, cancellationToken);
             return result.ToHttpResult();
         })
         .AllowAnonymous()
@@ -55,7 +55,7 @@ public static class SubscriptionEndpoints
                 return Results.Problem(statusCode: StatusCodes.Status403Forbidden, title: "Perfil de anunciante necessário");
 
             request.AdvertiserId = advertiserId.Value;
-            var result = await useCase.ExecuteAsync(request);
+            var result = await useCase.ExecuteAsync(request, cancellationToken);
             return result.ToHttpResult();
         })
         .WithSummary("Faz upgrade do plano do anunciante autenticado");
@@ -75,7 +75,7 @@ public static class SubscriptionEndpoints
             // contra a assinatura de outro anunciante.
             request.AdvertiserId = advertiserId.Value;
 
-            var result = await useCase.ExecuteAsync(request);
+            var result = await useCase.ExecuteAsync(request, cancellationToken);
             return result.ToHttpResult();
         })
         .WithSummary("Cancela assinatura do anunciante autenticado");

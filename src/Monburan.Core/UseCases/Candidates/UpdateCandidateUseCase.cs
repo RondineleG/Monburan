@@ -24,9 +24,9 @@ public sealed class UpdateCandidateUseCase : IUseCase<UpdateCandidateRequest, Ca
         _candidateValidator = candidateValidator;
     }
 
-    public async Task<RequestResult<CandidateResponse>> ExecuteAsync(UpdateCandidateRequest request)
+    public async Task<RequestResult<CandidateResponse>> ExecuteAsync(UpdateCandidateRequest request, CancellationToken cancellationToken = default)
     {
-        var getResult = await _candidateRepository.GetByIdAsync(Id.Create(request.Id));
+        var getResult = await _candidateRepository.GetByIdAsync(Id.Create(request.Id), cancellationToken);
 
         if (getResult.Status != EResultStatus.Success || getResult.Data == null)
             return RequestResult<CandidateResponse>.EntityNotFound("Candidate", request.Id, "Candidato não encontrado.");
@@ -73,7 +73,7 @@ public sealed class UpdateCandidateUseCase : IUseCase<UpdateCandidateRequest, Ca
                 return ToValidationError(blockingErrors);
         }
 
-        var result = await _candidateRepository.UpdateAsync(candidate);
+        var result = await _candidateRepository.UpdateAsync(candidate, cancellationToken);
 
         if (result.Status != EResultStatus.Success)
             return RequestResult<CandidateResponse>.FromResult(result);

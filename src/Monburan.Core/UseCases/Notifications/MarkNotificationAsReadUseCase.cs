@@ -16,12 +16,12 @@ public class MarkNotificationAsReadUseCase : IUseCase<Guid, NotificationResponse
         _notificationRepository = notificationRepository;
     }
 
-    public async Task<RequestResult<NotificationResponse>> ExecuteAsync(Guid notificationId)
+    public async Task<RequestResult<NotificationResponse>> ExecuteAsync(Guid notificationId, CancellationToken cancellationToken = default)
     {
         if (notificationId == Guid.Empty)
             return RequestResult<NotificationResponse>.WithValidationError("ID da notificação é inválido.", "NotificationId");
 
-        var getResult = await _notificationRepository.GetByIdAsync(Id.Create(notificationId));
+        var getResult = await _notificationRepository.GetByIdAsync(Id.Create(notificationId), cancellationToken);
         if (getResult.Status != EResultStatus.Success || getResult.Data == null)
             return RequestResult<NotificationResponse>.EntityNotFound("Notification", notificationId, "Notificação não encontrada.");
 
@@ -29,7 +29,7 @@ public class MarkNotificationAsReadUseCase : IUseCase<Guid, NotificationResponse
         notification.IsRead = true;
         notification.ReadAt = DateTime.UtcNow;
 
-        var result = await _notificationRepository.UpdateAsync(notification);
+        var result = await _notificationRepository.UpdateAsync(notification, cancellationToken);
         if (result.Status != EResultStatus.Success)
             return RequestResult<NotificationResponse>.FromResult(result);
 

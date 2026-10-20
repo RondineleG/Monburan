@@ -88,6 +88,7 @@
 
                 <dl class="acct-panel__meta">
                     <div><dt>Tipo</dt><dd>@ProfileLabel(selected.ProfileType)</dd></div>
+                    <div><dt>Plano</dt><dd data-testid="acct-panel-plan">@(selected.PlanName ?? "—")</dd></div>
                     <div><dt>E-mail confirmado</dt><dd>@(selected.EmailConfirmed ? "Sim" : "Não")</dd></div>
                     <div><dt>Verificação em duas etapas</dt><dd>@(selected.TwoFactorEnabled ? "Ativada" : "Desativada")</dd></div>
                     <div><dt>Cadastro</dt><dd>@UiLabels.FormatMomentDate(selected.CreatedAt)</dd></div>
@@ -165,6 +166,23 @@
                         }
                         <button type="button" class="btn btn-secondary btn-sm" @onclick="ClosePanel" data-testid="acct-panel-close">Fechar</button>
                     </div>
+
+                    @if (selected.ProfileType is not null && planOptions.Count > 0)
+                    {
+                        <div class="acct-plan mt-3" data-testid="acct-plan">
+                            <label class="form-label" for="acct-plan-select">Plano da conta (a mudança não gera cobrança; o plano gratuito inativa o premium)</label>
+                            <div class="d-flex gap-2 align-items-center">
+                                <select id="acct-plan-select" class="form-select form-select-sm" @bind="selectedPlanId" data-testid="acct-plan-select">
+                                    <option value="">Escolha um plano...</option>
+                                    @foreach (var plan in planOptions)
+                                    {
+                                        <option value="@plan.Id">@plan.Name — @PlanPeriodLabel(plan)</option>
+                                    }
+                                </select>
+                                <button type="button" class="btn btn-outline-primary btn-sm text-nowrap" @onclick="ApplyPlanAsync" disabled="@(busy || selectedPlanId == Guid.Empty)" data-testid="acct-plan-apply">Aplicar</button>
+                            </div>
+                        </div>
+                    }
                 }
             </div>
         </section>
@@ -209,7 +227,7 @@
                                         <strong>@account.Name</strong>
                                         <div class="text-muted small">@account.Email</div>
                                     </td>
-                                    <td>@ProfileLabel(account.ProfileType)@(account.IsAdmin ? " · Admin" : string.Empty)</td>
+                                    <td>@ProfileLabel(account.ProfileType)@(account.IsAdmin ? " · Admin" : string.Empty)@(account.PlanName is not null ? $" · {account.PlanName}" : string.Empty)</td>
                                     <td>
                                         <span class="badge @(account.IsActive ? "bg-success" : "bg-danger")">@(account.IsActive ? "Ativa" : "Inativa")</span>
                                         @if (account.IsLockedOut)
@@ -259,6 +277,9 @@
     private string reason = string.Empty;
     private string? reasonError;
 
+    private IReadOnlyList<AdminPlanOption> planOptions = [];
+    private Guid selectedPlanId;
+
     protected override async Task OnInitializedAsync()
     {
         var state = await AuthenticationState.GetAuthenticationStateAsync();
@@ -299,6 +320,8 @@
         reason = string.Empty;
         reasonError = null;
         selected = await Accounts.GetAsync(id);
+        planOptions = selected is null ? [] : await Accounts.ListPlansAsync(selected.ProfileType);
+        selectedPlanId = planOptions.FirstOrDefault(plan => plan.Name == selected?.PlanName)?.Id ?? Guid.Empty;
     }
 
     private void ClosePanel()
@@ -408,6 +431,33 @@
                 grant ? $"{selected.Email} agora é administradora." : $"Papel de administrador de {selected.Email} removido.");
         }
     }
+
+    private async Task ApplyPlanAsync()
+    {
+        if (selected is null || selectedPlanId == Guid.Empty)
+            return;
+
+        var plan = planOptions.FirstOrDefault(item => item.Id == selectedPlanId);
+        if (plan is null)
+            return;
+
+        if (await ConfirmAsync(
+                "Aplicar plano?",
+                $"{selected.Email} passa para o plano {plan.Name}. A mudança não gera cobrança e fica registrada na auditoria.",
+                "Aplicar plano", destructive: false))
+        {
+            await RunAsync(
+                () => Accounts.SetPlanAsync(selected.Id, selectedPlanId, actor),
+                $"Plano de {selected.Email} alterado para {plan.Name}.");
+        }
+    }
+
+    private static string PlanPeriodLabel(AdminPlanOption plan) => plan.Period switch
+    {
+        ESubscriptionPeriod.Monthly => $"R$ {plan.Price:0.00}/mês",
+        ESubscriptionPeriod.Annual => $"R$ {plan.Price:0.00}/ano",
+        _ => "gratuito"
+    };
 
     private Task<bool> ConfirmAsync(string title, string message, string confirmText, bool destructive) =>
         confirmDialog.ShowAsync(new ConfirmOptions { Title = title, Message = message, ConfirmText = confirmText, Destructive = destructive });

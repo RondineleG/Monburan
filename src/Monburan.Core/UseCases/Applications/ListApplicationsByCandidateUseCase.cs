@@ -17,9 +17,9 @@ public class ListApplicationsByCandidateUseCase : IUseCase<ListApplicationsByCan
         _applicationRepository = applicationRepository;
     }
 
-    public async Task<RequestResult<IEnumerable<ApplicationResponse>>> ExecuteAsync(ListApplicationsByCandidateRequest request)
+    public async Task<RequestResult<IEnumerable<ApplicationResponse>>> ExecuteAsync(ListApplicationsByCandidateRequest request, CancellationToken cancellationToken = default)
     {
-        var result = await _applicationRepository.ListByCandidateAsync(request.CandidateId, request.Page, request.Size);
+        var result = await _applicationRepository.ListByCandidateAsync(request.CandidateId, request.Page, request.Size, cancellationToken: cancellationToken);
         if (result.Status != EResultStatus.Success)
             return RequestResult<IEnumerable<ApplicationResponse>>.FromResult(result);
 

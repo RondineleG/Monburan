@@ -11,7 +11,7 @@ namespace Monburan.Core.Interfaces.Repositories;
 /// </summary>
 public interface IAccountProfileRepository
 {
-    Task<RequestResult<Candidate>> CreateCandidateAsync(Candidate candidate);
+    Task<RequestResult<Candidate>> CreateCandidateAsync(Candidate candidate, CancellationToken cancellationToken = default);
 
-    Task<RequestResult<Advertiser>> CreateAdvertiserAsync(Advertiser advertiser);
+    Task<RequestResult<Advertiser>> CreateAdvertiserAsync(Advertiser advertiser, CancellationToken cancellationToken = default);
 }

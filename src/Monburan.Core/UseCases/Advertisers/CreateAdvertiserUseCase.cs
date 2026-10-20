@@ -24,7 +24,7 @@ public sealed class CreateAdvertiserUseCase : IUseCase<CreateAdvertiserRequest, 
         _advertiserValidator = advertiserValidator;
     }
 
-    public async Task<RequestResult<AdvertiserResponse>> ExecuteAsync(CreateAdvertiserRequest request)
+    public async Task<RequestResult<AdvertiserResponse>> ExecuteAsync(CreateAdvertiserRequest request, CancellationToken cancellationToken = default)
     {
         var advertiser = new Advertiser
         {
@@ -61,7 +61,7 @@ public sealed class CreateAdvertiserUseCase : IUseCase<CreateAdvertiserRequest, 
                 return ToValidationError(blockingErrors);
         }
 
-        var result = await _profileRepository.CreateAdvertiserAsync(advertiser);
+        var result = await _profileRepository.CreateAdvertiserAsync(advertiser, cancellationToken);
         if (result.Status != EResultStatus.Success)
             return RequestResult<AdvertiserResponse>.FromResult(result);
 

@@ -8,13 +8,13 @@ namespace Monburan.Core.Interfaces.Repositories;
 public interface IAiProviderRepository : IBaseRepository<AiProvider>
 {
     /// <summary>Provedores não excluídos, o padrão primeiro e depois por nome.</summary>
-    Task<RequestResult<IEnumerable<AiProvider>>> ListAsync();
+    Task<RequestResult<IEnumerable<AiProvider>>> ListAsync(CancellationToken cancellationToken = default);
 
     /// <summary>Já existe outro provedor (não excluído) com esse nome, sem diferenciar maiúsculas?</summary>
-    Task<bool> NameExistsAsync(string name, Id? exceptId = null);
+    Task<bool> NameExistsAsync(string name, Id? exceptId = null, CancellationToken cancellationToken = default);
 
-    Task<int> CountAsync();
+    Task<int> CountAsync(CancellationToken cancellationToken = default);
 
     /// <summary>Torna o provedor o padrão e tira a marca dos demais, de uma vez.</summary>
-    Task<RequestResult<AiProvider>> SetDefaultAsync(Id id, string updatedBy);
+    Task<RequestResult<AiProvider>> SetDefaultAsync(Id id, string updatedBy, CancellationToken cancellationToken = default);
 }

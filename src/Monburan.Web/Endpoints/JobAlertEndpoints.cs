@@ -22,7 +22,7 @@ public static class JobAlertEndpoints
             if (candidateId is null)
                 return Results.Problem(statusCode: StatusCodes.Status403Forbidden, title: "Perfil de candidato necessário");
 
-            var result = await useCase.ExecuteAsync(candidateId.Value);
+            var result = await useCase.ExecuteAsync(candidateId.Value, cancellationToken);
             return result.ToHttpResult();
         })
         .WithSummary("Lista os alertas de vaga do candidato autenticado");
@@ -37,7 +37,7 @@ public static class JobAlertEndpoints
             if (candidateId is null)
                 return Results.Problem(statusCode: StatusCodes.Status403Forbidden, title: "Perfil de candidato necessário");
 
-            var result = await useCase.ExecuteAsync(new CreateJobAlertCommand(candidateId.Value, request));
+            var result = await useCase.ExecuteAsync(new CreateJobAlertCommand(candidateId.Value, request), cancellationToken);
             return result.ToHttpResult(StatusCodes.Status201Created);
         })
         .WithSummary("Cria alerta de vaga (409 quando o candidato já tem 10)");
@@ -53,7 +53,7 @@ public static class JobAlertEndpoints
             if (candidateId is null)
                 return Results.Problem(statusCode: StatusCodes.Status403Forbidden, title: "Perfil de candidato necessário");
 
-            var result = await useCase.ExecuteAsync(new UpdateJobAlertCommand(candidateId.Value, id, request));
+            var result = await useCase.ExecuteAsync(new UpdateJobAlertCommand(candidateId.Value, id, request), cancellationToken);
             return result.ToHttpResult();
         })
         .WithSummary("Atualiza um alerta do candidato autenticado (o de outro candidato não é encontrado)");
@@ -68,7 +68,7 @@ public static class JobAlertEndpoints
             if (candidateId is null)
                 return Results.Problem(statusCode: StatusCodes.Status403Forbidden, title: "Perfil de candidato necessário");
 
-            var result = await useCase.ExecuteAsync(new DeleteJobAlertCommand(candidateId.Value, id));
+            var result = await useCase.ExecuteAsync(new DeleteJobAlertCommand(candidateId.Value, id), cancellationToken);
             return result.ToHttpResult(StatusCodes.Status204NoContent);
         })
         .WithSummary("Exclui um alerta do candidato autenticado");

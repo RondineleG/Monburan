@@ -21,17 +21,17 @@ public class AccountProfileRepository : IAccountProfileRepository
         _context = context;
     }
 
-    public async Task<RequestResult<Candidate>> CreateCandidateAsync(Candidate candidate)
+    public async Task<RequestResult<Candidate>> CreateCandidateAsync(Candidate candidate, CancellationToken cancellationToken = default)
     {
         _context.Candidates.Add(candidate);
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(cancellationToken);
         return RequestResult<Candidate>.Success(candidate);
     }
 
-    public async Task<RequestResult<Advertiser>> CreateAdvertiserAsync(Advertiser advertiser)
+    public async Task<RequestResult<Advertiser>> CreateAdvertiserAsync(Advertiser advertiser, CancellationToken cancellationToken = default)
     {
         _context.Advertisers.Add(advertiser);
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(cancellationToken);
         return RequestResult<Advertiser>.Success(advertiser);
     }
 }

@@ -27,12 +27,12 @@ public sealed class ChangeJobStatusUseCase : IUseCase<ChangeJobStatusRequest, Jo
         _checkJobLimit = checkJobLimit;
     }
 
-    public async Task<RequestResult<JobResponse>> ExecuteAsync(ChangeJobStatusRequest request)
+    public async Task<RequestResult<JobResponse>> ExecuteAsync(ChangeJobStatusRequest request, CancellationToken cancellationToken = default)
     {
         if (request.NewStatus is not (EJobStatus.Active or EJobStatus.Paused))
             return RequestResult<JobResponse>.WithValidationError("Situação de vaga inválida.", nameof(request.NewStatus));
 
-        var jobResult = await _jobRepository.GetByIdAsync(Id.Create(request.JobId));
+        var jobResult = await _jobRepository.GetByIdAsync(Id.Create(request.JobId), cancellationToken);
         // Vaga de outro anunciante responde como inexistente — não revela o id
         if (jobResult.Status != EResultStatus.Success || jobResult.Data is null
             || jobResult.Data.AdvertiserId.Value != request.AdvertiserId)
@@ -55,7 +55,7 @@ public sealed class ChangeJobStatusUseCase : IUseCase<ChangeJobStatusRequest, Jo
             if (job.ExpirationDate.Date < DateTime.UtcNow.Date)
                 return RequestResult<JobResponse>.WithDomainError("A validade da vaga já passou. Edite a data de expiração para reativá-la.");
 
-            var limit = await _checkJobLimit.ExecuteAsync(new CheckJobLimitRequest(request.AdvertiserId));
+            var limit = await _checkJobLimit.ExecuteAsync(new CheckJobLimitRequest(request.AdvertiserId), cancellationToken);
             if (limit.Status != EResultStatus.Success)
                 return RequestResult<JobResponse>.FromResult(limit);
 
@@ -68,7 +68,7 @@ public sealed class ChangeJobStatusUseCase : IUseCase<ChangeJobStatusRequest, Jo
         }
 
         job.Status = request.NewStatus;
-        var updateResult = await _jobRepository.UpdateAsync(job);
+        var updateResult = await _jobRepository.UpdateAsync(job, cancellationToken);
         if (updateResult.Status != EResultStatus.Success)
             return RequestResult<JobResponse>.FromResult(updateResult);
 

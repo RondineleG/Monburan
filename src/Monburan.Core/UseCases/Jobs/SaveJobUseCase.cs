@@ -22,9 +22,9 @@ public class SaveJobUseCase : IUseCase<SaveJobRequest, bool>
         _jobs = jobs;
     }
 
-    public async Task<RequestResult<bool>> ExecuteAsync(SaveJobRequest request)
+    public async Task<RequestResult<bool>> ExecuteAsync(SaveJobRequest request, CancellationToken cancellationToken = default)
     {
-        var jobResult = await _jobs.GetByIdAsync(Id.Create(request.JobId));
+        var jobResult = await _jobs.GetByIdAsync(Id.Create(request.JobId), cancellationToken);
         if (jobResult.Status != EResultStatus.Success || jobResult.Data is null)
             return RequestResult<bool>.EntityNotFound("Job", request.JobId, "Vaga não encontrada.");
 
@@ -38,7 +38,8 @@ public class SaveJobUseCase : IUseCase<SaveJobRequest, bool>
             CandidateId = Id.Create(request.CandidateId),
             JobId = Id.Create(request.JobId),
             TenantId = job.TenantId
-        });
+        },
+        cancellationToken);
 
         if (result.Status != EResultStatus.Success)
             return RequestResult<bool>.FromResult(result);

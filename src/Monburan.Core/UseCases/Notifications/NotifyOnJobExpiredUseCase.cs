@@ -34,12 +34,12 @@ public sealed class NotifyOnJobExpiredUseCase : IUseCase<NotifyOnJobExpiredReque
         _logger = logger;
     }
 
-    public async Task<RequestResult<bool>> ExecuteAsync(NotifyOnJobExpiredRequest request)
+    public async Task<RequestResult<bool>> ExecuteAsync(NotifyOnJobExpiredRequest request, CancellationToken cancellationToken = default)
     {
         try
         {
             // Buscar vaga
-            var jobResult = await _jobRepository.GetByIdAsync(Id.Create(request.JobId));
+            var jobResult = await _jobRepository.GetByIdAsync(Id.Create(request.JobId), cancellationToken);
             if (jobResult.Status != EResultStatus.Success)
             {
                 _logger.LogWarning("Vaga não encontrada: {JobId}", request.JobId);
@@ -49,7 +49,7 @@ public sealed class NotifyOnJobExpiredUseCase : IUseCase<NotifyOnJobExpiredReque
             var job = jobResult.Data!;
 
             // Buscar anunciante para obter email
-            var advertiserResult = await _advertiserRepository.GetByIdAsync(job.AdvertiserId);
+            var advertiserResult = await _advertiserRepository.GetByIdAsync(job.AdvertiserId, cancellationToken);
             if (advertiserResult.Status != EResultStatus.Success)
             {
                 _logger.LogWarning("Anunciante não encontrado: {AdvertiserId}", job.AdvertiserId.Value);
@@ -69,7 +69,7 @@ public sealed class NotifyOnJobExpiredUseCase : IUseCase<NotifyOnJobExpiredReque
                 HtmlContent = html
             };
 
-            var emailResult = await _sendEmailUseCase.ExecuteAsync(emailRequest);
+            var emailResult = await _sendEmailUseCase.ExecuteAsync(emailRequest, cancellationToken);
 
             if (emailResult.Status != EResultStatus.Success)
             {

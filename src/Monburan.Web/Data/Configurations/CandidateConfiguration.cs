@@ -35,6 +35,9 @@ public class CandidateConfiguration : IEntityTypeConfiguration<Candidate>
         builder.Property(c => c.DateOfBirth)
             .HasColumnType("date");
 
+        builder.Property(c => c.ActivePlan)
+            .HasMaxLength(100);
+
         builder.HasOne(c => c.Address)
             .WithOne()
             .HasForeignKey<Candidate>(c => c.AddressId)

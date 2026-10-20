@@ -17,9 +17,9 @@ public class UnsaveJobUseCase : IUseCase<UnsaveJobRequest, bool>
         _savedJobs = savedJobs;
     }
 
-    public async Task<RequestResult<bool>> ExecuteAsync(UnsaveJobRequest request)
+    public async Task<RequestResult<bool>> ExecuteAsync(UnsaveJobRequest request, CancellationToken cancellationToken = default)
     {
-        var result = await _savedJobs.RemoveAsync(request.CandidateId, request.JobId);
+        var result = await _savedJobs.RemoveAsync(request.CandidateId, request.JobId, cancellationToken);
         if (result.Status != EResultStatus.Success)
             return RequestResult<bool>.FromResult(result);
 

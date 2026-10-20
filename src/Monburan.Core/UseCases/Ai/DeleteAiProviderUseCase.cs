@@ -22,16 +22,16 @@ public class DeleteAiProviderUseCase
         _catalog = catalog;
     }
 
-    public async Task<RequestResult> ExecuteAsync(AiProviderActionRequest request)
+    public async Task<RequestResult> ExecuteAsync(AiProviderActionRequest request, CancellationToken cancellationToken = default)
     {
-        var found = await _repository.GetByIdAsync(Id.Create(request.Id));
+        var found = await _repository.GetByIdAsync(Id.Create(request.Id), cancellationToken);
         if (found.Status != EResultStatus.Success || found.Data is null)
             return RequestResult.EntityNotFound("AiProvider", request.Id, "Provedor não encontrado.");
 
-        if (found.Data.IsDefault && await _repository.CountAsync() > 1)
+        if (found.Data.IsDefault && await _repository.CountAsync(cancellationToken) > 1)
             return RequestResult.WithDomainError("Escolha outro provedor como padrão antes de excluir este.");
 
-        var deleted = await _repository.DeleteAsync(found.Data.Id);
+        var deleted = await _repository.DeleteAsync(found.Data.Id, cancellationToken);
         if (deleted.Status != EResultStatus.Success)
             return deleted;
 

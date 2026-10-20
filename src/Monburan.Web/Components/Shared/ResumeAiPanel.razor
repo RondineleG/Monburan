@@ -1,21 +1,33 @@
 @implements IDisposable
 @using Monburan.Core.Enums
+@using Monburan.Core.Interfaces.Repositories
 @using Monburan.Core.Interfaces.Services
 @using Monburan.Core.UseCases.Resumes
 @inject IAiTextClient Ai
 @inject ICurrentUserHelper CurrentUser
 @inject ImproveResumeUseCase ImproveResumeUseCase
+@inject ISubscriptionRepository Subscriptions
 @inject IJSRuntime JS
 @inject IToastService Toast
 
-@* Sugestões de melhoria do currículo com IA. Só aparece quando a IA está configurada. Nada é gravado: o resultado
-   existe só na tela e a pessoa decide o que aproveitar. O envio do conteúdo ao provedor exige autorização expressa
-   a cada uso (a caixa de seleção abaixo). *@
-@if (Ai.IsConfigured)
+@* Sugestões de melhoria do currículo com IA — benefício do plano Premium. Só aparece quando a IA está configurada.
+   Nada é gravado: o resultado existe só na tela e a pessoa decide o que aproveitar. O envio do conteúdo ao provedor
+   exige autorização expressa a cada uso (a caixa de seleção abaixo). *@
+@if (Ai.IsConfigured && loaded)
 {
     <section class="card mb-4 ai-panel" aria-labelledby="ai-panel-title" data-testid="resume-ai-panel">
         <div class="card-body">
             <h2 id="ai-panel-title" class="ai-panel__title"><span aria-hidden="true">✦</span> Sugestões de melhoria com IA</h2>
+
+            @if (!entitled)
+            {
+                <p class="ai-panel__lead" data-testid="resume-ai-premium">
+                    As sugestões de melhoria com IA são um benefício do plano <strong>Premium</strong>. Com ele, a IA lê o
+                    conteúdo profissional do seu currículo e sugere como deixá-lo mais claro e forte — e você decide o que aproveitar.
+                </p>
+            }
+            else
+            {
             <p class="ai-panel__lead">
                 A IA lê o conteúdo profissional do currículo (título, resumo, experiências, formação, habilidades e idiomas)
                 e sugere como deixá-lo mais claro e forte. Você decide o que aproveitar: nada é alterado nem guardado.
@@ -127,6 +139,7 @@
                     </p>
                 </div>
             }
+            }
         </div>
     </section>
 }
@@ -136,11 +149,27 @@
 
     private bool consent;
     private bool isRunning;
+    private bool loaded;
+    private bool entitled;
     private string? errorMessage;
     private ResumeImprovementResponse? improvement;
 
     [Parameter, EditorRequired]
     public Guid ResumeId { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        // A oferta do recurso depende do plano do candidato (HasAiAssistant), não só da IA configurada
+        var candidateId = CurrentUser.GetCandidateId();
+        if (Ai.IsConfigured && candidateId is not null)
+        {
+            var active = await Subscriptions.GetActiveByCandidateIdAsync(
+                Monburan.Core.ValueObjects.Id.Create(candidateId.Value), cancellation.Token);
+            entitled = active.Status == EResultStatus.Success && active.Data?.Plan?.HasAiAssistant == true;
+        }
+
+        loaded = true;
+    }
 
     private async Task GenerateAsync()
     {
