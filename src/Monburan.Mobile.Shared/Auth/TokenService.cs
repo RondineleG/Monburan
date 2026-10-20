@@ -58,12 +58,14 @@ public class TokenService
     /// <summary>
     /// Tenta renovar a sessão com o refresh token atual. Thread-safe:
     /// chamadas concorrentes compartilham a mesma renovação.
+    /// Só <see cref="RefreshOutcome.Rejected"/> encerra a sessão: sem rede, tempo esgotado, 5xx ou 429 devolvem
+    /// <see cref="RefreshOutcome.Unavailable"/> e a pessoa continua logada (o refresh token vale 30 dias).
     /// </summary>
-    public async Task<bool> RefreshAsync(CancellationToken cancellationToken = default)
+    public async Task<RefreshOutcome> RefreshAsync(CancellationToken cancellationToken = default)
     {
         await EnsureLoadedAsync();
         if (_session is null)
-            return false;
+            return RefreshOutcome.Rejected;
 
         var expired = false;
         var sessionAtEntry = _session;
@@ -72,12 +74,12 @@ public class TokenService
         {
             var current = _session;
             if (current is null)
-                return false;
+                return RefreshOutcome.Rejected;
 
             // Outra thread pode já ter renovado enquanto esperávamos o lock —
             // se a sessão mudou, reusamos o resultado em vez de renovar de novo
             if (!ReferenceEquals(current, sessionAtEntry))
-                return true;
+                return RefreshOutcome.Renewed;
 
             using var response = await _authClient.PostAsJsonAsync(
                 "api/auth/refresh",
@@ -87,38 +89,43 @@ public class TokenService
             if (!response.IsSuccessStatusCode)
             {
                 // Só destrói a sessão quando o refresh foi efetivamente rejeitado;
-                // 5xx/indisponibilidade mantém a sessão para nova tentativa depois
+                // 5xx/429/indisponibilidade mantém a sessão para nova tentativa depois
                 if (response.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.BadRequest)
                 {
                     await ClearSessionAsync();
                     expired = true;
+                    return RefreshOutcome.Rejected;
                 }
-                return false;
+                return RefreshOutcome.Unavailable;
             }
 
             var body = await response.Content.ReadFromJsonAsync<UserLoginResponse>(JsonOptions, cancellationToken);
-            if (body?.AccessToken is null || body.RefreshToken is null)
+            if (string.IsNullOrEmpty(body?.AccessToken) || string.IsNullOrEmpty(body.RefreshToken))
             {
                 await ClearSessionAsync();
                 expired = true;
-                return false;
+                return RefreshOutcome.Rejected;
             }
 
+            // Saiu da conta (ou entrou em outra) enquanto o refresh viajava: não ressuscita a sessão anterior
+            if (!ReferenceEquals(_session, current))
+                return _session is null ? RefreshOutcome.Rejected : RefreshOutcome.Renewed;
+
             await SetSessionAsync(new AuthSession(body.AccessToken, body.RefreshToken));
-            return true;
+            return RefreshOutcome.Renewed;
         }
         catch (JsonException)
         {
             // Resposta de refresh malformada: sessão não é mais confiável
             await ClearSessionAsync();
             expired = true;
-            return false;
+            return RefreshOutcome.Rejected;
         }
-        catch (Exception ex) when (ex is HttpRequestException
-            or TaskCanceledException { CancellationToken.IsCancellationRequested: false })
+        catch (Exception ex) when (ApiException.IsTransportFailure(ex)
+            || (ex is TaskCanceledException && !cancellationToken.IsCancellationRequested))
         {
-            // Offline/timeout: mantém a sessão — o usuário tenta de novo quando voltar a rede
-            return false;
+            // Offline/timeout/queda no meio: mantém a sessão — o usuário tenta de novo quando voltar a rede
+            return RefreshOutcome.Unavailable;
         }
         finally
         {

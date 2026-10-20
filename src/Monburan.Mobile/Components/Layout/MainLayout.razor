@@ -7,6 +7,7 @@
 @inject IJSRuntime JS
 @inject IToastService Toast
 @inject ILogger<MainLayout> Logger
+@inject NotificationBadgeState Badge
 
 <div class="app-shell">
     @if (!IsAuthPage)
@@ -53,7 +54,16 @@
         Auth.Changed += OnAuthChanged;
         Tokens.SessionExpired += OnSessionExpired;
         Nav.LocationChanged += OnLocationChanged;
-        await Auth.InitializeAsync();
+        Badge.Invalidated += OnBadgeInvalidated;
+        try
+        {
+            await Auth.InitializeAsync();
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            // A próxima tela tenta de novo (a inicialização que falha não fica guardada)
+            Logger.LogError(ex, "Falha inesperada ao carregar a sessão");
+        }
         await RefreshUnreadAsync();
     }
 
@@ -94,6 +104,14 @@
             StateHasChanged();
         });
 
+    private void OnBadgeInvalidated() =>
+        InvokeAsync(async () =>
+        {
+            _lastUnreadFetch = DateTime.MinValue;
+            await RefreshUnreadAsync();
+            StateHasChanged();
+        });
+
     private async Task RefreshUnreadAsync()
     {
         if (!Auth.IsAuthenticated)
@@ -123,5 +141,6 @@
         Auth.Changed -= OnAuthChanged;
         Tokens.SessionExpired -= OnSessionExpired;
         Nav.LocationChanged -= OnLocationChanged;
+        Badge.Invalidated -= OnBadgeInvalidated;
     }
 }

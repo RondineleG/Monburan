@@ -9,6 +9,9 @@
 # existe, o nginx sobe só em HTTP, o certbot emite o certificado e só então entra o nginx.conf completo (que depende dele).
 # Nas vezes seguintes: tira um backup (se o backup.sh estiver configurado), guarda a imagem atual como rollback, baixa a nova,
 # reinicia o app e espera o /health.
+# Se o download da imagem nova falhar, para sem trocar nada; depois de subir, confere que o app ficou na imagem baixada.
+# Das tags de rollback, ficam só as 3 mais recentes.
+# Arquivos de /opt/monburan com outro dono (ou com escrita para grupo e outros) voltam a ser só do root.
 #
 # Uso (como root, na VPS):
 #   cd /opt/monburan
@@ -21,6 +24,7 @@
 #   --admin-email EMAIL  grava ADMIN_EMAILS no .env (quem vira administrador depois de confirmar o e-mail)
 #   --skip-tls           não pede certificado (o site fica em HTTP)
 #   --no-backup          não roda o backup.sh antes de trocar a versão
+#   --skip-pull          não baixa a imagem: sobe a que já está no servidor (sem acesso ao ghcr.io)
 # ============================================================
 set -euo pipefail
 
@@ -31,7 +35,9 @@ EMAIL="${CERTBOT_EMAIL:-}"
 ADMIN_EMAIL=""
 SKIP_TLS=0
 NO_BACKUP=0
+SKIP_PULL=0
 TLS_PENDING=0
+ROLLBACK_KEEP=3
 
 usage() {
     sed -n '2,/^# =====/p' "$0" | sed 's/^# \{0,1\}//' | sed '$d'
@@ -119,6 +125,43 @@ safety_net() {
     fi
 }
 
+# deploy.sh e backup.sh (pelo timer) rodam como root: quem puder editar esses arquivos vira root. Arquivos copiados com tar,
+# scp ou rsync -a chegam com o dono da máquina de origem (o deploy automático gravava o uid 1001 do runner)
+fix_ownership() {
+    local foreign
+    foreign=$(find "$INSTALL_DIR" -xdev \( ! -user 0 -o ! -group 0 -o -perm /022 \) -print 2>/dev/null | head -1)
+    [[ -n "$foreign" ]] || return 0
+    chown -R root:root "$INSTALL_DIR"
+    chmod -R go-w "$INSTALL_DIR"
+    warn "havia arquivos em $INSTALL_DIR com outro dono ou com escrita para grupo/outros (ex.: $foreign): agora são só do root"
+}
+
+# O compose só recria o contêiner quando a imagem muda: confere que o app ficou na imagem que acabou de ser baixada
+check_app_image() {
+    local reference running expected
+    reference=$(docker inspect -f '{{.Config.Image}}' monburan-app 2>/dev/null) || fail "o contêiner monburan-app não existe depois do docker compose up"
+    running=$(docker inspect -f '{{.Image}}' monburan-app)
+    expected=$(docker image inspect -f '{{.Id}}' "$reference")
+    if [[ "$running" != "$expected" ]]; then
+        fail "o app continua na imagem anterior ($running), não na baixada ($expected): rode docker compose up -d --force-recreate app"
+    fi
+    echo "    o app está na imagem ${expected#sha256:}"
+}
+
+# Cada deploy guarda a imagem anterior com uma tag de rollback: sem limpeza, elas enchem o disco da VPS
+prune_rollback_images() {
+    local reference repo old tag
+    reference=$(docker inspect -f '{{.Config.Image}}' monburan-app 2>/dev/null) || return 0
+    repo=${reference%%:*}
+    old=$(docker image ls "$repo" --format '{{.Tag}}' 2>/dev/null | grep '^rollback-' | sort -r | tail -n +"$((ROLLBACK_KEEP + 1))" || true)
+    for tag in $old; do
+        if docker rmi "$repo:$tag" >/dev/null 2>&1; then
+            echo "    tag de rollback antiga removida: $repo:$tag"
+        fi
+    done
+    docker image prune -f >/dev/null 2>&1 || true
+}
+
 wait_for_health() {
     local code _
     for _ in $(seq 1 60); do
@@ -136,9 +179,16 @@ wait_for_health() {
 start_stack() {
     log "Stack (app + Postgres)"
     safety_net
-    docker compose pull app || warn "o pull falhou: sigo com a imagem que já existe, se houver"
+    if [[ $SKIP_PULL -eq 1 ]]; then
+        warn "--skip-pull: sobe a imagem que já está no servidor, sem baixar a nova"
+    elif ! docker compose pull app; then
+        # Antes só avisava e seguia com a imagem antiga: o deploy terminava "concluído" sem trocar a versão
+        fail "não consegui baixar a imagem nova e nada foi trocado (confira o acesso ao ghcr.io; para subir a imagem que já está no servidor, use --skip-pull)"
+    fi
     docker compose up -d --remove-orphans
     wait_for_health
+    check_app_image
+    prune_rollback_images
 }
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -281,6 +331,7 @@ main() {
             --admin-email) ADMIN_EMAIL="${2:?informe o e-mail do administrador}"; shift 2 ;;
             --skip-tls) SKIP_TLS=1; shift ;;
             --no-backup) NO_BACKUP=1; shift ;;
+            --skip-pull) SKIP_PULL=1; shift ;;
             -h|--help) usage; exit 0 ;;
             *) echo "Opção desconhecida: $1" >&2; usage; exit 2 ;;
         esac
@@ -293,6 +344,7 @@ main() {
     require_tools
     [[ -d "$INSTALL_DIR" ]] || fail "falta a pasta $INSTALL_DIR (copie infra/vps para lá)"
     [[ -f "$INSTALL_DIR/nginx.conf" ]] || fail "falta $INSTALL_DIR/nginx.conf"
+    fix_ownership
 
     log ".env e compose"
     ensure_env

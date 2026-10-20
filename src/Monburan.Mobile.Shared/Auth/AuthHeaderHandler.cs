@@ -30,8 +30,17 @@ public class AuthHeaderHandler : DelegatingHandler
         if (response.StatusCode != HttpStatusCode.Unauthorized)
             return response;
 
-        if (!await _tokens.RefreshAsync(cancellationToken))
+        var outcome = await _tokens.RefreshAsync(cancellationToken);
+        if (outcome == RefreshOutcome.Rejected)
             return response;
+
+        if (outcome == RefreshOutcome.Unavailable)
+        {
+            // Não deu para renovar agora: é falha temporária, não sessão inválida. Devolver o 401 aqui faria a tela
+            // tratar como sessão expirada e apagar uma sessão que continua valendo
+            response.Dispose();
+            throw new HttpRequestException("Não foi possível renovar a sessão agora.");
+        }
 
         // Repete a chamada uma vez com o novo token — precisa de conteúdo clonável
         response.Dispose();

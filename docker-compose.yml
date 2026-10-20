@@ -9,8 +9,9 @@ services:
       - POSTGRES_USER=${DB_USER:-postgres}
       - POSTGRES_PASSWORD=${DB_PASSWORD:-postgres}
       - POSTGRES_DB=${DB_NAME:-monburan}
+    # Só no loopback: o Docker publica por cima do firewall (ufw), e o banco com a senha padrão ficaria aberto na rede
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:
@@ -54,7 +55,7 @@ services:
       - path: ./ai-keys.env
         required: false
     ports:
-      - "8080:80"
+      - "127.0.0.1:8080:80"
     volumes:
       - app_uploads:/app/wwwroot/uploads
       - app_keys:/app/keys

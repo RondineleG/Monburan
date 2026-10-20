@@ -1,4 +1,5 @@
 using System.Net;
+using System.Net.Sockets;
 
 namespace Monburan.Mobile.Shared.Api;
 
@@ -7,6 +8,9 @@ namespace Monburan.Mobile.Shared.Api;
 /// </summary>
 public class ApiException : Exception
 {
+    /// <summary>Mensagem padrão de um 401 sem explicação do servidor.</summary>
+    public const string SessionExpiredMessage = "Sessão expirada. Entre novamente.";
+
     public ApiException(HttpStatusCode statusCode, string message,
         IReadOnlyDictionary<string, string[]>? validationErrors = null)
         : base(message)
@@ -37,6 +41,13 @@ public class ApiException : Exception
             .Where(e => string.Equals(e.Key, field, StringComparison.OrdinalIgnoreCase))
             .SelectMany(e => e.Value)
             .FirstOrDefault();
+
+    /// <summary>
+    /// Falha de transporte, sem resposta do servidor. Offline e DNS chegam como HttpRequestException; no Android, uma queda no
+    /// meio da requisição (troca de Wi-Fi para 4G, sinal fraco) chega como WebException ou IOException.
+    /// </summary>
+    public static bool IsTransportFailure(Exception exception) =>
+        exception is HttpRequestException or WebException or IOException or SocketException;
 
     public static ApiException Network(string? message = null) =>
         new(message ?? "Sem conexão com o servidor. Verifique sua internet e tente novamente.");

@@ -93,16 +93,18 @@ jobs:
           chmod 600 "$HOME/.ssh/known_hosts"
 
       # Sem rsync na VPS: tar pelo próprio SSH. .env, chaves de IA, backup e backups ficam intactos.
+      # Dono root no pacote e extração sem copiar o dono: o tar extraído como root gravava o uid do runner (1001) em
+      # /opt/monburan, no deploy.sh e no backup.sh, que rodam como root (quem tivesse esse uid editaria e viraria root).
       - name: Enviar infra/vps para /opt/monburan
         env:
           VPS_HOST: ${{ secrets.VPS_HOST }}
           VPS_USER: ${{ secrets.VPS_USER }}
         run: |
-          tar -C infra/vps -czf - \
+          tar -C infra/vps --owner=0 --group=0 --numeric-owner -czf - \
             --exclude=.env --exclude=ai-keys.env --exclude=backup.env --exclude=backups . \
             | ssh -i "$HOME/.ssh/id_ed25519" -o IdentitiesOnly=yes -o BatchMode=yes \
                 -o StrictHostKeyChecking=yes "$VPS_USER@$VPS_HOST" \
-                'tar -xzf - -C /opt/monburan'
+                'tar --no-same-owner -xzf - -C /opt/monburan'
 
       - name: Deploy na VPS
         env:
