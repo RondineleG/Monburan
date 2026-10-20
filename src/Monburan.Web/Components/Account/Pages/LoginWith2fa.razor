@@ -37,7 +37,7 @@
             </div>
             <button type="submit" class="w-100 btn btn-lg btn-primary">Confirmar e entrar</button>
         </EditForm>
-        <p class="auth-secondary-action">Sem acesso ao aplicativo? <a href="Account/LoginWithRecoveryCode?ReturnUrl=@ReturnUrl">Use um código de recuperação</a>.</p>
+        <p class="auth-secondary-action">Sem acesso ao aplicativo? <a href="@($"Account/LoginWithRecoveryCode?ReturnUrl={Uri.EscapeDataString(ReturnUrl ?? "")}")">Use um código de recuperação</a>.</p>
     </section>
 </div>
 

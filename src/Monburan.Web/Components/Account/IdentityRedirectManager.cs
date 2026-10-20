@@ -19,13 +19,8 @@ namespace Monburan.Web.Components.Account
         [DoesNotReturn]
         public void RedirectTo(string? uri)
         {
-            uri ??= "";
-
-            // Prevent open redirects.
-            if (!Uri.IsWellFormedUriString(uri, UriKind.Relative))
-            {
-                uri = navigationManager.ToBaseRelativePath(uri);
-            }
+            // Prevent open redirects: só caminhos deste site
+            uri = SafeReturnUrl.ToSitePath(uri, navigationManager.BaseUri);
 
             // During static rendering, NavigateTo throws a NavigationException which is handled by
             // the framework as a redirect. So as long as this is called from a statically rendered
