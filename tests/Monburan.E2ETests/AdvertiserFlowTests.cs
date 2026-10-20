@@ -68,6 +68,11 @@ public class AdvertiserFlowTests : E2ETestBase
         await Page.GetByTestId("job-wizard-continue").ClickAsync();
         await Page.GetByTestId("job-wizard-continue").ClickAsync();
 
+        // A prévia mostra o cartão como na lista, mas a vaga ainda não existe: nada nele pode levar para fora do assistente
+        var preview = Page.GetByTestId("job-wizard-preview");
+        Assert.Contains(jobTitle, await preview.InnerTextAsync());
+        Assert.Equal(0, await preview.Locator("a").CountAsync());
+
         var submit = Page.GetByTestId("job-create-submit");
         Assert.True(await submit.IsEnabledAsync(),
             "Botão de criação de vaga deveria estar habilitado");
