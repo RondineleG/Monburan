@@ -53,7 +53,15 @@
         Auth.Changed += OnAuthChanged;
         Tokens.SessionExpired += OnSessionExpired;
         Nav.LocationChanged += OnLocationChanged;
-        await Auth.InitializeAsync();
+        try
+        {
+            await Auth.InitializeAsync();
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            // A próxima tela tenta de novo (a inicialização que falha não fica guardada)
+            Logger.LogError(ex, "Falha inesperada ao carregar a sessão");
+        }
         await RefreshUnreadAsync();
     }
 

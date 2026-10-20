@@ -131,7 +131,7 @@ public class MonburanApiClient
         {
             response = await client.SendAsync(request, ct);
         }
-        catch (HttpRequestException)
+        catch (Exception ex) when (ApiException.IsTransportFailure(ex))
         {
             throw ApiException.Network();
         }
@@ -168,7 +168,7 @@ public class MonburanApiClient
     {
         string message = response.StatusCode switch
         {
-            HttpStatusCode.Unauthorized => "Sessão expirada. Entre novamente.",
+            HttpStatusCode.Unauthorized => ApiException.SessionExpiredMessage,
             HttpStatusCode.Forbidden => "Você não tem permissão para esta ação.",
             HttpStatusCode.NotFound => "Recurso não encontrado.",
             HttpStatusCode.Conflict => "Conflito: o recurso já existe ou já foi processado.",
