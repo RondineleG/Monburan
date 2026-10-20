@@ -8,6 +8,7 @@
 #   - deploy.sh: primeira vez (sem certificado: nginx em HTTP, certbot, nginx.conf completo), segunda vez, backup que falha,
 #     certbot que falha, --skip-tls, site com outro nome e nginx.conf recusado.
 #   - deploy.sh, permissões: arquivos com outro dono voltam a ser só do root.
+#   - deploy.sh, versão nova: download da imagem que falha (--skip-pull) e app que fica na imagem anterior.
 # Docker, certbot e systemctl são trocados por registradores de chamadas (o contêiner não tem systemd nem Docker); o nginx é o de
 # verdade. Não altera a máquina de quem roda: precisa só de Docker.
 #
@@ -114,6 +115,14 @@ cat >/stubs/docker <<'STUB'
 #!/bin/sh
 echo "docker $*" >> /tmp/docker-calls.log
 if [ "$1 $2" = "compose version" ]; then echo "Docker Compose version v2.test"; exit 0; fi
+# Download da imagem que falha (token do GHCR vencido, registro fora do ar)
+if [ "$1 $2 $3" = "compose pull app" ] && [ -e /tmp/docker-pull-fail ]; then echo "pull: falha simulada" >&2; exit 1; fi
+if [ "$1 $2" = "compose up" ]; then touch /tmp/docker-has-app; exit 0; fi
+# A imagem baixada; com /tmp/docker-stale o contêiner ficou na anterior
+if [ "$1 $2" = "image inspect" ]; then
+    if [ -e /tmp/docker-stale ]; then echo "sha256:def456"; else echo "sha256:abc123"; fi
+    exit 0
+fi
 if [ "$1" = "inspect" ]; then
     [ -e /tmp/docker-has-app ] || exit 1
     case "$*" in
@@ -166,6 +175,7 @@ fresh_dir() {
     mkdir -p "$DIR"
     cp /repo/infra/vps/nginx.conf /repo/infra/vps/env.example /repo/infra/vps/docker-compose.prod.yml "$DIR/"
     rm -f /tmp/docker-has-app /tmp/certbot-fail
+    rm -f /tmp/docker-pull-fail /tmp/docker-stale
     : >"$DOCKER_CALLS"
     : >"$CERTBOT_CALLS"
 }
@@ -290,6 +300,32 @@ expect "a pasta e os arquivos voltam a ser do root" bash -c "! find $DIR \\( ! -
 expect "sem escrita para grupo e outros" bash -c "! find $DIR -perm /022 | grep -q ."
 expect "o .env continua só do dono (600)" test "$(stat -c %a "$DIR/.env")" = 600
 expect "avisa do que corrigiu" grep -q 'outro dono' "$OUT"
+
+echo
+echo "14. deploy.sh: o download da imagem nova falha (token do GHCR vencido, registro fora do ar)"
+fresh_dir
+reset_site
+deploy --email teste@example.com
+expect "a instalação de base termina sem erro" test "$status" -eq 0
+touch /tmp/docker-pull-fail
+: >"$DOCKER_CALLS"
+deploy
+expect "falha (antes terminava como concluído, ainda na versão antiga)" test "$status" -ne 0
+expect "explica que nada foi trocado" grep -q 'nada foi trocado' "$OUT"
+expect "não sobe a stack depois do download que falhou" bash -c "! grep -q 'compose up' $DOCKER_CALLS"
+: >"$DOCKER_CALLS"
+deploy --skip-pull
+expect "--skip-pull sobe a imagem que já está no servidor" test "$status" -eq 0
+expect "e não tenta baixar" bash -c "! grep -q 'compose pull' $DOCKER_CALLS"
+rm -f /tmp/docker-pull-fail
+
+echo
+echo "15. deploy.sh: o app continua na imagem anterior depois do up"
+touch /tmp/docker-stale
+deploy
+expect "falha" test "$status" -ne 0
+expect "explica que o app ficou na imagem anterior" grep -q 'continua na imagem anterior' "$OUT"
+rm -f /tmp/docker-stale
 
 echo
 echo "$passed ok, $failed falhas"

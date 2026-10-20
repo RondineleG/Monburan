@@ -9,6 +9,7 @@
 # existe, o nginx sobe só em HTTP, o certbot emite o certificado e só então entra o nginx.conf completo (que depende dele).
 # Nas vezes seguintes: tira um backup (se o backup.sh estiver configurado), guarda a imagem atual como rollback, baixa a nova,
 # reinicia o app e espera o /health.
+# Se o download da imagem nova falhar, para sem trocar nada; depois de subir, confere que o app ficou na imagem baixada.
 # Arquivos de /opt/monburan com outro dono (ou com escrita para grupo e outros) voltam a ser só do root.
 #
 # Uso (como root, na VPS):
@@ -22,6 +23,7 @@
 #   --admin-email EMAIL  grava ADMIN_EMAILS no .env (quem vira administrador depois de confirmar o e-mail)
 #   --skip-tls           não pede certificado (o site fica em HTTP)
 #   --no-backup          não roda o backup.sh antes de trocar a versão
+#   --skip-pull          não baixa a imagem: sobe a que já está no servidor (sem acesso ao ghcr.io)
 # ============================================================
 set -euo pipefail
 
@@ -32,6 +34,7 @@ EMAIL="${CERTBOT_EMAIL:-}"
 ADMIN_EMAIL=""
 SKIP_TLS=0
 NO_BACKUP=0
+SKIP_PULL=0
 TLS_PENDING=0
 
 usage() {
@@ -131,6 +134,18 @@ fix_ownership() {
     warn "havia arquivos em $INSTALL_DIR com outro dono ou com escrita para grupo/outros (ex.: $foreign): agora são só do root"
 }
 
+# O compose só recria o contêiner quando a imagem muda: confere que o app ficou na imagem que acabou de ser baixada
+check_app_image() {
+    local reference running expected
+    reference=$(docker inspect -f '{{.Config.Image}}' monburan-app 2>/dev/null) || fail "o contêiner monburan-app não existe depois do docker compose up"
+    running=$(docker inspect -f '{{.Image}}' monburan-app)
+    expected=$(docker image inspect -f '{{.Id}}' "$reference")
+    if [[ "$running" != "$expected" ]]; then
+        fail "o app continua na imagem anterior ($running), não na baixada ($expected): rode docker compose up -d --force-recreate app"
+    fi
+    echo "    o app está na imagem ${expected#sha256:}"
+}
+
 wait_for_health() {
     local code _
     for _ in $(seq 1 60); do
@@ -148,9 +163,15 @@ wait_for_health() {
 start_stack() {
     log "Stack (app + Postgres)"
     safety_net
-    docker compose pull app || warn "o pull falhou: sigo com a imagem que já existe, se houver"
+    if [[ $SKIP_PULL -eq 1 ]]; then
+        warn "--skip-pull: sobe a imagem que já está no servidor, sem baixar a nova"
+    elif ! docker compose pull app; then
+        # Antes só avisava e seguia com a imagem antiga: o deploy terminava "concluído" sem trocar a versão
+        fail "não consegui baixar a imagem nova e nada foi trocado (confira o acesso ao ghcr.io; para subir a imagem que já está no servidor, use --skip-pull)"
+    fi
     docker compose up -d --remove-orphans
     wait_for_health
+    check_app_image
 }
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -293,6 +314,7 @@ main() {
             --admin-email) ADMIN_EMAIL="${2:?informe o e-mail do administrador}"; shift 2 ;;
             --skip-tls) SKIP_TLS=1; shift ;;
             --no-backup) NO_BACKUP=1; shift ;;
+            --skip-pull) SKIP_PULL=1; shift ;;
             -h|--help) usage; exit 0 ;;
             *) echo "Opção desconhecida: $1" >&2; usage; exit 2 ;;
         esac
