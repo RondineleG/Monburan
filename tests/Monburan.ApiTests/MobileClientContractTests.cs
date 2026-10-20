@@ -187,6 +187,19 @@ public class MobileClientContractTests : IClassFixture<MonburanApiFactory>
     }
 
     [Fact]
+    public async Task Login_WithWrongCredentials_CarriesTheServerReason()
+    {
+        var app = MobileApp.Create(_factory);
+
+        var login = async () => await app.AuthApi.LoginAsync($"ninguem-{Guid.NewGuid():N}@teste.com", Password);
+
+        // A tela de login mostra este texto: o mesmo canal traz "conta bloqueada" e "conta inativa"
+        var error = (await login.Should().ThrowAsync<ApiException>()).Which;
+        error.IsUnauthorized.Should().BeTrue();
+        error.Message.Should().Be("E-mail ou senha incorretos.");
+    }
+
+    [Fact]
     public async Task Plans_AreReadableByMobileClient()
     {
         var app = MobileApp.Create(_factory);
