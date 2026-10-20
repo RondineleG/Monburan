@@ -37,7 +37,7 @@ else if (_candidate is not null)
     <form class="card" @onsubmit="SaveAsync" novalidate>
         <div class="form-field">
             <label for="profile-name">Nome</label>
-            <input id="profile-name" class="input" @bind="_name" autocomplete="name" />
+            <input id="profile-name" class="input" @bind="_name" autocomplete="name" maxlength="100" />
             @if (_fieldErrors.GetValueOrDefault("name") is { } nameError)
             {
                 <div class="field-error">@nameError</div>
@@ -45,7 +45,7 @@ else if (_candidate is not null)
         </div>
         <div class="form-field">
             <label for="profile-phone">Telefone</label>
-            <input id="profile-phone" class="input" type="tel" @bind="_phone" placeholder="(11) 99999-0000" autocomplete="tel" />
+            <input id="profile-phone" class="input" type="tel" @bind="_phone" placeholder="(11) 99999-0000" autocomplete="tel" maxlength="25" />
             @if (_fieldErrors.GetValueOrDefault("phone") is { } phoneError)
             {
                 <div class="field-error">@phoneError</div>
