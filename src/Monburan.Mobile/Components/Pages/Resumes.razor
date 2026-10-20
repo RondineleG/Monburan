@@ -2,6 +2,7 @@
 @inherits ProtectedPage
 @inject MonburanApiClient Api
 @inject IToastService Toast
+@inject ILogger<Resumes> Logger
 
 <h1 class="page-title">Meus currículos</h1>
 <p class="page-subtitle">Envie um PDF ou cadastre seu currículo</p>
@@ -80,6 +81,8 @@ else
 <ConfirmDialog @ref="_confirm" />
 
 @code {
+    private const long MaxPdfBytes = 10 * 1024 * 1024;
+
     private List<ResumeResponse> _items = [];
     private string _newTitle = "";
     private string? _newSummary;
@@ -173,6 +176,13 @@ else
             }
 
             await using var stream = await picked.OpenReadAsync();
+            if (stream.CanSeek && stream.Length > MaxPdfBytes)
+            {
+                // O servidor recusa acima de 10 MB: avisa antes de gastar os dados da pessoa subindo o arquivo inteiro
+                Toast.ShowError("O PDF pode ter no máximo 10 MB.");
+                return;
+            }
+
             var upload = await Api.UploadPdfAsync(stream, picked.FileName);
 
             // Espelha o comportamento do site: o PDF vira um currículo na lista
@@ -190,6 +200,12 @@ else
         catch (ApiException ex)
         {
             Toast.ShowError(ex.Message);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            // Seletor de arquivos e leitura do PDF (permissão negada, arquivo da nuvem indisponível) não são ApiException
+            Logger.LogWarning(ex, "Não foi possível ler o PDF escolhido");
+            Toast.ShowError("Não foi possível abrir o arquivo escolhido. Tente outro PDF.");
         }
         finally
         {

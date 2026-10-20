@@ -16,10 +16,12 @@ namespace Monburan.Mobile.Shared.Api;
 public class MonburanApiClient
 {
     private readonly HttpClient _http;
+    private readonly HttpClient _uploadHttp;
 
     public MonburanApiClient(IHttpClientFactory httpClientFactory)
     {
         _http = httpClientFactory.CreateClient(ApiClientNames.Api);
+        _uploadHttp = httpClientFactory.CreateClient(ApiClientNames.Upload);
     }
 
     // ---- Jobs (público) ----
@@ -72,7 +74,7 @@ public class MonburanApiClient
         file.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/pdf");
 
         var content = new MultipartFormDataContent { { file, "file", fileName } };
-        return SendContentAsync<UploadFileResponse>(HttpMethod.Post, "api/v1/files/upload?fileType=Pdf", content, ct);
+        return SendContentAsync<UploadFileResponse>(_uploadHttp, HttpMethod.Post, "api/v1/files/upload?fileType=Pdf", content, ct);
     }
 
     // ---- Notifications ----
@@ -117,10 +119,10 @@ public class MonburanApiClient
     private Task<T> SendAsync<T>(HttpMethod method, string path, object? body, CancellationToken ct) =>
         SendAsync<T>(_http, method, path, body, ct);
 
-    private async Task<T> SendContentAsync<T>(HttpMethod method, string path, HttpContent content, CancellationToken ct)
+    private static async Task<T> SendContentAsync<T>(HttpClient client, HttpMethod method, string path, HttpContent content, CancellationToken ct)
     {
         using var request = new HttpRequestMessage(method, path) { Content = content };
-        using var response = await SendRequestAsync(_http, request, ct);
+        using var response = await SendRequestAsync(client, request, ct);
         return await ReadBodyAsync<T>(response, ct);
     }
 

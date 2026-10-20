@@ -281,7 +281,7 @@ public class MobileClientContractTests : IClassFixture<MonburanApiFactory>
         public HttpClient CreateClient(string name)
         {
             HttpMessageHandler handler = factory.Server.CreateHandler();
-            if (name == ApiClientNames.Api)
+            if (name is ApiClientNames.Api or ApiClientNames.Upload)
                 handler = new AuthHeaderHandler(Tokens!) { InnerHandler = handler };
 
             return new HttpClient(handler) { BaseAddress = factory.Server.BaseAddress };
