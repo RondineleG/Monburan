@@ -43,6 +43,7 @@ public static class DependencyInjection
         services.AddSingleton<MonburanApiClient>();
         services.AddSingleton<AuthApiClient>();
         services.AddSingleton<IToastService, ToastService>();
+        services.AddSingleton<NotificationBadgeState>();
 
         return services;
     }

@@ -7,6 +7,7 @@
 @inject IJSRuntime JS
 @inject IToastService Toast
 @inject ILogger<MainLayout> Logger
+@inject NotificationBadgeState Badge
 
 <div class="app-shell">
     @if (!IsAuthPage)
@@ -53,6 +54,7 @@
         Auth.Changed += OnAuthChanged;
         Tokens.SessionExpired += OnSessionExpired;
         Nav.LocationChanged += OnLocationChanged;
+        Badge.Invalidated += OnBadgeInvalidated;
         try
         {
             await Auth.InitializeAsync();
@@ -102,6 +104,14 @@
             StateHasChanged();
         });
 
+    private void OnBadgeInvalidated() =>
+        InvokeAsync(async () =>
+        {
+            _lastUnreadFetch = DateTime.MinValue;
+            await RefreshUnreadAsync();
+            StateHasChanged();
+        });
+
     private async Task RefreshUnreadAsync()
     {
         if (!Auth.IsAuthenticated)
@@ -131,5 +141,6 @@
         Auth.Changed -= OnAuthChanged;
         Tokens.SessionExpired -= OnSessionExpired;
         Nav.LocationChanged -= OnLocationChanged;
+        Badge.Invalidated -= OnBadgeInvalidated;
     }
 }
