@@ -1,8 +1,13 @@
 // Monburan Service Worker - PWA Support
 // Network First Strategy with basic offline caching
 
-const CACHE_NAME = 'monburan-v8-vagas';
-const RUNTIME_CACHE = 'monburan-runtime-v8-vagas';
+// Nomes novos a cada mudança de regra: o activate apaga os caches antigos (o v8 guardava páginas logadas)
+const CACHE_NAME = 'monburan-v9';
+const RUNTIME_CACHE = 'monburan-runtime-v9';
+
+// Só arquivos estáticos entram no cache. A navegação aprimorada do Blazor busca as páginas por fetch (não por "navigate"),
+// então páginas logadas (currículos, candidaturas, a chave do autenticador) ficavam guardadas no navegador depois de sair da conta
+const CACHEABLE_DESTINATIONS = ['style', 'script', 'image', 'font', 'manifest'];
 
 // Assets to cache on install
 const PRECACHE_ASSETS = [
@@ -60,6 +65,10 @@ self.addEventListener('fetch', (event) => {
     // Never cache document responses: a transient router response must not
     // become the page users see after a later deployment.
     if (event.request.mode === 'navigate') {
+        return;
+    }
+
+    if (event.request.method !== 'GET' || !CACHEABLE_DESTINATIONS.includes(event.request.destination)) {
         return;
     }
 
