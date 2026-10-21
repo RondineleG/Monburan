@@ -21,20 +21,18 @@ cor, ícone ou componente, procure aqui. As regras marcadas com ✔ são verific
   sino dourado. A marca fala de **jornada** (a montanha), **chamado** (o sino que anuncia que algo valioso foi
   encontrado) e **palavra cumprida** (o ouro que provou a verdade; "palavra dada."). A identidade é original: não usa personagens,
   nomes nem elementos visuais de nenhuma obra.
-- **Marca — "O Chamado":** o sino com a cruz gravada (o **X** que marca onde está o tesouro) entre duas penas que se
-  abrem em **M**; na versão completa, o mar embaixo (o caminho de volta). Penas de escriba porque a marca é sobre a
-  palavra registrada: a promessa feita na vaga e cumprida no processo.
-  - Versão **completa** (`wwwroot/brand/monburan-emblem.svg`): barbas nas penas, aros do sino e o mar; a partir de 64px.
-  - Versão **simplificada** (`wwwroot/brand/monburan-mark.svg`): penas lisas, traços mais grossos; ícones e até 64px.
-  - Nas telas, o componente `BrandMark` (web escolhe a versão pelo `Size`; o app usa a simplificada). Cores pelos
-    tokens `--brand-feather`, `--brand-rachis`, `--brand-metal`, `--brand-engrave` e `--brand-bell-1..4` (degradê do
-    sino): ouro polido no tema escuro, bronze sobre pergaminho no claro.
+- **Marca — maleta, sino e pico:** a **maleta** (o trabalho) com um **sino** pequeno no lugar da alça (o chamado da
+  oportunidade) e, recortado no corpo, o **Pico**: o M de montanha que também é uma pessoa de braços erguidos (a vaga
+  conquistada). Desenho chapado, em uma cor, legível em 16px.
+  - Fonte única: `wwwroot/brand/monburan-mark.svg`; nas telas, o componente `BrandMark` (web e app). Os recortes são
+    máscara (mostram o fundo de onde a marca estiver); a cor é o token `--brand-metal`: ouro #E0B252 no tema escuro,
+    bronze #8A5500 no claro.
   - Fora de uso: perfis de personagem ou qualquer figura reconhecível de obra existente.
 - **Assinatura:** marca + "MONBURAN" em Cinzel 600 caixa-alta espaçada + "palavra dada." em serifa itálica (`Brand`).
-- **Ícones do produto:** `favicon.svg` e PNGs (16, 32, 180, 192, 512 e *maskable*) com a marca simplificada sobre a
-  tinta #141008; imagem de compartilhamento `brand/og-image.png` (1200×630) com o emblema completo; no app,
+- **Ícones do produto:** `favicon.svg` e PNGs (16, 32, 180, 192, 512 e *maskable*) com a marca sobre a tinta
+  #141008; imagem de compartilhamento `brand/og-image.png` (1200×630); no app,
   `Resources/AppIcon` (fundo #141008) e `Resources/Splash` (fundo #0A0806).
-- **Carregamento:** só o sino balança, preso pela alça; as penas ficam paradas (`LoadingState`, telas de abertura e de
+- **Carregamento:** só o sino balança; a maleta fica parada (`LoadingState`, telas de abertura e de
   reconexão). Com movimento reduzido fica parado. Não confundir com o ícone de notificações (sino de contorno).
 
 ## Arquivos e camadas (web)

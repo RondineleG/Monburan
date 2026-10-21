@@ -1,15 +1,7 @@
-/* Identidade da marca no app: partes da marca "O Chamado" (tokens --brand-*, iguais aos da web) e a tela de
+/* Identidade da marca no app: a cor da marca (token --brand-metal, igual ao da web) e a tela de
    abertura mostrada enquanto o Blazor inicia dentro do WebView. */
 .brand-mark__icon { width: 1.75rem; height: 1.75rem; color: inherit; }
-.brand-mark__vane { fill: var(--brand-feather); }
-.brand-mark__rachis { fill: none; stroke: var(--brand-rachis); stroke-linecap: round; }
 .brand-mark__metal { fill: var(--brand-metal); }
-.brand-mark__metal-line { fill: none; stroke: var(--brand-metal); }
-.brand-mark__engrave { fill: none; stroke: var(--brand-engrave); }
-.brand-mark__stop1 { stop-color: var(--brand-bell-1); }
-.brand-mark__stop2 { stop-color: var(--brand-bell-2); }
-.brand-mark__stop3 { stop-color: var(--brand-bell-3); }
-.brand-mark__stop4 { stop-color: var(--brand-bell-4); }
 
 .app-splash {
     position: fixed;
