@@ -37,7 +37,9 @@
         line-height: 1.25;
         text-align: center;
         text-decoration: none;
-        white-space: nowrap;
+        /* Quebra a linha quando falta espaço (fontes mais largas, telas de 320px): nunca empurra a página para o lado */
+        overflow-wrap: anywhere;
+        text-wrap: balance;
         transition: background-color var(--dur-xs) ease, border-color var(--dur-xs) ease, color var(--dur-xs) ease;
     }
     .btn:hover { color: var(--tx); }

@@ -17,7 +17,7 @@ static class CaptureRunner
 {
     const string Password = "Monburan123";
 
-    static readonly (string Name, int W, int H)[] WebViewports = [("desktop", 1440, 900), ("tablet", 834, 1112), ("mobile", 390, 844)];
+    static (string Name, int W, int H)[] WebViewports = [("desktop", 1440, 900), ("tablet", 834, 1112), ("mobile", 390, 844)];
     static readonly (string Name, int W, int H)[] AppViewports = [("small", 360, 800), ("medium", 390, 844), ("large", 412, 915)];
 
     sealed record Shot(string Role, string Name, string Path);
@@ -33,6 +33,9 @@ static class CaptureRunner
         // Recortes opcionais para rodar em blocos menores: --roles visitante,candidato --themes light
         Roles = ArgValue(args, "--roles")?.Split(',', StringSplitOptions.RemoveEmptyEntries);
         Themes = ArgValue(args, "--themes")?.Split(',', StringSplitOptions.RemoveEmptyEntries);
+        // --narrow: só 320px (fontes mais largas que as do Windows, como as do Linux, cabem com folga se 320px couber)
+        if (args.Contains("--narrow"))
+            WebViewports = [("narrow", 320, 700)];
         var outDir = ArgValue(args, "--out") ?? Path.Combine(Path.GetTempPath(), "monburan-capture-" + DateTime.Now.ToString("yyyyMMdd-HHmmss"));
         Directory.CreateDirectory(outDir);
         Console.WriteLine($"ARTIFACTS={outDir}");
@@ -333,7 +336,7 @@ static class CaptureRunner
     static async Task OverlaysAsync(Session s, IBrowserContext ctx)
     {
         var page = await ctx.NewPageAsync();
-        foreach (var vp in new[] { WebViewports[0], WebViewports[2] })
+        foreach (var vp in WebViewports.Length > 1 ? new[] { WebViewports[0], WebViewports[^1] } : WebViewports)
         {
             await page.SetViewportSizeAsync(vp.W, vp.H);
             await page.GotoAsync(s.BaseUrl + "/received-applications", new() { WaitUntil = WaitUntilState.NetworkIdle });
