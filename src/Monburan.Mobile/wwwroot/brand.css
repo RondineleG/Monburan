@@ -1,9 +1,15 @@
-/* Identidade da marca no app: cores do sino (iguais às da web em tokens.css: --brand-gold/-ink/-snow) e a tela de
+/* Identidade da marca no app: partes da marca "O Chamado" (tokens --brand-*, iguais aos da web) e a tela de
    abertura mostrada enquanto o Blazor inicia dentro do WebView. */
-.brand-mark__bell { width: 1.75rem; height: 1.75rem; color: inherit; }
-.brand-mark__gold { fill: var(--brand-gold); }
-.brand-mark__ink { fill: var(--brand-ink); }
-.brand-mark__snow { fill: var(--brand-snow); }
+.brand-mark__icon { width: 1.75rem; height: 1.75rem; color: inherit; }
+.brand-mark__vane { fill: var(--brand-feather); }
+.brand-mark__rachis { fill: none; stroke: var(--brand-rachis); stroke-linecap: round; }
+.brand-mark__metal { fill: var(--brand-metal); }
+.brand-mark__metal-line { fill: none; stroke: var(--brand-metal); }
+.brand-mark__engrave { fill: none; stroke: var(--brand-engrave); }
+.brand-mark__stop1 { stop-color: var(--brand-bell-1); }
+.brand-mark__stop2 { stop-color: var(--brand-bell-2); }
+.brand-mark__stop3 { stop-color: var(--brand-bell-3); }
+.brand-mark__stop4 { stop-color: var(--brand-bell-4); }
 
 .app-splash {
     position: fixed;
@@ -12,14 +18,15 @@
     place-items: center;
     align-content: center;
     gap: 1rem;
-    background: radial-gradient(ellipse at 50% 30%, rgb(201 155 66 / 18%), transparent 60%), #16110A;
-    color: #F3ECDC;
+    background: radial-gradient(ellipse at 50% 30%, rgb(201 168 76 / 16%), transparent 60%), #0A0806;
+    color: #F0E6D0;
     text-align: center;
     font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 }
-html[data-theme="light"] .app-splash { background: radial-gradient(ellipse at 50% 30%, rgb(201 155 66 / 20%), transparent 60%), #F8F3E8; color: #2A2015; }
-.app-splash__mark { width: 5.5rem; height: 5.5rem; transform-origin: 50% 6%; animation: app-splash-swing 1.4s cubic-bezier(.76, 0, .24, 1) infinite; }
-.app-splash__name { margin: 0; font-family: "Cinzel", Georgia, serif; font-size: 2rem; font-weight: 600; letter-spacing: .04em; }
-.app-splash__tagline { margin: 0; font-size: .875rem; opacity: .8; }
+html[data-theme="light"] .app-splash { background: radial-gradient(ellipse at 50% 30%, rgb(138 85 0 / 12%), transparent 60%), #F2EBD9; color: #2A1A08; }
+.app-splash__mark { width: 7rem; height: 7rem; }
+.app-splash__mark .brand-mark__bell { transform-box: fill-box; transform-origin: 50% 0; animation: app-splash-swing 1.4s cubic-bezier(.76, 0, .24, 1) infinite; }
+.app-splash__name { margin: 0; font-family: "Cinzel", Georgia, serif; font-size: 1.75rem; font-weight: 600; letter-spacing: .2em; text-transform: uppercase; }
+.app-splash__tagline { margin: 0; font-family: Georgia, "Times New Roman", serif; font-size: 1rem; font-style: italic; opacity: .8; }
 @keyframes app-splash-swing { 0%, 100% { transform: rotate(0); } 25% { transform: rotate(-9deg); } 75% { transform: rotate(9deg); } }
-@media (prefers-reduced-motion: reduce) { .app-splash__mark { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .app-splash__mark .brand-mark__bell { animation: none; } }

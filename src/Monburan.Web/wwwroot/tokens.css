@@ -142,10 +142,15 @@
         --neutral-bg: rgb(80 60 30 / 7%);
         --brand-tx: var(--gold-d);
         --brand-bg: var(--gold-soft);
-        /* Cores da marca (sino dourado, montanha e neve): iguais nos dois temas */
-        --brand-gold: #C99B42;
-        --brand-ink: #1A140B;
-        --brand-snow: #FBF6EA;
+        /* Marca (O Chamado): no tema claro o sino é bronze escuro, com a gravação em pergaminho */
+        --brand-feather: #8A5500;
+        --brand-rachis: #F8F3E8;
+        --brand-metal: #5A3200;
+        --brand-bell-1: #3E2300;
+        --brand-bell-2: #8A5A1E;
+        --brand-bell-3: #5A3200;
+        --brand-bell-4: #2E1A00;
+        --brand-engrave: #F2EBD9;
         --shadow-sm: 0 2px 8px rgb(80 40 0 / 6%);
         --shadow-md: 0 8px 28px rgb(80 40 0 / 10%);
         --shadow-lg: 0 24px 60px rgb(80 40 0 / 14%), 0 4px 16px rgb(80 40 0 / 6%);
@@ -202,10 +207,15 @@
         --neutral-bg: rgb(255 255 255 / 6%);
         --brand-tx: var(--gold-d);
         --brand-bg: var(--gold-soft);
-        /* Cores da marca (sino dourado, montanha e neve): iguais nos dois temas */
-        --brand-gold: #C99B42;
-        --brand-ink: #1A140B;
-        --brand-snow: #FBF6EA;
+        /* Marca (O Chamado): sino de ouro polido, penas claras e gravação em tinta */
+        --brand-feather: #E8C97D;
+        --brand-rachis: #141008;
+        --brand-metal: #C9A84C;
+        --brand-bell-1: #8A6C2A;
+        --brand-bell-2: #F2D891;
+        --brand-bell-3: #C9A84C;
+        --brand-bell-4: #6E521C;
+        --brand-engrave: #141008;
         --shadow-sm: 0 2px 10px rgb(0 0 0 / 35%);
         --shadow-md: 0 10px 32px rgb(0 0 0 / 45%);
         --shadow-lg: 0 28px 70px rgb(0 0 0 / 55%), 0 6px 20px rgb(0 0 0 / 35%);

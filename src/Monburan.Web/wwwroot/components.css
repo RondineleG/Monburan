@@ -354,8 +354,8 @@
     /* ---------- Estados: carregando, vazio, erro ---------- */
     .loading-state { display: grid; min-height: 12rem; place-items: center; align-content: center; gap: var(--s-3); color: var(--tx-2); }
     .loading-state--compact { min-height: 6rem; }
-    /* O sino balança a partir do topo, como um sino de verdade */
-    .loading-state__mark { transform-origin: 50% 6%; animation: bell-swing 1.4s var(--ease) infinite; }
+    /* Só o sino balança, preso pela alça; as penas ficam paradas */
+    .loading-state__mark .brand-mark__bell { transform-box: fill-box; transform-origin: 50% 0; animation: bell-swing 1.4s var(--ease) infinite; }
     @keyframes bell-swing { 0%, 100% { transform: rotate(0); } 25% { transform: rotate(-9deg); } 75% { transform: rotate(9deg); } }
 
     /* Reconexão do circuito: escondida até o Blazor mostrar */

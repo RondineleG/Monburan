@@ -110,9 +110,15 @@ html[data-theme="dark"] {
     --neutral-bg: rgb(255 255 255 / 6%);
     --brand-tx: var(--gold-d);
     --brand-bg: var(--gold-soft);
-    --brand-gold: #C99B42;
-    --brand-ink: #1A140B;
-    --brand-snow: #FBF6EA;
+    /* Marca (O Chamado): sino de ouro polido, penas claras e gravação em tinta */
+    --brand-feather: #E8C97D;
+    --brand-rachis: #141008;
+    --brand-metal: #C9A84C;
+    --brand-bell-1: #8A6C2A;
+    --brand-bell-2: #F2D891;
+    --brand-bell-3: #C9A84C;
+    --brand-bell-4: #6E521C;
+    --brand-engrave: #141008;
     --shadow-sm: 0 2px 10px rgb(0 0 0 / 35%);
     --shadow-md: 0 10px 32px rgb(0 0 0 / 45%);
     --shadow-lg: 0 28px 70px rgb(0 0 0 / 55%), 0 6px 20px rgb(0 0 0 / 35%);
@@ -168,9 +174,15 @@ html[data-theme="light"] {
     --neutral-bg: rgb(80 60 30 / 7%);
     --brand-tx: var(--gold-d);
     --brand-bg: var(--gold-soft);
-    --brand-gold: #C99B42;
-    --brand-ink: #1A140B;
-    --brand-snow: #FBF6EA;
+    /* Marca (O Chamado): no tema claro o sino é bronze escuro, com a gravação em pergaminho */
+    --brand-feather: #8A5500;
+    --brand-rachis: #F8F3E8;
+    --brand-metal: #5A3200;
+    --brand-bell-1: #3E2300;
+    --brand-bell-2: #8A5A1E;
+    --brand-bell-3: #5A3200;
+    --brand-bell-4: #2E1A00;
+    --brand-engrave: #F2EBD9;
     --shadow-sm: 0 2px 8px rgb(80 40 0 / 6%);
     --shadow-md: 0 8px 28px rgb(80 40 0 / 10%);
     --shadow-lg: 0 24px 60px rgb(80 40 0 / 14%), 0 4px 16px rgb(80 40 0 / 6%);
@@ -281,10 +293,11 @@ h2[tabindex="-1"]:focus { outline: none; }
 .brand-mark span {
     font-family: var(--f-display);
     font-weight: var(--fw-semibold);
-    letter-spacing: 0.04em;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
 }
 
-.app-brand__name { font-size: var(--fs-lg); }
+.app-brand__name { font-size: var(--fs-md); }
 
 .brand-mark__star { display: block; width: 1.5rem; height: 1.5rem; flex: 0 0 auto; color: var(--gold); }
 
@@ -669,9 +682,9 @@ textarea.input { min-height: 6.5rem; resize: vertical; }
     font-size: var(--fs-2xl);
 }
 
-.auth-hero .brand-mark .brand-mark__star { width: 2rem; height: 2rem; }
+.auth-hero .brand-mark .brand-mark__star { width: 2.75rem; height: 2.75rem; }
 
-.auth-tagline { margin: var(--s-1) 0 0; color: var(--tx-2); font-size: var(--fs-md); }
+.auth-tagline { margin: var(--s-1) 0 0; color: var(--tx-2); font-family: Georgia, "Times New Roman", serif; font-size: var(--fs-md); font-style: italic; }
 .auth-hero p { margin: var(--s-2) 0 0; color: var(--tx-2); }
 
 .auth-links { margin-top: var(--s-5); color: var(--tx-2); font-size: var(--fs-sm); text-align: center; }

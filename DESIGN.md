@@ -19,17 +19,23 @@ cor, ícone ou componente, procure aqui. As regras marcadas com ✔ são verific
 - **Nome:** Monburan é a leitura japonesa de *Mont Blanc*, a "montanha branca". A inspiração vem da lenda do navegador
   e explorador que encontrou uma cidade de ouro, foi chamado de mentiroso e teve a verdade provada séculos depois por um
   sino dourado. A marca fala de **jornada** (a montanha), **chamado** (o sino que anuncia que algo valioso foi
-  encontrado) e **valor que fica** (o ouro; "talentos que ficam"). A identidade é original: não usa personagens,
+  encontrado) e **palavra cumprida** (o ouro que provou a verdade; "palavra dada."). A identidade é original: não usa personagens,
   nomes nem elementos visuais de nenhuma obra.
-- **Marca:** um sino dourado com a montanha branca recortada dentro, em duas cristas nevadas que formam o **M**.
-  Fonte única: `wwwroot/brand/monburan-mark.svg`; nas telas, o componente `BrandMark` (web e app), com as cores dos
-  tokens `--brand-gold` (#C99B42), `--brand-ink` (#1A140B) e `--brand-snow` (#FBF6EA), iguais nos dois temas.
-- **Assinatura:** marca + "Monburan" em Cinzel 600 + "talentos que ficam" na fonte da interface (`Brand`).
-- **Ícones do produto:** `favicon.svg` e PNGs (16, 32, 180, 192, 512 e *maskable*) com a marca sobre a tinta escura;
-  imagem de compartilhamento `brand/og-image.png` (1200×630); no app, `Resources/AppIcon` (fundo #1A140B) e
-  `Resources/Splash` (fundo #16110A).
-- **Carregamento:** o sino balança (`LoadingState`, telas de abertura e de reconexão); com movimento reduzido fica
-  parado. Não confundir com o ícone de notificações (sino de contorno, sem montanha).
+- **Marca — "O Chamado":** o sino com a cruz gravada (o **X** que marca onde está o tesouro) entre duas penas que se
+  abrem em **M**; na versão completa, o mar embaixo (o caminho de volta). Penas de escriba porque a marca é sobre a
+  palavra registrada: a promessa feita na vaga e cumprida no processo.
+  - Versão **completa** (`wwwroot/brand/monburan-emblem.svg`): barbas nas penas, aros do sino e o mar; a partir de 64px.
+  - Versão **simplificada** (`wwwroot/brand/monburan-mark.svg`): penas lisas, traços mais grossos; ícones e até 64px.
+  - Nas telas, o componente `BrandMark` (web escolhe a versão pelo `Size`; o app usa a simplificada). Cores pelos
+    tokens `--brand-feather`, `--brand-rachis`, `--brand-metal`, `--brand-engrave` e `--brand-bell-1..4` (degradê do
+    sino): ouro polido no tema escuro, bronze sobre pergaminho no claro.
+  - Fora de uso: perfis de personagem ou qualquer figura reconhecível de obra existente.
+- **Assinatura:** marca + "MONBURAN" em Cinzel 600 caixa-alta espaçada + "palavra dada." em serifa itálica (`Brand`).
+- **Ícones do produto:** `favicon.svg` e PNGs (16, 32, 180, 192, 512 e *maskable*) com a marca simplificada sobre a
+  tinta #141008; imagem de compartilhamento `brand/og-image.png` (1200×630) com o emblema completo; no app,
+  `Resources/AppIcon` (fundo #141008) e `Resources/Splash` (fundo #0A0806).
+- **Carregamento:** só o sino balança, preso pela alça; as penas ficam paradas (`LoadingState`, telas de abertura e de
+  reconexão). Com movimento reduzido fica parado. Não confundir com o ícone de notificações (sino de contorno).
 
 ## Arquivos e camadas (web)
 
