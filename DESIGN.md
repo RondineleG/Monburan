@@ -19,7 +19,7 @@ cor, ícone ou componente, procure aqui. As regras marcadas com ✔ são verific
 - **Nome:** Monburan é a leitura japonesa de *Mont Blanc*, a "montanha branca". A inspiração vem da lenda do navegador
   e explorador que encontrou uma cidade de ouro, foi chamado de mentiroso e teve a verdade provada séculos depois por um
   sino dourado. A marca fala de **jornada** (a montanha), **chamado** (o sino que anuncia que algo valioso foi
-  encontrado) e **palavra cumprida** (o ouro que provou a verdade; "palavra dada."). A identidade é original: não usa personagens,
+  encontrado) e **valor** (o ouro). A identidade é original: não usa personagens,
   nomes nem elementos visuais de nenhuma obra.
 - **Marca — maleta, sino e pico:** a **maleta** (o trabalho) com um **sino** pequeno no lugar da alça (o chamado da
   oportunidade) e, recortado no corpo, o **Pico**: o M de montanha que também é uma pessoa de braços erguidos (a vaga
@@ -28,7 +28,7 @@ cor, ícone ou componente, procure aqui. As regras marcadas com ✔ são verific
     máscara (mostram o fundo de onde a marca estiver); a cor é o token `--brand-metal`: ouro #E0B252 no tema escuro,
     bronze #8A5500 no claro.
   - Fora de uso: perfis de personagem ou qualquer figura reconhecível de obra existente.
-- **Assinatura:** marca + "MONBURAN" em Cinzel 600 caixa-alta espaçada + "palavra dada." em serifa itálica (`Brand`).
+- **Assinatura:** marca + "MONBURAN" em Cinzel 600 caixa-alta espaçada (`Brand`), sem frase de efeito.
 - **Ícones do produto:** `favicon.svg` e PNGs (16, 32, 180, 192, 512 e *maskable*) com a marca sobre a tinta
   #141008; imagem de compartilhamento `brand/og-image.png` (1200×630); no app,
   `Resources/AppIcon` (fundo #141008) e `Resources/Splash` (fundo #0A0806).

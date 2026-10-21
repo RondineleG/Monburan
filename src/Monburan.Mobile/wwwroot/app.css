@@ -670,7 +670,6 @@ textarea.input { min-height: 6.5rem; resize: vertical; }
 
 .auth-hero .brand-mark .brand-mark__star { width: 2.75rem; height: 2.75rem; }
 
-.auth-tagline { margin: var(--s-1) 0 0; color: var(--tx-2); font-family: Georgia, "Times New Roman", serif; font-size: var(--fs-md); font-style: italic; }
 .auth-hero p { margin: var(--s-2) 0 0; color: var(--tx-2); }
 
 .auth-links { margin-top: var(--s-5); color: var(--tx-2); font-size: var(--fs-sm); text-align: center; }

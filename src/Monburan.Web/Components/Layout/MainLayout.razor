@@ -206,47 +206,31 @@ else
             @* Ilha interativa: toasts disparados pelas páginas (mesmo circuito, mesmo IToastService) *@
             <ToastHost @rendermode="InteractiveServer" />
 
+            @* Rodapé enxuto e centralizado: marca, uma linha de links (conforme o papel) e os créditos *@
             <footer class="site-footer">
                 <div class="site-footer__inner">
-                    <div class="site-footer__brand">
-                        <Brand />
-                        <p>Vagas abertas a todos, candidatura gratuita e cada etapa do processo à vista.</p>
-                    </div>
+                    <Brand />
                     <nav class="site-footer__nav" aria-label="Rodapé">
-                        <div class="site-footer__col">
-                            <h2 class="site-footer__title">Para candidatos</h2>
-                            <a href="/jobs">Buscar vagas</a>
-                            @if (IsCandidate)
-                            {
-                                <a href="/my-applications">Minhas candidaturas</a>
-                                <a href="/resumes">Meus currículos</a>
-                            }
-                            else if (!isAuthenticated)
-                            {
-                                <a href="/Account/Register">Criar conta</a>
-                                <a href="/Account/Login">Entrar</a>
-                            }
-                        </div>
-                        <div class="site-footer__col">
-                            <h2 class="site-footer__title">Para empresas</h2>
-                            @if (IsAdvertiser)
-                            {
-                                <a href="/jobs/create">Publicar vaga</a>
-                                <a href="/received-applications">Candidaturas recebidas</a>
-                            }
-                            else if (!isAuthenticated)
-                            {
-                                <a href="/Account/Register?AccountType=advertiser">Cadastrar empresa</a>
-                            }
-                            <a href="/plans">Planos</a>
-                        </div>
-                        <div class="site-footer__col">
-                            <h2 class="site-footer__title">Monburan</h2>
-                            <a href="/terms">Termos de uso</a>
-                            <a href="/privacy">Política de privacidade</a>
-                        </div>
+                        <a href="/jobs">Buscar vagas</a>
+                        @if (IsCandidate)
+                        {
+                            <a href="/my-applications">Minhas candidaturas</a>
+                            <a href="/resumes">Meus currículos</a>
+                        }
+                        @if (IsAdvertiser)
+                        {
+                            <a href="/jobs/create">Publicar vaga</a>
+                            <a href="/received-applications">Candidaturas recebidas</a>
+                        }
+                        @if (!isAuthenticated)
+                        {
+                            <a href="/Account/Register?AccountType=advertiser">Para empresas</a>
+                        }
+                        <a href="/plans">Planos</a>
+                        <a href="/terms">Termos de uso</a>
+                        <a href="/privacy">Privacidade</a>
                     </nav>
-                    <p class="site-footer__legal">© @DateTime.Now.Year Monburan · palavra dada</p>
+                    <p class="site-footer__legal">© @DateTime.Now.Year Monburan · Vagas de emprego e recrutamento</p>
                 </div>
             </footer>
         </div>

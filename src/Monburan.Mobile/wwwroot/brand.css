@@ -19,6 +19,5 @@ html[data-theme="light"] .app-splash { background: radial-gradient(ellipse at 50
 .app-splash__mark { width: 7rem; height: 7rem; }
 .app-splash__mark .brand-mark__bell { transform-box: fill-box; transform-origin: 50% 0; animation: app-splash-swing 1.4s cubic-bezier(.76, 0, .24, 1) infinite; }
 .app-splash__name { margin: 0; font-family: "Cinzel", Georgia, serif; font-size: 1.75rem; font-weight: 600; letter-spacing: .2em; text-transform: uppercase; }
-.app-splash__tagline { margin: 0; font-family: Georgia, "Times New Roman", serif; font-size: 1rem; font-style: italic; opacity: .8; }
 @keyframes app-splash-swing { 0%, 100% { transform: rotate(0); } 25% { transform: rotate(-9deg); } 75% { transform: rotate(9deg); } }
 @media (prefers-reduced-motion: reduce) { .app-splash__mark .brand-mark__bell { animation: none; } }
