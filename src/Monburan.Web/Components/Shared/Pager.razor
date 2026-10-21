@@ -1,37 +1,38 @@
-@* Paginação das listas interativas: até cinco números ao redor da página atual, com Anterior e Próxima
-   (mesmos rótulos da paginação por link de /jobs). A página atual é anunciada por aria-current. *@
-@if (TotalPages > 1)
+@* Paginação das listas: até cinco números ao redor da página atual, com Anterior e Próxima.
+   Interativa (OnPageChanged) ou por link (HrefFor, páginas renderizadas no servidor, estado na URL).
+   A página atual é anunciada por aria-current; "Mostrando X–Y de N" quando Total e PageSize vêm preenchidos. *@
+@if (TotalPages > 1 || RangeText is not null)
 {
-    <nav class="mt-4" aria-label="@AriaLabel" data-testid="pager">
-        <ul class="pagination justify-content-center">
-            @if (Page > 1)
-            {
-                <li class="page-item">
-                    <button type="button" class="page-link" @onclick="() => GoToAsync(Page - 1)">Anterior</button>
-                </li>
-            }
+    <nav class="pager" aria-label="@AriaLabel" data-testid="pager">
+        @if (TotalPages > 1)
+        {
+            <ul class="pagination">
+                @if (Page > 1)
+                {
+                    <li class="page-item">@PageControl(Page - 1, "Anterior", null)</li>
+                }
 
-            @{
-                var start = Math.Max(1, Page - 2);
-                var end = Math.Min(TotalPages, start + 4);
-                start = Math.Max(1, end - 4);
-            }
-            @for (var number = start; number <= end; number++)
-            {
-                var target = number;
-                var current = target == Page;
-                <li class="page-item @(current ? "active" : string.Empty)">
-                    <button type="button" class="page-link" aria-label="Página @target" aria-current="@(current ? "page" : null)" @onclick="() => GoToAsync(target)">@target</button>
-                </li>
-            }
+                @{
+                    var start = Math.Max(1, Page - 2);
+                    var end = Math.Min(TotalPages, start + 4);
+                    start = Math.Max(1, end - 4);
+                }
+                @for (var number = start; number <= end; number++)
+                {
+                    var target = number;
+                    <li class="page-item @(target == Page ? "active" : string.Empty)">@PageControl(target, target.ToString(), $"Página {target}")</li>
+                }
 
-            @if (Page < TotalPages)
-            {
-                <li class="page-item">
-                    <button type="button" class="page-link" @onclick="() => GoToAsync(Page + 1)">Próxima</button>
-                </li>
-            }
-        </ul>
+                @if (Page < TotalPages)
+                {
+                    <li class="page-item">@PageControl(Page + 1, "Próxima", null)</li>
+                }
+            </ul>
+        }
+        @if (RangeText is not null)
+        {
+            <p class="pager__range" data-testid="pager-range">@RangeText</p>
+        }
     </nav>
 }
 
@@ -45,8 +46,45 @@
     [Parameter]
     public EventCallback<int> OnPageChanged { get; set; }
 
+    /// <summary>Endereço de cada página (modo por link). Com valor, os botões viram links.</summary>
+    [Parameter]
+    public Func<int, string>? HrefFor { get; set; }
+
+    /// <summary>Total de itens e tamanho da página: com os dois, aparece "Mostrando X–Y de N {ItemName}".</summary>
+    [Parameter]
+    public int? Total { get; set; }
+
+    [Parameter]
+    public int PageSize { get; set; }
+
+    [Parameter]
+    public string ItemName { get; set; } = "itens";
+
     [Parameter]
     public string AriaLabel { get; set; } = "Paginação";
 
-    private Task GoToAsync(int page) => OnPageChanged.InvokeAsync(page);
+    private string? RangeText
+    {
+        get
+        {
+            if (Total is not > 0 || PageSize <= 0)
+                return null;
+            var first = (Page - 1) * PageSize + 1;
+            var last = Math.Min(Page * PageSize, Total.Value);
+            return $"Mostrando {first}–{last} de {Total.Value} {ItemName}";
+        }
+    }
+
+    private RenderFragment PageControl(int target, string text, string? label) => __builder =>
+    {
+        var current = target == Page;
+        if (HrefFor is not null)
+        {
+            <a class="page-link" href="@HrefFor(target)" aria-label="@label" aria-current="@(current ? "page" : null)" data-scroll-results>@text</a>
+        }
+        else
+        {
+            <button type="button" class="page-link" aria-label="@label" aria-current="@(current ? "page" : null)" @onclick="() => OnPageChanged.InvokeAsync(target)">@text</button>
+        }
+    };
 }

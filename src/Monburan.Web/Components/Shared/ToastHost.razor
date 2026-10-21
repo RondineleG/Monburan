@@ -14,7 +14,7 @@
              @onmouseleave="() => ToastService.Resume(toast.Id)"
              @onfocusin="() => ToastService.Pause(toast.Id)"
              @onfocusout="() => ToastService.Resume(toast.Id)">
-            <span class="toast-card__icon" aria-hidden="true">@Icon(toast.Level)</span>
+            <span class="toast-card__icon" aria-hidden="true"><Icon Name="@IconName(toast.Level)" Size="16" /></span>
             <div class="toast-card__body">
                 @if (!string.IsNullOrWhiteSpace(toast.Title))
                 {
@@ -22,7 +22,7 @@
                 }
                 <p>@toast.Message</p>
             </div>
-            <button type="button" class="toast-card__close" aria-label="Fechar aviso" @onclick="() => ToastService.Dismiss(toast.Id)">×</button>
+            <button type="button" class="toast-card__close" aria-label="Fechar aviso" @onclick="() => ToastService.Dismiss(toast.Id)"><Icon Name="x" Size="16" /></button>
         </div>
     }
 </div>
@@ -60,12 +60,11 @@
         _ => "info"
     };
 
-    private static string Icon(ToastLevel level) => level switch
+    private static string IconName(ToastLevel level) => level switch
     {
-        ToastLevel.Success => "✓",
-        ToastLevel.Error => "!",
-        ToastLevel.Warning => "⚠",
-        _ => "i"
+        ToastLevel.Success => "check",
+        ToastLevel.Error or ToastLevel.Warning => "alert",
+        _ => "info"
     };
 
     public void Dispose() => ToastService.Changed -= OnToastsChanged;

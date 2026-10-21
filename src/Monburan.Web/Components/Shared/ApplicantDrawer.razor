@@ -25,12 +25,9 @@
              @onkeydown="OnKeyDownAsync"
              data-testid="applicant-drawer">
         <header class="applicant-drawer__header">
-            <div>
-                <span class="page-kicker">CANDIDATO</span>
-                <h2 id="applicant-drawer-title" class="h4">@Application.CandidateName</h2>
-            </div>
-            <button type="button" class="applicant-drawer__close" @onclick="CloseAsync" aria-label="Fechar" data-testid="applicant-drawer-close">
-                <span aria-hidden="true">×</span>
+            <h2 id="applicant-drawer-title" class="h4">@Application.CandidateName</h2>
+            <button type="button" class="applicant-drawer__close" @onclick="CloseAsync" aria-label="Fechar o perfil de @Application.CandidateName" data-testid="applicant-drawer-close">
+                <Icon Name="x" Size="16" />
             </button>
         </header>
 
@@ -42,7 +39,7 @@
             <dt>Vaga</dt>
             <dd>@Application.JobTitle</dd>
             <dt>Situação</dt>
-            <dd><span class="badge @UiLabels.ApplicationStatusBadge(Application.Status)">@UiLabels.ApplicationStatus(Application.Status)</span></dd>
+            <dd><StatusBadge Kind="StatusKind.Application" Value="@Application.Status" /></dd>
         </dl>
 
         @if (Application.ResumeId.HasValue)
@@ -51,7 +48,7 @@
                 <h3 class="h6">Currículo enviado</h3>
                 @if (resumeLoading)
                 {
-                    <p class="text-muted">Carregando currículo…</p>
+                    <LoadingState Compact="true" Message="Carregando currículo…" />
                 }
                 else if (attachedResume is not null)
                 {
@@ -96,8 +93,8 @@
                         <p class="small mb-2"><a href="@SafeLinkedIn" target="_blank" rel="noopener noreferrer">LinkedIn do candidato</a></p>
                     }
                     <div class="d-flex flex-wrap gap-2 mt-2">
-                        <a class="btn btn-outline-primary btn-sm" href="@($"/resumes/{Application.ResumeId}")" data-testid="applicant-resume">Ver currículo completo</a>
-                        <a class="btn btn-outline-primary btn-sm" href="@($"/resumes/{Application.ResumeId}/cv")" data-testid="applicant-resume-cv">Visualizar CV</a>
+                        <a class="btn btn-outline-secondary btn-sm" href="@($"/resumes/{Application.ResumeId}")" data-testid="applicant-resume">Ver currículo completo</a>
+                        <a class="btn btn-outline-secondary btn-sm" href="@($"/resumes/{Application.ResumeId}/cv")" data-testid="applicant-resume-cv">Visualizar CV</a>
                     </div>
                 }
                 else
@@ -126,8 +123,8 @@
                 <textarea id="applicant-note" class="form-control" rows="2" @bind="statusNote" data-testid="applicant-note"></textarea>
             </div>
             <div class="d-flex flex-wrap gap-2">
-                <button type="button" class="btn btn-outline-primary btn-sm" @onclick="() => ChangeStatusAsync(EApplicationStatus.Viewed)" disabled="@isUpdating" data-testid="application-viewed">Marcar como visualizada</button>
-                <button type="button" class="btn btn-success btn-sm" @onclick="() => ChangeStatusAsync(EApplicationStatus.Selected)" disabled="@isUpdating" data-testid="application-select">Selecionar</button>
+                <button type="button" class="btn btn-outline-secondary btn-sm" @onclick="() => ChangeStatusAsync(EApplicationStatus.Viewed)" disabled="@isUpdating" aria-busy="@(isUpdating ? "true" : null)" data-testid="application-viewed">Marcar como visualizada</button>
+                <button type="button" class="btn btn-primary btn-sm" @onclick="() => ChangeStatusAsync(EApplicationStatus.Selected)" disabled="@isUpdating" aria-busy="@(isUpdating ? "true" : null)" data-testid="application-select">Selecionar</button>
                 <button type="button" class="btn btn-outline-danger btn-sm" @onclick="() => ConfirmAndChangeAsync(EApplicationStatus.Rejected)" disabled="@isUpdating" data-testid="application-reject">Não selecionar</button>
                 <button type="button" class="btn btn-outline-secondary btn-sm" @onclick="() => ConfirmAndChangeAsync(EApplicationStatus.Archived)" disabled="@isUpdating" data-testid="application-archive">Arquivar</button>
             </div>

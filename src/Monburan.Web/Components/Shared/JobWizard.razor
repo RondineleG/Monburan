@@ -11,6 +11,8 @@
     <DataAnnotationsValidator />
     <ServerValidationErrors @ref="serverErrors" FieldMap="ServerFieldMap" />
 
+    <p class="form-required-note">Campos com * são obrigatórios.</p>
+
     <ol class="job-wizard__steps" aria-label="Etapas da vaga">
         @foreach (var item in StepTitles)
         {
@@ -118,12 +120,12 @@
             <div class="row g-2">
                 <div class="col-md-8 mb-3">
                     <label class="form-label" for="model.City">Cidade</label>
-                    <InputText class="form-control" @bind-Value="Model.City" id="model.City" maxlength="100" placeholder="Cidade..." data-testid="job-city-input" />
+                    <InputText class="form-control" @bind-Value="Model.City" id="model.City" maxlength="100" autocomplete="address-level2" data-testid="job-city-input" />
                     <ValidationMessage class="text-danger" For="@(() => Model.City)" />
                 </div>
                 <div class="col-md-4 mb-3">
                     <label class="form-label" for="model.State">UF</label>
-                    <InputText class="form-control" @bind-Value="Model.State" id="model.State" maxlength="2" placeholder="UF..." data-testid="job-state-input" />
+                    <InputText class="form-control" @bind-Value="Model.State" id="model.State" maxlength="2" autocomplete="address-level1" autocapitalize="characters" data-testid="job-state-input" />
                     <ValidationMessage class="text-danger" For="@(() => Model.State)" />
                 </div>
             </div>
@@ -142,7 +144,7 @@
         <div class="mb-3">
             <label class="form-label" for="model.Description">Descrição da vaga *</label>
             <InputTextArea class="form-control" @bind-Value="Model.Description" id="model.Description" rows="5" maxlength="2000"
-                           placeholder="Descreva a rotina, a equipe e o que torna a oportunidade interessante..."
+                           placeholder="Descreva a rotina, a equipe e o que torna a oportunidade interessante"
                            data-testid="job-description-input" aria-describedby="model.Description-count" />
             <div class="form-text" id="model.Description-count">@Count(Model.Description)/2000 caracteres</div>
             <ValidationMessage class="text-danger" For="@(() => Model.Description)" />
@@ -199,10 +201,10 @@
             </div>
         </div>
 
-        <div class="mb-3 form-check">
+        <label class="form-check mb-3">
             <InputCheckbox class="form-check-input" @bind-Value="Model.SalaryDisplay" id="model.SalaryDisplay" />
-            <label class="form-check-label" for="model.SalaryDisplay">Mostrar faixa salarial na página da vaga</label>
-        </div>
+            <span class="form-check-label">Mostrar faixa salarial na página da vaga</span>
+        </label>
 
         <div class="row g-2">
             <div class="col-md-4 mb-3">
@@ -290,26 +292,20 @@
     </aside>
     </div>
     <div class="job-wizard__actions">
-        <button type="button" class="btn btn-secondary" @onclick="CancelAsync">Cancelar</button>
-        @if (step > 1)
-        {
-            <button type="button" class="btn btn-outline-primary" @onclick="GoBack" data-testid="job-wizard-back">
-                <span aria-hidden="true">←</span> Voltar
-            </button>
-        }
+        @* Primária primeiro; "Cancelar" por último *@
         @if (step < JobWizardStepValidator.StepCount)
         {
             <button type="button" class="btn btn-primary" @onclick="GoForward" data-testid="job-wizard-continue">
-                Continuar <span aria-hidden="true">→</span>
+                Continuar <Icon Name="arrow-right" Size="16" />
             </button>
         }
         else
         {
-            <button type="submit" class="btn btn-success btn-lg" disabled="@(IsSubmitting || !CanPublish)" data-testid="job-create-submit">
+            <button type="submit" class="btn btn-primary btn-lg" disabled="@(IsSubmitting || !CanPublish)" aria-busy="@(IsSubmitting ? "true" : null)" data-testid="job-create-submit">
                 @if (IsSubmitting)
                 {
-                    <span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>
-                    <span>@(IsEdit ? "Salvando..." : "Publicando...")</span>
+                    <span class="spinner-border spinner-border-sm" aria-hidden="true"></span>
+                    <span>@(IsEdit ? "Salvando…" : "Publicando…")</span>
                 }
                 else
                 {
@@ -317,6 +313,13 @@
                 }
             </button>
         }
+        @if (step > 1)
+        {
+            <button type="button" class="btn btn-outline-secondary" @onclick="GoBack" data-testid="job-wizard-back">
+                <Icon Name="arrow-left" Size="16" /> Voltar
+            </button>
+        }
+        <button type="button" class="btn btn-outline-secondary" @onclick="CancelAsync">Cancelar</button>
     </div>
 </EditForm>
 

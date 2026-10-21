@@ -7,14 +7,8 @@
 @if (IsAccountPage)
 {
     <header class="auth-header">
-        <a class="brand" href="/" aria-label="Monburan, início">
-            <span class="brand__mark">✦</span>
-            <span class="brand__copy">
-                <strong>Monburan</strong>
-                <small>talentos que ficam</small>
-            </span>
-        </a>
-        <a class="header-backlink" href="/">← Voltar ao início</a>
+        <Brand />
+        <a class="header-backlink" href="/"><Icon Name="arrow-left" Size="16" />Voltar ao início</a>
     </header>
     <main id="main" class="app-main app-main--auth">
         @Body
@@ -25,219 +19,170 @@ else
     <div class="app-shell@(isAuthenticated ? string.Empty : " app-shell--public")" data-testid="app-shell" data-blazor-ready="false">
         @if (isAuthenticated)
         {
-        <aside id="app-sidebar" class="app-sidebar" aria-label="Navegação do workspace" data-testid="app-sidebar">
+        <aside id="app-sidebar" class="app-sidebar" aria-label="Menu" data-testid="app-sidebar">
             <div class="app-sidebar__top">
-                <a class="brand" href="/" aria-label="Monburan, início">
-                    <span class="brand__mark">✦</span>
-                    <span class="brand__copy">
-                        <strong>Monburan</strong>
-                        <small>talentos que ficam</small>
-                    </span>
-                </a>
+                <Brand />
                 @* aria-expanded acompanha o estado real (app-shell.js reaplica depois do primeiro paint) *@
-                <button class="sidebar-pin" type="button" data-action="sidebar-pin" aria-expanded="true" aria-controls="app-sidebar" title="Expandir ou recolher o menu" aria-label="Expandir ou recolher o menu"></button>
-                <button class="sidebar-close" type="button" aria-label="Fechar menu">×</button>
+                <button class="sidebar-pin" type="button" data-action="sidebar-pin" aria-expanded="true" aria-controls="app-sidebar" title="Recolher ou expandir o menu" aria-label="Recolher ou expandir o menu">
+                    <Icon Name="chevron-left" Size="16" />
+                </button>
+                <button class="sidebar-close" type="button" aria-label="Fechar menu"><Icon Name="x" Size="20" /></button>
             </div>
 
             <nav class="sidebar-nav" aria-label="Navegação principal">
-                <span class="sidebar-nav__label">Descobrir</span>
-                <NavLink class="sidebar-link" href="/jobs" Match="NavLinkMatch.All" data-testid="nav-jobs" title="Explorar vagas" aria-label="Explorar vagas" data-label="Explorar vagas">
-                    <span class="sidebar-link__icon"><Icon Name="search" Size="18" /></span>
-                    <span>Explorar vagas</span>
-                </NavLink>
+                @if (IsAdvertiser)
+                {
+                    <span class="sidebar-nav__label">Recrutamento</span>
+                    <NavLink class="@HomeLinkClass" href="/" Match="NavLinkMatch.All" data-testid="nav-dashboard" data-label="Visão geral">
+                        <span class="sidebar-link__icon"><Icon Name="home" /></span><span>Visão geral</span>
+                    </NavLink>
+                    <NavLink class="@SectionClass(IsRecruitJobsPath)" href="/my-jobs" data-testid="nav-my-jobs" data-label="Minhas vagas">
+                        <span class="sidebar-link__icon"><Icon Name="briefcase" /></span><span>Minhas vagas</span>
+                    </NavLink>
+                    <NavLink class="@SectionClass(IsReceivedPath)" href="/received-applications" data-testid="nav-received-applications" data-label="Candidaturas recebidas">
+                        <span class="sidebar-link__icon"><Icon Name="users" /></span><span>Candidaturas recebidas</span>
+                    </NavLink>
+                    <NavLink class="sidebar-link" href="/notifications" data-testid="nav-notifications" data-label="Notificações">
+                        <span class="sidebar-link__icon"><Icon Name="bell" /></span><span>Notificações</span>
+                    </NavLink>
+                    <span class="sidebar-nav__label sidebar-nav__label--spaced">Descobrir</span>
+                    <NavLink class="@SectionClass(IsPublicJobsPath)" href="/jobs" data-testid="nav-jobs" data-label="Vagas publicadas">
+                        <span class="sidebar-link__icon"><Icon Name="search" /></span><span>Vagas publicadas</span>
+                    </NavLink>
+                    <span class="sidebar-nav__label sidebar-nav__label--spaced">Conta da empresa</span>
+                    <NavLink class="sidebar-link" href="/my-subscription" data-label="Plano e assinatura">
+                        <span class="sidebar-link__icon"><Icon Name="banknote" /></span><span>Plano e assinatura</span>
+                    </NavLink>
+                    <NavLink class="sidebar-link" href="/Account/Manage" Match="NavLinkMatch.Prefix" data-label="Conta e segurança">
+                        <span class="sidebar-link__icon"><Icon Name="shield" /></span><span>Conta e segurança</span>
+                    </NavLink>
+                }
+                else if (IsCandidate)
+                {
+                    <span class="sidebar-nav__label">Minha carreira</span>
+                    <NavLink class="@HomeLinkClass" href="/" Match="NavLinkMatch.All" data-testid="nav-dashboard" data-label="Início">
+                        <span class="sidebar-link__icon"><Icon Name="home" /></span><span>Início</span>
+                    </NavLink>
+                    <NavLink class="@SectionClass(IsPublicJobsPath)" href="/jobs" data-testid="nav-jobs" data-label="Explorar vagas">
+                        <span class="sidebar-link__icon"><Icon Name="search" /></span><span>Explorar vagas</span>
+                    </NavLink>
+                    <NavLink class="sidebar-link" href="/my-applications" data-testid="nav-applications" data-label="Minhas candidaturas">
+                        <span class="sidebar-link__icon"><Icon Name="send" /></span><span>Minhas candidaturas</span>
+                    </NavLink>
+                    <NavLink class="sidebar-link" href="/resumes" data-label="Meus currículos">
+                        <span class="sidebar-link__icon"><Icon Name="file" /></span><span>Meus currículos</span>
+                    </NavLink>
+                    <NavLink class="sidebar-link" href="/career-profile" data-label="Perfil de carreira">
+                        <span class="sidebar-link__icon"><Icon Name="sparkles" /></span><span>Perfil de carreira</span>
+                    </NavLink>
+                    <NavLink class="sidebar-link" href="/notifications" data-label="Notificações">
+                        <span class="sidebar-link__icon"><Icon Name="bell" /></span><span>Notificações</span>
+                    </NavLink>
+                    <span class="sidebar-nav__label sidebar-nav__label--spaced">Minha conta</span>
+                    <NavLink class="sidebar-link" href="/Account/Manage" Match="NavLinkMatch.Prefix" data-label="Conta e segurança">
+                        <span class="sidebar-link__icon"><Icon Name="shield" /></span><span>Conta e segurança</span>
+                    </NavLink>
+                }
+                else if (!IsAdmin)
+                {
+                    <NavLink class="@SectionClass(IsPublicJobsPath)" href="/jobs" data-testid="nav-jobs" data-label="Vagas">
+                        <span class="sidebar-link__icon"><Icon Name="search" /></span><span>Vagas</span>
+                    </NavLink>
+                    <NavLink class="sidebar-link" href="/notifications" data-label="Notificações">
+                        <span class="sidebar-link__icon"><Icon Name="bell" /></span><span>Notificações</span>
+                    </NavLink>
+                }
 
-                <AuthorizeView>
-                    <Authorized>
-                        @if (IsAdvertiser)
-                        {
-                            <span class="sidebar-nav__label sidebar-nav__label--spaced">Recrutamento</span>
-                            <NavLink class="@HomeLinkClass" href="/" Match="NavLinkMatch.All" data-testid="nav-dashboard" title="Visão geral" aria-label="Visão geral" data-label="Visão geral">
-                                <span class="sidebar-link__icon"><Icon Name="home" Size="18" /></span>
-                                <span>Visão geral</span>
-                            </NavLink>
-                            <NavLink class="@(RecruitJobsActiveClass.Length > 0 ? "sidebar-link active" : "sidebar-link")" href="/my-jobs" data-testid="nav-my-jobs" title="Minhas vagas" aria-label="Minhas vagas" data-label="Minhas vagas">
-                                <span class="sidebar-link__icon"><Icon Name="briefcase" Size="18" /></span>
-                                <span>Minhas vagas</span>
-                            </NavLink>
-                            <NavLink class="@(ReceivedActiveClass.Length > 0 ? "sidebar-link active" : "sidebar-link")" href="/received-applications" data-testid="nav-received-applications" title="Candidaturas recebidas" aria-label="Candidaturas recebidas" data-label="Candidaturas recebidas">
-                                <span class="sidebar-link__icon"><Icon Name="users" Size="18" /></span>
-                                <span>Candidaturas recebidas</span>
-                            </NavLink>
-                            <NavLink class="sidebar-link" href="/notifications" data-testid="nav-notifications" title="Notificações" aria-label="Notificações" data-label="Notificações">
-                                <span class="sidebar-link__icon"><Icon Name="bell" Size="18" /></span>
-                                <span>Notificações</span>
-                            </NavLink>
-                            @* O perfil da empresa fica no rodapé do menu (identidade da conta), sem item repetido aqui *@
-                            <span class="sidebar-nav__label sidebar-nav__label--spaced">Conta da empresa</span>
-                            <NavLink class="sidebar-link" href="/Account/Manage" Match="NavLinkMatch.Prefix" title="Conta e segurança" aria-label="Conta e segurança" data-label="Conta e segurança">
-                                <span class="sidebar-link__icon"><Icon Name="shield" Size="18" /></span>
-                                <span>Conta e segurança</span>
-                            </NavLink>
-                            <NavLink class="sidebar-link" href="/my-subscription" title="Plano e assinatura" aria-label="Plano e assinatura" data-label="Plano e assinatura">
-                                <span class="sidebar-link__icon"><Icon Name="banknote" Size="18" /></span>
-                                <span>Plano e assinatura</span>
-                            </NavLink>
-                        }
-                        else if (IsCandidate)
-                        {
-                            <span class="sidebar-nav__label sidebar-nav__label--spaced">Minha carreira</span>
-                            <NavLink class="@HomeLinkClass" href="/" Match="NavLinkMatch.All" data-testid="nav-dashboard" title="Início" aria-label="Início" data-label="Início">
-                                <span class="sidebar-link__icon"><Icon Name="home" Size="18" /></span>
-                                <span>Início</span>
-                            </NavLink>
-                            <NavLink class="sidebar-link" href="/my-applications" data-testid="nav-applications" title="Minhas candidaturas, vagas salvas e alertas" aria-label="Minhas candidaturas" data-label="Minhas candidaturas">
-                                <span class="sidebar-link__icon"><Icon Name="send" Size="18" /></span>
-                                <span>Minhas candidaturas</span>
-                            </NavLink>
-                            <NavLink class="sidebar-link" href="/career-profile" title="Perfil de carreira" aria-label="Perfil de carreira" data-label="Perfil de carreira">
-                                <span class="sidebar-link__icon"><Icon Name="sparkles" Size="18" /></span>
-                                <span>Perfil de carreira</span>
-                            </NavLink>
-                            <NavLink class="sidebar-link" href="/resumes" title="Meus currículos" aria-label="Meus currículos" data-label="Meus currículos">
-                                <span class="sidebar-link__icon"><Icon Name="file" Size="18" /></span>
-                                <span>Meus currículos</span>
-                            </NavLink>
-                            <NavLink class="sidebar-link" href="/notifications" title="Notificações" aria-label="Notificações" data-label="Notificações">
-                                <span class="sidebar-link__icon"><Icon Name="bell" Size="18" /></span>
-                                <span>Notificações</span>
-                            </NavLink>
-                            @* "Meu perfil" fica no rodapé do menu (identidade da conta), sem item repetido aqui *@
-                            <span class="sidebar-nav__label sidebar-nav__label--spaced">Minha conta</span>
-                            <NavLink class="sidebar-link" href="/Account/Manage" Match="NavLinkMatch.Prefix" title="Conta e segurança" aria-label="Conta e segurança" data-label="Conta e segurança">
-                                <span class="sidebar-link__icon"><Icon Name="shield" Size="18" /></span>
-                                <span>Conta e segurança</span>
-                            </NavLink>
-                        }
-                        else if (!IsAdmin)
-                        {
-                            <span class="sidebar-nav__label sidebar-nav__label--spaced">Minha conta</span>
-                            <NavLink class="sidebar-link" href="/notifications" title="Notificações" aria-label="Notificações" data-label="Notificações">
-                                <span class="sidebar-link__icon"><Icon Name="bell" Size="18" /></span>
-                                <span>Notificações</span>
-                            </NavLink>
-                        }
-
-                        @if (IsAdmin)
-                        {
-                            <span class="sidebar-nav__label sidebar-nav__label--spaced">Administração</span>
-                            @if (!IsAdvertiser && !IsCandidate)
-                            {
-                                <NavLink class="@HomeLinkClass" href="/" Match="NavLinkMatch.All" data-testid="nav-dashboard" title="Visão geral da administração" aria-label="Visão geral" data-label="Visão geral">
-                                    <span class="sidebar-link__icon"><Icon Name="home" Size="18" /></span>
-                                    <span>Visão geral</span>
-                                </NavLink>
-                            }
-                            <NavLink class="sidebar-link" href="/admin/accounts" data-testid="nav-admin-accounts" title="Contas: ativar, inativar e desbloquear" aria-label="Contas" data-label="Contas">
-                                <span class="sidebar-link__icon"><Icon Name="shield" Size="18" /></span>
-                                <span>Contas</span>
-                            </NavLink>
-                            <NavLink class="sidebar-link" href="/admin/jobs" data-testid="nav-admin-jobs" title="Vagas de todas as empresas: moderação" aria-label="Vagas" data-label="Vagas">
-                                <span class="sidebar-link__icon"><Icon Name="file" Size="18" /></span>
-                                <span>Vagas</span>
-                            </NavLink>
-                            <NavLink class="sidebar-link" href="/admin/candidates" title="Candidatos cadastrados" aria-label="Candidatos" data-label="Candidatos">
-                                <span class="sidebar-link__icon"><Icon Name="users" Size="18" /></span>
-                                <span>Candidatos</span>
-                            </NavLink>
-                            <NavLink class="sidebar-link" href="/admin/advertisers" title="Empresas cadastradas" aria-label="Empresas" data-label="Empresas">
-                                <span class="sidebar-link__icon"><Icon Name="building" Size="18" /></span>
-                                <span>Empresas</span>
-                            </NavLink>
-                            <NavLink class="sidebar-link" href="/admin/ai-providers" data-testid="nav-admin-ai-providers" title="Provedores de IA" aria-label="Provedores de IA" data-label="Provedores de IA">
-                                <span class="sidebar-link__icon"><Icon Name="sparkles" Size="18" /></span>
-                                <span>Provedores de IA</span>
-                            </NavLink>
-                            <NavLink class="sidebar-link" href="/admin/audit" data-testid="nav-admin-audit" title="Auditoria das ações de administração" aria-label="Auditoria" data-label="Auditoria">
-                                <span class="sidebar-link__icon"><Icon Name="clock" Size="18" /></span>
-                                <span>Auditoria</span>
-                            </NavLink>
-                        }
-                    </Authorized>
-                </AuthorizeView>
+                @if (IsAdmin)
+                {
+                    <span class="sidebar-nav__label@(IsAdminOnly ? string.Empty : " sidebar-nav__label--spaced")">Administração</span>
+                    @if (IsAdminOnly)
+                    {
+                        <NavLink class="@HomeLinkClass" href="/" Match="NavLinkMatch.All" data-testid="nav-dashboard" data-label="Visão geral">
+                            <span class="sidebar-link__icon"><Icon Name="home" /></span><span>Visão geral</span>
+                        </NavLink>
+                    }
+                    <NavLink class="sidebar-link" href="/admin/accounts" data-testid="nav-admin-accounts" data-label="Contas">
+                        <span class="sidebar-link__icon"><Icon Name="shield" /></span><span>Contas</span>
+                    </NavLink>
+                    <NavLink class="sidebar-link" href="/admin/jobs" data-testid="nav-admin-jobs" data-label="Vagas">
+                        <span class="sidebar-link__icon"><Icon Name="briefcase" /></span><span>Vagas</span>
+                    </NavLink>
+                    <NavLink class="sidebar-link" href="/admin/candidates" data-label="Candidatos">
+                        <span class="sidebar-link__icon"><Icon Name="users" /></span><span>Candidatos</span>
+                    </NavLink>
+                    <NavLink class="sidebar-link" href="/admin/advertisers" data-label="Empresas">
+                        <span class="sidebar-link__icon"><Icon Name="building" /></span><span>Empresas</span>
+                    </NavLink>
+                    <NavLink class="sidebar-link" href="/admin/ai-providers" data-testid="nav-admin-ai-providers" data-label="Provedores de IA">
+                        <span class="sidebar-link__icon"><Icon Name="sparkles" /></span><span>Provedores de IA</span>
+                    </NavLink>
+                    <NavLink class="sidebar-link" href="/admin/audit" data-testid="nav-admin-audit" data-label="Auditoria">
+                        <span class="sidebar-link__icon"><Icon Name="clock" /></span><span>Auditoria</span>
+                    </NavLink>
+                    @if (IsAdminOnly)
+                    {
+                        <span class="sidebar-nav__label sidebar-nav__label--spaced">Descobrir</span>
+                        <NavLink class="@SectionClass(IsPublicJobsPath)" href="/jobs" data-testid="nav-jobs" data-label="Vagas publicadas">
+                            <span class="sidebar-link__icon"><Icon Name="search" /></span><span>Vagas publicadas</span>
+                        </NavLink>
+                    }
+                }
             </nav>
 
             <div class="app-sidebar__bottom">
-                <AuthorizeView>
-                    <Authorized>
-                        @if (IsAdmin && !IsAdvertiser && !IsCandidate)
-                        {
-                            <NavLink class="profile-link" href="/Account/Manage" title="Minha conta" aria-label="Minha conta" data-label="Minha conta">
-                                <span class="avatar">AD</span>
-                                <span>
-                                    <strong>Minha conta</strong>
-                                    <small>Senha e segurança</small>
-                                </span>
-                                <span aria-hidden="true">→</span>
-                            </NavLink>
-                        }
-                        else if (IsAdvertiser)
-                        {
-                            <NavLink class="profile-link" href="/profile/advertiser" title="Perfil da empresa" aria-label="Perfil da empresa" data-label="Perfil da empresa">
-                                <span class="avatar">EM</span>
-                                <span>
-                                    <strong>Perfil da empresa</strong>
-                                    <small>Dados e configurações</small>
-                                </span>
-                                <span aria-hidden="true">→</span>
-                            </NavLink>
-                        }
-                        else
-                        {
-                            <NavLink class="profile-link" href="/profile/candidate" title="Meu perfil" aria-label="Meu perfil" data-label="Meu perfil">
-                                <span class="avatar">EU</span>
-                                <span>
-                                    <strong>Meu perfil</strong>
-                                    <small>Dados e configurações</small>
-                                </span>
-                                <span aria-hidden="true">→</span>
-                            </NavLink>
-                        }
-                        <form class="sidebar-logout" action="Account/Logout" method="post">
-                            <AntiforgeryToken />
-                            <input type="hidden" name="returnUrl" value="/" />
-                            <button type="submit" class="sidebar-logout__btn" title="Sair" aria-label="Sair" data-label="Sair" data-testid="nav-logout">
-                                <span class="sidebar-link__icon" aria-hidden="true"><Icon Name="log-out" Size="18" /></span>
-                                <span class="sidebar-logout__text">Sair</span>
-                            </button>
-                        </form>
-                    </Authorized>
-                    <NotAuthorized>
-                        <div class="sidebar-auth-links">
-                            <span>Já tem uma conta?</span>
-                            <a href="/Account/Login" title="Entrar" aria-label="Entrar">Entrar</a>
-                        </div>
-                    </NotAuthorized>
-                </AuthorizeView>
+                @* Identidade da conta: o perfil fica aqui, sem item repetido no menu *@
+                <NavLink class="profile-link" href="@ProfileHref" data-label="@ProfileLabel">
+                    <span class="avatar" aria-hidden="true">@initials</span>
+                    <span class="profile-link__copy">
+                        <strong>@displayName</strong>
+                        <small>@ProfileLabel</small>
+                    </span>
+                    <span class="profile-link__arrow"><Icon Name="chevron-right" Size="16" /></span>
+                </NavLink>
+                <form class="sidebar-logout" action="Account/Logout" method="post">
+                    <AntiforgeryToken />
+                    <input type="hidden" name="returnUrl" value="/" />
+                    <button type="submit" class="sidebar-logout__btn" data-label="Sair" data-testid="nav-logout">
+                        <span class="sidebar-link__icon"><Icon Name="log-out" /></span>
+                        <span class="sidebar-logout__text">Sair</span>
+                    </button>
+                </form>
             </div>
         </aside>
-        <button class="sidebar-scrim" type="button" aria-label="Fechar navegação" tabindex="-1"></button>
+        <button class="sidebar-scrim" type="button" aria-label="Fechar menu" tabindex="-1"></button>
         }
 
         <div class="app-stage">
             @if (isAuthenticated)
             {
             <header class="app-topbar">
-                <div class="app-topbar__context">
-                    <button class="menu-toggle" type="button" aria-expanded="false" aria-controls="app-sidebar" data-testid="mobile-menu-toggle">
-                        <span></span>
-                        <span></span>
-                        <span></span>
-                        <span class="visually-hidden">Abrir navegação</span>
-                    </button>
-                    <div>
-                        <span class="app-topbar__eyebrow">MONBURAN / @CurrentArea</span>
-                        <span class="app-topbar__title">@CurrentPageTitle</span>
-                    </div>
-                </div>
+                <button class="menu-toggle" type="button" aria-expanded="false" aria-controls="app-sidebar" aria-label="Abrir menu" data-testid="mobile-menu-toggle">
+                    <Icon Name="menu" Size="20" />
+                </button>
+                <nav class="app-topbar__trail" aria-label="Você está em">
+                    <ol class="trail" data-testid="trail">
+                        @foreach (var item in Trail)
+                        {
+                            var isLast = ReferenceEquals(item, Trail[^1]);
+                            <li class="trail__item" aria-current="@(isLast ? "page" : null)">
+                                @if (!isLast && item.Href is not null)
+                                {
+                                    <a href="@item.Href">@item.Label</a>
+                                }
+                                else
+                                {
+                                    <span>@item.Label</span>
+                                }
+                            </li>
+                        }
+                    </ol>
+                </nav>
                 <div class="app-topbar__actions">
-                    <button class="theme-toggle" type="button" data-action="theme-toggle" title="Alternar tema claro/escuro" aria-label="Alternar tema claro ou escuro"></button>
+                    <ThemeToggle />
                     @if (IsAdvertiser)
                     {
-                        <a class="topbar-login topbar-workspace-link" href="/jobs/create">Publicar vaga</a>
-                    }
-                    else
-                    {
-                        <a class="topbar-login topbar-workspace-link" href="/jobs">Explorar vagas</a>
+                        <a class="btn btn-primary btn-sm topbar-publish" href="/jobs/create" aria-label="Publicar vaga" data-testid="topbar-publish"><Icon Name="plus" Size="16" /><span class="topbar-publish__text">Publicar vaga</span></a>
                     }
                 </div>
             </header>
@@ -245,19 +190,13 @@ else
             else
             {
             <header class="public-header">
-                <a class="brand" href="/" aria-label="Monburan, início">
-                    <span class="brand__mark">✦</span>
-                    <span class="brand__copy">
-                        <strong>Monburan</strong>
-                        <small>talentos que ficam</small>
-                    </span>
-                </a>
+                <Brand />
                 <nav class="public-nav" aria-label="Navegação principal">
-                    <a href="/jobs" data-testid="nav-jobs">Vagas</a>
+                    <a href="/jobs" data-testid="nav-jobs" aria-current="@(IsPublicJobsPath ? "page" : null)">Vagas</a>
                     <a href="/Account/Login">Entrar</a>
                     <a class="btn btn-primary btn-sm" href="/Account/Register">Criar conta</a>
                 </nav>
-                <button class="theme-toggle" type="button" data-action="theme-toggle" title="Alternar tema claro/escuro" aria-label="Alternar tema claro ou escuro"></button>
+                <ThemeToggle />
             </header>
             }
 
@@ -270,18 +209,23 @@ else
 
             <footer class="site-footer">
                 <div class="site-footer__inner">
-                    <span>MONBURAN · TALENTOS QUE FICAM</span>
-                    <div class="site-footer__links">
-                        <a href="/terms">Termos</a>
+                    <span>Monburan · talentos que ficam</span>
+                    <nav class="site-footer__links" aria-label="Rodapé">
+                        @if (!isAuthenticated)
+                        {
+                            <a href="/Account/Register?AccountType=advertiser">Para empresas</a>
+                        }
+                        <a href="/plans">Planos</a>
+                        <a href="/terms">Termos de uso</a>
                         <a href="/privacy">Privacidade</a>
-                    </div>
+                    </nav>
                 </div>
             </footer>
         </div>
     </div>
 }
 
-<div id="blazor-error-ui" class="alert alert-danger" style="display: none;">
+<div id="blazor-error-ui" class="alert alert-danger" role="alert" style="display: none;">
     Algo inesperado aconteceu.
     <a href="" class="reload">Recarregar</a>
     <button type="button" class="dismiss" aria-label="Fechar aviso">×</button>
@@ -290,6 +234,9 @@ else
 @code {
     private string currentUserType = string.Empty;
     private bool isAdmin;
+    private bool isAuthenticated;
+    private string displayName = string.Empty;
+    private string initials = string.Empty;
 
     [CascadingParameter]
     private Task<AuthenticationState>? AuthenticationStateTask { get; set; }
@@ -301,83 +248,49 @@ else
     private bool IsAdvertiser => string.Equals(currentUserType, "advertiser", StringComparison.OrdinalIgnoreCase);
     private bool IsCandidate => string.Equals(currentUserType, "candidate", StringComparison.OrdinalIgnoreCase);
     private bool IsAdmin => isAdmin;
-    private bool isAuthenticated;
+    private bool IsAdminOnly => IsAdmin && !IsAdvertiser && !IsCandidate;
+
+    private NavRole Role => IsAdvertiser ? NavRole.Advertiser : IsCandidate ? NavRole.Candidate : IsAdmin ? NavRole.Admin : NavRole.Visitor;
+    private IReadOnlyList<TrailItem> Trail => NavigationTrail.For(CurrentPath, Role);
+
+    private string ProfileHref => IsAdvertiser ? "/profile/advertiser" : IsCandidate ? "/profile/candidate" : "/Account/Manage";
+    private string ProfileLabel => IsAdvertiser ? "Perfil da empresa" : IsCandidate ? "Meu perfil" : "Minha conta";
 
     protected override async Task OnParametersSetAsync()
     {
         if (AuthenticationStateTask is not null)
         {
-            var authenticationState = await AuthenticationStateTask;
-            isAuthenticated = authenticationState.User.Identity?.IsAuthenticated == true;
-            currentUserType = authenticationState.User.FindFirst(Monburan.Web.Services.ClaimsExtensions.UserTypeClaimType)?.Value ?? string.Empty;
-            isAdmin = authenticationState.User.IsInRole("Admin");
+            var user = (await AuthenticationStateTask).User;
+            isAuthenticated = user.Identity?.IsAuthenticated == true;
+            currentUserType = user.FindFirst(Monburan.Web.Services.ClaimsExtensions.UserTypeClaimType)?.Value ?? string.Empty;
+            isAdmin = user.IsInRole("Admin");
+            displayName = user.GetDisplayName();
+            initials = user.GetInitials();
         }
     }
 
-    private bool IsAdminOnly => IsAdmin && !IsAdvertiser && !IsCandidate;
-
     // "/" e "/dashboard" são a mesma página: o item de início fica ativo nas duas
-    private string HomeLinkClass => CurrentPath is "/" or "/dashboard" ? "sidebar-link active" : "sidebar-link";
+    private string HomeLinkClass => SectionClass(CurrentPath is "/" or "/dashboard");
 
-    private string CurrentArea => CurrentPath switch
-    {
-        "/" or "/dashboard" => IsAdminOnly ? "ADMINISTRAÇÃO" : "VISÃO GERAL",
-        "/jobs" => "OPORTUNIDADES",
-        "/notifications" => IsAdvertiser ? "RECRUTAMENTO" : "MINHA CARREIRA",
-        "/my-applications" or "/resumes" or "/career-profile" => "MINHA CARREIRA",
-        _ when CurrentPath.StartsWith("/apply/", StringComparison.OrdinalIgnoreCase) => "CANDIDATURA",
-        "/my-jobs" or "/received-applications" or "/jobs/create" => "RECRUTAMENTO",
-        _ when CurrentPath.StartsWith("/jobs/edit/", StringComparison.OrdinalIgnoreCase)
-            || (CurrentPath.StartsWith("/jobs/", StringComparison.OrdinalIgnoreCase) && CurrentPath.EndsWith("/applications", StringComparison.OrdinalIgnoreCase)) => "RECRUTAMENTO",
-        "/my-subscription" => "CONTA DA EMPRESA",
-        "/plans" => "PLANOS",
-        _ when CurrentPath.StartsWith("/companies/", StringComparison.OrdinalIgnoreCase) => "EMPRESAS",
-        _ when CurrentPath.StartsWith("/address", StringComparison.OrdinalIgnoreCase) => "MINHA CONTA",
-        _ when CurrentPath.StartsWith("/resumes/", StringComparison.OrdinalIgnoreCase) => "MINHA CARREIRA",
-        _ when CurrentPath.StartsWith("/jobs/", StringComparison.OrdinalIgnoreCase) => "OPORTUNIDADES",
-        _ when CurrentPath.StartsWith("/Account/Manage", StringComparison.OrdinalIgnoreCase) => "MINHA CONTA",
-        _ when CurrentPath.StartsWith("/profile/", StringComparison.OrdinalIgnoreCase) => "MEU PERFIL",
-        _ when CurrentPath.StartsWith("/admin/", StringComparison.OrdinalIgnoreCase) => "ADMINISTRAÇÃO",
-        _ => "MONBURAN"
-    };
+    // Item ativo também nas subpáginas da seção (o NavLink só marca o endereço exato)
+    private static string SectionClass(bool active) => active ? "sidebar-link active" : "sidebar-link";
 
-    private string CurrentPageTitle => CurrentPath switch
-    {
-        "/" or "/dashboard" => IsAdvertiser ? "Acompanhe seu recrutamento" : IsAdminOnly ? "Gestão da plataforma" : "Encontre seu próximo passo",
-        "/jobs" => "Oportunidades que combinam com você",
-        "/jobs/create" => "Publique uma nova oportunidade",
-        _ when CurrentPath.StartsWith("/apply/", StringComparison.OrdinalIgnoreCase) => "Candidatura à vaga",
-        "/my-applications" => "Acompanhe suas candidaturas",
-        _ when CurrentPath.StartsWith("/address", StringComparison.OrdinalIgnoreCase) => "Seus endereços",
-        _ when CurrentPath.StartsWith("/companies/", StringComparison.OrdinalIgnoreCase) => "Perfil da empresa",
-        "/resumes" or "/resumes/new" => "Apresente o melhor de você",
-        _ when CurrentPath.StartsWith("/resumes/", StringComparison.OrdinalIgnoreCase) && CurrentPath.EndsWith("/cv", StringComparison.OrdinalIgnoreCase) => "Currículo pronto para imprimir",
-        _ when CurrentPath.StartsWith("/resumes/", StringComparison.OrdinalIgnoreCase) && CurrentPath.EndsWith("/edit", StringComparison.OrdinalIgnoreCase) => "Edite seu currículo",
-        _ when CurrentPath.StartsWith("/resumes/", StringComparison.OrdinalIgnoreCase) && CurrentPath.EndsWith("/wizard", StringComparison.OrdinalIgnoreCase) => "Complete seu currículo no passo a passo",
-        _ when CurrentPath.StartsWith("/resumes/", StringComparison.OrdinalIgnoreCase) => "Detalhes do seu currículo",
-        "/career-profile" => "Seu perfil de carreira",
-        "/my-jobs" => "Gerencie suas vagas",
-        "/received-applications" => "Conheça quem se candidatou",
-        _ when CurrentPath.StartsWith("/jobs/", StringComparison.OrdinalIgnoreCase) && CurrentPath.EndsWith("/applications", StringComparison.OrdinalIgnoreCase) => "Conheça quem se candidatou",
-        _ when CurrentPath.StartsWith("/jobs/edit/", StringComparison.OrdinalIgnoreCase) => "Ajuste sua oportunidade",
-        "/notifications" => "Atualizações importantes para você",
-        "/plans" or "/my-subscription" => "Seu plano Monburan",
-        _ when CurrentPath.StartsWith("/jobs/", StringComparison.OrdinalIgnoreCase) => "Detalhes da oportunidade",
-        _ when CurrentPath.StartsWith("/Account/Manage", StringComparison.OrdinalIgnoreCase) => "Configurações da sua conta",
-        _ when CurrentPath.StartsWith("/profile/", StringComparison.OrdinalIgnoreCase) => "Seus dados e preferências",
-        _ when CurrentPath.StartsWith("/admin/", StringComparison.OrdinalIgnoreCase) => "Gestão da plataforma",
-        _ => "Seu espaço na Monburan"
-    };
+    private bool IsRecruitJobsPath =>
+        CurrentPath.StartsWith("/my-jobs", StringComparison.OrdinalIgnoreCase)
+        || CurrentPath.StartsWith("/jobs/create", StringComparison.OrdinalIgnoreCase)
+        || CurrentPath.StartsWith("/jobs/edit/", StringComparison.OrdinalIgnoreCase);
 
-    private string RecruitJobsActiveClass =>
-        CurrentPath.StartsWith("/jobs/create", StringComparison.OrdinalIgnoreCase)
-        || CurrentPath.StartsWith("/jobs/edit/", StringComparison.OrdinalIgnoreCase)
-        ? "active" : string.Empty;
+    private bool IsReceivedPath =>
+        CurrentPath.StartsWith("/received-applications", StringComparison.OrdinalIgnoreCase)
+        || (CurrentPath.StartsWith("/jobs/", StringComparison.OrdinalIgnoreCase) && CurrentPath.EndsWith("/applications", StringComparison.OrdinalIgnoreCase));
 
-    private string ReceivedActiveClass =>
-        CurrentPath.StartsWith("/jobs/", StringComparison.OrdinalIgnoreCase)
-        && CurrentPath.EndsWith("/applications", StringComparison.OrdinalIgnoreCase)
-        ? "active" : string.Empty;
+    // Lista pública, página da vaga e da empresa (fora do fluxo de recrutamento)
+    private bool IsPublicJobsPath =>
+        !IsRecruitJobsPath && !IsReceivedPath
+        && (CurrentPath.Equals("/jobs", StringComparison.OrdinalIgnoreCase)
+            || CurrentPath.StartsWith("/jobs/", StringComparison.OrdinalIgnoreCase)
+            || CurrentPath.StartsWith("/companies/", StringComparison.OrdinalIgnoreCase)
+            || CurrentPath.StartsWith("/apply/", StringComparison.OrdinalIgnoreCase));
 
     private string CurrentPath => "/" + NavigationManager.ToBaseRelativePath(NavigationManager.Uri)
         .Split('?', '#')[0]

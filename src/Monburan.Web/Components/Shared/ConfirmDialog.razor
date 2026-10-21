@@ -18,7 +18,7 @@
             data-testid="confirm-dialog"
             @ref="dialog">
         <header class="confirm-dialog__header">
-            <span class="confirm-dialog__icon @(options.Destructive ? "confirm-dialog__icon--danger" : string.Empty)" aria-hidden="true">@(options.Destructive ? "!" : "?")</span>
+            <span class="confirm-dialog__icon @(options.Destructive ? "confirm-dialog__icon--danger" : string.Empty)" aria-hidden="true"><Icon Name="@(options.Destructive ? "alert" : "info")" Size="18" /></span>
             <h2 id="@titleId">@options.Title</h2>
         </header>
         <div class="confirm-dialog__body">
@@ -26,7 +26,7 @@
             @ChildContent
         </div>
         <footer class="confirm-dialog__footer">
-            <button type="button" class="btn btn-secondary" @onclick="Cancel" data-dialog-cancel data-testid="confirm-cancel">@options.CancelText</button>
+            <button type="button" class="btn btn-outline-secondary" @onclick="Cancel" data-dialog-cancel data-testid="confirm-cancel">@options.CancelText</button>
             <button type="button" class="btn @(options.Destructive ? "btn-danger" : "btn-primary")" @onclick="Confirm" data-testid="confirm-accept">@options.ConfirmText</button>
         </footer>
     </dialog>

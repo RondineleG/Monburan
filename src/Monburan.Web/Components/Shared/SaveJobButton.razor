@@ -12,18 +12,19 @@
 {
     @* O texto já diz o estado ("Salva"/"Salvar"); aria-pressed repetiria a mesma informação *@
     <button type="button"
-            class="btn @(IsSaved ? "btn-primary" : "btn-outline-primary") save-job-button"
+            class="btn btn-outline-secondary btn-sm save-job-button@(IsSaved ? " is-saved" : string.Empty)"
             disabled="@isWorking"
+            aria-busy="@(isWorking ? "true" : null)"
             data-testid="save-job-button"
             @onclick="ToggleAsync">
-        <span aria-hidden="true">@(IsSaved ? "★" : "☆")</span>
+        <Icon Name="star" Size="16" />
         @(IsSaved ? "Salva" : "Salvar")
     </button>
 }
 else
 {
-    <a class="btn btn-outline-primary save-job-button" href="@LoginUrl" data-testid="save-job-login">
-        <span aria-hidden="true">☆</span> Entrar para salvar
+    <a class="btn btn-outline-secondary btn-sm save-job-button" href="@LoginUrl" data-testid="save-job-login">
+        <Icon Name="star" Size="16" />Entrar para salvar
     </a>
 }
 

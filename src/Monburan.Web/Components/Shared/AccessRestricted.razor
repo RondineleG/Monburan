@@ -1,13 +1,19 @@
 @* Conta logada sem o perfil exigido (ex.: candidato em página de empresa). Mesmo conteúdo na rota
-   /Account/AccessDenied e no NotAuthorized do roteador: mandar ao login de novo criaria um ciclo sem explicação. *@
+   /Account/AccessDenied, no NotAuthorized do roteador e nas páginas que conferem o perfil por conta própria:
+   mandar ao login de novo criaria um ciclo sem explicação. *@
 <PageTitle>Acesso restrito - Monburan</PageTitle>
 
 <section class="auth-message-page" data-testid="access-restricted">
-    <span class="page-kicker">ACESSO</span>
     <h1 tabindex="-1">Esta área é restrita</h1>
-    <p>Sua conta não tem permissão para abrir esta página. Algumas áreas são exclusivas para candidatos e outras para empresas.</p>
+    <p>@(Reason ?? "Sua conta não tem permissão para abrir esta página. Algumas áreas são exclusivas para candidatos e outras para empresas.")</p>
     <div class="auth-form-links">
         <a class="btn btn-primary" href="/">Voltar ao início</a>
         <a class="auth-back-link" href="/Account/Login">Entrar com outra conta</a>
     </div>
 </section>
+
+@code {
+    /// <summary>Para quem é a área (ex.: "Esta área é exclusiva para empresas."). Sem valor, a explicação geral.</summary>
+    [Parameter]
+    public string? Reason { get; set; }
+}

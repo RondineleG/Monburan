@@ -21,11 +21,11 @@
 {
     <section class="card mb-4 ai-panel" aria-labelledby="ai-panel-title" data-testid="resume-ai-panel">
         <div class="card-body">
-            <h2 id="ai-panel-title" class="ai-panel__title"><span aria-hidden="true">✦</span> Sugestões de melhoria com IA</h2>
+            <h2 id="ai-panel-title" class="ai-panel__title"><span aria-hidden="true"><Icon Name="sparkles" Size="18" /></span> Sugestões de melhoria com IA</h2>
 
             @if (!storageChecked)
             {
-                <LoadingState Compact="true" Message="Verificando rascunho salvo..." />
+                <LoadingState Compact="true" Message="Verificando rascunho salvo…" />
             }
             else if (draft is not null)
             {
@@ -45,7 +45,7 @@
                         <button type="button" class="btn btn-primary" @onclick="ReviewDraft" disabled="@isRunning" data-testid="resume-ai-review">Revisar e aplicar</button>
                         @if (!regenerating && canGenerate)
                         {
-                            <button type="button" class="btn btn-outline-primary" @onclick="AskReplaceAsync" disabled="@isRunning" data-testid="resume-ai-regenerate">Gerar novas sugestões</button>
+                            <button type="button" class="btn btn-outline-secondary" @onclick="AskReplaceAsync" disabled="@isRunning" data-testid="resume-ai-regenerate">Gerar novas sugestões</button>
                         }
                         <button type="button" class="btn btn-outline-danger btn-sm" @onclick="DiscardAsync" disabled="@isRunning" data-testid="resume-ai-discard">Descartar rascunho</button>
                     </div>
@@ -79,8 +79,17 @@
                     Dados de contato do perfil não são enviados. Você revisa tudo antes de aplicar.
                     <a href="/privacy" target="_blank" rel="noopener">Como tratamos seus dados<span class="visually-hidden"> (abre em nova aba)</span></a>.
                 </p>
-                <button type="button" class="btn btn-primary" @onclick="GenerateAsync" disabled="@isRunning" aria-describedby="resume-ai-processing-note" data-testid="resume-ai-generate">
-                    @(isRunning ? "Analisando..." : "Gerar sugestões com IA")
+                <button type="button" class="btn btn-primary" @onclick="GenerateAsync" disabled="@isRunning" aria-busy="@(isRunning ? "true" : null)"
+                        aria-describedby="resume-ai-processing-note" data-testid="resume-ai-generate">
+                    @if (isRunning)
+                    {
+                        <span class="spinner-border spinner-border-sm" aria-hidden="true"></span>
+                        <span>Analisando…</span>
+                    }
+                    else
+                    {
+                        <Icon Name="sparkles" Size="16" /><span>Gerar sugestões com IA</span>
+                    }
                 </button>
             }
 

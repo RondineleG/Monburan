@@ -1,14 +1,22 @@
+@* Erro de carga: nunca se disfarça de "vazio". "Tentar novamente" por callback (páginas interativas) ou por link
+   (RetryHref, páginas renderizadas no servidor: recarrega a mesma URL). *@
 <section class="empty-state error-state" role="alert" data-testid="error-state">
-    <span class="empty-state__icon error-state__icon" aria-hidden="true">!</span>
+    <span class="empty-state__icon" aria-hidden="true"><Icon Name="alert" Size="24" /></span>
     <StateHeading Level="HeadingLevel" Text="@Title" />
     <p>@Message</p>
-    @if (OnRetry.HasDelegate)
-    {
-        <button type="button" class="btn btn-primary" @onclick="RetryAsync" disabled="@retrying" data-testid="error-retry">
-            @(retrying ? "Tentando..." : "Tentar novamente")
-        </button>
-    }
-    @ChildContent
+    <div class="empty-state__actions">
+        @if (OnRetry.HasDelegate)
+        {
+            <button type="button" class="btn btn-primary" @onclick="RetryAsync" disabled="@retrying" aria-busy="@(retrying ? "true" : null)" data-testid="error-retry">
+                @(retrying ? "Tentando…" : "Tentar novamente")
+            </button>
+        }
+        else if (!string.IsNullOrEmpty(RetryHref))
+        {
+            <a class="btn btn-primary" href="@RetryHref" data-enhance-nav="false" data-testid="error-retry">Tentar novamente</a>
+        }
+        @ChildContent
+    </div>
 </section>
 
 @code {
@@ -22,6 +30,10 @@
 
     [Parameter]
     public EventCallback OnRetry { get; set; }
+
+    /// <summary>Endereço para tentar de novo com navegação completa (páginas sem circuito interativo).</summary>
+    [Parameter]
+    public string? RetryHref { get; set; }
 
     /// <summary>1 quando o erro substitui a página inteira (não há outro h1); 2 dentro de uma página.</summary>
     [Parameter]

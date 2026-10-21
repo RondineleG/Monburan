@@ -44,7 +44,7 @@
         <p class="ai-save-status" data-testid="ai-save-status">
             @(saveState switch
             {
-                SaveState.Saving => "Salvando rascunho...",
+                SaveState.Saving => "Salvando rascunho…",
                 SaveState.Failed => FailedMessage,
                 _ => SavedMessage
             })
@@ -59,7 +59,7 @@
             {
                 <div class="ai-edit" data-testid="ai-edit-summary">
                     <label class="ai-edit__check">
-                        <input type="checkbox" checked="@Draft.SummarySelected" @onchange="e => ToggleSummaryAsync(e)" data-testid="ai-select-summary" />
+                        <input type="checkbox" class="form-check-input" checked="@Draft.SummarySelected" @onchange="e => ToggleSummaryAsync(e)" data-testid="ai-select-summary" />
                         Usar o resumo sugerido
                     </label>
                     <div class="ai-edit__columns">
@@ -107,7 +107,7 @@
                     else
                     {
                         <label class="ai-edit__check">
-                            <input type="checkbox" checked="@experience.Selected" @onchange="e => ToggleExperienceAsync(index, e)" data-testid="ai-select-experience-@index" />
+                            <input type="checkbox" class="form-check-input" checked="@experience.Selected" @onchange="e => ToggleExperienceAsync(index, e)" data-testid="ai-select-experience-@index" />
                             Atualizar a descrição de @experience.Position
                         </label>
                     }
@@ -144,7 +144,7 @@
                     {
                         var index = i;
                         <li class="ai-skill-picks__item">
-                            <input type="checkbox" id="ai-skill-@index" checked="@Draft.Skills[index].Selected" @onchange="e => ToggleSkillAsync(index, e)" data-testid="ai-select-skill-@index" aria-label="Incluir habilidade sugerida" />
+                            <input type="checkbox" class="form-check-input" id="ai-skill-@index" checked="@Draft.Skills[index].Selected" @onchange="e => ToggleSkillAsync(index, e)" data-testid="ai-select-skill-@index" aria-label="@($"Incluir a habilidade sugerida {index + 1}")" />
                             <input type="text" class="ai-skill-picks__text" aria-label="Habilidade sugerida @(index + 1)"
                                    value="@Draft.Skills[index].Skill" @oninput="e => EditSkillAsync(index, e)"
                                    data-testid="ai-edit-skill-@index" />
@@ -209,8 +209,9 @@
         }
 
         <div class="ai-workspace__foot ai-workspace__footer">
-            <button type="button" class="btn btn-primary" @onclick="ApplyAsync" disabled="@(isApplying || applied || blockedFields.Count > 0 || !HasChanges)" data-testid="ai-apply">
-                @(isApplying ? "Aplicando..." : $"Aplicar {ApplicableCount} selecionado{(ApplicableCount == 1 ? "" : "s")} ao currículo")
+            <button type="button" class="btn btn-primary" @onclick="ApplyAsync" disabled="@(isApplying || applied || blockedFields.Count > 0 || !HasChanges)"
+                    aria-busy="@(isApplying ? "true" : null)" data-testid="ai-apply">
+                @(isApplying ? "Aplicando…" : $"Aplicar {ApplicableCount} selecionado{(ApplicableCount == 1 ? "" : "s")} ao currículo")
             </button>
         </div>
     </div>

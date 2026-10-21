@@ -12,18 +12,19 @@
     <meta name="theme-color" content="@(theme == "dark" ? "#0A0806" : "#F2EBD9")" />
     <meta name="description" content="Monburan - Plataforma gratuita de recrutamento e seleção. Encontre as melhores vagas de emprego." />
     <link rel="manifest" href="/manifest.json" />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    @* Só os pesos usados: Cinzel na marca e títulos de destaque, Cormorant no texto de apoio do hero, mono nos rótulos *@
-    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Cormorant+Garamond&family=Share+Tech+Mono&display=swap" rel="stylesheet" />
+    @* Fonte da marca hospedada no próprio site (sem Google Fonts): só a Cinzel 600, usada no logotipo *@
+    <link rel="preload" href="/fonts/cinzel-latin.woff2" as="font" type="font/woff2" crossorigin />
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" id="favicon-32" />
     <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" id="favicon-16" />
-    <script src="/theme-init.js?v=ux-v8"></script>
+    <script src="/theme-init.js?v=ux-v9"></script>
     <base href="/" />
-    @* tokens.css declara a ordem das camadas; app.css traz a base e importa ui.css e jobs.css na camada legacy *@
-    <link rel="stylesheet" href="tokens.css?v=ux-v8" />
-    <link rel="stylesheet" href="app.css?v=ux-v8" />
-    <link rel="stylesheet" href="components.css?v=ux-v8" />
+    @* tokens.css declara a ordem das camadas (tokens, base, components, utilities); ver DESIGN.md *@
+    <link rel="stylesheet" href="tokens.css?v=ux-v9" />
+    <link rel="stylesheet" href="base.css?v=ux-v9" />
+    <link rel="stylesheet" href="components.css?v=ux-v9" />
+    <link rel="stylesheet" href="shell.css?v=ux-v9" />
+    <link rel="stylesheet" href="pages.css?v=ux-v9" />
+    <link rel="stylesheet" href="utilities.css?v=ux-v9" />
     <link rel="stylesheet" href="Monburan.Web.styles.css" />
     <HeadOutlet />
 </head>
@@ -31,8 +32,8 @@
 <body>
     <Routes />
     <script src="_framework/blazor.web.js"></script>
-    <script src="monburan-ui.js?v=ux-v8"></script>
-    <script src="app-shell.js?v=ux-v8"></script>
+    <script src="monburan-ui.js?v=ux-v9"></script>
+    <script src="app-shell.js?v=ux-v9"></script>
 </body>
 
 </html>

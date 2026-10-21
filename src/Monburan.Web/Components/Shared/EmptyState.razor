@@ -1,23 +1,22 @@
-<section class="empty-state" data-testid="@TestId">
-    <span class="empty-state__icon" aria-hidden="true">@Icon</span>
-    @if (!string.IsNullOrWhiteSpace(Kicker))
-    {
-        <span class="page-kicker">@Kicker</span>
-    }
+@* Estado vazio ou "não encontrado": diz o que falta e oferece o próximo passo (ChildContent).
+   Vazio por filtro usa outra mensagem ("Nenhum resultado para estes filtros") e o "Limpar filtros". *@
+<section class="empty-state@(Compact ? " empty-state--compact" : string.Empty)" data-testid="@TestId">
+    <span class="empty-state__icon" aria-hidden="true"><Icon Name="@Icon" Size="24" /></span>
     <StateHeading Level="HeadingLevel" Text="@Title" />
     @if (!string.IsNullOrWhiteSpace(Message))
     {
         <p>@Message</p>
     }
-    @ChildContent
+    @if (ChildContent is not null)
+    {
+        <div class="empty-state__actions">@ChildContent</div>
+    }
 </section>
 
 @code {
+    /// <summary>Nome do ícone (componente Icon).</summary>
     [Parameter]
-    public string Icon { get; set; } = "◌";
-
-    [Parameter]
-    public string? Kicker { get; set; }
+    public string Icon { get; set; } = "info";
 
     [Parameter]
     public string Title { get; set; } = "Nada por aqui ainda";
@@ -31,6 +30,10 @@
     /// </summary>
     [Parameter]
     public int HeadingLevel { get; set; } = 2;
+
+    /// <summary>Versão baixa, para dentro de uma aba ou seção.</summary>
+    [Parameter]
+    public bool Compact { get; set; }
 
     /// <summary>Chamada para ação (ex.: link "Explorar vagas").</summary>
     [Parameter]
