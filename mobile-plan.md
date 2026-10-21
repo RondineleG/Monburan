@@ -213,7 +213,7 @@ registrados no DI do `Monburan.Web`.
 
 ### 2.1 Pré-requisitos de ambiente (Windows)
 
-- [ ] .NET 10 SDK já instalado ✅ (`global.json` na raiz)
+- [ ] .NET 10 SDK já instalado ✅
 - [ ] Instalar workload MAUI: `dotnet workload install maui`
   (ou `maui-android` + `maui-ios` separados)
 - [ ] Android SDK + emulador (via instalador do workload / Android Studio)
