@@ -1,4 +1,4 @@
-/* Monburan Mobile — design system idêntico ao web (ui.css) */
+/* Monburan Mobile — mesmos tokens de cor da web (src/Monburan.Web/wwwroot/tokens.css) */
 
 :root {
     /* Motion */
@@ -35,73 +35,92 @@
     --f-ui: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
-/* === DARK THEME (padrão, igual ao web) === */
+/* === Temas: mesmos valores de src/Monburan.Web/wwwroot/tokens.css (verificados por DesignTokenContrastTests).
+   O app começa no escuro; os dois temas definem os mesmos tokens. Texto secundário é sólido (antes era
+   translúcido e ficava abaixo de 3:1). === */
 :root,
 html[data-theme="dark"] {
     color-scheme: dark;
-    --bg: #0a0806;
-    --bg-2: #141008;
-    --bg-3: #1e1a0c;
-    --bg-card: #100d08;
-    --bg-input: #171209;
-    --bg-elev: #1c1810;
-    --gold: #c9a84c;
-    --gold-l: #e8c97d;
-    --gold-d: #dbb968;
+    --bg: oklch(0.18 0.013 75);
+    --bg-2: oklch(0.20 0.013 75);
+    --bg-3: oklch(0.26 0.013 75);
+    --bg-card: oklch(0.245 0.013 75);
+    --bg-input: oklch(0.20 0.013 75);
+    --bg-elev: oklch(0.22 0.013 75);
+    --gold: oklch(0.78 0.108 82);
+    --gold-l: oklch(0.86 0.09 82);
+    --gold-d: oklch(0.80 0.10 82);
     --gold-glow: rgb(201 168 76 / 28%);
     --gold-soft: rgb(201 168 76 / 12%);
     --gold-border: rgb(201 168 76 / 25%);
-    --tx: #f0e6d0;
-    --tx-2: rgb(240 230 208 / 58%);
-    --tx-3: rgb(240 230 208 / 34%);
-    --border: rgb(201 168 76 / 15%);
-    --border-2: rgb(201 168 76 / 24%);
+    --action-bg: oklch(0.78 0.108 82);
+    --action-fg: oklch(0.22 0.026 75);
+    --tx: oklch(0.94 0.013 85);
+    --tx-2: oklch(0.80 0.019 85);
+    --tx-muted: oklch(0.70 0.019 85);
+    --tx-3: var(--tx-muted);
+    --border: oklch(0.34 0.019 75);
+    --border-2: oklch(0.42 0.03 78);
+    --border-input: oklch(0.56 0.03 78);
     --surface: rgb(255 255 255 / 3%);
     --ok: #6fbf73;
     --ok-bg: rgb(111 191 115 / 12%);
-    --er: #e06c5c;
-    --er-bg: rgb(224 108 92 / 12%);
+    --er: #f0958a;
+    --er-bg: rgb(240 149 138 / 12%);
+    --er-ink: #2a0d09;
     --warn: #c9a84c;
     --info: #7fb3d5;
     --info-bg: rgb(127 179 213 / 12%);
+    --info-tx: #7fb3d5;
     --shadow-sm: 0 2px 10px rgb(0 0 0 / 35%);
     --shadow-md: 0 10px 32px rgb(0 0 0 / 45%);
     --shadow-lg: 0 28px 70px rgb(0 0 0 / 55%), 0 6px 20px rgb(0 0 0 / 35%);
+    --topbar-bg: rgb(10 8 6 / 88%);
+    --scrim-bg: rgb(0 0 0 / 55%);
     --gold-ink: #221a08;
+    --focus-ring: var(--gold-l);
 }
 
-/* === LIGHT THEME === */
 html[data-theme="light"] {
     color-scheme: light;
-    --bg: #f2ebd9;
-    --bg-2: #e8dec8;
-    --bg-3: #d8cbaa;
-    --bg-card: #fefaf3;
-    --bg-input: #faf5e8;
-    --bg-elev: #fcf8ee;
-    --gold: #8a5500;
-    --gold-l: #c9a84c;
-    --gold-d: #5a3200;
+    --bg: oklch(0.975 0.009 85);
+    --bg-2: oklch(0.955 0.012 80);
+    --bg-3: oklch(0.925 0.02 78);
+    --bg-card: oklch(0.995 0.004 85);
+    --bg-input: oklch(0.99 0.004 85);
+    --bg-elev: oklch(0.985 0.006 85);
+    --gold: oklch(0.55 0.108 76);
+    --gold-l: oklch(0.86 0.079 85);
+    --gold-d: oklch(0.43 0.096 70);
     --gold-glow: rgb(138 85 0 / 16%);
     --gold-soft: rgb(138 85 0 / 8%);
     --gold-border: rgb(138 85 0 / 24%);
-    --tx: #1a0f00;
-    --tx-2: rgb(26 15 0 / 62%);
-    --tx-3: rgb(26 15 0 / 40%);
-    --border: rgb(138 85 0 / 17%);
-    --border-2: rgb(138 85 0 / 28%);
+    --action-bg: oklch(0.43 0.096 70);
+    --action-fg: oklch(0.99 0.005 85);
+    --tx: oklch(0.25 0.019 70);
+    --tx-2: oklch(0.43 0.019 70);
+    --tx-muted: oklch(0.50 0.019 70);
+    --tx-3: var(--tx-muted);
+    --border: oklch(0.89 0.013 80);
+    --border-2: oklch(0.83 0.03 78);
+    --border-input: oklch(0.6 0.03 76);
     --surface: rgb(138 85 0 / 4%);
     --ok: #2e6830;
     --ok-bg: rgb(46 104 48 / 9%);
     --er: #9a1a1a;
     --er-bg: rgb(154 26 26 / 8%);
+    --er-ink: #fffaf8;
     --warn: #8a5500;
     --info: #2d6e94;
     --info-bg: rgb(45 110 148 / 9%);
+    --info-tx: #285c7a;
     --shadow-sm: 0 2px 8px rgb(80 40 0 / 6%);
     --shadow-md: 0 8px 28px rgb(80 40 0 / 10%);
     --shadow-lg: 0 24px 60px rgb(80 40 0 / 14%), 0 4px 16px rgb(80 40 0 / 6%);
-    --gold-ink: #fefaf3;
+    --topbar-bg: rgb(242 235 217 / 94%);
+    --scrim-bg: rgb(26 15 0 / 36%);
+    --gold-ink: #fffaf0;
+    --focus-ring: var(--gold-d);
 }
 
 * { box-sizing: border-box; }
@@ -135,7 +154,7 @@ html, body {
     z-index: 10;
     padding: var(--s-3) var(--s-4);
     padding-top: max(var(--s-3), env(safe-area-inset-top));
-    background: rgb(10 8 6 / 88%);
+    background: var(--topbar-bg);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
     border-bottom: 1px solid var(--border);
@@ -145,7 +164,7 @@ html, body {
 }
 
 html[data-theme="light"] .app-header {
-    background: rgb(242 235 217 / 94%);
+    background: var(--topbar-bg);
 }
 
 .app-brand {
@@ -172,8 +191,8 @@ html[data-theme="light"] .app-header {
     border-radius: var(--r-pill);
     color: var(--gold);
     font-size: 1.1rem;
-    width: 36px;
-    height: 36px;
+    width: 44px;
+    height: 44px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -233,7 +252,7 @@ html[data-theme="light"] .bottom-nav {
     color: var(--tx-3);
     text-decoration: none;
     font-family: var(--f-mono);
-    font-size: 0.56rem;
+    font-size: 0.75rem;
     letter-spacing: 0.1em;
     text-transform: uppercase;
     transition: color var(--dur-xs) var(--ease-out);
@@ -266,7 +285,7 @@ html[data-theme="light"] .bottom-nav {
     background: var(--er);
     color: var(--gold-ink);
     font-family: var(--f-ui);
-    font-size: 0.58rem;
+    font-size: 0.75rem;
     font-weight: 700;
     min-width: 16px;
     height: 16px;
@@ -304,7 +323,7 @@ html[data-theme="light"] .bottom-nav {
 
 h2.section-label {
     font-family: var(--f-mono);
-    font-size: 0.56rem;
+    font-size: 0.75rem;
     letter-spacing: 0.16em;
     text-transform: uppercase;
     color: var(--tx-3);
@@ -382,7 +401,7 @@ a.card:active, a.card-link:active {
     padding: 2px var(--s-2);
     border-radius: var(--r-pill);
     font-family: var(--f-mono);
-    font-size: 0.56rem;
+    font-size: 0.75rem;
     font-weight: 400;
     letter-spacing: 0.08em;
     text-transform: uppercase;
@@ -447,7 +466,7 @@ a.card:active, a.card-link:active {
 .form-field label {
     display: block;
     font-family: var(--f-mono);
-    font-size: 0.56rem;
+    font-size: 0.75rem;
     font-weight: 400;
     letter-spacing: 0.14em;
     text-transform: uppercase;
@@ -459,7 +478,7 @@ a.card:active, a.card-link:active {
     width: 100%;
     padding: var(--s-3) var(--s-4);
     background: var(--bg-input);
-    border: 1px solid var(--border);
+    border: 1px solid var(--border-input);
     border-radius: var(--r-sm);
     color: var(--tx);
     font-family: var(--f-ui);
@@ -468,10 +487,11 @@ a.card:active, a.card-link:active {
     transition: border-color var(--dur-xs) var(--ease-out), box-shadow var(--dur-xs) var(--ease-out);
 }
 
-.input:focus {
-    outline: none;
+/* Foco do campo: anel com contraste (>= 3:1), não só a troca da cor da borda */
+.input:focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 2px;
     border-color: var(--gold);
-    box-shadow: 0 0 0 3px var(--gold-soft);
 }
 
 textarea.input { min-height: 100px; resize: vertical; }
@@ -500,12 +520,12 @@ textarea.input { min-height: 100px; resize: vertical; }
 }
 
 .state-box .state-icon { font-size: 2.5rem; margin-bottom: var(--s-3); opacity: 0.6; }
-.state-box .state-title { font-family: var(--f-serif); font-size: 1.2rem; font-weight: 600; color: var(--tx); margin-bottom: var(--s-2); }
+.state-box .state-title { font-family: var(--f-serif); font-size: 1.2rem; font-weight: 600; color: var(--tx); margin: 0 0 var(--s-2); }
 .state-box p { font-family: var(--f-serif); margin: 0 0 var(--s-4); font-size: 1rem; line-height: 1.55; max-width: 280px; margin-left: auto; margin-right: auto; }
 
 .spinner {
-    width: 32px;
-    height: 32px;
+    width: 44px;
+    height: 44px;
     border: 3px solid var(--gold-soft);
     border-top-color: var(--gold);
     border-radius: 50%;
@@ -558,11 +578,11 @@ textarea.input { min-height: 100px; resize: vertical; }
     background: var(--bg-card);
     color: var(--tx-2);
     font-family: var(--f-mono);
-    font-size: 0.6rem;
+    font-size: 0.75rem;
     letter-spacing: 0.08em;
     text-transform: uppercase;
     cursor: pointer;
-    min-height: 38px;
+    min-height: 44px;
     transition: all var(--dur-xs) var(--ease-out);
 }
 
@@ -634,7 +654,7 @@ textarea.input { min-height: 100px; resize: vertical; }
 
 .detail-section h3 {
     font-family: var(--f-mono);
-    font-size: 0.56rem;
+    font-size: 0.75rem;
     font-weight: 400;
     letter-spacing: 0.16em;
     text-transform: uppercase;
@@ -701,8 +721,8 @@ textarea.input { min-height: 100px; resize: vertical; }
 .toast-body span { color: var(--tx-2); overflow-wrap: anywhere; }
 .toast-close {
     flex: 0 0 auto;
-    width: 32px;
-    height: 32px;
+    width: 44px;
+    height: 44px;
     border: 0;
     border-radius: 50%;
     background: transparent;
@@ -741,7 +761,7 @@ textarea.input { min-height: 100px; resize: vertical; }
 .sheet-title { margin: 0 0 var(--s-2); color: var(--tx); font-family: var(--f-serif); font-size: 1.3rem; }
 .sheet-message { margin: 0 0 var(--s-5); color: var(--tx-2); font-size: 0.95rem; line-height: 1.5; }
 .sheet-actions { display: flex; flex-direction: column; gap: var(--s-2); }
-.btn-danger-solid { background: var(--er); border-color: var(--er); color: #fff; }
+.btn-danger-solid { background: var(--er); border-color: var(--er); color: var(--er-ink); }
 
 @keyframes sheet-in {
     from { transform: translateY(100%); }
@@ -762,4 +782,43 @@ textarea.input { min-height: 100px; resize: vertical; }
     display: none;
     font-size: 0.85rem;
     text-align: center;
+}
+
+/* ---------- Acessibilidade transversal ---------- */
+/* Foco visível em todo controle (teclado externo, acesso por interruptor) */
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+[role="button"]:focus-visible,
+[tabindex]:not([tabindex="-1"]):focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+}
+
+/* Voltar do cabeçalho (o iOS não tem botão voltar do sistema) */
+.app-back {
+    display: grid;
+    width: 44px;
+    height: 44px;
+    place-items: center;
+    margin-right: var(--s-2);
+    border: 1px solid var(--border-2);
+    border-radius: 50%;
+    background: transparent;
+    color: var(--tx);
+    font-size: 1.5rem;
+    line-height: 1;
 }

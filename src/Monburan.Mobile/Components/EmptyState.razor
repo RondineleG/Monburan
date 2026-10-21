@@ -1,7 +1,10 @@
 <div class="state-box">
-    <div class="state-icon">@Icon</div>
-    <div class="state-title">@Title</div>
-    <p>@Message</p>
+    <div class="state-icon" aria-hidden="true">@Icon</div>
+    <h2 class="state-title">@Title</h2>
+    @if (!string.IsNullOrWhiteSpace(Message))
+    {
+        <p>@Message</p>
+    }
     @ChildContent
 </div>
 

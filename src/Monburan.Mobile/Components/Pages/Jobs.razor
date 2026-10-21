@@ -13,9 +13,9 @@
 </form>
 
 <div class="filter-chips">
-    <button class="filter-chip @(_isRemote == null ? "active" : "")" @onclick="() => SetRemote(null)">Todas</button>
-    <button class="filter-chip @(_isRemote == true ? "active" : "")" @onclick="() => SetRemote(true)">Remoto</button>
-    <button class="filter-chip @(_isRemote == false ? "active" : "")" @onclick="() => SetRemote(false)">Presencial</button>
+    <button type="button" class="filter-chip @(_isRemote == null ? "active" : "")" aria-pressed="@(_isRemote == null ? "true" : "false")" @onclick="() => SetRemote(null)">Todas</button>
+    <button type="button" class="filter-chip @(_isRemote == true ? "active" : "")" aria-pressed="@(_isRemote == true ? "true" : "false")" @onclick="() => SetRemote(true)">Remoto</button>
+    <button type="button" class="filter-chip @(_isRemote == false ? "active" : "")" aria-pressed="@(_isRemote == false ? "true" : "false")" @onclick="() => SetRemote(false)">Presencial</button>
 </div>
 
 @if (_loading)
@@ -55,7 +55,7 @@ else
                 <div class="card-meta">
                     @if (!string.IsNullOrEmpty(job.City))
                     {
-                        <span class="meta-chip">📍 @job.City@(job.State is not null ? $"/{job.State}" : "")</span>
+                        <span class="meta-chip"><span aria-hidden="true">📍</span> @job.City@(job.State is not null ? $"/{job.State}" : "")</span>
                     }
                     @if (Formatters.Salary(job) is { } salary)
                     {

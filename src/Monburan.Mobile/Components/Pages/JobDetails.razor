@@ -46,7 +46,7 @@ else if (_job is not null)
         <div class="card-meta">
             @if (!string.IsNullOrEmpty(_job.City))
             {
-                <span class="meta-chip">📍 @_job.City@(_job.State is not null ? $"/{_job.State}" : "")</span>
+                <span class="meta-chip"><span aria-hidden="true">📍</span> @_job.City@(_job.State is not null ? $"/{_job.State}" : "")</span>
             }
             @if (Formatters.Salary(_job) is { } salary)
             {

@@ -32,7 +32,9 @@ else
 
     @foreach (var n in _items)
     {
-        <div class="card @(n.IsRead ? "" : "notification-unread")" role="button" tabindex="0" @onclick="() => MarkRead(n)">
+        @* Enter também marca como lida: o cartão recebe foco pelo teclado, então precisa responder a ele *@
+        <div class="card @(n.IsRead ? "" : "notification-unread")" role="button" tabindex="0" @onclick="() => MarkRead(n)"
+             @onkeydown="@(e => e.Key == "Enter" ? MarkRead(n) : Task.CompletedTask)">
             <div class="list-row">
                 <h2 class="card-title">@n.Title</h2>
                 @if (!n.IsRead)

@@ -41,6 +41,10 @@
 </div>
 
 @code {
+    /// <summary>Página que pediu o login (ProtectedPage); só caminhos internos são aceitos.</summary>
+    [SupplyParameterFromQuery(Name = "returnUrl")]
+    public string? ReturnUrl { get; set; }
+
     private string _email = "";
     private string _password = "";
     private string? _error;
@@ -50,7 +54,7 @@
     {
         await Auth.InitializeAsync();
         if (Auth.IsAuthenticated)
-            Nav.NavigateTo("/");
+            Nav.NavigateTo(SafeReturnUrl, replace: true);
     }
 
     private async Task DoLogin()
@@ -71,7 +75,7 @@
         {
             var tokens = await AuthApi.LoginAsync(_email.Trim(), _password);
             await Auth.SignInAsync(tokens);
-            Nav.NavigateTo("/");
+            Nav.NavigateTo(SafeReturnUrl, replace: true);
         }
         catch (ApiException ex)
         {
@@ -86,4 +90,10 @@
             _busy = false;
         }
     }
+
+    // Endereço externo ("//site", "https:") nunca: evita redirecionamento aberto
+    private string SafeReturnUrl =>
+        ReturnUrl is { Length: > 1 } url && url.StartsWith('/') && !url.StartsWith("//") && !url.Contains(':') && !url.StartsWith("/login", StringComparison.OrdinalIgnoreCase)
+            ? url
+            : "/";
 }

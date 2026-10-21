@@ -20,7 +20,9 @@ public abstract class ProtectedPage : ComponentBase
         if (Auth.IsAuthenticated)
             return true;
 
-        Nav.NavigateTo("/login");
+        // Volta para cá depois de entrar (ex.: "Candidatar-se" sem sessão); replace tira a rota protegida do histórico
+        var returnUrl = Nav.ToBaseRelativePath(Nav.Uri);
+        Nav.NavigateTo(string.IsNullOrEmpty(returnUrl) ? "/login" : $"/login?returnUrl={Uri.EscapeDataString("/" + returnUrl)}", replace: true);
         return false;
     }
 }

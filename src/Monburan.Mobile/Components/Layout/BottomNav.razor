@@ -1,26 +1,26 @@
 @inject AuthStateService Auth
 
-<nav class="bottom-nav">
+<nav class="bottom-nav" aria-label="Navegação principal">
     <NavLink href="/" Match="NavLinkMatch.All">
-        <span class="nav-icon">⌂</span>
+        <span class="nav-icon" aria-hidden="true">⌂</span>
         <span>Vagas</span>
     </NavLink>
     <NavLink href="/applications">
-        <span class="nav-icon">✉</span>
+        <span class="nav-icon" aria-hidden="true">✉</span>
         <span>Candidaturas</span>
     </NavLink>
     <NavLink href="/notifications">
         <span class="nav-item-wrap">
-            <span class="nav-icon">◈</span>
+            <span class="nav-icon" aria-hidden="true">◈</span>
             @if (UnreadCount > 0)
             {
-                <span class="nav-badge">@UnreadCount</span>
+                <span class="nav-badge" aria-label="@UnreadCount não lidos">@(UnreadCount > 99 ? "99+" : UnreadCount.ToString())</span>
             }
         </span>
         <span>Avisos</span>
     </NavLink>
     <NavLink href="/profile">
-        <span class="nav-icon">☰</span>
+        <span class="nav-icon" aria-hidden="true">☰</span>
         <span>Perfil</span>
     </NavLink>
 </nav>

@@ -13,8 +13,13 @@
     @if (!IsAuthPage)
     {
         <header class="app-header">
+            @if (ShowBack)
+            {
+                @* O iOS não tem botão voltar do sistema: telas internas (vaga, candidatura) precisam de um *@
+                <button type="button" class="app-back" @onclick="GoBackAsync" aria-label="Voltar"><span aria-hidden="true">‹</span></button>
+            }
             <a class="app-brand" href="/">Monburan</a>
-            <button class="theme-toggle" @onclick="ToggleTheme" aria-label="Alternar tema">
+            <button type="button" class="theme-toggle" @onclick="ToggleTheme" aria-label="Tema escuro" aria-pressed="@(_isDark ? "true" : "false")">
                 @(_isDark ? "☀" : "☾")
             </button>
         </header>
@@ -39,6 +44,28 @@
     private DateTime _lastUnreadFetch = DateTime.MinValue;
     private bool _isDark = true;
 
+    // Abas da barra inferior não têm "voltar"; as demais telas (detalhe, candidatura, currículos) têm
+    private bool ShowBack
+    {
+        get
+        {
+            var path = "/" + Nav.ToBaseRelativePath(Nav.Uri).Split('?', '#')[0].Trim('/');
+            return path is not ("/" or "/jobs" or "/applications" or "/notifications" or "/profile");
+        }
+    }
+
+    private async Task GoBackAsync()
+    {
+        try
+        {
+            await JS.InvokeVoidAsync("history.back");
+        }
+        catch (JSException)
+        {
+            Nav.NavigateTo("/");
+        }
+    }
+
     private bool IsAuthPage =>
         Nav.Uri.Contains("/login", StringComparison.OrdinalIgnoreCase) ||
         Nav.Uri.Contains("/register", StringComparison.OrdinalIgnoreCase) ||
@@ -46,7 +73,7 @@
 
     protected override async Task OnInitializedAsync()
     {
-        // Aplica tema salvo (padrão: dark, igual ao web)
+        // Aplica o tema salvo (padrão do app: escuro)
         var saved = await JS.InvokeAsync<string>("monburan.getTheme");
         _isDark = saved != "light";
         ApplyTheme();
