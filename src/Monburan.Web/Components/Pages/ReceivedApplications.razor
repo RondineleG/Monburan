@@ -16,7 +16,7 @@
 @inject IJSRuntime JS
 @inject ILogger<ReceivedApplications> Logger
 
-<PageTitle>Candidaturas Recebidas - Monburan</PageTitle>
+<PageTitle>Candidaturas recebidas - Monburan</PageTitle>
 
 <div class="container mt-4 received-applications-page">
     <header class="page-heading">
@@ -34,7 +34,7 @@
                 }
             </p>
         </div>
-        <a class="btn btn-secondary" href="/my-jobs">Voltar às vagas</a>
+        <a class="btn btn-outline-secondary" href="/my-jobs">Voltar às vagas</a>
     </header>
 
     @if (isLoading)
@@ -81,7 +81,7 @@
                     <option value="sent" selected="@(FilterStatus == "sent")">Enviada</option>
                     <option value="viewed" selected="@(FilterStatus == "viewed")">Visualizada</option>
                     <option value="selected" selected="@(FilterStatus == "selected")">Selecionada</option>
-                    <option value="rejected" selected="@(FilterStatus == "rejected")">Rejeitada</option>
+                    <option value="rejected" selected="@(FilterStatus == "rejected")">Não selecionada</option>
                     <option value="archived" selected="@(FilterStatus == "archived")">Arquivada</option>
                 </select>
             </label>
@@ -97,7 +97,7 @@
                 <span class="received-filter__label">Buscar por nome</span>
                 <input type="search" name="busca" value="@FilterSearch" maxlength="80" placeholder="Buscar por nome" data-testid="filter-search" />
             </label>
-            <button type="submit" class="btn btn-outline-primary btn-sm">Filtrar</button>
+            <button type="submit" class="btn btn-outline-primary btn-sm received-filters__submit">Filtrar</button>
             <span class="received-filters__count" data-testid="applications-count">@filteredApplications.Count @(filteredApplications.Count == 1 ? "candidatura" : "candidaturas")</span>
             @if (isFiltered)
             {
@@ -153,6 +153,7 @@
                                         <td data-label="Ações">
                                             <button type="button"
                                                     class="btn btn-outline-primary btn-sm"
+                                                    aria-label="Perfil e currículo de @app.CandidateName"
                                                     @onclick="() => OpenDrawerAsync(app)">
                                                 Perfil e currículo
                                             </button>
@@ -267,17 +268,27 @@
         }
     }
 
+    // Filtro "Vaga": todas as vagas da empresa (antes só as 100 primeiras apareciam na lista)
     private async Task LoadJobsAsync()
     {
-        var result = await SearchJobsUseCase.ExecuteAsync(new ListJobsRequest
+        var loaded = new List<JobResponse>();
+        for (var page = 1; page <= 20; page++)
         {
-            Page = 1,
-            Size = 100,
-            AdvertiserId = advertiserId
-        });
-        advertiserJobs = result.Status == EResultStatus.Success
-            ? result.Data?.Jobs.OrderBy(job => job.Title).ToList() ?? []
-            : [];
+            var result = await SearchJobsUseCase.ExecuteAsync(new ListJobsRequest
+            {
+                Page = page,
+                Size = 100,
+                AdvertiserId = advertiserId
+            });
+            if (result.Status != EResultStatus.Success || result.Data is null)
+                break;
+
+            loaded.AddRange(result.Data.Jobs);
+            if (!result.Data.HasNextPage)
+                break;
+        }
+
+        advertiserJobs = loaded.OrderBy(job => job.Title).ToList();
     }
 
     private void ApplyFilters()

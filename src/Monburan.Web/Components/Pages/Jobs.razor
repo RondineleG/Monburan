@@ -37,7 +37,7 @@
         }
         else if (!isAuthenticated)
         {
-            <a class="btn btn-outline-primary" href="/Account/Register?AccountType=advertiser">Sou recrutador <span aria-hidden="true">↗</span></a>
+            <a class="btn btn-outline-primary" href="/Account/Register?AccountType=advertiser">Para empresas <span aria-hidden="true">↗</span></a>
         }
     </header>
 
@@ -154,7 +154,7 @@
                     @foreach (var job in results.Jobs)
                     {
                         <JobCard @key="job.Id" Job="job" IsOwner="@(advertiserId.HasValue && job.AdvertiserId == advertiserId.Value)"
-                                 ShowSave="@(!isAdvertiser)" CanSave="isCandidate" SaveReturnUrl="@Navigation.Uri" />
+                                 ShowSave="@(isCandidate || !isAuthenticated)" CanSave="isCandidate" SaveReturnUrl="@Navigation.Uri" />
                     }
                 </div>
 
@@ -184,7 +184,8 @@
             }
         </section>
 
-        @if (!isCandidate)
+        @* Convite para empresas só para quem ainda não tem conta: a empresa logada já publica pelo topo *@
+        @if (!isAuthenticated)
         {
             <aside class="promo-strip" aria-label="Para empresas">
                 <span class="promo-strip__tag">Para empresas</span>

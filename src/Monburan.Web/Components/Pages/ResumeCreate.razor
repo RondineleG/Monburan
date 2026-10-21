@@ -16,7 +16,9 @@
 @inject IToastService Toast
 @inject ILogger<ResumeCreate> Logger
 
-<PageTitle>Criar Currículo - Monburan</PageTitle>
+<PageTitle>Criar currículo - Monburan</PageTitle>
+
+<UnsavedChangesGuard HasChanges="HasUnsavedChanges" />
 
 <div class="container mt-4 page-form-shell resume-create-page">
     <header class="page-heading">
@@ -25,7 +27,7 @@
             <h1>Criar currículo</h1>
             <p>Comece com um resumo claro. Você pode completar as outras seções depois.</p>
         </div>
-        <button class="btn btn-secondary" @onclick="Cancel">Cancelar</button>
+        <a class="btn btn-secondary" href="/resumes">Cancelar</a>
     </header>
     <div class="row">
         <div class="col-lg-8 mx-auto">
@@ -54,7 +56,7 @@
                             <!-- Assistente -->
                             <div class="resume-assistant">
                                 <div>
-                                    <strong><i class="bi bi-stars"></i> Gerador de currículo</strong>
+                                    <strong><Icon Name="sparkles" Size="16" /> Gerador de currículo</strong>
                                     <p>Preenche o rascunho com os dados do seu perfil. Você ajusta antes de salvar.</p>
                                 </div>
                                 <button type="button" class="btn btn-secondary" @onclick="GenerateDraftAsync" disabled="@isGenerating" data-testid="resume-generate">
@@ -65,7 +67,7 @@
                             @if (validationHints.Count > 0)
                             {
                                 <div class="alert alert-warning mt-3 mb-0">
-                                    <strong><i class="bi bi-clipboard-check"></i> Validação</strong>
+                                    <strong>Validação</strong>
                                     <ul class="mb-0 mt-1">
                                         @foreach (var hint in validationHints)
                                         {
@@ -75,11 +77,11 @@
                                 </div>
                             }
 
-                            <!-- Informações Básicas -->
-                            <h5 class="mb-3"><i class="bi bi-info-circle"></i> Informações Básicas</h5>
-                            
+                            <!-- Informações básicas -->
+                            <h2 class="h5 mb-3">Informações básicas</h2>
+
                             <div class="mb-3">
-                                <label class="form-label" for="model.Title">Título do Currículo *</label>
+                                <label class="form-label" for="model.Title">Título do currículo *</label>
                                 <InputText class="form-control" @bind-Value="model.Title" id="model.Title"
                                     placeholder="Ex: Desenvolvedor Full Stack Pleno" />
                                 <ValidationMessage class="text-danger" For="@(() => model.Title)" />
@@ -87,7 +89,7 @@
                             </div>
 
                             <div class="mb-3">
-                                <label class="form-label" for="model.Summary">Resumo Profissional</label>
+                                <label class="form-label" for="model.Summary">Resumo profissional</label>
                                 <InputTextArea class="form-control" @bind-Value="model.Summary" id="model.Summary" rows="4"
                                     placeholder="Escreva um breve resumo sobre sua experiência e objetivos profissionais..." />
                                 <ValidationMessage class="text-danger" For="@(() => model.Summary)" />
@@ -107,7 +109,7 @@
 
                             <!-- Próximas Seções -->
                             <div class="alert alert-info">
-                                <h5><i class="bi bi-info-circle"></i> Você poderá complementar depois</h5>
+                                <h2 class="h5">Você poderá complementar depois</h2>
                                 <p class="mb-2">Após criar o currículo básico, você poderá adicionar:</p>
                                 <ul class="mb-0">
                                     <li><strong>Formação acadêmica</strong> — sua educação e cursos</li>
@@ -121,9 +123,13 @@
                                 <button type="submit" class="btn btn-success btn-lg" disabled="@isSubmitting" data-testid="resume-create-submit">
                                     @if (isSubmitting)
                                     {
-                                        <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                                        <span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>
+                                        <span>Salvando...</span>
                                     }
-                                    <i class="bi bi-check-circle"></i> Criar Currículo
+                                    else
+                                    {
+                                        <span>Criar currículo</span>
+                                    }
                                 </button>
                             </div>
                         </EditForm>
@@ -143,6 +149,7 @@
     private bool isCandidate;
     private ServerValidationErrors serverErrors = default!;
     private bool isSubmitting = false;
+    private bool saved;
     private bool isGenerating = false;
     private List<string> validationHints = [];
     private Candidate? candidateProfile;
@@ -228,6 +235,7 @@
         if (result.Status == EResultStatus.Success && result.Data is not null)
         {
             Toast.ShowSuccess("Agora complete experiências, formação e habilidades.", "Currículo criado");
+            saved = true;
             Navigation.NavigateTo($"/resumes/{result.Data.Id}");
             return;
         }
@@ -243,10 +251,10 @@
         isSubmitting = false;
     }
 
-    private void Cancel()
-    {
-        Navigation.NavigateTo("/resumes");
-    }
+    // O rascunho gerado altera o model sem passar pelo EditContext: compara os campos com o estado inicial
+    private bool HasUnsavedChanges() =>
+        isCandidate && !saved && !isSubmitting &&
+        (!string.IsNullOrEmpty(model.Title) || !string.IsNullOrEmpty(model.Summary) || !model.IsActive);
 
     [Inject]
     private NavigationManager Navigation { get; set; } = default!;

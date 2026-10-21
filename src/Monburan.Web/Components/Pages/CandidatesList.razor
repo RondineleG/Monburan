@@ -10,7 +10,7 @@
 @inject IToastService Toast
 @inject ILogger<CandidatesList> Logger
 
-<PageTitle>Gerenciar Candidatos - Monburan</PageTitle>
+<PageTitle>Candidatos - Administração - Monburan</PageTitle>
 
 <div class="container mt-4 admin-list-page">
     <header class="page-heading">
@@ -64,27 +64,28 @@
         <div class="card">
             <div class="card-body p-0">
                 <div class="table-responsive">
-                    <table class="table table-hover table-striped mb-0">
+                    <table class="table table-hover table-striped table-cards mb-0">
+                        <caption class="visually-hidden">Candidatos cadastrados</caption>
                         <thead>
                             <tr>
-                                <th>Nome</th>
-                                <th>E-mail</th>
-                                <th>Situação</th>
-                                <th>Cidade/UF</th>
-                                <th>Currículos</th>
-                                <th>Candidaturas</th>
-                                <th>Cadastro</th>
-                                <th class="text-center">Ações</th>
+                                <th scope="col">Nome</th>
+                                <th scope="col">E-mail</th>
+                                <th scope="col">Situação</th>
+                                <th scope="col">Cidade/UF</th>
+                                <th scope="col">Currículos</th>
+                                <th scope="col">Candidaturas</th>
+                                <th scope="col">Cadastro</th>
+                                <th scope="col" class="text-center">Ações</th>
                             </tr>
                         </thead>
                         <tbody>
                             @foreach (var candidate in listResponse.Items)
                             {
                                 <tr>
-                                    <td>@candidate.Name</td>
-                                    <td>@candidate.Email</td>
-                                    <td><span class="badge @StatusBadge(candidate.Status)">@StatusLabel(candidate.Status)</span></td>
-                                    <td>
+                                    <td data-label="Nome">@candidate.Name</td>
+                                    <td data-label="E-mail">@candidate.Email</td>
+                                    <td data-label="Situação"><span class="badge @StatusBadge(candidate.Status)">@StatusLabel(candidate.Status)</span></td>
+                                    <td data-label="Cidade/UF">
                                         @if (!string.IsNullOrEmpty(candidate.City))
                                         {
                                             @candidate.City@(string.IsNullOrEmpty(candidate.State) ? "" : $" / {candidate.State}")
@@ -94,11 +95,11 @@
                                             <span class="text-muted">—</span>
                                         }
                                     </td>
-                                    <td class="text-center">@candidate.ResumesCount</td>
-                                    <td class="text-center">@candidate.ApplicationsCount</td>
-                                    <td>@UiLabels.FormatMomentDate(candidate.CreatedAt)</td>
-                                    <td class="text-center">
-                                        <button class="btn btn-sm btn-outline-danger" @onclick="() => DeleteAsync(candidate)" disabled="@(deletingId == candidate.Id)" title="Excluir candidato">
+                                    <td data-label="Currículos" class="text-center">@candidate.ResumesCount</td>
+                                    <td data-label="Candidaturas" class="text-center">@candidate.ApplicationsCount</td>
+                                    <td data-label="Cadastro">@UiLabels.FormatMomentDate(candidate.CreatedAt)</td>
+                                    <td data-label="Ações" class="text-center">
+                                        <button type="button" class="btn btn-sm btn-outline-danger" @onclick="() => DeleteAsync(candidate)" disabled="@(deletingId == candidate.Id)" aria-label="Excluir o candidato @candidate.Name">
                                             @(deletingId == candidate.Id ? "Excluindo..." : "Excluir")
                                         </button>
                                     </td>
@@ -110,39 +111,7 @@
             </div>
         </div>
 
-        @if (listResponse.TotalPages > 1)
-        {
-            <nav class="mt-4" aria-label="Paginação de candidatos">
-                <ul class="pagination justify-content-center">
-                    @if (listResponse.HasPreviousPage)
-                    {
-                        <li class="page-item">
-                            <button class="page-link" @onclick="() => LoadAsync(listResponse.Page - 1)">Anterior</button>
-                        </li>
-                    }
-
-                    @{
-                        var startPage = Math.Max(1, listResponse.Page - 2);
-                        var endPage = Math.Min(listResponse.TotalPages, startPage + 4);
-                        startPage = Math.Max(1, endPage - 4);
-                    }
-                    @for (int i = startPage; i <= endPage; i++)
-                    {
-                        var pageNum = i;
-                        <li class="page-item @(pageNum == listResponse.Page ? "active" : "")">
-                            <button class="page-link" @onclick="() => LoadAsync(pageNum)">@pageNum</button>
-                        </li>
-                    }
-
-                    @if (listResponse.HasNextPage)
-                    {
-                        <li class="page-item">
-                            <button class="page-link" @onclick="() => LoadAsync(listResponse.Page + 1)">Próximo</button>
-                        </li>
-                    }
-                </ul>
-            </nav>
-        }
+        <Pager Page="listResponse.Page" TotalPages="listResponse.TotalPages" OnPageChanged="LoadAsync" AriaLabel="Paginação de candidatos" />
 
         <div class="text-muted text-center mt-3">
             Mostrando @listResponse.Items.Count() de @listResponse.TotalCount candidatos
@@ -202,7 +171,7 @@
         var confirmed = await confirmDialog.ShowAsync(new ConfirmOptions
         {
             Title = "Excluir candidato?",
-            Message = $"O perfil de {candidate.Name} ({candidate.Email}) será desativado e deixará de aparecer na plataforma.",
+            Message = $"O perfil de {candidate.Name} ({candidate.Email}) será excluído e deixará de aparecer na plataforma.",
             ConfirmText = "Excluir candidato",
             Destructive = true
         });

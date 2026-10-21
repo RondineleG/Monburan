@@ -13,7 +13,7 @@
 @inject IToastService Toast
 @inject ILogger<JobEdit> Logger
 
-<PageTitle>Editar Vaga - Monburan</PageTitle>
+<PageTitle>Editar vaga - Monburan</PageTitle>
 
 <div class="container mt-4 page-form-shell">
     @if (isLoading)
@@ -186,10 +186,10 @@
         Logger.LogFailure(result, "Atualizar vaga");
         var fieldErrors = ResultMessages.FieldErrors(result);
         var unmatched = wizard.DisplayServerFieldErrors(fieldErrors);
+        // Erros de campo: o assistente mostra a etapa e o campo; mensagem geral só para o que não tem campo
         errorMessage = fieldErrors.Count > 0 && unmatched.Count == 0
-            ? "Revise os campos destacados no formulário."
+            ? string.Empty
             : ResultMessages.ToUserMessage(result, "Não foi possível salvar a vaga. Tente novamente.");
-        Toast.ShowError(errorMessage);
 
         isSubmitting = false;
     }

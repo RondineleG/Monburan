@@ -14,6 +14,7 @@
 @inject ListApplicationHistoryUseCase ListApplicationHistoryUseCase
 @inject ListSavedJobsUseCase ListSavedJobsUseCase
 @inject UnsaveJobUseCase UnsaveJobUseCase
+@inject SaveJobUseCase SaveJobUseCase
 @inject ListJobAlertsUseCase ListJobAlertsUseCase
 @inject CreateJobAlertUseCase CreateJobAlertUseCase
 @inject UpdateJobAlertUseCase UpdateJobAlertUseCase
@@ -23,19 +24,19 @@
 @inject IToastService Toast
 @inject ILogger<MyApplications> Logger
 
-<PageTitle>Candidaturas e vagas salvas - Monburan</PageTitle>
+<PageTitle>Minhas candidaturas - Monburan</PageTitle>
 
-<div class="container my-applications-page">
+<div class="container mt-4 my-applications-page">
     <header class="page-heading">
         <div class="page-heading__copy">
             <span class="page-kicker">MINHA CARREIRA</span>
-            <h1>Candidaturas e vagas salvas</h1>
+            <h1>Minhas candidaturas</h1>
             <p>Acompanhe suas candidaturas, as vagas que você salvou e seus alertas de oportunidades.</p>
         </div>
         <a class="btn btn-outline-primary" href="/jobs">Explorar vagas</a>
     </header>
 
-    <nav class="journey-tabs" aria-label="Seções de Candidaturas e vagas salvas">
+    <nav class="journey-tabs" aria-label="Seções de Minhas candidaturas">
         <a class="journey-tab@(Tab == "candidaturas" ? " journey-tab--active" : string.Empty)"
            href="/my-applications?aba=candidaturas"
            aria-current="@(Tab == "candidaturas" ? "page" : null)"
@@ -74,6 +75,14 @@
     }
     else if (Tab == "salvas")
     {
+        @if (recentlyRemoved is not null)
+        {
+            @* Remover é reversível: em vez de pedir confirmação, oferece desfazer *@
+            <div class="alert alert-info undo-bar" role="status" data-testid="saved-job-undo-bar">
+                <span>"@recentlyRemoved.Title" saiu das suas vagas salvas.</span>
+                <button type="button" class="btn btn-link" @onclick="UndoRemoveAsync" disabled="@isUndoing" data-testid="saved-job-undo">Desfazer</button>
+            </div>
+        }
         @if (savedJobs.Count > 0)
         {
             <ul class="saved-jobs-list" data-testid="saved-jobs-list">
@@ -93,7 +102,8 @@
                             {
                                 <a class="btn btn-outline-primary btn-sm" href="/jobs/@job.Id" data-testid="saved-job-view">Ver oportunidade</a>
                             }
-                            <button type="button" class="btn btn-outline-danger btn-sm" @onclick="() => RemoveSavedAsync(job)" data-testid="saved-job-remove">
+                            <button type="button" class="btn btn-outline-danger btn-sm" @onclick="() => RemoveSavedAsync(job)" data-testid="saved-job-remove"
+                                    aria-label="Remover @job.Title das vagas salvas">
                                 Remover
                             </button>
                         </div>
@@ -127,6 +137,7 @@
                         }
 
                         <EditForm Model="alertModel" OnValidSubmit="CreateAlertAsync" novalidate>
+                            <DataAnnotationsValidator />
                             <div class="mb-3">
                                 <label class="form-label" for="alert-name">Nome do alerta</label>
                                 <InputText id="alert-name" class="form-control" @bind-Value="alertModel.Name" data-testid="alert-name" />
@@ -172,9 +183,13 @@
                             <button type="submit" class="btn btn-primary" disabled="@isSavingAlert" data-testid="alert-submit">
                                 @if (isSavingAlert)
                                 {
-                                    <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                                    <span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>
+                                    <span>Criando alerta...</span>
                                 }
-                                Criar alerta
+                                else
+                                {
+                                    <span>Criar alerta</span>
+                                }
                             </button>
                         </EditForm>
                     </div>
@@ -192,10 +207,12 @@
                                     <p class="text-muted mb-0">@AlertSummary(alert)</p>
                                 </div>
                                 <div class="alerts-list__actions">
-                                    <button type="button" class="btn btn-outline-primary btn-sm" @onclick="() => ToggleAlertAsync(alert)" data-testid="alert-toggle">
+                                    <button type="button" class="btn btn-outline-primary btn-sm" @onclick="() => ToggleAlertAsync(alert)" data-testid="alert-toggle"
+                                            aria-label="@(alert.IsActive ? "Desativar" : "Ativar") o alerta @alert.Name">
                                         @(alert.IsActive ? "Desativar" : "Ativar")
                                     </button>
-                                    <button type="button" class="btn btn-outline-danger btn-sm" @onclick="() => DeleteAlertAsync(alert)" data-testid="alert-delete">
+                                    <button type="button" class="btn btn-outline-danger btn-sm" @onclick="() => DeleteAlertAsync(alert)" data-testid="alert-delete"
+                                            aria-label="Excluir o alerta @alert.Name">
                                         Excluir
                                     </button>
                                 </div>
@@ -332,6 +349,9 @@
     private ConfirmDialog confirmDialog = default!;
     private string alertError = string.Empty;
     private bool isSavingAlert;
+    private JobResponse? recentlyRemoved;
+    private int recentlyRemovedPosition;
+    private bool isUndoing;
     private bool isLoading = true;
     private bool isCandidate;
     private bool loadFailed;
@@ -432,16 +452,46 @@
 
     private async Task RemoveSavedAsync(JobResponse job)
     {
+        var position = savedJobs.FindIndex(item => item.Id == job.Id);
         var result = await UnsaveJobUseCase.ExecuteAsync(
             new UnsaveJobRequest(CurrentUserHelper.GetCandidateId()!.Value, job.Id));
         if (result.Status == EResultStatus.Success)
         {
             savedJobs.RemoveAll(item => item.Id == job.Id);
-            Toast.ShowSuccess("Vaga removida das suas vagas salvas.", "Vaga removida");
+            recentlyRemoved = job;
+            recentlyRemovedPosition = Math.Max(position, 0);
         }
         else
         {
             Toast.ShowError("Não foi possível remover a vaga salva. Tente novamente.");
+        }
+    }
+
+    // Salva de novo a última vaga removida, no mesmo lugar da lista
+    private async Task UndoRemoveAsync()
+    {
+        if (recentlyRemoved is null || isUndoing)
+            return;
+
+        isUndoing = true;
+        try
+        {
+            var job = recentlyRemoved;
+            var result = await SaveJobUseCase.ExecuteAsync(new SaveJobRequest(CurrentUserHelper.GetCandidateId()!.Value, job.Id));
+            if (result.Status == EResultStatus.Success)
+            {
+                savedJobs.Insert(Math.Min(recentlyRemovedPosition, savedJobs.Count), job);
+                recentlyRemoved = null;
+            }
+            else
+            {
+                Logger.LogFailure(result, "Desfazer remoção de vaga salva");
+                Toast.ShowError("Não foi possível salvar a vaga de novo. Tente pela página da vaga.");
+            }
+        }
+        finally
+        {
+            isUndoing = false;
         }
     }
 
@@ -465,8 +515,8 @@
         else
         {
             Logger.LogFailure(result, "Criar alerta de vaga");
+            // O alerta do formulário (role="alert") já anuncia: sem toast repetindo a mesma mensagem
             alertError = ResultMessages.ToUserMessage(result, "Não foi possível criar o alerta. Revise os campos e tente novamente.");
-            Toast.ShowError(alertError);
         }
 
         isSavingAlert = false;

@@ -15,7 +15,7 @@
 @inject IToastService Toast
 @inject ILogger<UploadResume> Logger
 
-<PageTitle>Importar Currículo - Monburan</PageTitle>
+<PageTitle>Importar currículo - Monburan</PageTitle>
 
 <div class="container mt-4 page-form-shell upload-page">
     <header class="page-heading">
@@ -24,15 +24,15 @@
             <h1>Importar currículo em PDF</h1>
             <p>Nós lemos o seu PDF, preenchemos as seções do currículo e depois você revisa e completa o que faltar.</p>
         </div>
-        <button class="btn btn-secondary" @onclick="Cancel">Voltar</button>
+        <a class="btn btn-secondary" href="/resumes">Voltar</a>
     </header>
     <div class="row">
         <div class="col-lg-6 mx-auto">
 
             @if (!string.IsNullOrEmpty(errorMessage))
             {
-                <div class="alert alert-danger">
-                    <i class="bi bi-exclamation-triangle"></i> @errorMessage
+                <div class="alert alert-danger" role="alert">
+                    <Icon Name="alert" Size="16" /> @errorMessage
                 </div>
             }
 
@@ -48,11 +48,12 @@
 
                     @if (selectedFile != null)
                     {
-                        <div class="alert alert-info">
+                        <div class="alert alert-info" role="status">
                             <strong>Arquivo selecionado:</strong><br />
                             Nome: @selectedFile.Name<br />
                             Tamanho: @(selectedFile.Size / 1024) KB<br />
-                            Tipo: @selectedFile.ContentType
+                            @* Só PDF passa pela validação: mostra o formato, não o tipo MIME *@
+                            Formato: PDF
                         </div>
                     }
 
@@ -62,7 +63,7 @@
                             <strong>Importar com IA</strong> envia o texto do PDF a um serviço externo para preencher
                             o currículo com mais precisão. <strong>Importar sem IA</strong> faz a leitura no Monburan
                             e pode preencher menos campos. Você revisa o resultado antes de usar.
-                            <a href="/privacy" target="_blank" rel="noopener">Como tratamos seus dados</a>.
+                            <a href="/privacy" target="_blank" rel="noopener">Como tratamos seus dados<span class="visually-hidden"> (abre em nova aba)</span></a>.
                         </p>
                         <div class="d-grid gap-2 d-sm-flex">
                             <button type="button" class="btn btn-primary" @onclick="() => UploadResumeAsync(true)" disabled="@(!isFileSelected || isUploading)" aria-describedby="resume-import-ai-note" data-testid="resume-import-ai">
@@ -215,10 +216,5 @@
         {
             isUploading = false;
         }
-    }
-
-    private void Cancel()
-    {
-        Navigation.NavigateTo("/resumes");
     }
 }

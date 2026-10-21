@@ -9,18 +9,21 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#0A0806" />
+    <meta name="theme-color" content="@(theme == "dark" ? "#0A0806" : "#F2EBD9")" />
     <meta name="description" content="Monburan - Plataforma gratuita de recrutamento e seleção. Encontre as melhores vagas de emprego." />
     <link rel="manifest" href="/manifest.json" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;900&family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Share+Tech+Mono&display=swap" rel="stylesheet" />
+    @* Só os pesos usados: Cinzel na marca e títulos de destaque, Cormorant no texto de apoio do hero, mono nos rótulos *@
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Cormorant+Garamond&family=Share+Tech+Mono&display=swap" rel="stylesheet" />
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" id="favicon-32" />
     <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" id="favicon-16" />
-    <script src="/theme-init.js?v=ux-v7"></script>
+    <script src="/theme-init.js?v=ux-v8"></script>
     <base href="/" />
-    <link rel="stylesheet" href="app.css?v=ux-v7" />
-    <link rel="stylesheet" href="jobs.css?v=ux-v7" />
+    @* tokens.css declara a ordem das camadas; app.css traz a base e importa ui.css e jobs.css na camada legacy *@
+    <link rel="stylesheet" href="tokens.css?v=ux-v8" />
+    <link rel="stylesheet" href="app.css?v=ux-v8" />
+    <link rel="stylesheet" href="components.css?v=ux-v8" />
     <link rel="stylesheet" href="Monburan.Web.styles.css" />
     <HeadOutlet />
 </head>
@@ -28,8 +31,8 @@
 <body>
     <Routes />
     <script src="_framework/blazor.web.js"></script>
-    <script src="monburan-ui.js?v=ux-v7"></script>
-    <script src="app-shell.js?v=ux-v7"></script>
+    <script src="monburan-ui.js?v=ux-v8"></script>
+    <script src="app-shell.js?v=ux-v8"></script>
 </body>
 
 </html>

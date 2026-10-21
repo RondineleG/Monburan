@@ -11,36 +11,43 @@
 @inject IToastService Toast
 @inject ILogger<ResumeDetails> Logger
 
-<PageTitle>Detalhes do Currículo - Monburan</PageTitle>
+<PageTitle>@(resume is null ? "Detalhes do currículo" : resume.Title) - Monburan</PageTitle>
 
 <div class="container mt-4">
     @if (isLoading)
     {
+        @* A página ainda precisa de um título principal enquanto carrega *@
+        <h1 class="visually-hidden">Currículo</h1>
         <LoadingState Message="Carregando currículo..." />
     }
     else if (loadFailed)
     {
         <ErrorState Title="Não foi possível carregar o currículo"
                     Message="Tivemos um problema ao abrir este currículo. Tente novamente em instantes."
+                    HeadingLevel="1"
                     OnRetry="LoadAsync" />
     }
     else if (viewer is null)
     {
-        <EmptyState Icon="?" Title="Currículo não encontrado" Message="Ele pode ter sido excluído ou você não tem acesso a ele.">
+        <EmptyState Icon="?" Title="Currículo não encontrado" Message="Ele pode ter sido excluído ou você não tem acesso a ele." HeadingLevel="1">
             <a class="btn btn-primary" href="@BackHref">@(isOwner ? "Ir para meus currículos" : "Voltar para candidaturas recebidas")</a>
         </EmptyState>
     }
     else
     {
-        <nav aria-label="breadcrumb" class="mb-2">
+        <nav aria-label="Caminho" class="mb-2">
             <ol class="breadcrumb">
                 <li class="breadcrumb-item"><a href="@BackHref">@(isOwner ? "Currículos" : "Candidaturas recebidas")</a></li>
-                <li class="breadcrumb-item active">@resume!.Title</li>
+                <li class="breadcrumb-item active" aria-current="page">@resume!.Title</li>
             </ol>
         </nav>
         <header class="page-heading mb-3">
             <div class="page-heading__copy">
-                <h1>@resume.Title <span class="badge @(resume.IsActive ? "bg-success" : "bg-secondary") fs-6">@(resume.IsActive ? "Ativo" : "Inativo")</span></h1>
+                @* O status fica fora do h1: o título principal é só o nome do currículo *@
+                <div class="d-flex align-items-center gap-2 flex-wrap">
+                    <h1>@resume.Title</h1>
+                    <span class="badge @(resume.IsActive ? "bg-success" : "bg-secondary") fs-6">@(resume.IsActive ? "Ativo" : "Inativo")</span>
+                </div>
                 @if (!string.IsNullOrWhiteSpace(viewer?.Name))
                 {
                     <p class="text-muted">@viewer.Name</p>
@@ -49,14 +56,15 @@
             @if (isOwner)
             {
                 <div class="d-flex gap-2 flex-wrap" hidden="@showWorkspace">
-                    <button class="btn btn-primary" @onclick="EditResume">Editar currículo</button>
-                    <button class="btn btn-outline-secondary" @onclick="ToggleImprovementAsync" data-testid="resume-improve-toggle">Melhorar currículo</button>
+                    <a class="btn btn-primary" href="/resumes/@ResumeId/edit">Editar currículo</a>
+                    <button type="button" class="btn btn-outline-secondary" @onclick="ToggleImprovementAsync" data-testid="resume-improve-toggle">Melhorar currículo</button>
                     <a class="btn btn-outline-secondary" href="/resumes/@ResumeId/cv" data-testid="resume-export-pdf">Ver CV</a>
                     <details class="page-heading__more">
                         <summary class="btn btn-outline-secondary">Outras ações</summary>
                         <div class="page-heading__more-menu">
-                            <a href="/resumes/@ResumeId/wizard">Completar no passo a passo</a>
-                            <button type="button" class="link-danger" @onclick="DeleteAsync" disabled="@isDeleting" data-testid="resume-delete">
+                            <a href="/resumes/@ResumeId/wizard" aria-label="Completar o currículo no passo a passo">Completar no passo a passo</a>
+                            <button type="button" class="link-danger" @onclick="DeleteAsync" disabled="@isDeleting" data-testid="resume-delete"
+                                    aria-label="@(isDeleting ? "Excluindo currículo..." : $"Excluir o currículo {resume.Title}")">
                                 @(isDeleting ? "Excluindo..." : "Excluir currículo")
                             </button>
                         </div>
@@ -197,11 +205,6 @@
 
         // Sem permissão cai em "Currículo não encontrado" — não revela que o id existe
         isLoading = false;
-    }
-
-    private void EditResume()
-    {
-        Navigation.NavigateTo($"/resumes/{ResumeId}/edit");
     }
 
     private async Task ToggleImprovementAsync()

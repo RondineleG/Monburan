@@ -46,14 +46,14 @@
     {
         <section class="empty-state error-state" role="alert" data-testid="error-state">
             <span class="empty-state__icon error-state__icon" aria-hidden="true">!</span>
-            <h2>Não foi possível carregar a vaga</h2>
+            <h1 tabindex="-1">Não foi possível carregar a vaga</h1>
             <p>Tivemos um problema ao abrir esta oportunidade. Tente novamente em instantes.</p>
             <a class="btn btn-primary" href="@Navigation.Uri" data-enhance-nav="false" data-testid="error-retry">Tentar novamente</a>
         </section>
     }
     else if (job is null)
     {
-        <EmptyState Icon="?" Title="Vaga não encontrada" Message="Ela pode ter sido encerrada ou removida pela empresa." TestId="job-not-found">
+        <EmptyState Icon="?" Title="Vaga não encontrada" HeadingLevel="1" Message="Ela pode ter sido encerrada ou removida pela empresa." TestId="job-not-found">
             <a class="btn btn-primary" href="/jobs">Ver vagas abertas</a>
         </EmptyState>
     }
@@ -156,7 +156,7 @@
                         <p>Nunca pague para participar de um processo seletivo e não envie documentos, dados bancários ou fotos por canais que você não conhece.</p>
                     </div>
                 </aside>
-                <p class="job-disclaimer">Vaga publicada sob responsabilidade do anunciante. A Monburan não se responsabiliza pelo conteúdo informado.</p>
+                <p class="job-disclaimer">Vaga publicada sob responsabilidade da empresa. A Monburan não se responsabiliza pelo conteúdo informado.</p>
             </article>
 
             <aside class="job-detail-aside" aria-label="Candidatura e compartilhamento">
@@ -206,9 +206,13 @@
                         {
                             <p>A candidatura está disponível para perfis de candidato.</p>
                         }
-                        <div class="job-save">
-                            <SaveJobButton JobId="job.Id" IsSaved="job.IsSaved" CanSave="isCandidate" ReturnUrl="@Navigation.Uri" />
-                        </div>
+                        @* Salvar é do candidato; o visitante recebe o convite para entrar. Empresa e admin não salvam vagas *@
+                        @if (isCandidate || !isAuthenticated)
+                        {
+                            <div class="job-save">
+                                <SaveJobButton JobId="job.Id" IsSaved="job.IsSaved" CanSave="isCandidate" ReturnUrl="@Navigation.Uri" />
+                            </div>
+                        }
                     </section>
                 }
 
@@ -419,7 +423,7 @@
 
         salary = JobDisplay.Salary(job);
         closing = JobDisplay.ClosingNotice(job.ExpirationDate);
-        tags = JobDisplay.Tags(job.Tags);
+        tags = JobDisplay.Tags(job.Tags, exclude: job.Category);
         canonicalUrl = PublicUrls.Absolute(Configuration, Navigation.BaseUri, $"/jobs/{job.Id}");
         structuredData = job.Status == "Active" ? JobStructuredData.Build(job, canonicalUrl) : string.Empty;
 

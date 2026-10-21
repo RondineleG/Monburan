@@ -72,28 +72,29 @@
         <div class="card">
             <div class="card-body p-0">
                 <div class="table-responsive">
-                    <table class="table table-hover table-striped mb-0" data-testid="audit-table">
+                    <table class="table table-hover table-striped table-cards mb-0" data-testid="audit-table">
+                        <caption class="visually-hidden">Ações de administração registradas</caption>
                         <thead>
                             <tr>
-                                <th>Quando</th>
-                                <th>Quem</th>
-                                <th>Ação</th>
-                                <th>Alvo</th>
-                                <th>Detalhes</th>
+                                <th scope="col">Quando</th>
+                                <th scope="col">Quem</th>
+                                <th scope="col">Ação</th>
+                                <th scope="col">Alvo</th>
+                                <th scope="col">Detalhes</th>
                             </tr>
                         </thead>
                         <tbody>
                             @foreach (var entry in entries.Data)
                             {
                                 <tr data-testid="audit-row" data-action="@entry.Action">
-                                    <td class="text-nowrap">@UiLabels.FormatMoment(entry.CreatedAt)</td>
-                                    <td>@entry.ActorEmail</td>
-                                    <td>@AdminAuditActions.Label(entry.Action)</td>
-                                    <td>
+                                    <td data-label="Quando" class="text-nowrap">@UiLabels.FormatMoment(entry.CreatedAt)</td>
+                                    <td data-label="Quem">@entry.ActorEmail</td>
+                                    <td data-label="Ação">@AdminAuditActions.Label(entry.Action)</td>
+                                    <td data-label="Alvo">
                                         <span class="text-muted">@AdminAuditActions.TargetLabel(entry.TargetType):</span>
                                         @entry.TargetLabel
                                     </td>
-                                    <td>@(string.IsNullOrWhiteSpace(entry.Details) ? "—" : entry.Details)</td>
+                                    <td data-label="Detalhes">@(string.IsNullOrWhiteSpace(entry.Details) ? "—" : entry.Details)</td>
                                 </tr>
                             }
                         </tbody>
@@ -104,7 +105,7 @@
 
         <Pager Page="entries.Page" TotalPages="entries.TotalPages" OnPageChanged="LoadAsync" AriaLabel="Paginação da auditoria" />
 
-        <div class="text-muted text-center mt-3">Mostrando @entries.Data.Count() de @entries.TotalCount registros</div>
+        <div class="text-muted text-center mt-3">Mostrando @entries.Data.Count() de @entries.TotalCount registros nesta página</div>
     }
 </div>
 

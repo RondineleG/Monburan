@@ -14,20 +14,25 @@
 
 @if (isLoading)
 {
-    <div class="container mt-4"><LoadingState Message="Montando o currículo..." /></div>
+    @* Enquanto carrega, a página ainda precisa de um título principal (o h1 normal vem do documento) *@
+    <div class="container mt-4">
+        <h1 class="visually-hidden">Currículo</h1>
+        <LoadingState Message="Montando o currículo..." />
+    </div>
 }
 else if (loadFailed)
 {
     <div class="container mt-4">
         <ErrorState Title="Não foi possível carregar o currículo"
                     Message="Tivemos um problema ao montar o documento. Tente novamente em instantes."
+                    HeadingLevel="1"
                     OnRetry="LoadAsync" />
     </div>
 }
 else if (viewer is null)
 {
     <div class="container mt-4">
-        <EmptyState Icon="!" Title="Currículo não disponível" Message="Ele não existe mais ou você não tem acesso a ele.">
+        <EmptyState Icon="!" Title="Currículo não disponível" Message="Ele não existe mais ou você não tem acesso a ele." HeadingLevel="1">
             <a class="btn btn-primary" href="@BackHref">@(isOwnerView ? "Voltar para meus currículos" : "Voltar para candidaturas")</a>
         </EmptyState>
     </div>
@@ -35,7 +40,7 @@ else if (viewer is null)
 else
 {
     <div class="cv-toolbar container mt-4" data-testid="cv-toolbar">
-        <a class="btn btn-secondary" href="/resumes/@ResumeId">← Voltar ao currículo</a>
+        <a class="btn btn-secondary" href="/resumes/@ResumeId"><Icon Name="arrow-left" Size="16" /> Voltar ao currículo</a>
         <div class="cv-toolbar__actions">
             @if (viewer.IsOwner)
             {

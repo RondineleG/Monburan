@@ -28,7 +28,7 @@
             <h1>Candidatar-se à vaga</h1>
             <p>Revise os detalhes e envie seu perfil para a empresa.</p>
         </div>
-        <button class="btn btn-secondary" @onclick="Cancel">Voltar à oportunidade</button>
+        <a class="btn btn-outline-secondary" href="/jobs/@JobId">Voltar à vaga</a>
     </header>
     <div class="row">
         <div class="col-lg-8 mx-auto">
@@ -56,11 +56,8 @@
                     <div class="card-body">
                         <h2 class="h4" id="apply-step-title" tabindex="-1">Você já se candidatou a esta vaga</h2>
                         <p>Situação atual: <span class="badge @UiLabels.ApplicationStatusBadge(existingApplication.Status)">@UiLabels.ApplicationStatus(existingApplication.Status)</span></p>
-                        <p>A empresa já recebeu seu perfil. Você pode acompanhar as etapas do processo seletivo em Minhas vagas.</p>
-                        <div class="d-flex gap-2">
-                            <a class="btn btn-primary" href="/my-applications?aba=candidaturas" data-testid="application-track">Acompanhar candidatura</a>
-                            <a class="btn btn-outline-primary" href="/jobs/@JobId">Voltar à vaga</a>
-                        </div>
+                        <p>A empresa já recebeu seu perfil. Você pode acompanhar as etapas do processo seletivo em Minhas candidaturas.</p>
+                        <a class="btn btn-primary" href="/my-applications?aba=candidaturas" data-testid="application-track">Acompanhar candidatura</a>
                     </div>
                 </section>
             }
@@ -69,14 +66,14 @@
                 <section class="card" data-testid="application-feedback" aria-live="polite">
                     <div class="card-body">
                         <h2 class="h4" id="apply-step-title" tabindex="-1">Candidatura enviada!</h2>
-                        <p>A empresa já pode ver seu perfil para esta vaga. Acompanhe as atualizações em Minhas vagas.</p>
+                        <p>A empresa já pode ver seu perfil para esta vaga. Acompanhe as atualizações em Minhas candidaturas.</p>
                         <h3 class="h6">Próximos passos</h3>
                         <ul>
-                            <li>Acompanhe as etapas do processo seletivo em <a href="/my-applications?aba=candidaturas">Minhas vagas</a>.</li>
+                            <li>Acompanhe as etapas do processo seletivo em <a href="/my-applications?aba=candidaturas">Minhas candidaturas</a>.</li>
                             <li>Continue explorando <a href="/jobs">outras oportunidades</a>.</li>
                             <li>Mantenha seu <a href="/resumes">currículo</a> atualizado.</li>
                         </ul>
-                        <button class="btn btn-primary" @onclick="ViewApplications">Ir para Minhas vagas</button>
+                        <a class="btn btn-primary" href="/my-applications?aba=candidaturas">Ver minhas candidaturas</a>
                     </div>
                 </section>
             }
@@ -100,9 +97,7 @@
 
                 @if (!string.IsNullOrEmpty(errorMessage))
                 {
-                    <div class="alert alert-danger" data-testid="application-feedback">
-                        <i class="bi bi-exclamation-triangle"></i> @errorMessage
-                    </div>
+                    <div class="alert alert-danger" role="alert" data-testid="application-feedback">@errorMessage</div>
                 }
 
                 <div class="card">
@@ -149,8 +144,7 @@
                             }
                             else
                             {
-                                <div class="alert alert-info">
-                                    <i class="bi bi-info-circle"></i>
+                                <div class="alert alert-info" role="status">
                                     Você ainda não tem currículo cadastrado. <a href="/resumes/new">Crie um currículo</a> para enviá-lo junto com a candidatura.
                                 </div>
                             }
@@ -198,17 +192,27 @@
                                 </label>
                             </div>
 
+                            @if (!confirmed)
+                            {
+                                @* Explica por que o envio está desabilitado *@
+                                <p id="application-confirm-hint" class="form-text mb-3">Marque a confirmação acima para enviar.</p>
+                            }
                             <div class="d-flex gap-2">
                                 <button type="button" class="btn btn-secondary" @onclick="BackToReview">
                                     <span aria-hidden="true">←</span> Voltar
                                 </button>
                                 <button type="button" class="btn btn-success btn-lg flex-grow-1" disabled="@(!confirmed || isSubmitting)"
+                                        aria-describedby="@(confirmed ? null : "application-confirm-hint")"
                                         @onclick="SubmitForm" data-testid="application-submit">
                                     @if (isSubmitting)
                                     {
-                                        <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                                        <span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>
+                                        <span>Enviando...</span>
                                     }
-                                    Enviar candidatura
+                                    else
+                                    {
+                                        <span>Enviar candidatura</span>
+                                    }
                                 </button>
                             </div>
                         }
@@ -373,27 +377,17 @@
         if (result.Status == EResultStatus.Success)
         {
             submitted = true;
-            Toast.ShowSuccess("A empresa já pode ver sua candidatura. Acompanhe em Minhas vagas.", "Candidatura enviada");
+            Toast.ShowSuccess("A empresa já pode ver sua candidatura. Acompanhe em Minhas candidaturas.", "Candidatura enviada");
             await FocusStepTitleAsync();
         }
         else
         {
-            // "Já se candidatou" (409) e validações chegavam com Message vazio — nada aparecia
+            // "Já se candidatou" (409) e validações chegavam com Message vazio — nada aparecia.
+            // O alerta da página (role="alert") já anuncia: um toast repetiria a mesma mensagem.
             Logger.LogFailure(result, "Enviar candidatura");
             errorMessage = ResultMessages.ToUserMessage(result, "Não foi possível enviar sua candidatura. Tente novamente.");
-            Toast.ShowError(errorMessage);
         }
 
         isSubmitting = false;
-    }
-
-    private void Cancel()
-    {
-        Navigation.NavigateTo($"/jobs/{JobId}");
-    }
-
-    private void ViewApplications()
-    {
-        Navigation.NavigateTo("/my-applications");
     }
 }

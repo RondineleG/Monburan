@@ -10,7 +10,7 @@
 @inject IToastService Toast
 @inject ILogger<Plans> Logger
 
-<PageTitle>Planos e Preços - Monburan</PageTitle>
+<PageTitle>Planos e preços - Monburan</PageTitle>
 
 <div class="container mt-4 plans-page">
     <header class="page-heading">
@@ -39,9 +39,9 @@
     {
         @if (availablePlans.CurrentSubscription != null)
         {
-            <div class="alert alert-info d-flex align-items-center mb-4">
+            <div class="alert alert-info d-flex align-items-center mb-4" role="status">
                 <div>
-                    <strong>Seu plano atual:</strong> @availablePlans.CurrentSubscription.PlanName
+                    <strong>Seu plano atual:</strong> @UiLabels.PlanName(availablePlans.CurrentSubscription.PlanName)
                     @if (availablePlans.CurrentSubscription.EndDate.HasValue)
                     {
                         <span class="ms-2">| Válido até: @UiLabels.FormatMomentDate(availablePlans.CurrentSubscription.EndDate)</span>
@@ -53,7 +53,7 @@
         {
             <div class="alert alert-info d-flex align-items-center mb-4">
                 <div>
-                    <strong>Planos para empresas.</strong> Os recursos abaixo valem para contas de anunciante — candidatos usam o Monburan gratuitamente.
+                    <strong>Planos para empresas.</strong> Os recursos abaixo valem para contas de empresa — candidatos usam o Monburan gratuitamente.
                 </div>
             </div>
         }
@@ -77,7 +77,7 @@
                             }
                         </div>
                         <div class="card-body">
-                            <h3 class="card-title text-center">@plan.Name</h3>
+                            <h2 class="card-title text-center">@UiLabels.PlanName(plan.Name)</h2>
                             <p class="plan-card__desc text-center">@plan.Description</p>
 
                             <div class="plan-card__price text-center">
@@ -96,15 +96,15 @@
                                Boost, destaque e analytics por plano não têm implementação — não são anunciados. *@
                             <ul class="list-unstyled">
                                 <li>
-                                    <i class="bi @(plan.MaxJobs == -1 ? "bi-infinity" : "bi-briefcase")"></i>
+                                    <Icon Name="briefcase" Size="16" />
                                     @(plan.MaxJobs == -1 ? "Vagas ativas ilimitadas" : $"Até {plan.MaxJobs} vagas ativas ao mesmo tempo")
                                 </li>
                                 <li>
-                                    <i class="bi bi-people"></i>
+                                    <Icon Name="users" Size="16" />
                                     Candidaturas ilimitadas em cada vaga
                                 </li>
                                 <li>
-                                    <i class="bi bi-graph-up"></i>
+                                    <Icon Name="layout" Size="16" />
                                     Painel com indicadores das suas vagas
                                 </li>
                             </ul>

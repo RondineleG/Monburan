@@ -13,19 +13,16 @@
 
 <PageTitle>Remover endereço - Monburan</PageTitle>
 
-<div class="container page-form-shell address-form-page">
+<div class="container mt-4 page-form-shell address-form-page">
     @if (isLoading)
     {
-        <div class="loading-state"><span class="spinner-border" aria-hidden="true"></span><span>Carregando endereço...</span></div>
+        <LoadingState Message="Carregando endereço..." />
     }
     else if (address == null)
     {
-        <section class="empty-state">
-            <span class="empty-state__icon" aria-hidden="true">!</span>
-            <h2>Endereço não encontrado</h2>
-            <p>O endereço solicitado não existe ou já foi removido.</p>
+        <EmptyState Icon="!" Title="Endereço não encontrado" HeadingLevel="1" Message="O endereço solicitado não existe ou já foi removido.">
             <a class="btn btn-primary" href="/address/list">Voltar para a lista</a>
-        </section>
+        </EmptyState>
     }
     else
     {

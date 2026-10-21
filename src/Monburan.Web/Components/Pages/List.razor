@@ -13,14 +13,14 @@
 
 <PageTitle>Endereços - Monburan</PageTitle>
 
-<div class="container address-page">
+<div class="container mt-4 address-page">
     <header class="page-heading">
         <div class="page-heading__copy">
             <span class="page-kicker">CONFIGURAÇÕES</span>
             <h1>Endereços</h1>
             <p>Gerencie os endereços associados à sua conta.</p>
         </div>
-        <button class="btn btn-primary" @onclick="Create">Novo endereço <span aria-hidden="true">＋</span></button>
+        <a class="btn btn-primary" href="/address/create">Novo endereço <span aria-hidden="true">＋</span></a>
     </header>
 
     @if (isLoading)
@@ -39,41 +39,42 @@
             <span class="empty-state__icon" aria-hidden="true">⌖</span>
             <h2>Nenhum endereço cadastrado</h2>
             <p>Adicione um endereço para completar suas informações de perfil.</p>
-            <button class="btn btn-primary" @onclick="Create">Adicionar endereço</button>
+            <a class="btn btn-primary" href="/address/create">Adicionar endereço</a>
         </section>
     }
     else
     {
         <div class="card address-table-card">
             <div class="table-responsive">
-                <table class="table table-hover">
+                <table class="table table-hover table-cards">
+                    <caption class="visually-hidden">Seus endereços</caption>
                     <thead>
                         <tr>
-                            <th>Rua</th>
-                            <th>Número</th>
-                            <th>Bairro</th>
-                            <th>Cidade</th>
-                            <th>Estado</th>
-                            <th>CEP</th>
-                            <th>Ações</th>
+                            <th scope="col">Rua</th>
+                            <th scope="col">Número</th>
+                            <th scope="col">Bairro</th>
+                            <th scope="col">Cidade</th>
+                            <th scope="col">Estado</th>
+                            <th scope="col">CEP</th>
+                            <th scope="col">Ações</th>
                         </tr>
                     </thead>
                     <tbody>
                         @foreach (var address in Addresses)
                         {
                             <tr>
-                                <td>@address.Street</td>
-                                <td>@address.Number</td>
-                                <td>@address.District</td>
-                                <td>@address.City</td>
-                                <td>@address.State</td>
-                                <td>@address.ZipCode</td>
-                                <td>
+                                <td data-label="Rua">@address.Street</td>
+                                <td data-label="Número">@address.Number</td>
+                                <td data-label="Bairro">@address.District</td>
+                                <td data-label="Cidade">@address.City</td>
+                                <td data-label="Estado">@address.State</td>
+                                <td data-label="CEP">@address.ZipCode</td>
+                                <td data-label="Ações">
                                     <div class="btn-group">
-                                        <button class="btn btn-outline-primary btn-sm"
-                                                @onclick="() => Edit(address.Id)"
-                                                aria-label="@($"Editar endereço {address.Street}, {address.Number}")">Editar</button>
-                                        <button class="btn btn-outline-danger btn-sm"
+                                        <a class="btn btn-outline-primary btn-sm"
+                                           href="/address/edit/@address.Id.Value"
+                                           aria-label="@($"Editar endereço {address.Street}, {address.Number}")">Editar</a>
+                                        <button type="button" class="btn btn-outline-danger btn-sm"
                                                 @onclick="() => DeleteAsync(address)"
                                                 disabled="@(deletingId == address.Id.Value)"
                                                 aria-label="@($"Excluir endereço {address.Street}, {address.Number}")">Excluir</button>

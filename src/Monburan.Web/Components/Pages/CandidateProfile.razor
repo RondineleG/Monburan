@@ -10,7 +10,7 @@
 @inject ILogger<CandidateProfile> Logger
 @inject IToastService Toast
 
-<PageTitle>Meu Perfil - Monburan</PageTitle>
+<PageTitle>Meu perfil - Monburan</PageTitle>
 
 <div class="container mt-4 profile-layout candidate-profile-page">
     <header class="page-heading">
@@ -49,21 +49,23 @@
             <section class="settings-main" aria-labelledby="personal-heading">
                 <h2 id="personal-heading">Dados pessoais e contato</h2>
                 <p class="text-muted small"><Icon Name="shield" Size="14" /> Seu e-mail e telefone são compartilhados com a empresa quando você se candidata a uma vaga.</p>
-                        <EditForm Model="_editModel" OnValidSubmit="HandleSaveAsync">
+                        <EditForm Model="_editModel" OnValidSubmit="HandleSaveAsync" Context="form">
+                            <UnsavedChangesGuard HasChanges="() => form.IsModified() && !_isSaving" />
+                            <p class="form-text">Campos com * são obrigatórios.</p>
                             <DataAnnotationsValidator />
                             <ServerValidationErrors @ref="_serverErrors" />
                             <div class="form-grid">
 
                             <div class="mb-3 col-span-2">
-                                <label class="form-label" for="candidate-name">Nome Completo *</label>
+                                <label class="form-label" for="candidate-name">Nome completo *</label>
                                 <InputText @bind-Value="_editModel.Name" class="form-control" id="candidate-name" autocomplete="name" data-testid="candidate-profile-name" />
                                 <ValidationMessage For="@(() => _editModel.Name)" />
                             </div>
 
                             <div class="mb-3 col-span-2">
-                                <label class="form-label" for="candidate-email">Email</label>
-                                <InputText @bind-Value="_editModel.Email" type="email" class="form-control" id="candidate-email" autocomplete="email" disabled />
-                                <small class="text-muted">Email não pode ser alterado</small>
+                                <label class="form-label" for="candidate-email">E-mail</label>
+                                <InputText @bind-Value="_editModel.Email" type="email" class="form-control" id="candidate-email" autocomplete="email" disabled aria-describedby="candidate-email-help" />
+                                <small class="form-text" id="candidate-email-help">Para trocar o e-mail de acesso, use <a href="/Account/Manage/Email">Conta e segurança</a>.</small>
                             </div>
 
                             <div class="mb-3">
@@ -73,7 +75,7 @@
                             </div>
 
                             <div class="mb-3">
-                                <label class="form-label" for="candidate-dob">Data de Nascimento *</label>
+                                <label class="form-label" for="candidate-dob">Data de nascimento *</label>
                                 <InputDate ParsingErrorMessage="Informe uma data válida." @bind-Value="_editModel.DateOfBirth" class="form-control" id="candidate-dob" autocomplete="bday" max="@DateTime.Today.AddYears(-14).ToString("yyyy-MM-dd")" />
                                 <ValidationMessage For="@(() => _editModel.DateOfBirth)" />
                             </div>
@@ -89,9 +91,13 @@
                                 <button type="submit" class="btn btn-primary" disabled="@_isSaving">
                                     @if (_isSaving)
                                     {
-                                        <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                                        <span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>
+                                        <span>Salvando...</span>
                                     }
-                                    Salvar alterações
+                                    else
+                                    {
+                                        <span>Salvar alterações</span>
+                                    }
                                 </button>
                                 <button type="button" class="btn btn-outline-secondary" @onclick="CancelEdit" disabled="@_isSaving">Desfazer alterações</button>
                             </div>

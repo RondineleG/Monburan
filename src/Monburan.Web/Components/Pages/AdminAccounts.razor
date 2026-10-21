@@ -6,6 +6,7 @@
 @inject AuthenticationStateProvider AuthenticationState
 @inject IToastService Toast
 @inject ILogger<AdminAccounts> Logger
+@inject IJSRuntime JS
 
 <PageTitle>Contas - Monburan</PageTitle>
 
@@ -70,7 +71,7 @@
             <div class="card-body">
                 <div class="acct-panel__head">
                     <div>
-                        <h2 id="acct-panel-title">@selected.Name</h2>
+                        <h2 id="acct-panel-title" tabindex="-1">@selected.Name</h2>
                         <p class="acct-panel__email">@selected.Email</p>
                     </div>
                     <ul class="ai-badges" aria-label="Situação da conta">
@@ -88,7 +89,7 @@
 
                 <dl class="acct-panel__meta">
                     <div><dt>Tipo</dt><dd>@ProfileLabel(selected.ProfileType)</dd></div>
-                    <div><dt>Plano</dt><dd data-testid="acct-panel-plan">@(selected.PlanName ?? "—")</dd></div>
+                    <div><dt>Plano</dt><dd data-testid="acct-panel-plan">@(selected.PlanName is null ? "—" : UiLabels.PlanName(selected.PlanName))</dd></div>
                     <div><dt>E-mail confirmado</dt><dd>@(selected.EmailConfirmed ? "Sim" : "Não")</dd></div>
                     <div><dt>Verificação em duas etapas</dt><dd>@(selected.TwoFactorEnabled ? "Ativada" : "Desativada")</dd></div>
                     <div><dt>Cadastro</dt><dd>@UiLabels.FormatMomentDate(selected.CreatedAt)</dd></div>
@@ -176,7 +177,7 @@
                                     <option value="">Escolha um plano...</option>
                                     @foreach (var plan in planOptions)
                                     {
-                                        <option value="@plan.Id">@plan.Name — @PlanPeriodLabel(plan)</option>
+                                        <option value="@plan.Id">@UiLabels.PlanName(plan.Name) — @PlanPeriodLabel(plan)</option>
                                     }
                                 </select>
                                 <button type="button" class="btn btn-outline-primary btn-sm text-nowrap" @onclick="ApplyPlanAsync" disabled="@(busy || selectedPlanId == Guid.Empty)" data-testid="acct-plan-apply">Aplicar</button>
@@ -207,39 +208,40 @@
         <div class="card">
             <div class="card-body p-0">
                 <div class="table-responsive">
-                    <table class="table table-hover table-striped mb-0" data-testid="acct-table">
+                    <table class="table table-hover table-striped table-cards mb-0" data-testid="acct-table">
+                        <caption class="visually-hidden">Contas da plataforma</caption>
                         <thead>
                             <tr>
-                                <th>Conta</th>
-                                <th>Tipo</th>
-                                <th>Situação</th>
-                                <th>E-mail</th>
-                                <th>2FA</th>
-                                <th>Último acesso</th>
-                                <th class="text-center">Ações</th>
+                                <th scope="col">Conta</th>
+                                <th scope="col">Tipo</th>
+                                <th scope="col">Situação</th>
+                                <th scope="col">E-mail</th>
+                                <th scope="col">Verificação em duas etapas</th>
+                                <th scope="col">Último acesso</th>
+                                <th scope="col" class="text-center">Ações</th>
                             </tr>
                         </thead>
                         <tbody>
                             @foreach (var account in list.Items)
                             {
                                 <tr data-testid="acct-row" data-email="@account.Email">
-                                    <td>
+                                    <td data-label="Conta">
                                         <strong>@account.Name</strong>
                                         <div class="text-muted small">@account.Email</div>
                                     </td>
-                                    <td>@ProfileLabel(account.ProfileType)@(account.IsAdmin ? " · Admin" : string.Empty)@(account.PlanName is not null ? $" · {account.PlanName}" : string.Empty)</td>
-                                    <td>
+                                    <td data-label="Tipo">@ProfileLabel(account.ProfileType)@(account.IsAdmin ? " · Admin" : string.Empty)@(account.PlanName is not null ? $" · {UiLabels.PlanName(account.PlanName)}" : string.Empty)</td>
+                                    <td data-label="Situação">
                                         <span class="badge @(account.IsActive ? "bg-success" : "bg-danger")">@(account.IsActive ? "Ativa" : "Inativa")</span>
                                         @if (account.IsLockedOut)
                                         {
                                             <span class="badge bg-warning">Bloqueada</span>
                                         }
                                     </td>
-                                    <td>@(account.EmailConfirmed ? "✓" : "✗")</td>
-                                    <td>@(account.TwoFactorEnabled ? "✓" : "—")</td>
-                                    <td>@(account.LastLoginAt is null ? "—" : UiLabels.FormatMomentDate(account.LastLoginAt))</td>
-                                    <td class="text-center">
-                                        <button type="button" class="btn btn-sm btn-outline-primary" @onclick="() => OpenPanelAsync(account.Id)" data-testid="acct-manage">Gerenciar</button>
+                                    <td data-label="E-mail">@(account.EmailConfirmed ? "Confirmado" : "Não confirmado")</td>
+                                    <td data-label="Verificação em duas etapas">@(account.TwoFactorEnabled ? "Ativada" : "Desativada")</td>
+                                    <td data-label="Último acesso">@(account.LastLoginAt is null ? "Nunca" : UiLabels.FormatMomentDate(account.LastLoginAt))</td>
+                                    <td data-label="Ações" class="text-center">
+                                        <button type="button" class="btn btn-sm btn-outline-primary" @onclick="() => OpenPanelAsync(account.Id)" data-testid="acct-manage" aria-label="Gerenciar a conta de @account.Name">Gerenciar</button>
                                     </td>
                                 </tr>
                             }
@@ -251,7 +253,7 @@
 
         <Pager Page="list.Page" TotalPages="list.TotalPages" OnPageChanged="LoadAsync" AriaLabel="Paginação das contas" />
 
-        <div class="text-muted text-center mt-3">Mostrando @list.Items.Count de @list.TotalCount contas</div>
+        <div class="text-muted text-center mt-3">Mostrando @RangeText(list.Page, list.Items.Count, list.TotalCount) contas</div>
     }
 </div>
 
@@ -322,7 +324,23 @@
         selected = await Accounts.GetAsync(id);
         planOptions = selected is null ? [] : await Accounts.ListPlansAsync(selected.ProfileType);
         selectedPlanId = planOptions.FirstOrDefault(plan => plan.Name == selected?.PlanName)?.Id ?? Guid.Empty;
+
+        // O painel abre acima da tabela: o foco vai para o título dele (quem usa teclado não fica preso lá embaixo)
+        if (selected is not null)
+        {
+            StateHasChanged();
+            try
+            {
+                await JS.InvokeVoidAsync("monburanFocusById", "acct-panel-title");
+            }
+            catch (JSException)
+            {
+            }
+        }
     }
+
+    private static string RangeText(int page, int count, int total) =>
+        count == 0 ? $"0 de {total}" : $"{(page - 1) * PageSize + 1}–{(page - 1) * PageSize + count} de {total}";
 
     private void ClosePanel()
     {

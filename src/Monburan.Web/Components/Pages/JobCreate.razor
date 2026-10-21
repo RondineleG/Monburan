@@ -15,10 +15,10 @@
 @inject IToastService Toast
 @inject ILogger<JobCreate> Logger
 
-<PageTitle>Criar Nova Vaga - Monburan</PageTitle>
+<PageTitle>Nova vaga - Monburan</PageTitle>
 
 <div class="container mt-4 page-form-shell">
-    <nav aria-label="breadcrumb" class="mb-2"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="/my-jobs">Minhas vagas</a></li><li class="breadcrumb-item active">Nova vaga</li></ol></nav>
+    <nav aria-label="Caminho" class="mb-2"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="/my-jobs">Minhas vagas</a></li><li class="breadcrumb-item active" aria-current="page">Nova vaga</li></ol></nav>
     @if (isAdvertiser)
     {
         <header class="page-heading">
@@ -58,8 +58,8 @@
     else
     {
         <section class="auth-message-page">
-            <h1>Área de recrutadores</h1>
-            <p>Somente perfis de recrutador podem publicar vagas. Entre com uma conta de empresa para continuar.</p>
+            <h1>Área da empresa</h1>
+            <p>Somente contas de empresa podem publicar vagas. Entre com uma conta de empresa para continuar.</p>
             <a class="btn btn-outline-secondary" href="/dashboard">Voltar ao início</a>
         </section>
     }
@@ -134,10 +134,11 @@
         Logger.LogFailure(result, "Publicar vaga");
         var fieldErrors = ResultMessages.FieldErrors(result);
         var unmatched = wizard.DisplayServerFieldErrors(fieldErrors);
+        // Erros de campo: o assistente mostra a etapa e o campo. Mensagem geral só para o que não tem campo,
+        // num alerta da página (sem toast repetindo)
         errorMessage = fieldErrors.Count > 0 && unmatched.Count == 0
-            ? "Revise os campos destacados no formulário."
+            ? string.Empty
             : ResultMessages.ToUserMessage(result, "Não foi possível publicar a vaga. Tente novamente.");
-        Toast.ShowError(errorMessage);
 
         isSubmitting = false;
     }

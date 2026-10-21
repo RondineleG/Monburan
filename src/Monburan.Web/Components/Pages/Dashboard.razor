@@ -16,11 +16,11 @@
 @inject NavigationManager Navigation
 @inject ILogger<Dashboard> Logger
 
-<PageTitle>Dashboard - Monburan | Plataforma de Recrutamento</PageTitle>
+<PageTitle>@(isAnonymous ? "Monburan - Vagas de emprego e recrutamento" : "Início - Monburan")</PageTitle>
 
 <HeadContent>
-    <meta name="description" content="Dashboard Monburan - Acompanhe suas vagas, candidaturas e estatísticas em tempo real." />
-    <meta property="og:title" content="Monburan - Dashboard" />
+    <meta name="description" content="Monburan - Encontre vagas de emprego, acompanhe suas candidaturas ou publique vagas e organize os candidatos." />
+    <meta property="og:title" content="Monburan - Vagas de emprego e recrutamento" />
     <meta property="og:description" content="Plataforma gratuita de recrutamento e seleção" />
     <meta property="og:type" content="website" />
 </HeadContent>
@@ -42,6 +42,36 @@
                 <li><span aria-hidden="true">◈</span> Ambiente seguro e gratuito</li>
             </ul>
         </section>
+    }
+    else if (isAdminOnly)
+    {
+        @* Administrador sem perfil de candidato ou empresa: visão própria, sem o convite "Criar conta / Entrar" *@
+        <header class="page-heading">
+            <div class="page-heading__copy">
+                <span class="page-kicker">ADMINISTRAÇÃO</span>
+                <h1>Visão geral</h1>
+                <p>Modere contas e vagas, acompanhe a auditoria e configure os provedores de IA.</p>
+            </div>
+            <a class="btn btn-primary" href="/admin/jobs" data-testid="dashboard-primary">Moderar vagas</a>
+        </header>
+        <nav class="admin-overview" aria-label="Áreas de administração">
+            <a class="admin-overview__item" href="/admin/accounts">
+                <strong>Contas</strong>
+                <span>Ative, inative e desbloqueie contas de candidatos, empresas e administradores.</span>
+            </a>
+            <a class="admin-overview__item" href="/admin/jobs">
+                <strong>Vagas</strong>
+                <span>Revise, oculte ou reprove vagas de todas as empresas.</span>
+            </a>
+            <a class="admin-overview__item" href="/admin/audit">
+                <strong>Auditoria</strong>
+                <span>Veja quem fez cada ação de administração e quando.</span>
+            </a>
+            <a class="admin-overview__item" href="/admin/ai-providers">
+                <strong>Provedores de IA</strong>
+                <span>Cadastre, teste e escolha o provedor usado nas sugestões de currículo.</span>
+            </a>
+        </nav>
     }
     else
     {
@@ -79,7 +109,7 @@
     }
     else if (isAdvertiser)
     {
-        <section class="dashboard-section" aria-label="Indicadores de recrutamento">
+        <section class="dashboard-section mb-4" aria-label="Indicadores de recrutamento">
             <div class="row g-3 dashboard-metrics">
                 <div class="col-md-3">
                     <article class="card dashboard-metric">
@@ -144,11 +174,12 @@
 
                                     <div class="mb-2">
                                         <div class="d-flex justify-content-between">
-                                            <span>@GetStatusLabel(status.Key)</span>
+                                            <span>@UiLabels.JobStatusPlural(status.Key)</span>
                                             <span>@status.Value (@percentage%)</span>
                                         </div>
-                                        <div class="progress" style="height: 20px;">
-                                            <div class="progress-bar @bgColor" role="progressbar" style="width: @percentage%" aria-valuenow="@percentage" aria-valuemin="0" aria-valuemax="100"></div>
+                                        @* A proporção já está no texto acima: a barra é só visual *@
+                                        <div class="progress" aria-hidden="true">
+                                            <div class="progress-bar @bgColor" style="width: @percentage%"></div>
                                         </div>
                                     </div>
                                 }
@@ -182,11 +213,11 @@
 
                                     <div class="mb-2">
                                         <div class="d-flex justify-content-between">
-                                            <span>@GetStatusLabel(status.Key)</span>
+                                            <span>@UiLabels.ApplicationStatusPlural(status.Key)</span>
                                             <span>@status.Value (@percentage%)</span>
                                         </div>
-                                        <div class="progress" style="height: 20px;">
-                                            <div class="progress-bar @bgColor" role="progressbar" style="width: @percentage%" aria-valuenow="@percentage" aria-valuemin="0" aria-valuemax="100"></div>
+                                        <div class="progress" aria-hidden="true">
+                                            <div class="progress-bar @bgColor" style="width: @percentage%"></div>
                                         </div>
                                     </div>
                                 }
@@ -261,30 +292,10 @@
         </section>
     }
 
-    <nav class="page-section shortcut-nav" aria-label="Acessos rápidos">
-        <span class="page-kicker">ACESSOS RÁPIDOS</span>
-        @if (isAdvertiser)
-        {
-            <a href="/my-jobs">Minhas vagas</a>
-            <a href="/received-applications">Candidaturas recebidas</a>
-            <a href="/profile/advertiser">Perfil da empresa</a>
-        }
-        else if (isCandidate)
-        {
-            <a href="/my-applications">Candidaturas e salvas</a>
-            <a href="/resumes">Meus currículos</a>
-            <a href="/profile/candidate">Meu perfil</a>
-        }
-        else
-        {
-            <a href="/Account/Register">Criar conta</a>
-            <a href="/Account/Login">Entrar</a>
-            <a href="/jobs">Explorar vagas</a>
-        }
-    </nav>
+    @* Sem "acessos rápidos": repetiam o menu lateral (logado) e as ações do topo e do hero (visitante) *@
 
     <!-- Vagas recomendadas para o candidato; sem recomendações, as recentes como fallback -->
-    <div class="row">
+    <div class="row page-section">
         <div class="col">
             <div class="d-flex justify-content-between align-items-center mb-3">
                 <h2>@JobsHeading</h2>
@@ -358,6 +369,7 @@
     private bool isAdvertiser;
     private bool isCandidate;
     private bool isAnonymous => !isAuthenticated;
+    private bool isAdminOnly;
 
     private List<JobResponse> displayJobs => isCandidate && recommendedJobs.Count > 0 ? recommendedJobs : recentJobs;
 
@@ -374,6 +386,7 @@
         var advertiserId = CurrentUserHelper.GetAdvertiserId();
         isAdvertiser = advertiserId.HasValue;
         isCandidate = CurrentUserHelper.GetCandidateId().HasValue;
+        isAdminOnly = isAuthenticated && !isAdvertiser && !isCandidate && CurrentUserHelper.IsAdmin();
 
         await LoadAsync();
     }
@@ -468,17 +481,4 @@
     {
         Navigation.NavigateTo("/resumes");
     }
-
-    private static string GetStatusLabel(string status) => status switch
-    {
-        "Active" => "Ativas",
-        "Expired" => "Expiradas",
-        "Paused" => "Pausadas",
-        "Hidden" => "Ocultas",
-        "Rejected" => "Rejeitadas",
-        "Sent" => "Enviadas",
-        "Viewed" => "Visualizadas",
-        "Selected" => "Selecionadas",
-        _ => status
-    };
 }

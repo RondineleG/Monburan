@@ -12,6 +12,7 @@
 @inject AuthenticationStateProvider AuthenticationState
 @inject IToastService Toast
 @inject ILogger<AdminJobs> Logger
+@inject IJSRuntime JS
 
 <PageTitle>Vagas - Moderação - Monburan</PageTitle>
 
@@ -31,7 +32,7 @@
         <section class="admin-counters" aria-label="Vagas por situação">
             @foreach (var status in StatusOrder)
             {
-                <div class="admin-counter"><strong data-testid="jobs-count-@status.ToLowerInvariant()">@list.StatusCounts.GetValueOrDefault(status)</strong><span>@UiLabels.JobStatus(status)s</span></div>
+                <div class="admin-counter"><strong data-testid="jobs-count-@status.ToLowerInvariant()">@list.StatusCounts.GetValueOrDefault(status)</strong><span>@UiLabels.JobStatusPlural(status)</span></div>
             }
         </section>
     }
@@ -66,14 +67,14 @@
             <div class="card-body">
                 <div class="acct-panel__head">
                     <div>
-                        <h2 id="job-panel-title">@selected.Title</h2>
+                        <h2 id="job-panel-title" tabindex="-1">@selected.Title</h2>
                         <p class="acct-panel__email">@(selected.AdvertiserName ?? "Empresa") · @selected.AdvertiserEmail</p>
                     </div>
                     <ul class="ai-badges" aria-label="Situação da vaga">
                         <li class="ai-badge @(selected.Status == "Active" ? "ai-badge--ok" : selected.Status == "Paused" ? "ai-badge--off" : "ai-badge--warn")" data-testid="job-panel-state">@UiLabels.JobStatus(selected.Status)</li>
                         @if (selected.IsPastExpiration)
                         {
-                            <li class="ai-badge ai-badge--warn">Validade vencida</li>
+                            <li class="ai-badge ai-badge--warn">Validade expirada</li>
                         }
                     </ul>
                 </div>
@@ -119,7 +120,7 @@
                 else
                 {
                     <div class="acct-actions">
-                        <a class="btn btn-outline-primary btn-sm" href="/jobs/@selected.Id" target="_blank" rel="noopener" data-testid="job-open">Abrir a página da vaga</a>
+                        <a class="btn btn-outline-primary btn-sm" href="/jobs/@selected.Id" target="_blank" rel="noopener" data-testid="job-open">Abrir a página da vaga<span class="visually-hidden"> (abre em nova aba)</span></a>
                         @if (selected.Status != "Active")
                         {
                             <button type="button" class="btn btn-primary btn-sm" @onclick="StartActivation" disabled="@busy" data-testid="job-activate">@(selected.Status == "Paused" ? "Reativar" : "Aprovar e ativar")</button>
@@ -163,30 +164,31 @@
         <div class="card">
             <div class="card-body p-0">
                 <div class="table-responsive">
-                    <table class="table table-hover table-striped mb-0" data-testid="jobs-table">
+                    <table class="table table-hover table-striped table-cards mb-0" data-testid="jobs-table">
+                        <caption class="visually-hidden">Vagas de todas as empresas</caption>
                         <thead>
                             <tr>
-                                <th>Vaga</th>
-                                <th>Empresa</th>
-                                <th>Situação</th>
-                                <th>Validade</th>
-                                <th class="text-center">Candidaturas</th>
-                                <th>Publicada</th>
-                                <th class="text-center">Ações</th>
+                                <th scope="col">Vaga</th>
+                                <th scope="col">Empresa</th>
+                                <th scope="col">Situação</th>
+                                <th scope="col">Validade</th>
+                                <th scope="col" class="text-center">Candidaturas</th>
+                                <th scope="col">Publicada</th>
+                                <th scope="col" class="text-center">Ações</th>
                             </tr>
                         </thead>
                         <tbody>
                             @foreach (var job in list.Items)
                             {
                                 <tr data-testid="job-row" data-job-id="@job.Id" data-title="@job.Title">
-                                    <td><strong>@job.Title</strong><div class="text-muted small">@Where(job)</div></td>
-                                    <td>@(job.AdvertiserName ?? "—")</td>
-                                    <td><span class="badge @UiLabels.JobStatusBadge(job.Status)">@UiLabels.JobStatus(job.Status)</span></td>
-                                    <td>@UiLabels.FormatMomentDate(job.ExpirationDate)@(job.IsPastExpiration ? " (vencida)" : string.Empty)</td>
-                                    <td class="text-center">@job.Applications</td>
-                                    <td>@UiLabels.FormatMomentDate(job.CreatedAt)</td>
-                                    <td class="text-center">
-                                        <button type="button" class="btn btn-sm btn-outline-primary" @onclick="() => OpenPanel(job)" data-testid="job-manage">Gerenciar</button>
+                                    <td data-label="Vaga"><strong>@job.Title</strong><div class="text-muted small">@Where(job)</div></td>
+                                    <td data-label="Empresa">@(job.AdvertiserName ?? "—")</td>
+                                    <td data-label="Situação"><span class="badge @UiLabels.JobStatusBadge(job.Status)">@UiLabels.JobStatus(job.Status)</span></td>
+                                    <td data-label="Validade">@UiLabels.FormatMomentDate(job.ExpirationDate)@(job.IsPastExpiration ? " (expirada)" : string.Empty)</td>
+                                    <td data-label="Candidaturas" class="text-center">@job.Applications</td>
+                                    <td data-label="Publicada">@UiLabels.FormatMomentDate(job.CreatedAt)</td>
+                                    <td data-label="Ações" class="text-center">
+                                        <button type="button" class="btn btn-sm btn-outline-primary" @onclick="() => OpenPanelAsync(job)" data-testid="job-manage" aria-label="Gerenciar a vaga @job.Title">Gerenciar</button>
                                     </td>
                                 </tr>
                             }
@@ -198,7 +200,7 @@
 
         <Pager Page="list.Page" TotalPages="list.TotalPages" OnPageChanged="LoadAsync" AriaLabel="Paginação das vagas" />
 
-        <div class="text-muted text-center mt-3">Mostrando @list.Items.Count() de @list.TotalCount vagas</div>
+        <div class="text-muted text-center mt-3">Mostrando @RangeText(list.Page, list.Items.Count(), list.TotalCount) vagas</div>
     }
 </div>
 
@@ -284,13 +286,26 @@
         isLoading = false;
     }
 
-    private void OpenPanel(AdminJobResponse job)
+    private async Task OpenPanelAsync(AdminJobResponse job)
     {
         selected = job;
         pending = PendingAction.None;
         reason = string.Empty;
         formError = null;
+
+        // O painel abre acima da tabela: o foco vai para o título dele
+        StateHasChanged();
+        try
+        {
+            await JS.InvokeVoidAsync("monburanFocusById", "job-panel-title");
+        }
+        catch (JSException)
+        {
+        }
     }
+
+    private static string RangeText(int page, int count, int total) =>
+        count == 0 ? $"0 de {total}" : $"{(page - 1) * PageSize + 1}–{(page - 1) * PageSize + count} de {total}";
 
     private void ClosePanel()
     {

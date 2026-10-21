@@ -10,7 +10,7 @@
 @inject IToastService Toast
 @inject ILogger<MySubscription> Logger
 
-<PageTitle>Minha Assinatura - Monburan</PageTitle>
+<PageTitle>Plano e assinatura - Monburan</PageTitle>
 
 <div class="container mt-4 subscription-layout">
     <header class="page-heading">
@@ -39,7 +39,7 @@
             <div class="col-md-8">
                 <div class="card shadow-sm">
                     <div class="card-header">
-                        <h5 class="mb-0">Plano atual: @subscription.PlanName</h5>
+                        <h2 class="h5 mb-0">Plano atual: @UiLabels.PlanName(subscription.PlanName)</h2>
                     </div>
                     <div class="card-body">
                         <div class="row mb-3">
@@ -83,7 +83,7 @@
             <div class="col-md-4">
                 <div class="card shadow-sm">
                     <div class="card-header">
-                        <h5 class="mb-0">Recursos do plano</h5>
+                        <h2 class="h5 mb-0">Recursos do plano</h2>
                     </div>
                     <div class="card-body">
                         @if (currentPlan != null)
