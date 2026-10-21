@@ -18,15 +18,25 @@
             document.cookie = name + '=' + encodeURIComponent(value) + ';path=/;max-age=31536000;samesite=lax';
         } catch (e) { }
     }
+    // Botão de recolher: expandido = menu com rótulos visíveis
+    function syncPin(rail) {
+        var pin = document.querySelector('[data-action="sidebar-pin"]');
+        if (pin) pin.setAttribute('aria-expanded', rail ? 'false' : 'true');
+    }
+    syncPin(document.documentElement.classList.contains('sidebar-rail'));
     function applyStoredUi() {
         // Reaplica tema e rail após enhanced navigation repor os atributos do <html>.
-        var theme = 'light', rail = false;
+        var theme = null, rail = false;
         try {
-            theme = localStorage.getItem('monburan-theme') || 'light';
+            theme = localStorage.getItem('monburan-theme');
             rail = localStorage.getItem('monburan-sidebar') === 'rail';
         } catch (e) { }
+        if (theme !== 'dark' && theme !== 'light') {
+            theme = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        }
         document.documentElement.setAttribute('data-theme', theme);
         document.documentElement.classList.toggle('sidebar-rail', rail);
+        syncPin(rail);
         var meta = document.querySelector('meta[name="theme-color"]');
         if (meta) meta.setAttribute('content', theme === 'dark' ? '#0A0806' : '#F2EBD9');
     }
@@ -68,7 +78,7 @@
         var pinBtn = e.target.closest('[data-action="sidebar-pin"]');
         if (pinBtn) {
             var collapsed = document.documentElement.classList.toggle('sidebar-rail');
-            pinBtn.setAttribute('aria-pressed', collapsed ? 'false' : 'true');
+            syncPin(collapsed);
             var sidebarState = collapsed ? 'rail' : 'expanded';
             try { localStorage.setItem('monburan-sidebar', sidebarState); } catch (err) { }
             setUiCookie('monburan-sidebar', sidebarState);

@@ -59,12 +59,33 @@
 
     if (window.Blazor && Blazor.addEventListener) Blazor.addEventListener('enhancedload', applyScroll);
 
-    // Filtros e ordenação aplicam ao mudar, sem exigir o botão de busca.
+    // Filtros e ordenação aplicam ao mudar com o mouse ou o toque, sem exigir o botão de busca.
+    // Pelo teclado, setas só escolhem a opção (WCAG 3.2.2: mudar um campo não pode trocar a página);
+    // aplica-se com Enter ou com o botão do formulário.
+    var keyboardChange = false;
+    function submitForm(form) {
+        if (typeof form.requestSubmit === 'function') form.requestSubmit();
+        else form.submit();
+    }
+
+    document.addEventListener('keydown', function (e) {
+        var el = e.target;
+        if (!(el instanceof HTMLElement) || !el.hasAttribute('data-autosubmit') || !el.form) return;
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            submitForm(el.form);
+            return;
+        }
+        keyboardChange = e.key !== 'Tab';
+    }, true);
+
+    document.addEventListener('pointerdown', function () { keyboardChange = false; }, true);
+
     document.addEventListener('change', function (e) {
         var el = e.target;
         if (!(el instanceof HTMLElement) || !el.hasAttribute('data-autosubmit') || !el.form) return;
-        if (typeof el.form.requestSubmit === 'function') el.form.requestSubmit();
-        else el.form.submit();
+        if (keyboardChange) return;
+        submitForm(el.form);
     });
 
     // ---- Lista de vagas: lembra a busca para o "Voltar para as vagas" da página da vaga -------------
@@ -111,7 +132,23 @@
         });
     }
 
+    // Região viva única para confirmações curtas (ex.: "Link copiado"), que só trocam texto na tela
+    function announce(text) {
+        var region = document.getElementById('monburan-announcer');
+        if (!region) {
+            region = document.createElement('div');
+            region.id = 'monburan-announcer';
+            region.className = 'visually-hidden';
+            region.setAttribute('role', 'status');
+            region.setAttribute('aria-live', 'polite');
+            document.body.appendChild(region);
+        }
+        region.textContent = '';
+        setTimeout(function () { region.textContent = text; }, 50);
+    }
+
     function flash(button, text) {
+        announce(text);
         var label = button.querySelector('[data-copy-label]');
         if (label) {
             var original = label.getAttribute('data-original') || label.textContent;
@@ -149,6 +186,34 @@
     });
 })();
 
+// ---- Erros de formulário: foco no primeiro campo inválido -------------------------------------------
+// Depois de um envio com erro, quem usa teclado ou leitor de tela vai direto ao campo a corrigir (e não ao
+// título da página). Vale para formulários interativos (o Blazor valida no envio) e para os renderizados
+// no servidor (a página volta com aria-invalid marcado).
+(function () {
+    'use strict';
+
+    function focusFirstInvalid(root) {
+        var field = (root || document).querySelector('main [aria-invalid="true"]');
+        if (!field || field === document.activeElement || field.contains(document.activeElement)) return false;
+        if (typeof field.focus === 'function') field.focus();
+        return true;
+    }
+
+    document.addEventListener('submit', function (e) {
+        var form = e.target;
+        if (!(form instanceof HTMLFormElement) || form.getAttribute('role') === 'search') return;
+        // O Blazor marca os campos depois do evento: espera a renderização
+        setTimeout(function () { if (form.isConnected) focusFirstInvalid(form); }, 300);
+    }, true);
+
+    // Envio renderizado no servidor: a página nova já chega com os campos marcados
+    function afterLoad() { setTimeout(function () { focusFirstInvalid(document); }, 50); }
+    if (document.readyState === 'complete') afterLoad();
+    else window.addEventListener('load', afterLoad);
+    if (window.Blazor && Blazor.addEventListener) Blazor.addEventListener('enhancedload', afterLoad);
+})();
+
 // ---- Foco programático (acessibilidade) -----------------------------------------------------------
 // O Blazor move o foco para o título ao trocar de etapa em fluxos guiados (candidatura, wizard de vaga).
 window.monburanFocusById = function (id) {
@@ -159,7 +224,8 @@ window.monburanFocusById = function (id) {
 // ---- Armadilha de foco para gavetas e diálogos -----------------------------------------------------
 // O Blazor controla abrir/fechar; daqui sai só o Tab preso dentro do painel enquanto ele existir.
 window.monburanTrapFocus = function (container) {
-    if (!container || !container.addEventListener) return;
+    if (!container || !container.addEventListener || container._monburanTrap) return;
+    container._monburanTrap = true;
     container.addEventListener('keydown', function (e) {
         if (e.key !== 'Tab') return;
         var items = container.querySelectorAll(
@@ -176,3 +242,46 @@ window.monburanTrapFocus = function (container) {
         }
     });
 };
+
+// ---- Diálogo modal nativo (ConfirmDialog) -----------------------------------------------------------
+// showModal() prende o foco e deixa o resto da página inerte. Esc e clique no fundo não fecham o <dialog>
+// por conta própria: acionam o botão Cancelar, para o Blazor decidir e devolver o resultado.
+window.monburanDialog = (function () {
+    var returnTo = null;
+
+    function cancel(dialog) {
+        var button = dialog.querySelector('[data-dialog-cancel]');
+        if (button) button.click();
+    }
+
+    return {
+        open: function (dialog) {
+            if (!dialog || typeof dialog.showModal !== 'function') return;
+            var active = document.activeElement;
+            returnTo = active && active !== document.body ? active : null;
+            if (!dialog.open) dialog.showModal();
+            if (!dialog._monburanWired) {
+                dialog._monburanWired = true;
+                dialog.addEventListener('cancel', function (e) { e.preventDefault(); cancel(dialog); });
+                // O fundo (::backdrop) pertence ao próprio <dialog>: clique fora do conteúdo tem o dialog como alvo
+                dialog.addEventListener('click', function (e) { if (e.target === dialog) cancel(dialog); });
+            }
+            var safe = dialog.querySelector('[data-dialog-cancel]');
+            if (safe) safe.focus();
+        },
+        // Quem abriu pode ter sumido (ex.: item de menu fechado): então o foco vai para o título da página
+        restoreFocus: function () {
+            var target = returnTo;
+            returnTo = null;
+            if (target && target.isConnected && typeof target.focus === 'function') {
+                target.focus();
+                return;
+            }
+            var heading = document.querySelector('main h1');
+            if (heading) {
+                if (!heading.hasAttribute('tabindex')) heading.setAttribute('tabindex', '-1');
+                heading.focus();
+            }
+        }
+    };
+})();

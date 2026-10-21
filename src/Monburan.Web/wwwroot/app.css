@@ -1,4 +1,7 @@
-@import url("/ui.css?v=ux-v7");
+/* Ordem das camadas declarada em tokens.css: tokens, base, legacy, components, utilities.
+   As folhas anteriores entram na camada legacy, na mesma ordem relativa de antes (ui.css, jobs.css, fim desta folha). */
+@import url("/ui.css?v=ux-v8") layer(legacy);
+@import url("/jobs.css?v=ux-v8") layer(legacy);
 
 @layer base {
 *,
@@ -48,8 +51,11 @@ button:focus-visible,
 a:focus-visible,
 input:focus-visible,
 textarea:focus-visible,
-select:focus-visible {
-    outline: 2px solid var(--focus-ring, #8a5500);
+select:focus-visible,
+summary:focus-visible,
+[tabindex]:not([tabindex="-1"]):focus-visible,
+[role="button"]:focus-visible {
+    outline: 2px solid var(--focus-ring);
     outline-offset: 2px;
 }
 
@@ -82,21 +88,37 @@ select:focus-visible {
     padding-inline: 0.75rem;
 }
 
+/* Grade de 12 colunas: só as larguras que as páginas usam. Faltar uma classe aqui faz a coluna ocupar 100%. */
 .col,
+.col-4,
+.col-8,
+.col-12,
+.col-md-1,
+.col-md-2,
 .col-md-3,
 .col-md-4,
+.col-md-5,
 .col-md-6,
+.col-md-7,
 .col-md-8,
 .col-md-9,
 .col-md-12,
 .col-lg-4,
+.col-lg-5,
 .col-lg-6,
+.col-lg-7,
 .col-lg-8,
+.col-lg-9,
 .col-lg-10,
 .col-sm-5,
 .col-sm-7 {
     flex: 0 0 auto;
 }
+
+.col { flex: 1 0 0%; width: auto; }
+.col-4 { width: 33.3333%; }
+.col-8 { width: 66.6667%; }
+.col-12 { width: 100%; }
 
 @media (min-width: 576px) {
     .col-sm-5 { width: 41.6667%; }
@@ -104,9 +126,13 @@ select:focus-visible {
 }
 
 @media (min-width: 768px) {
+    .col-md-1 { width: 8.3333%; }
+    .col-md-2 { width: 16.6667%; }
     .col-md-3 { width: 25%; }
     .col-md-4 { width: 33.3333%; }
+    .col-md-5 { width: 41.6667%; }
     .col-md-6 { width: 50%; }
+    .col-md-7 { width: 58.3333%; }
     .col-md-8 { width: 66.6667%; }
     .col-md-9 { width: 75%; }
     .col-md-12 { width: 100%; }
@@ -114,8 +140,11 @@ select:focus-visible {
 
 @media (min-width: 992px) {
     .col-lg-4 { width: 33.3333%; }
+    .col-lg-5 { width: 41.6667%; }
     .col-lg-6 { width: 50%; }
+    .col-lg-7 { width: 58.3333%; }
     .col-lg-8 { width: 66.6667%; }
+    .col-lg-9 { width: 75%; }
     .col-lg-10 { width: 83.3333%; }
 }
 .row.g-2 { row-gap: 0.5rem; }
@@ -176,7 +205,9 @@ select:focus-visible {
 .text-start { text-align: left !important; }
 .text-nowrap { white-space: nowrap !important; }
 .text-decoration-none { text-decoration: none !important; }
-.small { font-size: 0.875rem; }
+/* "smaller" do navegador dava 11,7px dentro de texto de 14px: o mínimo de leitura é 13px */
+small,
+.small { font-size: 0.8125rem; }
 .fs-5 { font-size: 1.25rem !important; }
 .fs-2 { font-size: 2rem !important; }
 .fw-bold { font-weight: 700 !important; }
@@ -394,8 +425,8 @@ label,
 
 .page-link {
     display: grid;
-    min-width: 2.4rem;
-    min-height: 2.4rem;
+    min-width: var(--control-h);
+    min-height: var(--control-h);
     place-items: center;
     padding: 0.4rem 0.65rem;
     border: 1px solid;
@@ -420,45 +451,6 @@ label,
 .list-group-item {
     padding: 1rem;
     border-bottom: 1px solid;
-}
-
-.modal {
-    position: fixed;
-    inset: 0;
-    z-index: 200;
-    overflow-y: auto;
-}
-
-.modal-dialog {
-    width: min(calc(100% - 2rem), 34rem);
-    margin: 10vh auto;
-}
-
-.modal-content {
-    overflow: hidden;
-    border: 1px solid;
-    border-radius: 0.9rem;
-    background: var(--bg-card, #fff);
-    color: var(--tx, inherit);
-}
-
-.modal-header,
-.modal-body,
-.modal-footer {
-    padding: 1rem 1.25rem;
-}
-
-.modal-header,
-.modal-footer {
-    border-bottom: 1px solid;
-}
-
-.modal-footer {
-    display: flex;
-    justify-content: flex-end;
-    gap: 0.5rem;
-    border-top: 1px solid;
-    border-bottom: 0;
 }
 
 .btn-close {
@@ -499,14 +491,12 @@ label,
         width: calc(100% - 1.5rem);
     }
 
-    .row > .col-md-3,
-    .row > .col-md-4,
-    .row > .col-md-6,
-    .row > .col-md-8,
-    .row > .col-md-9,
-    .row > .col-md-12 {
+    .row > [class*="col-md-"] {
         width: 100%;
     }
+
+    /* Tabela em cartões: coluna centralizada no desktop alinha à esquerda dentro do cartão */
+    .table-cards td.text-center { text-align: left !important; }
 
     .p-5 { padding: 1.25rem !important; }
 }
@@ -553,6 +543,8 @@ label,
 .nav-pills .nav-link { border-radius: 0.5rem; }
 }
 
+/* Componentes de página escritos depois de ui.css: mesma camada legacy, depois dele na ordem. */
+@layer legacy {
 /* ---- Área do candidato: abas, filtros, listas e linha do tempo ---- */
 .journey-tabs { display: flex; flex-wrap: wrap; gap: 0.35rem; margin: 0 0 1.25rem; border-bottom: 1px solid var(--border, rgb(0 0 0 / 12%)); }
 .journey-tab { padding: 0.55rem 1rem; color: var(--tx-muted, var(--tx-2, #555)); font-family: var(--f-ui); font-size: var(--fs-sm, 0.875rem); font-weight: 600; text-decoration: none; border-bottom: 2px solid transparent; border-radius: var(--r-sm, 0.4rem) var(--r-sm, 0.4rem) 0 0; }
@@ -592,7 +584,7 @@ label,
 /* ---- Candidatura em etapas e resumo ---- */
 .apply-steps { display: flex; flex-wrap: wrap; gap: 0.5rem; margin: 0 0 1.15rem; padding: 0; list-style: none; }
 .apply-steps__item { padding: 0.45rem 1rem; color: var(--tx-muted, var(--tx-2, #555)); font-family: var(--f-ui); font-size: var(--fs-sm, 0.875rem); font-weight: 600; background: var(--bg-elev, rgb(0 0 0 / 6%)); border-radius: 999px; }
-.apply-steps__item--active { color: #fff; background: var(--gold, #b97a00); }
+.apply-steps__item--active { color: var(--action-fg); background: var(--action-bg); }
 .apply-summary { display: grid; grid-template-columns: minmax(6.5rem, auto) 1fr; gap: 0.35rem 1rem; margin: 0 0 1.15rem; }
 .apply-summary dt { color: var(--tx-muted, var(--tx-2, #555)); font-family: var(--f-mono); font-size: var(--fs-xs, 0.75rem); text-transform: uppercase; letter-spacing: 0.05em; }
 .apply-summary dd { margin: 0; font-family: var(--f-ui); font-size: var(--fs-sm, 0.875rem); }
@@ -600,15 +592,15 @@ label,
 .job-save .save-job-button { width: 100%; justify-content: center; }
 /* ---- Área da empresa: menu de ações, wizard de vaga e gaveta do candidato ---- */
 .job-actions { position: relative; display: inline-block; }
-.job-actions__menu { position: absolute; right: 0; top: calc(100% + 0.35rem); z-index: 20; display: grid; min-width: 11.5rem; padding: 0.35rem; background: var(--bg-card, #fff); border: 1px solid var(--border, rgb(0 0 0 / 12%)); border-radius: var(--r-sm, 0.4rem); box-shadow: var(--shadow-lg, 0 16px 36px rgb(0 0 0 / 12%)); }
-.job-actions__item { padding: 0.5rem 0.75rem; color: var(--tx, #222); font-family: var(--f-ui); font-size: var(--fs-sm, 0.875rem); text-align: left; text-decoration: none; background: none; border: 0; border-radius: var(--r-sm, 0.4rem); }
+.job-actions__menu { position: absolute; right: 0; top: calc(100% + 0.35rem); z-index: var(--z-dropdown); display: grid; min-width: 11.5rem; padding: 0.35rem; background: var(--bg-card, #fff); border: 1px solid var(--border, rgb(0 0 0 / 12%)); border-radius: var(--r-sm, 0.4rem); box-shadow: var(--shadow-lg, 0 16px 36px rgb(0 0 0 / 12%)); }
+.job-actions__item { min-height: var(--control-h); padding: 0.5rem 0.75rem; color: var(--tx, #222); font-family: var(--f-ui); font-size: var(--fs-sm, 0.875rem); text-align: left; text-decoration: none; background: none; border: 0; border-radius: var(--r-sm, 0.4rem); }
 .job-actions__item:hover { background: var(--bg-elev, rgb(0 0 0 / 6%)); }
 .job-actions__item--danger { color: var(--er, #b3261e); }
 .journey-tab__count { margin-left: 0.35rem; padding: 0.1rem 0.5rem; font-family: var(--f-mono); font-size: var(--fs-xs, 0.75rem); background: var(--bg-elev, rgb(0 0 0 / 6%)); border-radius: 999px; }
 
 .job-wizard__steps { display: flex; flex-wrap: wrap; gap: 0.5rem; margin: 0 0 1.25rem; padding: 0; list-style: none; }
 .job-wizard__step { padding: 0.45rem 1rem; color: var(--tx-muted, var(--tx-2, #555)); font-family: var(--f-ui); font-size: var(--fs-sm, 0.875rem); font-weight: 600; background: var(--bg-elev, rgb(0 0 0 / 6%)); border-radius: 999px; }
-.job-wizard__step--active { color: #fff; background: var(--gold, #b97a00); }
+.job-wizard__step--active { color: var(--action-fg); background: var(--action-bg); }
 .job-wizard__step-link { padding: 0; color: inherit; font: inherit; background: none; border: 0; text-decoration: underline; cursor: pointer; }
 .job-wizard__actions { display: flex; flex-wrap: wrap; gap: 0.65rem; margin-top: 1.25rem; }
 .job-wizard__preview { margin: 0 0 1.15rem; }
@@ -616,12 +608,13 @@ label,
 .job-type-card { display: flex; align-items: center; gap: 0.55rem; padding: 0.85rem 1rem; font-family: var(--f-ui); font-size: var(--fs-sm, 0.875rem); font-weight: 600; background: var(--bg-card, #fff); border: 1px solid var(--border, rgb(0 0 0 / 12%)); border-radius: var(--r-md, 0.75rem); cursor: pointer; }
 .job-type-card.is-active { border-color: var(--gold, #b97a00); box-shadow: inset 0 0 0 1px var(--gold, #b97a00); }
 
-.applicant-drawer__backdrop { position: fixed; inset: 0; z-index: 40; background: rgb(0 0 0 / 45%); }
-.applicant-drawer { position: fixed; top: 0; right: 0; bottom: 0; z-index: 41; width: min(26rem, 100%); padding: 1.25rem 1.35rem; overflow-y: auto; background: var(--bg-card, #fff); box-shadow: var(--shadow-lg, 0 16px 36px rgb(0 0 0 / 12%)); }
+.applicant-drawer__backdrop { position: fixed; inset: 0; z-index: var(--z-drawer); background: var(--modal-scrim-bg); }
+.applicant-drawer { position: fixed; top: 0; right: 0; bottom: 0; z-index: calc(var(--z-drawer) + 1); width: min(26rem, 100%); padding: 1.25rem 1.35rem; overflow-y: auto; background: var(--bg-card, #fff); box-shadow: var(--shadow-lg, 0 16px 36px rgb(0 0 0 / 12%)); }
 .applicant-drawer__header { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; }
-.applicant-drawer__close { padding: 0.25rem 0.65rem; font-size: 1.15rem; line-height: 1; background: none; border: 1px solid var(--border, rgb(0 0 0 / 12%)); border-radius: var(--r-sm, 0.4rem); }
+.applicant-drawer__close { min-width: var(--control-h); min-height: var(--control-h); padding: 0.25rem 0.65rem; font-size: 1.15rem; line-height: 1; background: none; border: 1px solid var(--border, rgb(0 0 0 / 12%)); border-radius: var(--r-sm, 0.4rem); }
 
 .received-filters { display: flex; flex-wrap: wrap; gap: 0.55rem; margin: 0 0 1.15rem; }
 .received-filter select, .received-filter input { padding: 0.45rem 0.75rem; font-family: var(--f-ui); font-size: var(--fs-sm, 0.875rem); background: var(--bg-card, #fff); border: 1px solid var(--border, rgb(0 0 0 / 12%)); border-radius: var(--r-sm, 0.4rem); }
 .received-filter--search { flex: 1 1 12rem; }
 .received-filter--search input { width: 100%; }
+}

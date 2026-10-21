@@ -1,0 +1,198 @@
+/* ============================================================
+   Componentes do design system escritos depois da camada legacy.
+   Só tokens (tokens.css); sem !important; vence legacy por estar numa camada posterior.
+   ============================================================ */
+@layer components {
+    /* Visão geral do administrador: áreas com descrição, não só atalhos */
+    .admin-overview {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr));
+        gap: var(--s-4);
+        margin-bottom: var(--s-8);
+    }
+
+    .admin-overview__item {
+        display: flex;
+        flex-direction: column;
+        gap: var(--s-1);
+        min-height: 6.5rem;
+        padding: var(--s-4) var(--s-5);
+        border: 1px solid var(--border);
+        border-radius: var(--r-md);
+        background: var(--bg-card);
+        color: var(--tx);
+        text-decoration: none;
+        transition: border-color var(--dur-xs) ease, background var(--dur-xs) ease;
+    }
+
+    .admin-overview__item:hover {
+        border-color: var(--gold-border);
+        background: var(--bg-elev);
+    }
+
+    .admin-overview__item strong {
+        font-size: var(--fs-lg);
+    }
+
+    .admin-overview__item span {
+        color: var(--tx-2);
+        font-size: var(--fs-sm);
+    }
+
+    /* Barra de "desfazer" depois de uma remoção reversível */
+    .undo-bar {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: var(--s-2) var(--s-4);
+    }
+
+    .undo-bar .btn-link {
+        min-height: var(--control-h-sm);
+        padding-inline: var(--s-2);
+    }
+
+    /* Candidaturas no celular: título em cima, situação e data embaixo (sem espremer o título ao lado do selo) */
+    @media (max-width: 575.98px) {
+        .applications-list__head {
+            flex-direction: column;
+            gap: var(--s-2);
+        }
+
+        .applications-list__meta {
+            flex-wrap: wrap;
+        }
+    }
+
+    /* Assistente de vaga: etapa com pendência depois de um envio com erro */
+    .job-wizard__step--error {
+        box-shadow: inset 0 0 0 1px var(--er);
+        color: var(--er);
+    }
+
+    .job-wizard__step--error .job-wizard__step-link {
+        color: var(--er);
+    }
+
+    /* A modalidade é um grupo de rádios: fieldset sem a moldura padrão do navegador */
+    .job-type-fieldset {
+        min-width: 0;
+        margin-inline: 0;
+        padding: 0;
+        border: 0;
+    }
+
+    .job-type-fieldset .job-type-card:has(input:focus-visible) {
+        outline: 2px solid var(--focus-ring);
+        outline-offset: 2px;
+    }
+
+    /* Ações da vaga ("Ações"): lista simples aberta pelo botão, não um menu ARIA */
+    ul.job-actions__menu {
+        margin: 0;
+        list-style: none;
+    }
+
+    .job-actions__menu .job-actions__item {
+        display: flex;
+        width: 100%;
+        align-items: center;
+    }
+
+    /* Prévia do logo enviado ou informado por endereço */
+    .logo-preview {
+        max-width: 12.5rem;
+        max-height: 5rem;
+        object-fit: contain;
+        background: var(--logo-bg);
+    }
+
+    .logo-preview--lg {
+        max-width: 18.75rem;
+        max-height: 10rem;
+    }
+
+    /* Leitura antes de estilo: cabeçalhos de tabela, rótulos de cartão e selos de situação na fonte da
+       interface, sem caixa-alta espaçada (o mono em caixa-alta fica para eyebrows e marca) */
+    .table thead th,
+    .table-dark th {
+        font-family: var(--f-ui);
+        font-size: var(--fs-sm);
+        letter-spacing: 0;
+        text-transform: none;
+    }
+
+    .table-cards td::before,
+    .received-filter__label,
+    .apply-summary dt,
+    .ai-provider__meta dt,
+    .acct-panel__meta dt {
+        font-family: var(--f-ui);
+        font-size: var(--fs-sm);
+        font-weight: 600;
+        letter-spacing: 0;
+        text-transform: none;
+    }
+
+    .badge {
+        font-family: var(--f-ui);
+        font-weight: 650;
+        letter-spacing: 0.01em;
+        text-transform: none;
+    }
+
+    /* Filtros de candidaturas recebidas no celular: um campo por linha, botão sem esticar */
+    @media (max-width: 575.98px) {
+        .received-filters {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr);
+        }
+
+        .received-filter select,
+        .received-filter input {
+            width: 100%;
+        }
+
+        .received-filters__submit {
+            justify-self: start;
+        }
+    }
+}
+
+/* Alto contraste do sistema (Windows): sombras e fundos somem, então bordas e foco usam as cores do sistema */
+@media (forced-colors: active) {
+    @layer components {
+        .btn,
+        .badge,
+        .card,
+        .job-card,
+        .chip > span,
+        .toast-card,
+        .confirm-dialog,
+        .applicant-drawer,
+        .empty-state {
+            border: 1px solid CanvasText;
+        }
+
+        .job-card:has(.job-card__link:focus-visible),
+        .search-field:has(input:focus-visible),
+        :focus-visible {
+            outline: 2px solid Highlight;
+        }
+
+        .sidebar-link.active,
+        .journey-tab--active,
+        .chip input:checked + span {
+            border: 2px solid Highlight;
+        }
+    }
+}
+
+/* Tamanho de título independente do nível (h2 com cara de h5): o Bootstrap não é carregado, então definimos aqui */
+@layer utilities {
+    .h3 { font-size: var(--fs-xl); font-weight: 650; line-height: 1.25; }
+    .h4 { font-size: 1.25rem; font-weight: 650; line-height: 1.3; }
+    .h5 { font-size: var(--fs-lg); font-weight: 650; line-height: 1.35; }
+    .h6 { font-size: var(--fs-md); font-weight: 650; line-height: 1.4; }
+}

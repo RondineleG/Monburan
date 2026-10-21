@@ -1,8 +1,12 @@
 // Tema, sidebar e favicon antes do primeiro paint (evita o flash). Arquivo próprio para o CSP não precisar de 'unsafe-inline'.
 // Aplica tema e estado da sidebar antes do primeiro paint (evita flash).
 (function () {
-    var theme = 'light';
-    try { theme = localStorage.getItem('monburan-theme') || 'light'; } catch (e) { }
+    // Sem escolha salva, segue o tema do sistema operacional
+    var theme = null;
+    try { theme = localStorage.getItem('monburan-theme'); } catch (e) { }
+    if (theme !== 'dark' && theme !== 'light') {
+        theme = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    }
     document.documentElement.setAttribute('data-theme', theme);
     var rail = false;
     try { rail = localStorage.getItem('monburan-sidebar') === 'rail'; } catch (e) { }
