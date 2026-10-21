@@ -20,54 +20,54 @@
 
 <UnsavedChangesGuard HasChanges="HasUnsavedChanges" />
 
-<div class="container mt-4 page-form-shell resume-create-page">
-    <header class="page-heading">
-        <div class="page-heading__copy">
-            <span class="page-kicker">MINHA CARREIRA</span>
-            <h1>Criar currículo</h1>
-            <p>Comece com um resumo claro. Você pode completar as outras seções depois.</p>
-        </div>
-        <a class="btn btn-secondary" href="/resumes">Cancelar</a>
-    </header>
+<div class="container page-form-shell resume-create-page">
+    <PageHeader Title="Criar currículo" Description="Comece com um resumo claro. Você pode completar as outras seções depois."
+                BackHref="/resumes" BackText="Meus currículos" />
     <div class="row">
         <div class="col-lg-8 mx-auto">
 
-            @if (!string.IsNullOrEmpty(errorMessage))
-            {
-                <div class="alert alert-danger" role="alert">
-                    @errorMessage
-                </div>
-            }
-
             @if (!isCandidate)
             {
-                <EmptyState Icon="!" Title="Área exclusiva para candidatos" Message="Entre com uma conta de candidato para criar currículos.">
-                    <a class="btn btn-primary" href="/dashboard">Voltar ao início</a>
-                </EmptyState>
+                <AccessRestricted Reason="Esta área é exclusiva para candidatos. Entre com uma conta de candidato para criar currículos." />
             }
             else
             {
+                <div class="alert alert-info" role="note" data-testid="resume-create-wizard-hint">
+                    O passo a passo é o jeito recomendado de criar seu currículo.
+                    <a href="/resumes/wizard">Prefere ir por etapas? Use o passo a passo.</a>
+                </div>
+
+                @if (!string.IsNullOrEmpty(errorMessage))
+                {
+                    <div class="alert alert-danger" role="alert">
+                        @errorMessage
+                    </div>
+                }
+
                 <div class="card page-form-card">
                     <div class="card-body">
                         <EditForm Model="model" OnValidSubmit="SubmitForm">
                             <DataAnnotationsValidator />
                             <ServerValidationErrors @ref="serverErrors" />
 
+                            <p class="form-required-note">Campos com * são obrigatórios.</p>
+
                             <!-- Assistente -->
                             <div class="resume-assistant">
                                 <div>
-                                    <strong><Icon Name="sparkles" Size="16" /> Gerador de currículo</strong>
+                                    <strong><Icon Name="sparkles" Size="16" />Gerador de currículo</strong>
                                     <p>Preenche o rascunho com os dados do seu perfil. Você ajusta antes de salvar.</p>
                                 </div>
-                                <button type="button" class="btn btn-secondary" @onclick="GenerateDraftAsync" disabled="@isGenerating" data-testid="resume-generate">
-                                    @(isGenerating ? "Gerando..." : "Gerar rascunho")
+                                <button type="button" class="btn btn-outline-secondary" @onclick="GenerateDraftAsync" disabled="@isGenerating"
+                                        aria-busy="@(isGenerating ? "true" : null)" data-testid="resume-generate">
+                                    @(isGenerating ? "Gerando…" : "Gerar rascunho")
                                 </button>
                             </div>
 
                             @if (validationHints.Count > 0)
                             {
                                 <div class="alert alert-warning mt-3 mb-0">
-                                    <strong>Validação</strong>
+                                    <strong>Pontos a revisar</strong>
                                     <ul class="mb-0 mt-1">
                                         @foreach (var hint in validationHints)
                                         {
@@ -78,32 +78,29 @@
                             }
 
                             <!-- Informações básicas -->
-                            <h2 class="h5 mb-3">Informações básicas</h2>
+                            <h2 class="form-section-title">Informações básicas</h2>
 
                             <div class="mb-3">
                                 <label class="form-label" for="model.Title">Título do currículo *</label>
-                                <InputText class="form-control" @bind-Value="model.Title" id="model.Title"
-                                    placeholder="Ex: Desenvolvedor Full Stack Pleno" />
-                                <ValidationMessage class="text-danger" For="@(() => model.Title)" />
-                                <div class="form-text">Um título claro ajuda os recrutadores a entenderem seu perfil</div>
+                                <div class="form-text" id="model-title-hint">Um título claro ajuda os recrutadores a entenderem seu perfil.</div>
+                                <InputText class="form-control" @bind-Value="model.Title" id="model.Title" aria-describedby="model-title-hint"
+                                    placeholder="Ex.: Desenvolvedor full stack pleno" />
+                                <ValidationMessage For="@(() => model.Title)" />
                             </div>
 
                             <div class="mb-3">
                                 <label class="form-label" for="model.Summary">Resumo profissional</label>
-                                <InputTextArea class="form-control" @bind-Value="model.Summary" id="model.Summary" rows="4"
-                                    placeholder="Escreva um breve resumo sobre sua experiência e objetivos profissionais..." />
-                                <ValidationMessage class="text-danger" For="@(() => model.Summary)" />
-                                <div class="form-text">Máximo 2000 caracteres</div>
+                                <div class="form-text" id="model-summary-hint">Máximo de 2000 caracteres.</div>
+                                <InputTextArea class="form-control" @bind-Value="model.Summary" id="model.Summary" rows="4" aria-describedby="model-summary-hint"
+                                    placeholder="Escreva um breve resumo sobre sua experiência e objetivos profissionais…" />
+                                <ValidationMessage For="@(() => model.Summary)" />
                             </div>
 
-                            <div class="mb-3 form-check">
-                                <InputCheckbox class="form-check-input" @bind-Value="model.IsActive" id="model.IsActive" />
-                                <label class="form-check-label" for="model.IsActive">
-                                    <strong>Definir como currículo ativo</strong>
-                                    <br />
-                                    <small class="text-muted">Ele vem selecionado por padrão quando você se candidatar</small>
-                                </label>
-                            </div>
+                            <label class="form-check mb-3" for="model.IsActive">
+                                <InputCheckbox class="form-check-input" @bind-Value="model.IsActive" id="model.IsActive" aria-describedby="model-active-hint" />
+                                <span class="form-check-label">Definir como currículo ativo</span>
+                            </label>
+                            <p class="form-text mt-0 mb-3" id="model-active-hint">Ele vem selecionado por padrão quando você se candidatar.</p>
 
                             <hr class="my-4" />
 
@@ -119,18 +116,19 @@
                                 </ul>
                             </div>
 
-                            <div class="d-grid gap-2">
-                                <button type="submit" class="btn btn-success btn-lg" disabled="@isSubmitting" data-testid="resume-create-submit">
+                            <div class="form-actions">
+                                <button type="submit" class="btn btn-primary" disabled="@isSubmitting" aria-busy="@(isSubmitting ? "true" : null)" data-testid="resume-create-submit">
                                     @if (isSubmitting)
                                     {
-                                        <span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>
-                                        <span>Salvando...</span>
+                                        <span class="spinner-border spinner-border-sm" aria-hidden="true"></span>
+                                        <span>Salvando…</span>
                                     }
                                     else
                                     {
                                         <span>Criar currículo</span>
                                     }
                                 </button>
+                                <a class="btn btn-outline-secondary" href="/resumes">Cancelar</a>
                             </div>
                         </EditForm>
                     </div>

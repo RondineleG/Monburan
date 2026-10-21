@@ -16,12 +16,13 @@
 <StatusMessage />
 @if (currentLogins?.Count > 0)
 {
-    <table class="table">
+    <div class="table-responsive">
+    <table class="table table-cards">
         <caption class="visually-hidden">Serviços de login vinculados à sua conta</caption>
         <thead>
             <tr>
-                <th scope="col">Provedor</th>
-                <th scope="col">Ação</th>
+                <th scope="col">Serviço</th>
+                <th scope="col">Ações</th>
             </tr>
         </thead>
         <tbody>
@@ -29,7 +30,7 @@
             {
                 <tr>
                     <td>@login.ProviderDisplayName</td>
-                    <td>
+                    <td data-label="Ações">
                         @if (showRemoveButton)
                         {
                             <form @formname="@($"remove-login-{login.LoginProvider}")" @onsubmit="OnSubmitAsync" method="post">
@@ -51,6 +52,7 @@
             }
         </tbody>
     </table>
+    </div>
 }
 @if (otherLogins?.Count > 0)
 {
@@ -61,7 +63,7 @@
             <p>
                 @foreach (var provider in otherLogins)
                 {
-                    <button type="submit" class="btn btn-primary" name="Provider" value="@provider.Name" aria-label="Vincular login com @provider.DisplayName">
+                    <button type="submit" class="btn btn-outline-secondary" name="Provider" value="@provider.Name" aria-label="Vincular login com @provider.DisplayName">
                         @provider.DisplayName
                     </button>
                 }

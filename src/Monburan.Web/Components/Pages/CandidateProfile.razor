@@ -12,19 +12,13 @@
 
 <PageTitle>Meu perfil - Monburan</PageTitle>
 
-<div class="container mt-4 profile-layout candidate-profile-page">
-    <header class="page-heading">
-        <div class="page-heading__copy">
-            <span class="page-kicker">MINHA CARREIRA</span>
-            <h1>Meu perfil</h1>
-            <p>Mantenha suas informações profissionais atualizadas para se candidatar com confiança.</p>
-        </div>
-    </header>
+<div class="container profile-layout candidate-profile-page">
+    <PageHeader Title="Meu perfil" Description="Mantenha suas informações profissionais atualizadas para se candidatar com confiança." />
 
     @if (_isLoading)
     {
         <div class="skeleton-stack" role="status" aria-live="polite" data-testid="loading-state">
-            <span class="visually-hidden">Carregando seu perfil...</span>
+            <span class="visually-hidden">Carregando seu perfil…</span>
             <SkeletonCard ShowFooter="false" />
             <SkeletonCard ShowFooter="false" />
         </div>
@@ -38,7 +32,7 @@
     else if (_candidate != null)
     {
         <div class="profile-identity">
-            <span class="profile-identity__avatar" aria-hidden="true">@Initials(_candidate.Name)</span>
+            <span class="profile-identity__avatar" aria-hidden="true">@ClaimsExtensions.Initials(_candidate.Name ?? string.Empty)</span>
             <div>
                 <strong>@_candidate.Name</strong>
                 <span class="text-muted d-block small">@_candidate.Email</span>
@@ -51,7 +45,7 @@
                 <p class="text-muted small"><Icon Name="shield" Size="14" /> Seu e-mail e telefone são compartilhados com a empresa quando você se candidata a uma vaga.</p>
                         <EditForm Model="_editModel" OnValidSubmit="HandleSaveAsync" Context="form">
                             <UnsavedChangesGuard HasChanges="() => form.IsModified() && !_isSaving" />
-                            <p class="form-text">Campos com * são obrigatórios.</p>
+                            <p class="form-required-note">Campos com * são obrigatórios.</p>
                             <DataAnnotationsValidator />
                             <ServerValidationErrors @ref="_serverErrors" />
                             <div class="form-grid">
@@ -88,11 +82,11 @@
 
                             </div>
                             <div class="form-actions">
-                                <button type="submit" class="btn btn-primary" disabled="@_isSaving">
+                                <button type="submit" class="btn btn-primary" disabled="@_isSaving" aria-busy="@(_isSaving ? "true" : null)">
                                     @if (_isSaving)
                                     {
-                                        <span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>
-                                        <span>Salvando...</span>
+                                        <span class="spinner-border spinner-border-sm" aria-hidden="true"></span>
+                                        <span>Salvando…</span>
                                     }
                                     else
                                     {
@@ -118,7 +112,7 @@
                 </div>
                 <div class="settings-group">
                     <h3>Conta</h3>
-                    <p class="small"><span class="badge @(GetStatusBadgeClass())">@UiLabels.AccountStatus(_candidate.Status)</span>
+                    <p class="small"><StatusBadge Text="@UiLabels.AccountStatus(_candidate.Status)" Tone="@UiLabels.AccountStatusTone(_candidate.Status)" />
                         <span class="text-muted"> desde @UiLabels.FormatMomentDate(_candidate.CreatedAt)</span></p>
                     <a class="btn btn-outline-secondary btn-sm" href="/address/list">Meu endereço</a>
                     <a class="btn btn-outline-secondary btn-sm" href="/Account/Manage">Senha e segurança</a>
@@ -128,19 +122,13 @@
     }
     else
     {
-        <EmptyState Icon="!" Title="Perfil de candidato não encontrado" Message="Esta área é exclusiva para contas de candidato.">
+        <EmptyState Icon="alert" Title="Perfil de candidato não encontrado" Message="Esta área é exclusiva para contas de candidato.">
             <a class="btn btn-primary" href="/dashboard">Voltar ao início</a>
         </EmptyState>
     }
 </div>
 
 @code {
-    private static string Initials(string? name) =>
-        string.IsNullOrWhiteSpace(name)
-            ? "?"
-            : string.Concat(name.Split(' ', StringSplitOptions.RemoveEmptyEntries)
-                .Where(w => w.Length > 0).Take(2).Select(w => char.ToUpper(w[0])));
-
     private Monburan.Core.Entities.Candidate? _candidate;
     private Monburan.Core.DTOs.Response.ResumeResponse? _mainResume;
     private EditModel _editModel = new();
@@ -259,17 +247,6 @@
             _editModel = NewEditModel(_candidate);
             _serverErrors.Clear();
         }
-    }
-
-    private string GetStatusBadgeClass()
-    {
-        return _candidate?.Status switch
-        {
-            Monburan.Core.Enums.EAccountStatus.Active => "bg-success",
-            Monburan.Core.Enums.EAccountStatus.Incomplete => "bg-warning",
-            Monburan.Core.Enums.EAccountStatus.Blocked => "bg-danger",
-            _ => "bg-secondary"
-        };
     }
 
     private class EditModel

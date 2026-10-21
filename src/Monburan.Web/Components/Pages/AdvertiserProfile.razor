@@ -11,18 +11,12 @@
 
 <PageTitle>Perfil da empresa - Monburan</PageTitle>
 
-<div class="container mt-4 profile-layout advertiser-profile-page">
-    <header class="page-heading">
-        <div class="page-heading__copy">
-            <span class="page-kicker">ÁREA DA EMPRESA</span>
-            <h1>Perfil da empresa</h1>
-            <p>Apresente sua organização para atrair profissionais alinhados à oportunidade.</p>
-        </div>
-    </header>
+<div class="container profile-layout advertiser-profile-page">
+    <PageHeader Title="Perfil da empresa" Description="Apresente sua organização para atrair profissionais alinhados à oportunidade." />
 
     @if (_isLoading)
     {
-        <LoadingState Message="Carregando o perfil da empresa..." />
+        <LoadingState Message="Carregando o perfil da empresa…" />
     }
     else if (_loadFailed)
     {
@@ -38,7 +32,7 @@
                     <div>
                         <EditForm Model="_editModel" OnValidSubmit="HandleSaveAsync" Context="form">
                             <UnsavedChangesGuard HasChanges="() => form.IsModified() && !_isSaving" />
-                            <p class="form-text">Campos com * são obrigatórios.</p>
+                            <p class="form-required-note">Campos com * são obrigatórios.</p>
                             <div class="form-grid">
                             <DataAnnotationsValidator />
                             <ServerValidationErrors @ref="_serverErrors" />
@@ -70,15 +64,15 @@
                             <div class="mb-3">
                                 <label class="form-label" for="_editModel.PersonType">Tipo de pessoa *</label>
                                 <InputSelect @bind-Value="_editModel.PersonType" class="form-select" id="_editModel.PersonType">
-                                    <option value="@Monburan.Core.Enums.EPersonType.Individual">Pessoa Física</option>
-                                    <option value="@Monburan.Core.Enums.EPersonType.Company">Pessoa Jurídica</option>
+                                    <option value="@Monburan.Core.Enums.EPersonType.Individual">Pessoa física</option>
+                                    <option value="@Monburan.Core.Enums.EPersonType.Company">Pessoa jurídica</option>
                                 </InputSelect>
                                 <ValidationMessage For="@(() => _editModel.PersonType)" />
                             </div>
 
                             <div class="mb-3 col-span-2">
                                 <label class="form-label" for="_editModel.CompanyDescription">Descrição da empresa</label>
-                                <InputTextArea @bind-Value="_editModel.CompanyDescription" class="form-control" id="_editModel.CompanyDescription" rows="4" placeholder="Descreva sua empresa, cultura e benefícios..." />
+                                <InputTextArea @bind-Value="_editModel.CompanyDescription" class="form-control" id="_editModel.CompanyDescription" rows="4" placeholder="Descreva sua empresa, cultura e benefícios" />
                                 <ValidationMessage class="text-danger" For="@(() => _editModel.CompanyDescription)" />
                             </div>
 
@@ -103,11 +97,11 @@
 
                             </div>
                             <div class="form-actions">
-                                <button type="submit" class="btn btn-primary" disabled="@_isSaving">
+                                <button type="submit" class="btn btn-primary" disabled="@_isSaving" aria-busy="@(_isSaving ? "true" : null)">
                                     @if (_isSaving)
                                     {
-                                        <span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>
-                                        <span>Salvando...</span>
+                                        <span class="spinner-border spinner-border-sm" aria-hidden="true"></span>
+                                        <span>Salvando…</span>
                                     }
                                     else
                                     {
@@ -123,11 +117,10 @@
             <aside class="settings-aside" aria-label="Informações da conta">
                 <div class="settings-group">
                     <h3>Conta</h3>
-                    <p class="small"><span class="badge @(GetStatusBadgeClass())">@UiLabels.AccountStatus(_advertiser.Status)</span></p>
-                    <p class="small">Plano: <a class="badge bg-info" href="/my-subscription">@UiLabels.PlanName(_advertiser.ActivePlan)</a></p>
+                    <p class="small">Situação: <StatusBadge Text="@UiLabels.AccountStatus(_advertiser.Status)" Tone="@UiLabels.AccountStatusTone(_advertiser.Status)" /></p>
+                    <p class="small">Plano: <a href="/my-subscription">@UiLabels.PlanName(_advertiser.ActivePlan)</a></p>
                     <p class="small">E-mail verificado:
-                        @if (_advertiser.IsEmailVerified) { <span class="badge bg-success">Sim</span> }
-                        else { <span class="badge bg-warning">Não</span> }
+                        <StatusBadge Text="@(_advertiser.IsEmailVerified ? "Sim" : "Não")" Tone="@(_advertiser.IsEmailVerified ? StatusTone.Ok : StatusTone.Warn)" />
                     </p>
                     <p class="small text-muted">Desde @UiLabels.FormatMomentDate(_advertiser.CreatedAt)</p>
                 </div>
@@ -144,7 +137,7 @@
     }
     else
     {
-        <EmptyState Icon="!" Title="Perfil de empresa não encontrado" Message="Esta área é exclusiva para contas de empresa.">
+        <EmptyState Icon="alert" Title="Perfil de empresa não encontrado" Message="Esta área é exclusiva para contas de empresa.">
             <a class="btn btn-primary" href="/dashboard">Voltar ao início</a>
         </EmptyState>
     }
@@ -271,17 +264,6 @@
             };
             _serverErrors.Clear();
         }
-    }
-
-    private string GetStatusBadgeClass()
-    {
-        return _advertiser?.Status switch
-        {
-            Monburan.Core.Enums.EAdvertiserStatus.Active => "bg-success",
-            Monburan.Core.Enums.EAdvertiserStatus.Incomplete => "bg-warning",
-            Monburan.Core.Enums.EAdvertiserStatus.Blocked => "bg-danger",
-            _ => "bg-secondary"
-        };
     }
 
     private void NavigateToJobs()

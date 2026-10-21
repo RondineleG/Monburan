@@ -7,47 +7,45 @@
 @using Monburan.Core.UseCases.Candidates
 @inject ListCandidatesUseCase ListCandidatesUseCase
 @inject DeleteCandidateUseCase DeleteCandidateUseCase
+@inject NavigationManager Navigation
 @inject IToastService Toast
 @inject ILogger<CandidatesList> Logger
 
 <PageTitle>Candidatos - Administração - Monburan</PageTitle>
 
-<div class="container mt-4 admin-list-page">
-    <header class="page-heading">
-        <div class="page-heading__copy">
-            <span class="page-kicker">ADMINISTRAÇÃO</span>
-            <h1>Candidatos</h1>
-            <p>Consulte perfis, situação da conta e atividade na plataforma.</p>
-        </div>
-    </header>
+@* Mesmo desenho de AdvertisersList: mantenha as duas telas iguais.
+   Os filtros e a página ficam no endereço (?busca=&situacao=&pagina=): Voltar e recarregar reproduzem a lista. *@
+<div class="container admin-list-page">
+    <PageHeader Title="Candidatos" Description="Consulte perfis, situação da conta e atividade na plataforma." />
 
-    <div class="card mb-4">
-        <div class="card-body">
-            <div class="row g-3">
-                <div class="col-md-6">
-                    <label class="form-label" for="candidate-search">Buscar</label>
-                    <input id="candidate-search" type="text" class="form-control" @bind="searchTerm" @onkeydown="OnSearchKeyDown" placeholder="Nome, e-mail ou telefone..." />
-                </div>
-                <div class="col-md-3">
-                    <label class="form-label" for="status-filter">Situação</label>
-                    @* Valores de EAccountStatus — opções inexistentes eram ignoradas pelo filtro *@
-                    <select id="status-filter" class="form-select" @bind="statusFilter">
-                        <option value="">Todas</option>
-                        <option value="Active">Ativa</option>
-                        <option value="Incomplete">Cadastro incompleto</option>
-                        <option value="Blocked">Bloqueada</option>
-                    </select>
-                </div>
-                <div class="col-md-3 d-flex align-items-end">
-                    <button class="btn btn-primary w-100" @onclick="() => LoadAsync(1)" disabled="@isLoading">Aplicar filtros <span aria-hidden="true">↗</span></button>
-                </div>
-            </div>
+    <div class="admin-filters" role="search" aria-label="Filtrar candidatos">
+        <div>
+            <label class="form-label" for="candidate-search">Buscar</label>
+            <input id="candidate-search" type="text" class="form-control" @bind="searchTerm" @bind:event="oninput" @onkeydown="OnSearchKeyDown"
+                   placeholder="Nome, e-mail ou telefone" enterkeyhint="search" autocomplete="off" data-testid="candidates-search" />
+        </div>
+        <div>
+            <label class="form-label" for="status-filter">Situação</label>
+            @* Valores de EAccountStatus — opções inexistentes eram ignoradas pelo filtro *@
+            <select id="status-filter" class="form-select" @bind="statusFilter" @bind:after="ApplyFiltersAsync" data-testid="candidates-status">
+                <option value="">Todas</option>
+                <option value="Active">Ativa</option>
+                <option value="Incomplete">Cadastro incompleto</option>
+                <option value="Blocked">Bloqueada</option>
+            </select>
+        </div>
+        <div class="d-flex flex-wrap gap-2">
+            <button type="button" class="btn btn-outline-secondary" @onclick="ApplyFiltersAsync" disabled="@isLoading" data-testid="candidates-apply">Buscar</button>
+            @if (IsFiltered)
+            {
+                <button type="button" class="btn btn-outline-secondary" @onclick="ClearFiltersAsync" data-testid="candidates-clear">Limpar filtros</button>
+            }
         </div>
     </div>
 
-    @if (isLoading)
+    @if (isLoading && listResponse is null)
     {
-        <LoadingState Message="Carregando candidatos..." />
+        <LoadingState Message="Carregando candidatos…" />
     }
     else if (loadFailed)
     {
@@ -57,14 +55,23 @@
     }
     else if (listResponse is null || !listResponse.Items.Any())
     {
-        <EmptyState Icon="☰" Title="Nenhum candidato encontrado" Message="Ajuste a busca ou os filtros." />
+        if (IsFiltered)
+        {
+            <EmptyState Icon="search" Title="Nenhum resultado para estes filtros" Message="Tente outra busca ou mude a situação." TestId="candidates-empty">
+                <button type="button" class="btn btn-outline-secondary" @onclick="ClearFiltersAsync">Limpar filtros</button>
+            </EmptyState>
+        }
+        else
+        {
+            <EmptyState Icon="users" Title="Nenhum candidato cadastrado" Message="Os candidatos aparecem aqui assim que criam a conta." TestId="candidates-empty" />
+        }
     }
     else
     {
-        <div class="card">
+        <div class="card" aria-busy="@(isLoading ? "true" : null)">
             <div class="card-body p-0">
                 <div class="table-responsive">
-                    <table class="table table-hover table-striped table-cards mb-0">
+                    <table class="table table-striped table-cards mb-0" data-testid="candidates-table">
                         <caption class="visually-hidden">Candidatos cadastrados</caption>
                         <thead>
                             <tr>
@@ -72,35 +79,28 @@
                                 <th scope="col">E-mail</th>
                                 <th scope="col">Situação</th>
                                 <th scope="col">Cidade/UF</th>
-                                <th scope="col">Currículos</th>
-                                <th scope="col">Candidaturas</th>
+                                <th scope="col" class="text-center">Currículos</th>
+                                <th scope="col" class="text-center">Candidaturas</th>
                                 <th scope="col">Cadastro</th>
-                                <th scope="col" class="text-center">Ações</th>
+                                <th scope="col">Ações</th>
                             </tr>
                         </thead>
                         <tbody>
                             @foreach (var candidate in listResponse.Items)
                             {
-                                <tr>
-                                    <td data-label="Nome">@candidate.Name</td>
+                                <tr data-testid="candidate-row">
+                                    <td data-label="Nome"><strong>@candidate.Name</strong></td>
                                     <td data-label="E-mail">@candidate.Email</td>
-                                    <td data-label="Situação"><span class="badge @StatusBadge(candidate.Status)">@StatusLabel(candidate.Status)</span></td>
-                                    <td data-label="Cidade/UF">
-                                        @if (!string.IsNullOrEmpty(candidate.City))
-                                        {
-                                            @candidate.City@(string.IsNullOrEmpty(candidate.State) ? "" : $" / {candidate.State}")
-                                        }
-                                        else
-                                        {
-                                            <span class="text-muted">—</span>
-                                        }
-                                    </td>
+                                    <td data-label="Situação"><StatusBadge Text="@StatusLabel(candidate.Status)" Tone="@StatusToneFor(candidate.Status)" /></td>
+                                    <td data-label="Cidade/UF">@Place(candidate.City, candidate.State)</td>
                                     <td data-label="Currículos" class="text-center">@candidate.ResumesCount</td>
                                     <td data-label="Candidaturas" class="text-center">@candidate.ApplicationsCount</td>
                                     <td data-label="Cadastro">@UiLabels.FormatMomentDate(candidate.CreatedAt)</td>
-                                    <td data-label="Ações" class="text-center">
-                                        <button type="button" class="btn btn-sm btn-outline-danger" @onclick="() => DeleteAsync(candidate)" disabled="@(deletingId == candidate.Id)" aria-label="Excluir o candidato @candidate.Name">
-                                            @(deletingId == candidate.Id ? "Excluindo..." : "Excluir")
+                                    <td data-label="Ações">
+                                        <button type="button" class="btn btn-sm btn-outline-danger" @onclick="() => DeleteAsync(candidate)"
+                                                disabled="@(deletingId == candidate.Id)" aria-busy="@(deletingId == candidate.Id ? "true" : null)"
+                                                aria-label="Excluir o candidato @candidate.Name">
+                                            @(deletingId == candidate.Id ? "Excluindo…" : "Excluir")
                                         </button>
                                     </td>
                                 </tr>
@@ -111,40 +111,78 @@
             </div>
         </div>
 
-        <Pager Page="listResponse.Page" TotalPages="listResponse.TotalPages" OnPageChanged="LoadAsync" AriaLabel="Paginação de candidatos" />
-
-        <div class="text-muted text-center mt-3">
-            Mostrando @listResponse.Items.Count() de @listResponse.TotalCount candidatos
-        </div>
+        <Pager Page="listResponse.Page" TotalPages="listResponse.TotalPages" OnPageChanged="GoToPageAsync"
+               Total="listResponse.TotalCount" PageSize="PageSize" ItemName="@(listResponse.TotalCount == 1 ? "candidato" : "candidatos")"
+               AriaLabel="Paginação de candidatos" />
     }
 </div>
 
 <ConfirmDialog @ref="confirmDialog" />
 
 @code {
+    private const int PageSize = 20;
+
+    private static readonly string[] StatusValues = ["Active", "Incomplete", "Blocked"];
+
+    [SupplyParameterFromQuery(Name = "busca")]
+    private string? SearchQuery { get; set; }
+
+    [SupplyParameterFromQuery(Name = "situacao")]
+    private string? StatusQuery { get; set; }
+
+    [SupplyParameterFromQuery(Name = "pagina")]
+    private int? PageQuery { get; set; }
+
     private string searchTerm = string.Empty;
     private string statusFilter = string.Empty;
     private ListCandidatesResponse? listResponse;
     private bool isLoading = true;
     private bool loadFailed;
     private int currentPage = 1;
+    private int loadVersion;
     private Guid? deletingId;
     private ConfirmDialog confirmDialog = default!;
 
-    protected override Task OnInitializedAsync() => LoadAsync(1);
+    // Filtros que já estão no endereço: quando o endereço muda por fora (Voltar/Avançar), a lista recarrega
+    private string? appliedQuery;
+
+    private bool IsFiltered => !string.IsNullOrWhiteSpace(searchTerm) || statusFilter.Length > 0;
+
+    private string StateKey => $"{searchTerm}\n{statusFilter}\n{currentPage}";
+
+    protected override async Task OnParametersSetAsync()
+    {
+        var search = (SearchQuery ?? string.Empty).Trim();
+        var status = StatusQuery is not null && StatusValues.Contains(StatusQuery) ? StatusQuery : string.Empty;
+        var page = Math.Max(1, PageQuery ?? 1);
+
+        var key = $"{search}\n{status}\n{page}";
+        if (key == appliedQuery)
+            return;
+
+        appliedQuery = key;
+        searchTerm = search;
+        statusFilter = status;
+        await LoadAsync(page);
+    }
 
     private async Task LoadAsync(int page)
     {
+        // Filtros trocados em sequência: só a última busca vale
+        var version = ++loadVersion;
         isLoading = true;
         loadFailed = false;
 
         var result = await ListCandidatesUseCase.ExecuteAsync(new ListCandidatesRequest
         {
             Page = page,
-            Size = 20,
+            Size = PageSize,
             SearchTerm = searchTerm,
             Status = statusFilter
         });
+
+        if (version != loadVersion)
+            return;
 
         if (result.Status == EResultStatus.Success)
         {
@@ -163,7 +201,39 @@
     private async Task OnSearchKeyDown(KeyboardEventArgs e)
     {
         if (e.Key == "Enter")
-            await LoadAsync(1);
+            await ApplyFiltersAsync();
+    }
+
+    private Task ApplyFiltersAsync() => GoToPageAsync(1);
+
+    private Task ClearFiltersAsync()
+    {
+        searchTerm = string.Empty;
+        statusFilter = string.Empty;
+        return GoToPageAsync(1);
+    }
+
+    private async Task GoToPageAsync(int page)
+    {
+        searchTerm = searchTerm.Trim();
+        currentPage = page;
+        SyncUrl();
+        await LoadAsync(page);
+    }
+
+    // Leva os filtros para o endereço (entrada nova no histórico); a recarga é feita aqui mesmo
+    private void SyncUrl()
+    {
+        appliedQuery = StateKey;
+        var uri = Navigation.GetUriWithQueryParameters(new Dictionary<string, object?>
+        {
+            ["busca"] = searchTerm.Length > 0 ? searchTerm : null,
+            ["situacao"] = statusFilter.Length > 0 ? statusFilter : null,
+            ["pagina"] = currentPage > 1 ? currentPage : null
+        });
+
+        if (uri != Navigation.Uri)
+            Navigation.NavigateTo(uri, replace: false);
     }
 
     private async Task DeleteAsync(CandidateResponse candidate)
@@ -197,11 +267,13 @@
     private static string StatusLabel(string status) =>
         Enum.TryParse<EAccountStatus>(status, out var parsed) ? UiLabels.AccountStatus(parsed) : "Indefinida";
 
-    private static string StatusBadge(string status) => status switch
+    private static StatusTone StatusToneFor(string status) =>
+        Enum.TryParse<EAccountStatus>(status, out var parsed) ? UiLabels.AccountStatusTone(parsed) : StatusTone.Neutral;
+
+    private static string Place(string? city, string? state)
     {
-        "Active" => "bg-success",
-        "Incomplete" => "bg-warning",
-        "Blocked" => "bg-danger",
-        _ => "bg-secondary"
-    };
+        if (string.IsNullOrWhiteSpace(city))
+            return "Não informada";
+        return string.IsNullOrWhiteSpace(state) ? city : $"{city} / {state}";
+    }
 }

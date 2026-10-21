@@ -17,22 +17,17 @@
 
 <PageTitle>Importar currículo - Monburan</PageTitle>
 
-<div class="container mt-4 page-form-shell upload-page">
-    <header class="page-heading">
-        <div class="page-heading__copy">
-            <span class="page-kicker">MINHA CARREIRA</span>
-            <h1>Importar currículo em PDF</h1>
-            <p>Nós lemos o seu PDF, preenchemos as seções do currículo e depois você revisa e completa o que faltar.</p>
-        </div>
-        <a class="btn btn-secondary" href="/resumes">Voltar</a>
-    </header>
+<div class="container page-form-shell upload-page">
+    <PageHeader Title="Importar currículo em PDF"
+                Description="Nós lemos o seu PDF, preenchemos as seções do currículo e depois você revisa e completa o que faltar."
+                BackHref="/resumes" BackText="Meus currículos" />
     <div class="row">
         <div class="col-lg-6 mx-auto">
 
             @if (!string.IsNullOrEmpty(errorMessage))
             {
                 <div class="alert alert-danger" role="alert">
-                    <Icon Name="alert" Size="16" /> @errorMessage
+                    <Icon Name="alert" Size="16" />@errorMessage
                 </div>
             }
 
@@ -40,9 +35,9 @@
                 <div class="card-body">
                     <div class="mb-3">
                         <label class="form-label" for="resume-file">Selecione o currículo em PDF</label>
-                        <InputFile id="resume-file" class="form-control" OnChange="OnFileSelected" accept="application/pdf" />
-                        <div class="form-text">
-                            Formato aceito: PDF | Tamanho máximo: 10MB
+                        <InputFile id="resume-file" class="form-control" OnChange="OnFileSelected" accept="application/pdf" aria-describedby="resume-file-hint" />
+                        <div class="form-text" id="resume-file-hint">
+                            Formato aceito: PDF. Tamanho máximo: 10 MB.
                         </div>
                     </div>
 
@@ -66,19 +61,38 @@
                             <a href="/privacy" target="_blank" rel="noopener">Como tratamos seus dados<span class="visually-hidden"> (abre em nova aba)</span></a>.
                         </p>
                         <div class="d-grid gap-2 d-sm-flex">
-                            <button type="button" class="btn btn-primary" @onclick="() => UploadResumeAsync(true)" disabled="@(!isFileSelected || isUploading)" aria-describedby="resume-import-ai-note" data-testid="resume-import-ai">
-                                @(isUploading ? "Lendo o PDF..." : "Importar com IA")
+                            <button type="button" class="btn btn-primary" @onclick="() => UploadResumeAsync(true)" disabled="@(!isFileSelected || isUploading)"
+                                    aria-busy="@(isUploading ? "true" : null)" aria-describedby="resume-import-ai-note" data-testid="resume-import-ai">
+                                @if (isUploading)
+                                {
+                                    <span class="spinner-border spinner-border-sm" aria-hidden="true"></span>
+                                    <span>Lendo o PDF…</span>
+                                }
+                                else
+                                {
+                                    <Icon Name="sparkles" Size="16" /><span>Importar com IA</span>
+                                }
                             </button>
-                            <button type="button" class="btn btn-outline-primary" @onclick="() => UploadResumeAsync(false)" disabled="@(!isFileSelected || isUploading)" data-testid="resume-import-local">
-                                @(isUploading ? "Lendo o PDF..." : "Importar sem IA")
+                            <button type="button" class="btn btn-outline-secondary" @onclick="() => UploadResumeAsync(false)" disabled="@(!isFileSelected || isUploading)"
+                                    aria-busy="@(isUploading ? "true" : null)" data-testid="resume-import-local">
+                                @(isUploading ? "Lendo o PDF…" : "Importar sem IA")
                             </button>
                         </div>
                     }
                     else
                     {
                         <div class="d-grid gap-2">
-                            <button type="button" class="btn btn-primary btn-lg" @onclick="() => UploadResumeAsync(false)" disabled="@(!isFileSelected || isUploading)">
-                                @(isUploading ? "Lendo o PDF..." : "Importar currículo")
+                            <button type="button" class="btn btn-primary btn-lg" @onclick="() => UploadResumeAsync(false)" disabled="@(!isFileSelected || isUploading)"
+                                    aria-busy="@(isUploading ? "true" : null)" data-testid="resume-import-submit">
+                                @if (isUploading)
+                                {
+                                    <span class="spinner-border spinner-border-sm" aria-hidden="true"></span>
+                                    <span>Lendo o PDF…</span>
+                                }
+                                else
+                                {
+                                    <Icon Name="upload" Size="16" /><span>Importar currículo</span>
+                                }
                             </button>
                         </div>
                     }

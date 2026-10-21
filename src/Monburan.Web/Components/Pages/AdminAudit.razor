@@ -6,56 +6,54 @@
 @using Monburan.Core.Interfaces.Services
 @using Monburan.Core.Services
 @inject IAdminAuditLog AuditLog
+@inject NavigationManager Navigation
 @inject ILogger<AdminAudit> Logger
 
 <PageTitle>Auditoria - Monburan</PageTitle>
 
-<div class="container mt-4 admin-list-page">
-    <header class="page-heading">
-        <div class="page-heading__copy">
-            <span class="page-kicker">ADMINISTRAÇÃO</span>
-            <h1>Auditoria</h1>
-            <p>Quem fez o quê e quando nas áreas de administração. Os registros só se acrescentam: nada aqui é editado nem apagado.</p>
-        </div>
-    </header>
+@* Os filtros e a página ficam no endereço (?busca=&acao=&alvo=&pagina=): Voltar e recarregar reproduzem a lista. *@
+<div class="container admin-list-page">
+    <PageHeader Title="Auditoria"
+                Description="Quem fez o quê e quando nas áreas de administração. Os registros só se acrescentam: nada aqui é editado nem apagado." />
 
-    <div class="card mb-4">
-        <div class="card-body">
-            <div class="row g-3">
-                <div class="col-md-4">
-                    <label class="form-label" for="audit-search">Buscar</label>
-                    <input id="audit-search" type="text" class="form-control" @bind="searchTerm" @onkeydown="OnSearchKeyDown" placeholder="Quem fez, alvo ou motivo..." data-testid="audit-search" />
-                </div>
-                <div class="col-md-3">
-                    <label class="form-label" for="audit-action">Ação</label>
-                    <select id="audit-action" class="form-select" @bind="actionFilter" data-testid="audit-action">
-                        <option value="">Todas</option>
-                        @foreach (var action in AdminAuditActions.All)
-                        {
-                            <option value="@action">@AdminAuditActions.Label(action)</option>
-                        }
-                    </select>
-                </div>
-                <div class="col-md-3">
-                    <label class="form-label" for="audit-target">Alvo</label>
-                    <select id="audit-target" class="form-select" @bind="targetFilter" data-testid="audit-target">
-                        <option value="">Todos</option>
-                        @foreach (var target in AdminAuditActions.Targets)
-                        {
-                            <option value="@target">@AdminAuditActions.TargetLabel(target)</option>
-                        }
-                    </select>
-                </div>
-                <div class="col-md-2 d-flex align-items-end">
-                    <button type="button" class="btn btn-primary w-100" @onclick="() => LoadAsync(1)" disabled="@isLoading" data-testid="audit-apply">Filtrar</button>
-                </div>
-            </div>
+    <div class="admin-filters" role="search" aria-label="Filtrar registros">
+        <div>
+            <label class="form-label" for="audit-search">Buscar</label>
+            <input id="audit-search" type="text" class="form-control" @bind="searchTerm" @bind:event="oninput" @onkeydown="OnSearchKeyDown"
+                   placeholder="Quem fez, alvo ou motivo" enterkeyhint="search" autocomplete="off" data-testid="audit-search" />
+        </div>
+        <div>
+            <label class="form-label" for="audit-action">Ação</label>
+            <select id="audit-action" class="form-select" @bind="actionFilter" @bind:after="ApplyFiltersAsync" data-testid="audit-action">
+                <option value="">Todas</option>
+                @foreach (var action in AdminAuditActions.All)
+                {
+                    <option value="@action">@AdminAuditActions.Label(action)</option>
+                }
+            </select>
+        </div>
+        <div>
+            <label class="form-label" for="audit-target">Alvo</label>
+            <select id="audit-target" class="form-select" @bind="targetFilter" @bind:after="ApplyFiltersAsync" data-testid="audit-target">
+                <option value="">Todos</option>
+                @foreach (var target in AdminAuditActions.Targets)
+                {
+                    <option value="@target">@AdminAuditActions.TargetLabel(target)</option>
+                }
+            </select>
+        </div>
+        <div class="d-flex flex-wrap gap-2">
+            <button type="button" class="btn btn-outline-secondary" @onclick="ApplyFiltersAsync" disabled="@isLoading" data-testid="audit-apply">Buscar</button>
+            @if (IsFiltered)
+            {
+                <button type="button" class="btn btn-outline-secondary" @onclick="ClearFiltersAsync" data-testid="audit-clear">Limpar filtros</button>
+            }
         </div>
     </div>
 
-    @if (isLoading)
+    @if (isLoading && entries is null)
     {
-        <LoadingState Message="Carregando registros..." />
+        <LoadingState Message="Carregando registros…" />
     }
     else if (loadFailed)
     {
@@ -65,20 +63,29 @@
     }
     else if (entries is null || !entries.Data.Any())
     {
-        <EmptyState Icon="◷" Title="Nenhum registro encontrado" Message="Ajuste a busca ou os filtros." TestId="audit-empty" />
+        if (IsFiltered)
+        {
+            <EmptyState Icon="search" Title="Nenhum resultado para estes filtros" Message="Tente outra busca ou mude a ação e o alvo." TestId="audit-empty">
+                <button type="button" class="btn btn-outline-secondary" @onclick="ClearFiltersAsync">Limpar filtros</button>
+            </EmptyState>
+        }
+        else
+        {
+            <EmptyState Icon="clock" Title="Nenhum registro ainda" Message="Cada ação feita na administração aparece aqui." TestId="audit-empty" />
+        }
     }
     else
     {
-        <div class="card">
+        <div class="card" aria-busy="@(isLoading ? "true" : null)">
             <div class="card-body p-0">
                 <div class="table-responsive">
-                    <table class="table table-hover table-striped table-cards mb-0" data-testid="audit-table">
+                    <table class="table table-striped table-cards mb-0" data-testid="audit-table">
                         <caption class="visually-hidden">Ações de administração registradas</caption>
                         <thead>
                             <tr>
+                                <th scope="col">Ação</th>
                                 <th scope="col">Quando</th>
                                 <th scope="col">Quem</th>
-                                <th scope="col">Ação</th>
                                 <th scope="col">Alvo</th>
                                 <th scope="col">Detalhes</th>
                             </tr>
@@ -87,14 +94,14 @@
                             @foreach (var entry in entries.Data)
                             {
                                 <tr data-testid="audit-row" data-action="@entry.Action">
+                                    <td data-label="Ação"><strong>@AdminAuditActions.Label(entry.Action)</strong></td>
                                     <td data-label="Quando" class="text-nowrap">@UiLabels.FormatMoment(entry.CreatedAt)</td>
                                     <td data-label="Quem">@entry.ActorEmail</td>
-                                    <td data-label="Ação">@AdminAuditActions.Label(entry.Action)</td>
                                     <td data-label="Alvo">
                                         <span class="text-muted">@AdminAuditActions.TargetLabel(entry.TargetType):</span>
                                         @entry.TargetLabel
                                     </td>
-                                    <td data-label="Detalhes">@(string.IsNullOrWhiteSpace(entry.Details) ? "—" : entry.Details)</td>
+                                    <td data-label="Detalhes">@(string.IsNullOrWhiteSpace(entry.Details) ? "Sem detalhes" : entry.Details)</td>
                                 </tr>
                             }
                         </tbody>
@@ -103,14 +110,26 @@
             </div>
         </div>
 
-        <Pager Page="entries.Page" TotalPages="entries.TotalPages" OnPageChanged="LoadAsync" AriaLabel="Paginação da auditoria" />
-
-        <div class="text-muted text-center mt-3">Mostrando @entries.Data.Count() de @entries.TotalCount registros nesta página</div>
+        <Pager Page="entries.Page" TotalPages="entries.TotalPages" OnPageChanged="GoToPageAsync"
+               Total="entries.TotalCount" PageSize="PageSize" ItemName="@(entries.TotalCount == 1 ? "registro" : "registros")"
+               AriaLabel="Paginação da auditoria" />
     }
 </div>
 
 @code {
     private const int PageSize = 25;
+
+    [SupplyParameterFromQuery(Name = "busca")]
+    private string? SearchQuery { get; set; }
+
+    [SupplyParameterFromQuery(Name = "acao")]
+    private string? ActionQuery { get; set; }
+
+    [SupplyParameterFromQuery(Name = "alvo")]
+    private string? TargetQuery { get; set; }
+
+    [SupplyParameterFromQuery(Name = "pagina")]
+    private int? PageQuery { get; set; }
 
     private PagedResponse<AdminAuditEntry>? entries;
     private string searchTerm = string.Empty;
@@ -119,28 +138,93 @@
     private int currentPage = 1;
     private bool isLoading = true;
     private bool loadFailed;
+    private int loadVersion;
 
-    protected override Task OnInitializedAsync() => LoadAsync(1);
+    // Filtros que já estão no endereço: quando o endereço muda por fora (Voltar/Avançar), a lista recarrega
+    private string? appliedQuery;
+
+    private bool IsFiltered => !string.IsNullOrWhiteSpace(searchTerm) || actionFilter.Length > 0 || targetFilter.Length > 0;
+
+    private string StateKey => $"{searchTerm}\n{actionFilter}\n{targetFilter}\n{currentPage}";
+
+    protected override async Task OnParametersSetAsync()
+    {
+        var search = (SearchQuery ?? string.Empty).Trim();
+        var action = ActionQuery is not null && AdminAuditActions.All.Contains(ActionQuery) ? ActionQuery : string.Empty;
+        var target = TargetQuery is not null && AdminAuditActions.Targets.Contains(TargetQuery) ? TargetQuery : string.Empty;
+        var page = Math.Max(1, PageQuery ?? 1);
+
+        var key = $"{search}\n{action}\n{target}\n{page}";
+        if (key == appliedQuery)
+            return;
+
+        appliedQuery = key;
+        searchTerm = search;
+        actionFilter = action;
+        targetFilter = target;
+        await LoadAsync(page);
+    }
 
     private async Task OnSearchKeyDown(KeyboardEventArgs args)
     {
         if (args.Key == "Enter")
-            await LoadAsync(1);
+            await ApplyFiltersAsync();
+    }
+
+    private Task ApplyFiltersAsync() => GoToPageAsync(1);
+
+    private Task ClearFiltersAsync()
+    {
+        searchTerm = string.Empty;
+        actionFilter = string.Empty;
+        targetFilter = string.Empty;
+        return GoToPageAsync(1);
+    }
+
+    private async Task GoToPageAsync(int page)
+    {
+        searchTerm = searchTerm.Trim();
+        currentPage = page;
+        SyncUrl();
+        await LoadAsync(page);
+    }
+
+    // Leva os filtros para o endereço (entrada nova no histórico); a recarga é feita aqui mesmo
+    private void SyncUrl()
+    {
+        appliedQuery = StateKey;
+        var uri = Navigation.GetUriWithQueryParameters(new Dictionary<string, object?>
+        {
+            ["busca"] = searchTerm.Length > 0 ? searchTerm : null,
+            ["acao"] = actionFilter.Length > 0 ? actionFilter : null,
+            ["alvo"] = targetFilter.Length > 0 ? targetFilter : null,
+            ["pagina"] = currentPage > 1 ? currentPage : null
+        });
+
+        if (uri != Navigation.Uri)
+            Navigation.NavigateTo(uri, replace: false);
     }
 
     private async Task LoadAsync(int page)
     {
+        // Filtros trocados em sequência: só a última busca vale
+        var version = ++loadVersion;
         isLoading = true;
         loadFailed = false;
         currentPage = page;
 
         try
         {
-            entries = await AuditLog.ListAsync(
+            var loaded = await AuditLog.ListAsync(
                 new AdminAuditFilter(searchTerm, actionFilter, targetFilter), page, PageSize);
+            if (version != loadVersion)
+                return;
+            entries = loaded;
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
+            if (version != loadVersion)
+                return;
             Logger.LogError(exception, "Auditoria: falha ao listar os registros");
             loadFailed = true;
         }

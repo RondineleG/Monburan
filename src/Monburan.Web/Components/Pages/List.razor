@@ -13,19 +13,16 @@
 
 <PageTitle>Endereços - Monburan</PageTitle>
 
-<div class="container mt-4 address-page">
-    <header class="page-heading">
-        <div class="page-heading__copy">
-            <span class="page-kicker">CONFIGURAÇÕES</span>
-            <h1>Endereços</h1>
-            <p>Gerencie os endereços associados à sua conta.</p>
-        </div>
-        <a class="btn btn-primary" href="/address/create">Novo endereço <span aria-hidden="true">＋</span></a>
-    </header>
+<div class="container address-page">
+    <PageHeader Title="Endereços" Description="Gerencie os endereços associados à sua conta.">
+        <Actions>
+            <a class="btn btn-primary" href="/address/create"><Icon Name="plus" Size="16" />Adicionar endereço</a>
+        </Actions>
+    </PageHeader>
 
     @if (isLoading)
     {
-        <LoadingState Message="Carregando endereços..." />
+        <LoadingState Message="Carregando endereços…" />
     }
     else if (loadFailed)
     {
@@ -35,18 +32,16 @@
     }
     else if (Addresses.Count == 0)
     {
-        <section class="empty-state">
-            <span class="empty-state__icon" aria-hidden="true">⌖</span>
-            <h2>Nenhum endereço cadastrado</h2>
-            <p>Adicione um endereço para completar suas informações de perfil.</p>
+        <EmptyState Icon="map-pin" Title="Nenhum endereço cadastrado"
+                    Message="Adicione um endereço para completar suas informações de perfil.">
             <a class="btn btn-primary" href="/address/create">Adicionar endereço</a>
-        </section>
+        </EmptyState>
     }
     else
     {
         <div class="card address-table-card">
             <div class="table-responsive">
-                <table class="table table-hover table-cards">
+                <table class="table table-cards">
                     <caption class="visually-hidden">Seus endereços</caption>
                     <thead>
                         <tr>
@@ -63,7 +58,7 @@
                         @foreach (var address in Addresses)
                         {
                             <tr>
-                                <td data-label="Rua">@address.Street</td>
+                                <td>@address.Street</td>
                                 <td data-label="Número">@address.Number</td>
                                 <td data-label="Bairro">@address.District</td>
                                 <td data-label="Cidade">@address.City</td>
@@ -71,7 +66,7 @@
                                 <td data-label="CEP">@address.ZipCode</td>
                                 <td data-label="Ações">
                                     <div class="btn-group">
-                                        <a class="btn btn-outline-primary btn-sm"
+                                        <a class="btn btn-outline-secondary btn-sm"
                                            href="/address/edit/@address.Id.Value"
                                            aria-label="@($"Editar endereço {address.Street}, {address.Number}")">Editar</a>
                                         <button type="button" class="btn btn-outline-danger btn-sm"

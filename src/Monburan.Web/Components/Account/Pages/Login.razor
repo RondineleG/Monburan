@@ -14,7 +14,6 @@
 
 <div class="auth-form-page">
     <div class="auth-form-heading">
-        <span class="auth-kicker">ENTRAR NA MONBURAN</span>
         <h1>Boas-vindas de volta</h1>
         <p>Entre para acompanhar suas candidaturas e descobrir novas oportunidades.</p>
     </div>
@@ -34,10 +33,10 @@
                     <label for="password" class="form-label">Senha</label>
                     <ValidationMessage For="() => Input.Password" class="text-danger" />
                 </div>
-                <div class="checkbox mb-3">
-                    <label class="form-label">
-                        <InputCheckbox @bind-Value="Input.RememberMe" class="darker-border-checkbox form-check-input" />
-                        Lembrar de mim
+                <div class="mb-3">
+                    <label class="form-check">
+                        <InputCheckbox @bind-Value="Input.RememberMe" class="form-check-input" />
+                        <span class="form-check-label">Lembrar de mim</span>
                     </label>
                 </div>
                 <div>

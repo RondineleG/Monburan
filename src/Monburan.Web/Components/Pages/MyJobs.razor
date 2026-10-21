@@ -18,22 +18,14 @@
 
 <PageTitle>Minhas vagas - Monburan</PageTitle>
 
-<div class="container mt-4 my-jobs-page">
-    <header class="page-heading">
-        <div class="page-heading__copy">
-            <span class="page-kicker">ÁREA DA EMPRESA</span>
-            <h1>Minhas vagas</h1>
-            <p>Gerencie publicações, acompanhe o interesse e avance com os candidatos.</p>
-        </div>
-        <a class="btn btn-primary" href="/jobs/create">
-            Nova vaga <span aria-hidden="true">↗</span>
-        </a>
-    </header>
+<div class="container my-jobs-page">
+    @* "Publicar vaga" fica na barra superior, em todas as telas da empresa *@
+    <PageHeader Title="Minhas vagas" Description="Gerencie publicações, acompanhe o interesse e avance com os candidatos." />
 
     @if (isLoading)
     {
         <div class="skeleton-stack" role="status" aria-live="polite" data-testid="loading-state">
-            <span class="visually-hidden">Carregando suas vagas...</span>
+            <span class="visually-hidden">Carregando suas vagas…</span>
             <div class="skeleton-grid">
                 <SkeletonBlock Height="6.5rem" Radius="var(--r-md)" />
                 <SkeletonBlock Height="6.5rem" Radius="var(--r-md)" />
@@ -71,9 +63,9 @@
             <input type="hidden" name="situacao" value="@Situation" />
             <label class="my-jobs-search__field" for="my-jobs-search">
                 <span class="form-label">Buscar vagas</span>
-                <input type="search" name="busca" id="my-jobs-search" value="@SearchQuery" maxlength="80" placeholder="Buscar nas suas vagas" data-testid="my-jobs-search" />
+                <input type="search" class="form-control" name="busca" id="my-jobs-search" value="@SearchQuery" maxlength="80" placeholder="Buscar nas suas vagas" data-testid="my-jobs-search" />
             </label>
-            <button type="submit" class="btn btn-outline-primary btn-sm">Buscar</button>
+            <button type="submit" class="btn btn-outline-secondary">Buscar</button>
             @if (!string.IsNullOrWhiteSpace(SearchQuery))
             {
                 <a class="chip-clear" href="@ClearSearchUrl" data-enhance-nav="false" data-testid="my-jobs-clear-search">
@@ -95,7 +87,8 @@
             <div class="jobs-management-card">
                 <div class="card-body p-0">
                     <div class="table-responsive">
-                        <table class="table table-hover table-cards">
+                        <table class="table table-cards">
+                            <caption class="visually-hidden">Suas vagas: situação, visualizações, candidaturas e validade</caption>
                             <thead>
                                 <tr>
                                     <th scope="col">Vaga</th>
@@ -121,7 +114,7 @@
                                         </td>
                                         <td data-label="Local">@(string.IsNullOrWhiteSpace(job.City) ? "—" : $"{job.City}{(string.IsNullOrWhiteSpace(job.State) ? string.Empty : $" / {job.State}")}")</td>
                                         <td data-label="Situação">
-                                            <span class="badge @UiLabels.JobStatusBadge(job.Status)">@UiLabels.JobStatus(job.Status)</span>
+                                            <StatusBadge Kind="StatusKind.Job" Value="@job.Status" />
                                             @if (!string.IsNullOrWhiteSpace(job.ModerationReason))
                                             {
                                                 <div class="text-muted small" data-testid="my-job-moderation">Motivo da moderação: @job.ModerationReason</div>
@@ -144,7 +137,7 @@
                                         <td data-label="Ações">
                                             @* Divulgação simples (botão + lista), não role="menu": Tab percorre as ações e Esc fecha *@
                                             <div class="job-actions" @onkeydown="OnMenuKeyDown">
-                                                <a class="btn btn-outline-primary btn-sm" href="/jobs/edit/@job.Id" data-testid="my-job-edit"
+                                                <a class="btn btn-outline-secondary btn-sm" href="/jobs/edit/@job.Id" data-testid="my-job-edit"
                                                    aria-label="Editar a vaga @job.Title">Editar</a>
                                                 <button type="button"
                                                         id="job-actions-@job.Id"
@@ -154,7 +147,7 @@
                                                         aria-label="Mais ações da vaga @job.Title"
                                                         data-testid="my-job-actions"
                                                         @onclick="() => ToggleMenu(job.Id)">
-                                                    Ações <span aria-hidden="true">▾</span>
+                                                    Ações <Icon Name="chevron-down" Size="16" Class="@(openMenuId == job.Id ? "icon--flip" : null)" />
                                                 </button>
                                                 @if (openMenuId == job.Id)
                                                 {
@@ -178,8 +171,9 @@
                                                         }
                                                         <li>
                                                             <button type="button" class="job-actions__item job-actions__item--danger"
-                                                                    @onclick="() => DeleteAsync(job)" disabled="@(deletingId == job.Id)" data-testid="my-job-delete">
-                                                                @(deletingId == job.Id ? "Excluindo..." : "Excluir")
+                                                                    @onclick="() => DeleteAsync(job)" disabled="@(deletingId == job.Id)" aria-busy="@(deletingId == job.Id ? "true" : null)"
+                                                                    aria-label="Excluir a vaga @job.Title" data-testid="my-job-delete">
+                                                                @(deletingId == job.Id ? "Excluindo…" : "Excluir")
                                                             </button>
                                                         </li>
                                                     </ul>
@@ -196,28 +190,27 @@
         }
         else if (jobs.Count > 0)
         {
-            <EmptyState Icon="⌕"
-                        Title="@(HasSearch ? "Nenhuma vaga encontrada na busca" : "Nenhuma vaga nesta situação")"
+            <EmptyState Icon="search"
+                        Title="@(HasSearch ? "Nenhum resultado para estes filtros" : "Nenhuma vaga nesta situação")"
                         Message="@(HasSearch ? "Tente outro termo ou limpe a busca para ver suas publicações." : "Tente outra aba para ver suas outras publicações.")"
                         TestId="my-jobs-tab-empty">
                 @if (HasSearch)
                 {
-                    <a class="btn btn-outline-primary" href="@ClearSearchUrl">Limpar busca</a>
+                    <a class="btn btn-outline-secondary" href="@ClearSearchUrl">Limpar filtros</a>
                 }
                 else
                 {
-                    <a class="btn btn-primary" href="/jobs/create">Criar vaga</a>
+                    <a class="btn btn-primary" href="/jobs/create">Publicar vaga</a>
                 }
             </EmptyState>
         }
         else
         {
-            <EmptyState Icon="▣"
-                        Kicker="ÁREA DA EMPRESA"
-                        Title="Nenhuma vaga criada ainda"
+            <EmptyState Icon="briefcase"
+                        Title="Nenhuma vaga publicada ainda"
                         Message="Publique sua primeira vaga para começar a receber candidaturas."
                         TestId="my-jobs-empty">
-                <a class="btn btn-primary" href="/jobs/create">Criar minha primeira vaga <span aria-hidden="true">↗</span></a>
+                <a class="btn btn-primary" href="/jobs/create">Publicar vaga</a>
             </EmptyState>
         }
     }

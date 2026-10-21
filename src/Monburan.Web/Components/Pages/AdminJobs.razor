@@ -10,6 +10,7 @@
 @inject AdminChangeJobStatusUseCase ChangeStatus
 @inject AdminDeleteJobUseCase DeleteJob
 @inject AuthenticationStateProvider AuthenticationState
+@inject NavigationManager Navigation
 @inject IToastService Toast
 @inject ILogger<AdminJobs> Logger
 @inject IJSRuntime JS
@@ -17,15 +18,11 @@
 <PageTitle>Vagas - Moderação - Monburan</PageTitle>
 
 @* Moderação das vagas de todas as empresas: ativar, pausar, ocultar, reprovar e excluir. Ocultar, reprovar e excluir pedem
-   um motivo, que a empresa vê (na vaga e num aviso). Toda ação é auditada. *@
-<div class="container mt-4 admin-list-page">
-    <header class="page-heading">
-        <div class="page-heading__copy">
-            <span class="page-kicker">ADMINISTRAÇÃO</span>
-            <h1>Vagas</h1>
-            <p>As vagas de todas as empresas, em qualquer situação. Tire do ar o que não cumpre as regras e explique o motivo à empresa.</p>
-        </div>
-    </header>
+   um motivo, que a empresa vê (na vaga e num aviso). Toda ação é auditada.
+   Os filtros e a página ficam no endereço (?busca=&situacao=&pagina=): Voltar e recarregar reproduzem a lista. *@
+<div class="container admin-list-page">
+    <PageHeader Title="Vagas"
+                Description="As vagas de todas as empresas, em qualquer situação. Tire do ar o que não cumpre as regras e explique o motivo à empresa." />
 
     @if (list is not null)
     {
@@ -37,27 +34,28 @@
         </section>
     }
 
-    <div class="card mb-4">
-        <div class="card-body">
-            <div class="row g-3">
-                <div class="col-md-5">
-                    <label class="form-label" for="jobs-search">Buscar</label>
-                    <input id="jobs-search" type="text" class="form-control" @bind="searchTerm" @onkeydown="OnSearchKeyDown" placeholder="Título, categoria ou empresa..." data-testid="jobs-search" />
-                </div>
-                <div class="col-md-4">
-                    <label class="form-label" for="jobs-status">Situação</label>
-                    <select id="jobs-status" class="form-select" @bind="statusFilter" data-testid="jobs-status">
-                        <option value="">Todas</option>
-                        @foreach (var status in StatusOrder)
-                        {
-                            <option value="@status">@UiLabels.JobStatus(status)</option>
-                        }
-                    </select>
-                </div>
-                <div class="col-md-3 d-flex align-items-end">
-                    <button type="button" class="btn btn-primary w-100" @onclick="() => LoadAsync(1)" disabled="@isLoading" data-testid="jobs-apply">Filtrar</button>
-                </div>
-            </div>
+    <div class="admin-filters" role="search" aria-label="Filtrar vagas">
+        <div>
+            <label class="form-label" for="jobs-search">Buscar</label>
+            <input id="jobs-search" type="text" class="form-control" @bind="searchTerm" @bind:event="oninput" @onkeydown="OnSearchKeyDown"
+                   placeholder="Título, categoria ou empresa" enterkeyhint="search" autocomplete="off" data-testid="jobs-search" />
+        </div>
+        <div>
+            <label class="form-label" for="jobs-status">Situação</label>
+            <select id="jobs-status" class="form-select" @bind="statusFilter" @bind:after="ApplyFiltersAsync" data-testid="jobs-status">
+                <option value="">Todas</option>
+                @foreach (var status in StatusOrder)
+                {
+                    <option value="@status">@UiLabels.JobStatus(status)</option>
+                }
+            </select>
+        </div>
+        <div class="d-flex flex-wrap gap-2">
+            <button type="button" class="btn btn-outline-secondary" @onclick="ApplyFiltersAsync" disabled="@isLoading" data-testid="jobs-apply">Buscar</button>
+            @if (IsFiltered)
+            {
+                <button type="button" class="btn btn-outline-secondary" @onclick="ClearFiltersAsync" data-testid="jobs-clear">Limpar filtros</button>
+            }
         </div>
     </div>
 
@@ -71,10 +69,10 @@
                         <p class="acct-panel__email">@(selected.AdvertiserName ?? "Empresa") · @selected.AdvertiserEmail</p>
                     </div>
                     <ul class="ai-badges" aria-label="Situação da vaga">
-                        <li class="ai-badge @(selected.Status == "Active" ? "ai-badge--ok" : selected.Status == "Paused" ? "ai-badge--off" : "ai-badge--warn")" data-testid="job-panel-state">@UiLabels.JobStatus(selected.Status)</li>
+                        <li><StatusBadge Kind="StatusKind.Job" Value="@selected.Status" TestId="job-panel-state" /></li>
                         @if (selected.IsPastExpiration)
                         {
-                            <li class="ai-badge ai-badge--warn">Validade expirada</li>
+                            <li><StatusBadge Text="Validade expirada" Tone="StatusTone.Warn" /></li>
                         }
                     </ul>
                 </div>
@@ -112,22 +110,25 @@
                             <div class="text-danger" role="alert" data-testid="job-reason-error">@formError</div>
                         }
                         <div class="acct-actions">
-                            <button type="button" class="btn @(pending is PendingAction.Delete or PendingAction.Reject ? "btn-danger" : "btn-primary")" @onclick="ConfirmPendingAsync" disabled="@busy" data-testid="job-action-confirm">@ConfirmText</button>
-                            <button type="button" class="btn btn-secondary" @onclick="CancelPending" disabled="@busy" data-testid="job-action-cancel">Cancelar</button>
+                            <button type="button" class="btn @(pending is PendingAction.Delete or PendingAction.Reject ? "btn-danger" : "btn-primary")" @onclick="ConfirmPendingAsync"
+                                    disabled="@busy" aria-busy="@(busy ? "true" : null)" data-testid="job-action-confirm">@(busy ? (pending == PendingAction.Delete ? "Excluindo…" : "Salvando…") : ConfirmText)</button>
+                            <button type="button" class="btn btn-outline-secondary" @onclick="CancelPending" disabled="@busy" data-testid="job-action-cancel">Cancelar</button>
                         </div>
                     </div>
                 }
                 else
                 {
                     <div class="acct-actions">
-                        <a class="btn btn-outline-primary btn-sm" href="/jobs/@selected.Id" target="_blank" rel="noopener" data-testid="job-open">Abrir a página da vaga<span class="visually-hidden"> (abre em nova aba)</span></a>
+                        <a class="btn btn-outline-secondary btn-sm" href="/jobs/@selected.Id" target="_blank" rel="noopener" data-testid="job-open">
+                            Abrir a página da vaga <Icon Name="external" Size="14" /><span class="visually-hidden"> (abre em nova aba)</span>
+                        </a>
                         @if (selected.Status != "Active")
                         {
                             <button type="button" class="btn btn-primary btn-sm" @onclick="StartActivation" disabled="@busy" data-testid="job-activate">@(selected.Status == "Paused" ? "Reativar" : "Aprovar e ativar")</button>
                         }
                         @if (selected.Status == "Active")
                         {
-                            <button type="button" class="btn btn-outline-primary btn-sm" @onclick="PauseAsync" disabled="@busy" data-testid="job-pause">Pausar</button>
+                            <button type="button" class="btn btn-outline-secondary btn-sm" @onclick="PauseAsync" disabled="@busy" data-testid="job-pause">Pausar</button>
                         }
                         @if (selected.Status != "Hidden")
                         {
@@ -138,16 +139,16 @@
                             <button type="button" class="btn btn-outline-danger btn-sm" @onclick="() => StartReason(PendingAction.Reject)" disabled="@busy" data-testid="job-reject">Reprovar</button>
                         }
                         <button type="button" class="btn btn-outline-danger btn-sm" @onclick="() => StartReason(PendingAction.Delete)" disabled="@busy" data-testid="job-delete">Excluir</button>
-                        <button type="button" class="btn btn-secondary btn-sm" @onclick="ClosePanel" data-testid="job-panel-close">Fechar</button>
+                        <button type="button" class="btn btn-outline-secondary btn-sm" @onclick="ClosePanel" data-testid="job-panel-close">Fechar</button>
                     </div>
                 }
             </div>
         </section>
     }
 
-    @if (isLoading)
+    @if (isLoading && list is null)
     {
-        <LoadingState Message="Carregando vagas..." />
+        <LoadingState Message="Carregando vagas…" />
     }
     else if (loadFailed)
     {
@@ -157,14 +158,23 @@
     }
     else if (list is null || !list.Items.Any())
     {
-        <EmptyState Icon="▤" Title="Nenhuma vaga encontrada" Message="Ajuste a busca ou os filtros." TestId="jobs-empty" />
+        if (IsFiltered)
+        {
+            <EmptyState Icon="search" Title="Nenhum resultado para estes filtros" Message="Tente outra busca ou mude a situação." TestId="jobs-empty">
+                <button type="button" class="btn btn-outline-secondary" @onclick="ClearFiltersAsync">Limpar filtros</button>
+            </EmptyState>
+        }
+        else
+        {
+            <EmptyState Icon="briefcase" Title="Nenhuma vaga encontrada" Message="As vagas aparecem aqui assim que uma empresa publica." TestId="jobs-empty" />
+        }
     }
     else
     {
-        <div class="card">
+        <div class="card" aria-busy="@(isLoading ? "true" : null)">
             <div class="card-body p-0">
                 <div class="table-responsive">
-                    <table class="table table-hover table-striped table-cards mb-0" data-testid="jobs-table">
+                    <table class="table table-striped table-cards mb-0" data-testid="jobs-table">
                         <caption class="visually-hidden">Vagas de todas as empresas</caption>
                         <thead>
                             <tr>
@@ -174,7 +184,7 @@
                                 <th scope="col">Validade</th>
                                 <th scope="col" class="text-center">Candidaturas</th>
                                 <th scope="col">Publicada</th>
-                                <th scope="col" class="text-center">Ações</th>
+                                <th scope="col">Ações</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -182,13 +192,13 @@
                             {
                                 <tr data-testid="job-row" data-job-id="@job.Id" data-title="@job.Title">
                                     <td data-label="Vaga"><strong>@job.Title</strong><div class="text-muted small">@Where(job)</div></td>
-                                    <td data-label="Empresa">@(job.AdvertiserName ?? "—")</td>
-                                    <td data-label="Situação"><span class="badge @UiLabels.JobStatusBadge(job.Status)">@UiLabels.JobStatus(job.Status)</span></td>
+                                    <td data-label="Empresa">@(job.AdvertiserName ?? "Sem nome")</td>
+                                    <td data-label="Situação"><StatusBadge Kind="StatusKind.Job" Value="@job.Status" /></td>
                                     <td data-label="Validade">@UiLabels.FormatMomentDate(job.ExpirationDate)@(job.IsPastExpiration ? " (expirada)" : string.Empty)</td>
                                     <td data-label="Candidaturas" class="text-center">@job.Applications</td>
                                     <td data-label="Publicada">@UiLabels.FormatMomentDate(job.CreatedAt)</td>
-                                    <td data-label="Ações" class="text-center">
-                                        <button type="button" class="btn btn-sm btn-outline-primary" @onclick="() => OpenPanelAsync(job)" data-testid="job-manage" aria-label="Gerenciar a vaga @job.Title">Gerenciar</button>
+                                    <td data-label="Ações">
+                                        <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="() => OpenPanelAsync(job)" data-testid="job-manage" aria-label="Gerenciar a vaga @job.Title">Gerenciar</button>
                                     </td>
                                 </tr>
                             }
@@ -198,9 +208,9 @@
             </div>
         </div>
 
-        <Pager Page="list.Page" TotalPages="list.TotalPages" OnPageChanged="LoadAsync" AriaLabel="Paginação das vagas" />
-
-        <div class="text-muted text-center mt-3">Mostrando @RangeText(list.Page, list.Items.Count(), list.TotalCount) vagas</div>
+        <Pager Page="list.Page" TotalPages="list.TotalPages" OnPageChanged="GoToPageAsync"
+               Total="list.TotalCount" PageSize="PageSize" ItemName="@(list.TotalCount == 1 ? "vaga" : "vagas")"
+               AriaLabel="Paginação das vagas" />
     }
 </div>
 
@@ -214,6 +224,15 @@
 
     private enum PendingAction { None, Activate, Hide, Reject, Delete }
 
+    [SupplyParameterFromQuery(Name = "busca")]
+    private string? SearchQuery { get; set; }
+
+    [SupplyParameterFromQuery(Name = "situacao")]
+    private string? StatusQuery { get; set; }
+
+    [SupplyParameterFromQuery(Name = "pagina")]
+    private int? PageQuery { get; set; }
+
     private AdminListJobsResponse? list;
     private AdminJobResponse? selected;
     private AdminActor actor = new(string.Empty, "administrador");
@@ -225,11 +244,19 @@
     private bool isLoading = true;
     private bool loadFailed;
     private bool busy;
+    private int loadVersion;
+
+    // Filtros que já estão no endereço: quando o endereço muda por fora (Voltar/Avançar), a lista recarrega
+    private string? appliedQuery;
 
     private PendingAction pending = PendingAction.None;
     private string reason = string.Empty;
     private DateTime renewUntil = DateTime.UtcNow.Date.AddDays(30);
     private string? formError;
+
+    private bool IsFiltered => !string.IsNullOrWhiteSpace(searchTerm) || statusFilter.Length > 0;
+
+    private string StateKey => $"{searchTerm}\n{statusFilter}\n{currentPage}";
 
     private string ReasonLabel => pending switch
     {
@@ -250,17 +277,66 @@
     {
         var state = await AuthenticationState.GetAuthenticationStateAsync();
         actor = state.User.ToAdminActor();
-        await LoadAsync(1);
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        var search = (SearchQuery ?? string.Empty).Trim();
+        var status = StatusQuery is not null && StatusOrder.Contains(StatusQuery) ? StatusQuery : string.Empty;
+        var page = Math.Max(1, PageQuery ?? 1);
+
+        var key = $"{search}\n{status}\n{page}";
+        if (key == appliedQuery)
+            return;
+
+        appliedQuery = key;
+        searchTerm = search;
+        statusFilter = status;
+        await LoadAsync(page);
     }
 
     private async Task OnSearchKeyDown(KeyboardEventArgs args)
     {
         if (args.Key == "Enter")
-            await LoadAsync(1);
+            await ApplyFiltersAsync();
+    }
+
+    private Task ApplyFiltersAsync() => GoToPageAsync(1);
+
+    private Task ClearFiltersAsync()
+    {
+        searchTerm = string.Empty;
+        statusFilter = string.Empty;
+        return GoToPageAsync(1);
+    }
+
+    private async Task GoToPageAsync(int pageNumber)
+    {
+        searchTerm = searchTerm.Trim();
+        currentPage = pageNumber;
+        SyncUrl();
+        await LoadAsync(pageNumber);
+    }
+
+    // Leva os filtros para o endereço (entrada nova no histórico); a recarga é feita aqui mesmo
+    private void SyncUrl()
+    {
+        appliedQuery = StateKey;
+        var uri = Navigation.GetUriWithQueryParameters(new Dictionary<string, object?>
+        {
+            ["busca"] = searchTerm.Length > 0 ? searchTerm : null,
+            ["situacao"] = statusFilter.Length > 0 ? statusFilter : null,
+            ["pagina"] = currentPage > 1 ? currentPage : null
+        });
+
+        if (uri != Navigation.Uri)
+            Navigation.NavigateTo(uri, replace: false);
     }
 
     private async Task LoadAsync(int pageNumber)
     {
+        // Filtros trocados em sequência: só a última busca vale
+        var version = ++loadVersion;
         isLoading = true;
         loadFailed = false;
         currentPage = pageNumber;
@@ -272,6 +348,9 @@
             Page = pageNumber,
             Size = PageSize
         });
+
+        if (version != loadVersion)
+            return;
 
         if (result.Status == EResultStatus.Success && result.Data is not null)
         {
@@ -303,9 +382,6 @@
         {
         }
     }
-
-    private static string RangeText(int page, int count, int total) =>
-        count == 0 ? $"0 de {total}" : $"{(page - 1) * PageSize + 1}–{(page - 1) * PageSize + count} de {total}";
 
     private void ClosePanel()
     {
@@ -452,6 +528,6 @@
         var place = string.Join(" / ", new[] { job.City, job.State }.Where(part => !string.IsNullOrWhiteSpace(part)));
         if (job.IsRemote)
             place = string.IsNullOrEmpty(place) ? "Remoto" : place + " · remoto";
-        return string.IsNullOrEmpty(place) ? "—" : place;
+        return string.IsNullOrEmpty(place) ? "Local não informado" : place;
     }
 }

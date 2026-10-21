@@ -12,27 +12,27 @@
 
 <PageTitle>Novo endereço - Monburan</PageTitle>
 
-<div class="container mt-4 page-form-shell address-form-page">
-    <header class="page-heading">
-        <div class="page-heading__copy">
-            <span class="page-kicker">CONFIGURAÇÕES</span>
-            <h1>Novo endereço</h1>
-            <p>Informe os dados para adicionar um endereço ao perfil.</p>
-        </div>
-    </header>
+<div class="container page-form-shell address-form-page">
+    <PageHeader Title="Novo endereço" Description="Informe os dados para adicionar um endereço ao perfil."
+                BackHref="/address/list" BackText="Voltar a endereços" />
     <div class="card page-form-card">
         <div class="card-body">
             <EditForm Model="form" OnValidSubmit="HandleValidSubmit">
                 <DataAnnotationsValidator />
+                <p class="form-required-note">Campos com * são obrigatórios.</p>
                 <AddressFormFields Model="form" />
 
-                <div class="d-flex gap-2 mt-4">
-                    <button type="submit" class="btn btn-primary" disabled="@isSubmitting" data-testid="address-save">
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary" disabled="@isSubmitting" aria-busy="@(isSubmitting ? "true" : null)" data-testid="address-save">
                         @if (isSubmitting)
                         {
-                            <span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>
+                            <span class="spinner-border spinner-border-sm" aria-hidden="true"></span>
+                            <span>Salvando…</span>
                         }
-                        Salvar
+                        else
+                        {
+                            <span>Salvar endereço</span>
+                        }
                     </button>
                     <button type="button" class="btn btn-outline-secondary" @onclick="Cancel" disabled="@isSubmitting">Cancelar</button>
                 </div>

@@ -31,7 +31,6 @@
 
 <div class="auth-form-page">
     <div class="auth-form-heading">
-        <span class="auth-kicker">COMECE AGORA</span>
         <h1>Crie sua conta</h1>
         <p>Leva menos de um minuto. Depois, o próximo passo é com você.</p>
     </div>
@@ -224,7 +223,7 @@
         var emailResult = await EmailConfirmationUseCase.ExecuteAsync(emailConfirmationRequest);
         if (emailResult.Status == EResultStatus.Success && emailResult.Data)
         {
-            successMessage = "Email de confirmação enviado com sucesso! Verifique sua caixa de entrada.";
+            successMessage = "E-mail de confirmação enviado com sucesso! Verifique sua caixa de entrada.";
             Logger.LogInformation("Email de confirmação enviado para {Email}", Input.Email);
         }
         else if (emailResult.Status == EResultStatus.Success)

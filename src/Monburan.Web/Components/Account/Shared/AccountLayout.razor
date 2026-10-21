@@ -5,13 +5,10 @@
 @if (IsManagePage)
 {
     @* Gerenciamento de conta roda dentro do app shell (MainLayout já fornece o <main>) *@
-    <section class="container mt-4 account-settings-page">
+    <section class="container account-settings-page">
         @if (HttpContext is null)
         {
-            <div class="loading-state loading-state--compact">
-                <span class="spinner-border" aria-hidden="true"></span>
-                <span>Carregando...</span>
-            </div>
+            <LoadingState Message="Carregando…" Compact="true" />
         }
         else
         {
@@ -25,17 +22,17 @@ else
     <aside class="auth-hero">
         <div class="auth-hero__grid" aria-hidden="true"></div>
         <div class="auth-hero__content">
-            <span class="auth-hero__eyebrow">MONBURAN / TALENTOS QUE FICAM</span>
+            <span class="auth-hero__eyebrow">Monburan · talentos que ficam</span>
             @* Frase de marca, não título: o h1 da página é o do formulário ao lado *@
             <p class="auth-hero__title">O trabalho certo muda tudo.</p>
             <p>Uma forma mais humana de encontrar oportunidades, contratar melhor e construir o próximo capítulo.</p>
             <div class="auth-hero__proof">
                 <div>
-                    <span class="auth-hero__proof-icon" aria-hidden="true">✓</span>
+                    <span class="auth-hero__proof-icon" aria-hidden="true"><Icon Name="check" Size="16" /></span>
                     <span>Perfil em um só lugar</span>
                 </div>
                 <div>
-                    <span class="auth-hero__proof-icon" aria-hidden="true">⌕</span>
+                    <span class="auth-hero__proof-icon" aria-hidden="true"><Icon Name="search" Size="16" /></span>
                     <span>Busca sem complicação</span>
                 </div>
             </div>
@@ -48,10 +45,7 @@ else
     <section class="auth-content" data-testid="auth-content">
         @if (HttpContext is null)
         {
-            <div class="loading-state loading-state--compact">
-                <span class="spinner-border" aria-hidden="true"></span>
-                <span>Carregando...</span>
-            </div>
+            <LoadingState Message="Carregando…" Compact="true" />
         }
         else
         {

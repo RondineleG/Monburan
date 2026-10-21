@@ -19,15 +19,10 @@
 
 <UnsavedChangesGuard HasChanges="HasUnsavedChanges" />
 
-<div class="container mt-4 page-form-shell resume-wizard-page">
-    <header class="page-heading">
-        <div class="page-heading__copy">
-            <span class="page-kicker">MINHA CARREIRA</span>
-            <h1>@(ResumeId.HasValue ? "Revisar currículo importado" : "Montar currículo")</h1>
-            <p>Responda o passo a passo abaixo. O que veio do PDF já está preenchido — confira e complete o que faltar.</p>
-        </div>
-        <a class="btn btn-secondary" href="/resumes">Cancelar</a>
-    </header>
+<div class="container page-form-shell resume-wizard-page">
+    <PageHeader Title="@(ResumeId.HasValue ? "Revisar currículo importado" : "Montar currículo")"
+                Description="@HeaderDescription"
+                BackHref="/resumes" BackText="Meus currículos" />
     <div class="row">
         <div class="col-lg-9 mx-auto">
 
@@ -38,29 +33,35 @@
 
             @if (isLoading)
             {
-                <LoadingState Message="Carregando currículo..." />
+                <LoadingState Message="Carregando currículo…" />
             }
             else if (!isOwner)
             {
-                <EmptyState Icon="!" Title="Currículo não disponível" Message="Ele não existe mais ou pertence a outra pessoa.">
+                <EmptyState Icon="alert" Title="Currículo não disponível" Message="Ele não existe mais ou pertence a outra pessoa.">
                     <a class="btn btn-primary" href="/resumes">Voltar para meus currículos</a>
                 </EmptyState>
             }
             else
             {
-                <nav class="resume-wizard-steps mb-4" aria-label="Etapas">
+                <nav class="resume-wizard-steps mb-4" aria-label="Etapas do currículo">
                     @for (var i = 0; i < StepTitles.Length; i++)
                     {
                         var index = i;
+                        var hasError = index == 0 && titleInvalid;
+                        var stepClass = "wizard-step"
+                            + (index == step ? " wizard-step--active" : string.Empty)
+                            + (index < step ? " wizard-step--done" : string.Empty)
+                            + (hasError ? " wizard-step--error" : string.Empty);
                         <button type="button"
-                                class="wizard-step @(index == step ? "wizard-step--active" : "") @(index < step ? "wizard-step--done" : "")"
+                                class="@stepClass"
                                 aria-current="@(index == step ? "step" : null)"
+                                data-testid="@($"wizard-step-{index + 1}")"
                                 @onclick="() => GoTo(index)">
                             <span class="wizard-step__number">@(index + 1)</span>
                             <span class="wizard-step__label">@StepTitles[index]</span>
                             @if (StepMissing(index))
                             {
-                                <span class="badge text-bg-warning">faltando</span>
+                                <span class="badge badge--warn">faltando</span>
                             }
                         </button>
                     }
@@ -73,20 +74,29 @@
 
                         @if (step == 0)
                         {
+                            <p class="form-required-note">Campos com * são obrigatórios.</p>
                             <div class="mb-3">
                                 <label class="form-label" for="wizard-title">Título do currículo *</label>
-                                <input type="text" class="form-control" @bind="title" id="wizard-title" placeholder="Ex.: Desenvolvedor Backend .NET" data-testid="wizard-title-input" />
+                                <input type="text" class="form-control" @ref="titleInput" @bind="title" @bind:after="OnTitleChanged" id="wizard-title"
+                                       placeholder="Ex.: Desenvolvedor back-end .NET" aria-required="true"
+                                       aria-invalid="@(titleInvalid ? "true" : null)"
+                                       aria-describedby="@(titleInvalid ? "wizard-title-error" : null)"
+                                       data-testid="wizard-title-input" />
+                                @if (titleInvalid)
+                                {
+                                    <div class="validation-message" id="wizard-title-error" data-testid="wizard-title-error">Informe o título do currículo para continuar.</div>
+                                }
                             </div>
                             <div class="mb-3">
                                 <label class="form-label" for="wizard-summary">Resumo profissional</label>
-                                <textarea class="form-control" @bind="summary" id="wizard-summary" rows="5"
-                                               placeholder="Em 3 a 5 linhas: quem você é, o que faz e o que busca." />
-                                <div class="form-text">Máximo 2000 caracteres</div>
+                                <div class="form-text" id="wizard-summary-hint">Máximo de 2000 caracteres.</div>
+                                <textarea class="form-control" @bind="summary" id="wizard-summary" rows="5" aria-describedby="wizard-summary-hint"
+                                          placeholder="Em 3 a 5 linhas: quem você é, o que faz e o que busca." />
                             </div>
-                            <div class="mb-3 form-check">
+                            <label class="form-check mb-3" for="wizard-active">
                                 <input type="checkbox" class="form-check-input" @bind="isActive" id="wizard-active" />
-                                <label class="form-check-label" for="wizard-active">Definir como currículo ativo</label>
-                            </div>
+                                <span class="form-check-label">Definir como currículo ativo</span>
+                            </label>
                         }
                         else if (step == 1)
                         {
@@ -97,13 +107,25 @@
                                 var exp = experiences[index];
                                 <div class="resume-item">
                                     <div class="row g-2">
-                                        <div class="col-md-6"><input class="form-control" placeholder="Cargo" aria-label="@($"Cargo da experiência {index + 1}")" @bind="exp.Position" /></div>
-                                        <div class="col-md-6"><input class="form-control" placeholder="Empresa" aria-label="@($"Empresa da experiência {index + 1}")" @bind="exp.Company" /></div>
-                                        <div class="col-12"><textarea class="form-control" rows="2" placeholder="Descrição das atividades" aria-label="@($"Descrição das atividades da experiência {index + 1}")" @bind="exp.Description"></textarea></div>
-                                        <div class="col-md-4"><label class="form-label small" for="@($"wizard-exp-start-{index}")">Início</label><input id="@($"wizard-exp-start-{index}")" type="date" class="form-control" @bind="exp.StartDate" /></div>
-                                        <div class="col-md-4"><label class="form-label small" for="@($"wizard-exp-end-{index}")">Fim</label><input id="@($"wizard-exp-end-{index}")" type="date" class="form-control" @bind="exp.EndDate" /></div>
+                                        <div class="col-md-6">
+                                            <label class="form-label" for="@($"wizard-exp-position-{index}")">Cargo</label>
+                                            <input id="@($"wizard-exp-position-{index}")" class="form-control" aria-label="@($"Cargo da experiência {index + 1}")" @bind="exp.Position" />
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label class="form-label" for="@($"wizard-exp-company-{index}")">Empresa</label>
+                                            <input id="@($"wizard-exp-company-{index}")" class="form-control" autocomplete="organization" aria-label="@($"Empresa da experiência {index + 1}")" @bind="exp.Company" />
+                                        </div>
+                                        <div class="col-12">
+                                            <label class="form-label" for="@($"wizard-exp-description-{index}")">Descrição das atividades</label>
+                                            <textarea id="@($"wizard-exp-description-{index}")" class="form-control" rows="2" aria-label="@($"Descrição das atividades da experiência {index + 1}")" @bind="exp.Description"></textarea>
+                                        </div>
+                                        <div class="col-md-4"><label class="form-label" for="@($"wizard-exp-start-{index}")">Início</label><input id="@($"wizard-exp-start-{index}")" type="date" class="form-control" @bind="exp.StartDate" /></div>
+                                        <div class="col-md-4"><label class="form-label" for="@($"wizard-exp-end-{index}")">Fim</label><input id="@($"wizard-exp-end-{index}")" type="date" class="form-control" @bind="exp.EndDate" /></div>
                                         <div class="col-md-4 d-flex align-items-end justify-content-between">
-                                            <div class="form-check"><input type="checkbox" class="form-check-input" id="@($"wizard-exp-current-{index}")" @bind="exp.IsCurrent" /><label class="form-check-label" for="@($"wizard-exp-current-{index}")">Atual</label></div>
+                                            <label class="form-check" for="@($"wizard-exp-current-{index}")">
+                                                <input type="checkbox" class="form-check-input" id="@($"wizard-exp-current-{index}")" @bind="exp.IsCurrent" />
+                                                <span class="form-check-label">Emprego atual</span>
+                                            </label>
                                             <button type="button" class="btn btn-outline-danger btn-sm" aria-label="@($"Remover experiência {index + 1}")" @onclick="() => experiences.Remove(exp)">Remover</button>
                                         </div>
                                     </div>
@@ -113,7 +135,7 @@
                             {
                                 <p class="text-muted small">Nenhuma experiência ainda. Adicione pelo menos a mais recente.</p>
                             }
-                            <button type="button" class="btn btn-outline-primary btn-sm" @onclick="() => experiences.Add(new ExperienceRequest())">+ Adicionar experiência</button>
+                            <button type="button" class="btn btn-outline-secondary btn-sm" @onclick="() => experiences.Add(new ExperienceRequest())"><Icon Name="plus" Size="16" />Adicionar experiência</button>
                         }
                         else if (step == 2)
                         {
@@ -123,10 +145,17 @@
                                 var edu = educations[index];
                                 <div class="resume-item">
                                     <div class="row g-2">
-                                        <div class="col-md-6"><input class="form-control" placeholder="Curso" aria-label="@($"Curso da formação {index + 1}")" @bind="edu.Course" /></div>
-                                        <div class="col-md-6"><input class="form-control" placeholder="Instituição" aria-label="@($"Instituição da formação {index + 1}")" @bind="edu.Institution" /></div>
+                                        <div class="col-md-6">
+                                            <label class="form-label" for="@($"wizard-edu-course-{index}")">Curso</label>
+                                            <input id="@($"wizard-edu-course-{index}")" class="form-control" aria-label="@($"Curso da formação {index + 1}")" @bind="edu.Course" />
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label class="form-label" for="@($"wizard-edu-institution-{index}")">Instituição</label>
+                                            <input id="@($"wizard-edu-institution-{index}")" class="form-control" aria-label="@($"Instituição da formação {index + 1}")" @bind="edu.Institution" />
+                                        </div>
                                         <div class="col-md-4">
-                                            <select class="form-select" aria-label="@($"Nível da formação {index + 1}")" @bind="edu.Level">
+                                            <label class="form-label" for="@($"wizard-edu-level-{index}")">Nível</label>
+                                            <select id="@($"wizard-edu-level-{index}")" class="form-select" aria-label="@($"Nível da formação {index + 1}")" @bind="edu.Level">
                                                 @foreach (var level in Enum.GetValues<EEducationLevel>())
                                                 {
                                                     <option value="@level">@UiLabels.EducationLevel(level.ToString())</option>
@@ -134,7 +163,8 @@
                                             </select>
                                         </div>
                                         <div class="col-md-4">
-                                            <select class="form-select" aria-label="@($"Situação da formação {index + 1}")" @bind="edu.Status">
+                                            <label class="form-label" for="@($"wizard-edu-status-{index}")">Situação</label>
+                                            <select id="@($"wizard-edu-status-{index}")" class="form-select" aria-label="@($"Situação da formação {index + 1}")" @bind="edu.Status">
                                                 @foreach (var st in Enum.GetValues<EEducationStatus>())
                                                 {
                                                     <option value="@st">@UiLabels.EducationStatus(st.ToString())</option>
@@ -151,7 +181,7 @@
                             {
                                 <p class="text-muted small">Nenhuma formação ainda.</p>
                             }
-                            <button type="button" class="btn btn-outline-primary btn-sm" @onclick="() => educations.Add(new EducationRequest())">+ Adicionar formação</button>
+                            <button type="button" class="btn btn-outline-secondary btn-sm" @onclick="() => educations.Add(new EducationRequest())"><Icon Name="plus" Size="16" />Adicionar formação</button>
                         }
                         else if (step == 3)
                         {
@@ -161,9 +191,13 @@
                                 var lang = languages[index];
                                 <div class="resume-item">
                                     <div class="row g-2 align-items-end">
-                                        <div class="col-md-6"><input class="form-control" placeholder="Idioma" aria-label="@($"Idioma {index + 1}")" @bind="lang.Language" /></div>
+                                        <div class="col-md-6">
+                                            <label class="form-label" for="@($"wizard-lang-name-{index}")">Idioma</label>
+                                            <input id="@($"wizard-lang-name-{index}")" class="form-control" aria-label="@($"Idioma {index + 1}")" @bind="lang.Language" />
+                                        </div>
                                         <div class="col-md-4">
-                                            <select class="form-select" aria-label="@($"Nível do idioma {index + 1}")" @bind="lang.Level">
+                                            <label class="form-label" for="@($"wizard-lang-level-{index}")">Nível</label>
+                                            <select id="@($"wizard-lang-level-{index}")" class="form-select" aria-label="@($"Nível do idioma {index + 1}")" @bind="lang.Level">
                                                 @foreach (var level in Enum.GetValues<ELanguageLevel>())
                                                 {
                                                     <option value="@level">@UiLabels.LanguageLevel(level.ToString())</option>
@@ -180,7 +214,7 @@
                             {
                                 <p class="text-muted small">Nenhum idioma ainda.</p>
                             }
-                            <button type="button" class="btn btn-outline-primary btn-sm" @onclick="() => languages.Add(new LanguageRequest())">+ Adicionar idioma</button>
+                            <button type="button" class="btn btn-outline-secondary btn-sm" @onclick="() => languages.Add(new LanguageRequest())"><Icon Name="plus" Size="16" />Adicionar idioma</button>
                         }
                         else if (step == 4)
                         {
@@ -190,10 +224,13 @@
                                 var skill = skills[index];
                                 <div class="resume-item">
                                     <div class="row g-2 align-items-end">
-                                        <div class="col-md-6"><input class="form-control" placeholder="Habilidade" aria-label="@($"Habilidade {index + 1}")" @bind="skill.Skill" /></div>
-                                        <div class="col-md-3"><label class="form-label small" for="@($"wizard-skill-level-{index}")">Nível (1-5)</label><input id="@($"wizard-skill-level-{index}")" type="number" class="form-control" min="1" max="5" @bind="skill.Level" /></div>
-                                        <div class="col-md-2"><label class="form-label small" for="@($"wizard-skill-years-{index}")">Anos</label><input id="@($"wizard-skill-years-{index}")" type="number" class="form-control" min="0" @bind="skill.YearsOfExperience" /></div>
-                                        <div class="col-md-1 d-flex justify-content-end">
+                                        <div class="col-md-5">
+                                            <label class="form-label" for="@($"wizard-skill-name-{index}")">Habilidade</label>
+                                            <input id="@($"wizard-skill-name-{index}")" class="form-control" aria-label="@($"Habilidade {index + 1}")" @bind="skill.Skill" />
+                                        </div>
+                                        <div class="col-md-3"><label class="form-label" for="@($"wizard-skill-level-{index}")">Nível (1 a 5)</label><input id="@($"wizard-skill-level-{index}")" type="number" inputmode="numeric" class="form-control" min="1" max="5" @bind="skill.Level" /></div>
+                                        <div class="col-md-2"><label class="form-label" for="@($"wizard-skill-years-{index}")">Anos</label><input id="@($"wizard-skill-years-{index}")" type="number" inputmode="numeric" class="form-control" min="0" @bind="skill.YearsOfExperience" /></div>
+                                        <div class="col-md-2 d-flex justify-content-end">
                                             <button type="button" class="btn btn-outline-danger btn-sm" aria-label="@($"Remover habilidade {index + 1}")" @onclick="() => skills.Remove(skill)">Remover</button>
                                         </div>
                                     </div>
@@ -203,7 +240,7 @@
                             {
                                 <p class="text-muted small">Nenhuma habilidade ainda.</p>
                             }
-                            <button type="button" class="btn btn-outline-primary btn-sm" @onclick="() => skills.Add(new SkillRequest())">+ Adicionar habilidade</button>
+                            <button type="button" class="btn btn-outline-secondary btn-sm" @onclick="() => skills.Add(new SkillRequest())"><Icon Name="plus" Size="16" />Adicionar habilidade</button>
                         }
                         else
                         {
@@ -217,19 +254,19 @@
                             </ul>
                         }
 
-                        <div class="d-flex justify-content-between mt-4">
-                            <button type="button" class="btn btn-secondary" @onclick="Previous" disabled="@(step == 0)"><span aria-hidden="true">←</span> Anterior</button>
+                        <div class="form-actions">
+                            <button type="button" class="btn btn-outline-secondary" @onclick="Previous" disabled="@(step == 0)"><Icon Name="arrow-left" Size="16" />Anterior</button>
                             @if (step < StepTitles.Length - 1)
                             {
-                                <button type="button" class="btn btn-primary" @onclick="Next">Próximo <span aria-hidden="true">→</span></button>
+                                <button type="button" class="btn btn-primary" @onclick="Next" data-testid="wizard-next">Próximo<Icon Name="arrow-right" Size="16" /></button>
                             }
                             else
                             {
-                                <button type="button" class="btn btn-success" @onclick="FinishAsync" disabled="@isSubmitting" data-testid="wizard-finish">
+                                <button type="button" class="btn btn-primary" @onclick="FinishAsync" disabled="@isSubmitting" aria-busy="@(isSubmitting ? "true" : null)" data-testid="wizard-finish">
                                     @if (isSubmitting)
                                     {
-                                        <span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>
-                                        <span>Salvando...</span>
+                                        <span class="spinner-border spinner-border-sm" aria-hidden="true"></span>
+                                        <span>Salvando…</span>
                                     }
                                     else
                                     {
@@ -267,6 +304,13 @@
     private bool saved;
     private string? initialSnapshot;
     private string? errorMessage;
+    private bool titleInvalid;
+    private bool focusTitle;
+    private ElementReference titleInput;
+
+    private string HeaderDescription => ResumeId.HasValue
+        ? "Responda o passo a passo abaixo. O que veio do PDF já está preenchido: confira e complete o que faltar."
+        : "Responda o passo a passo abaixo. Você pode voltar a qualquer etapa antes de salvar.";
 
     private string title = string.Empty;
     private string? summary;
@@ -350,9 +394,66 @@
         _ => false
     };
 
-    private void GoTo(int index) => step = index;
-    private void Next() { if (step < StepTitles.Length - 1) step++; }
+    // Pular para frente pelas etapas segue a mesma regra do "Próximo"
+    private void GoTo(int index)
+    {
+        if (index > step && !CanLeaveAboutStep())
+            return;
+
+        step = index;
+    }
+
+    private void Next()
+    {
+        if (step >= StepTitles.Length - 1 || !CanLeaveAboutStep())
+            return;
+
+        step++;
+    }
+
     private void Previous() { if (step > 0) step--; }
+
+    // "Sobre você" só deixa avançar com o título preenchido: senão volta a ela, marca o campo e leva o foco até ele
+    private bool CanLeaveAboutStep()
+    {
+        if (!string.IsNullOrWhiteSpace(title))
+        {
+            titleInvalid = false;
+            return true;
+        }
+
+        ShowTitleError();
+        return false;
+    }
+
+    private void ShowTitleError()
+    {
+        titleInvalid = true;
+        step = 0;
+        focusTitle = true;
+    }
+
+    private void OnTitleChanged()
+    {
+        if (titleInvalid && !string.IsNullOrWhiteSpace(title))
+            titleInvalid = false;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!focusTitle)
+            return;
+
+        focusTitle = false;
+        try
+        {
+            await titleInput.FocusAsync();
+        }
+        catch (Exception ex) when (ex is JSException or InvalidOperationException)
+        {
+            // Sem o campo na tela ou sem JS o foco é o de menos: a mensagem de erro continua visível
+        }
+    }
 
     private async Task FinishAsync()
     {
@@ -362,7 +463,7 @@
         if (string.IsNullOrWhiteSpace(title))
         {
             errorMessage = "O título do currículo é obrigatório. Volte à primeira etapa para preenchê-lo.";
-            step = 0;
+            ShowTitleError();
             return;
         }
 

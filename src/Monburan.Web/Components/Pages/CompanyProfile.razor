@@ -25,43 +25,27 @@
     }
 </HeadContent>
 
-<div class="container mt-4">
+<div class="container">
     @if (loadFailed)
     {
-        <section class="empty-state error-state" role="alert" data-testid="error-state">
-            <span class="empty-state__icon error-state__icon" aria-hidden="true">!</span>
-            <h1 tabindex="-1">Não foi possível carregar a empresa</h1>
-            <p>Tivemos um problema ao abrir este perfil. Tente novamente em instantes.</p>
-            <a class="btn btn-primary" href="/companies/@AdvertiserId" data-enhance-nav="false" data-testid="error-retry">Tentar novamente</a>
-        </section>
+        <ErrorState Title="Não foi possível carregar a empresa" HeadingLevel="1"
+                    Message="Tivemos um problema ao abrir este perfil. Tente novamente em instantes."
+                    RetryHref="@($"/companies/{AdvertiserId}")" />
     }
     else if (advertiser is null)
     {
-        <EmptyState Icon="?" Title="Empresa não encontrada" HeadingLevel="1" Message="Ela pode ter sido removida ou o link está incorreto." TestId="company-not-found">
+        <EmptyState Icon="search" Title="Empresa não encontrada" HeadingLevel="1" Message="Ela pode ter sido removida ou o link está incorreto." TestId="company-not-found">
             <a class="btn btn-primary" href="/jobs">Ver vagas abertas</a>
         </EmptyState>
     }
     else
     {
-        <header class="page-heading">
-            <div class="page-heading__copy">
-                <span class="page-kicker">EMPRESA</span>
-                <h1>@advertiser.Name</h1>
-                @if (!string.IsNullOrWhiteSpace(advertiser.CompanyDescription))
-                {
-                    <p>@advertiser.CompanyDescription</p>
-                }
-            </div>
-            @if (isOwner)
+        <PageHeader Title="@advertiser.Name" Description="@advertiser.CompanyDescription" BackHref="/jobs" BackText="Vagas">
+            @if (!string.IsNullOrWhiteSpace(advertiser.Website))
             {
-                <a class="btn btn-primary" href="/jobs/create">Publicar vaga</a>
+                <p><a href="@advertiser.Website" target="_blank" rel="noopener noreferrer">@advertiser.Website<Icon Name="external" Size="14" Label="(abre em outra aba)" /></a></p>
             }
-        </header>
-
-        @if (!string.IsNullOrWhiteSpace(advertiser.Website))
-        {
-            <p class="mb-4"><a href="@advertiser.Website" target="_blank" rel="noopener noreferrer">@advertiser.Website</a></p>
-        }
+        </PageHeader>
 
         <h2 class="h4 mb-3">Vagas abertas (@jobs.TotalCount)</h2>
         @if (jobs.TotalCount > jobs.Jobs.Count())
@@ -71,16 +55,16 @@
 
         @if (jobs.Jobs.Any())
         {
-            <div class="jobs-grid">
+            <ul class="jobs-grid">
                 @foreach (var job in jobs.Jobs)
                 {
-                    <JobCard @key="job.Id" Job="job" />
+                    <li @key="job.Id"><JobCard Job="job" IsOwner="isOwner" /></li>
                 }
-            </div>
+            </ul>
         }
         else
         {
-            <EmptyState Icon="▣" Title="Nenhuma vaga aberta" Message="Esta empresa não tem vagas publicadas no momento.">
+            <EmptyState Icon="briefcase" Title="Nenhuma vaga aberta" Message="Esta empresa não tem vagas publicadas no momento.">
                 <a class="btn btn-outline-secondary" href="/jobs">Ver todas as vagas</a>
             </EmptyState>
         }

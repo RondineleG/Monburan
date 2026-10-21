@@ -13,7 +13,6 @@
 
 <div class="auth-form-page">
     <header class="auth-form-heading">
-        <span class="auth-kicker">SEGURANÇA DA CONTA</span>
         <h1>Confirme sua identidade</h1>
         <p>Digite o código gerado pelo seu aplicativo autenticador.</p>
     </header>
@@ -29,10 +28,10 @@
                 <label for="two-factor-code" class="form-label">Código de autenticação</label>
                 <ValidationMessage For="() => Input.TwoFactorCode" class="text-danger" />
             </div>
-            <div class="checkbox mb-3">
-                <label for="remember-machine" class="form-label">
-                    <InputCheckbox id="remember-machine" @bind-Value="Input.RememberMachine" />
-                    Confiar neste dispositivo
+            <div class="mb-3">
+                <label for="remember-machine" class="form-check">
+                    <InputCheckbox id="remember-machine" @bind-Value="Input.RememberMachine" class="form-check-input" />
+                    <span class="form-check-label">Confiar neste dispositivo</span>
                 </label>
             </div>
             <button type="submit" class="w-100 btn btn-lg btn-primary">Confirmar e entrar</button>

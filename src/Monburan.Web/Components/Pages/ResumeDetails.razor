@@ -13,12 +13,12 @@
 
 <PageTitle>@(resume is null ? "Detalhes do currículo" : resume.Title) - Monburan</PageTitle>
 
-<div class="container mt-4">
+<div class="container">
     @if (isLoading)
     {
         @* A página ainda precisa de um título principal enquanto carrega *@
         <h1 class="visually-hidden">Currículo</h1>
-        <LoadingState Message="Carregando currículo..." />
+        <LoadingState Message="Carregando currículo…" />
     }
     else if (loadFailed)
     {
@@ -29,55 +29,42 @@
     }
     else if (viewer is null)
     {
-        <EmptyState Icon="?" Title="Currículo não encontrado" Message="Ele pode ter sido excluído ou você não tem acesso a ele." HeadingLevel="1">
+        <EmptyState Icon="search" Title="Currículo não encontrado" Message="Ele pode ter sido excluído ou você não tem acesso a ele." HeadingLevel="1">
             <a class="btn btn-primary" href="@BackHref">@(isOwner ? "Ir para meus currículos" : "Voltar para candidaturas recebidas")</a>
         </EmptyState>
     }
     else
     {
-        <nav aria-label="Caminho" class="mb-2">
-            <ol class="breadcrumb">
-                <li class="breadcrumb-item"><a href="@BackHref">@(isOwner ? "Currículos" : "Candidaturas recebidas")</a></li>
-                <li class="breadcrumb-item active" aria-current="page">@resume!.Title</li>
-            </ol>
-        </nav>
-        <header class="page-heading mb-3">
-            <div class="page-heading__copy">
-                @* O status fica fora do h1: o título principal é só o nome do currículo *@
-                <div class="d-flex align-items-center gap-2 flex-wrap">
-                    <h1>@resume.Title</h1>
-                    <span class="badge @(resume.IsActive ? "bg-success" : "bg-secondary") fs-6">@(resume.IsActive ? "Ativo" : "Inativo")</span>
-                </div>
-                @if (!string.IsNullOrWhiteSpace(viewer?.Name))
+        @* O status fica fora do h1: o título principal é só o nome do currículo *@
+        <PageHeader Title="@resume!.Title" Description="@viewer?.Name"
+                    BackHref="@BackHref" BackText="@(isOwner ? "Meus currículos" : "Candidaturas recebidas")">
+            <Actions>
+                @if (isOwner && !showWorkspace)
                 {
-                    <p class="text-muted">@viewer.Name</p>
-                }
-            </div>
-            @if (isOwner)
-            {
-                <div class="d-flex gap-2 flex-wrap" hidden="@showWorkspace">
                     <a class="btn btn-primary" href="/resumes/@ResumeId/edit">Editar currículo</a>
-                    <button type="button" class="btn btn-outline-secondary" @onclick="ToggleImprovementAsync" data-testid="resume-improve-toggle">Melhorar currículo</button>
-                    <a class="btn btn-outline-secondary" href="/resumes/@ResumeId/cv" data-testid="resume-export-pdf">Ver CV</a>
+                    <button type="button" class="btn btn-outline-secondary" @onclick="ToggleImprovementAsync" data-testid="resume-improve-toggle"><Icon Name="sparkles" Size="16" />Melhorar currículo</button>
                     <details class="page-heading__more">
-                        <summary class="btn btn-outline-secondary">Outras ações</summary>
+                        <summary class="btn btn-outline-secondary">Outras ações<Icon Name="chevron-down" Size="16" /></summary>
                         <div class="page-heading__more-menu">
+                            <a href="/resumes/@ResumeId/cv" data-testid="resume-export-pdf">Ver CV</a>
                             <a href="/resumes/@ResumeId/wizard" aria-label="Completar o currículo no passo a passo">Completar no passo a passo</a>
                             <button type="button" class="link-danger" @onclick="DeleteAsync" disabled="@isDeleting" data-testid="resume-delete"
-                                    aria-label="@(isDeleting ? "Excluindo currículo..." : $"Excluir o currículo {resume.Title}")">
-                                @(isDeleting ? "Excluindo..." : "Excluir currículo")
+                                    aria-busy="@(isDeleting ? "true" : null)"
+                                    aria-label="@(isDeleting ? "Excluindo currículo…" : $"Excluir o currículo {resume.Title}")">
+                                @(isDeleting ? "Excluindo…" : "Excluir currículo")
                             </button>
                         </div>
                     </details>
-                </div>
-            }
-            else
-            {
-                <div class="d-flex gap-2">
-                    <a class="btn btn-outline-secondary" href="/resumes/@ResumeId/cv" data-testid="resume-export-pdf">Imprimir / salvar PDF</a>
-                </div>
-            }
-        </header>
+                }
+                else if (!isOwner)
+                {
+                    <a class="btn btn-outline-secondary" href="/resumes/@ResumeId/cv" data-testid="resume-export-pdf"><Icon Name="download" Size="16" />Imprimir ou salvar PDF</a>
+                }
+            </Actions>
+            <ChildContent>
+                <StatusBadge Text="@(resume.IsActive ? "Ativo" : "Inativo")" Tone="@(resume.IsActive ? StatusTone.Ok : StatusTone.Neutral)" TestId="resume-status" />
+            </ChildContent>
+        </PageHeader>
 
         <div class="resume-overview">
             @if (resume.ExperienceHistory?.Count > 0) { <span>@resume.ExperienceHistory.Count @(resume.ExperienceHistory.Count == 1 ? "experiência" : "experiências")</span> }
@@ -129,11 +116,6 @@
                     }
                 </aside>
             </div>
-        <div class="mt-4">
-            <a class="btn btn-outline-secondary" href="@BackHref">
-                @(isOwner ? "Voltar para lista de currículos" : "Voltar para candidaturas recebidas")
-            </a>
-        </div>
         </div>
     }
 </div>

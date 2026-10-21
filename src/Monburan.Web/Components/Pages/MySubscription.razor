@@ -12,18 +12,12 @@
 
 <PageTitle>Plano e assinatura - Monburan</PageTitle>
 
-<div class="container mt-4 subscription-layout">
-    <header class="page-heading">
-        <div class="page-heading__copy">
-            <span class="page-kicker">CONTA DA EMPRESA</span>
-            <h1>Plano e assinatura</h1>
-            <p>Confira os recursos disponíveis e gerencie sua assinatura.</p>
-        </div>
-    </header>
+<div class="container subscription-layout">
+    <PageHeader Title="Plano e assinatura" Description="Confira os recursos disponíveis e gerencie sua assinatura." />
 
     @if (isLoading)
     {
-        <LoadingState Message="Carregando assinatura..." />
+        <LoadingState Message="Carregando assinatura…" />
     }
     else if (loadFailed)
     {
@@ -45,7 +39,7 @@
                         <div class="row mb-3">
                             <div class="col-md-6">
                                 <p class="mb-1"><strong>Situação:</strong></p>
-                                <span class="badge @UiLabels.SubscriptionStatusBadge(subscription.Status)">@UiLabels.SubscriptionStatus(subscription.Status)</span>
+                                <StatusBadge Kind="StatusKind.Subscription" Value="@subscription.Status" TestId="subscription-status" />
                             </div>
                             <div class="col-md-6">
                                 <p class="mb-1"><strong>Preço:</strong></p>
@@ -67,12 +61,12 @@
                         </div>
 
                         <div class="d-flex flex-wrap gap-2 mt-4">
-                            <a class="btn btn-outline-primary" href="/plans">Mudar de plano</a>
+                            <a class="btn btn-outline-secondary" href="/plans">Mudar de plano</a>
                             @* Plano grátis não tem o que cancelar *@
                             @if (subscription.Status == "Active" && subscription.Price > 0)
                             {
-                                <button class="btn btn-outline-danger" @onclick="CancelAsync" disabled="@isCancelling" data-testid="subscription-cancel">
-                                    @(isCancelling ? "Cancelando..." : "Cancelar assinatura")
+                                <button type="button" class="btn btn-outline-danger" @onclick="CancelAsync" disabled="@isCancelling" aria-busy="@(isCancelling ? "true" : null)" data-testid="subscription-cancel">
+                                    @(isCancelling ? "Cancelando…" : "Cancelar assinatura")
                                 </button>
                             }
                         </div>
@@ -109,8 +103,7 @@
     else
     {
         var freePlan = availablePlans?.Plans.FirstOrDefault(p => p.Price == 0);
-        <EmptyState Icon="◈"
-                    Kicker="PLANO GRATUITO"
+        <EmptyState Icon="banknote"
                     Title="Você está no plano gratuito"
                     Message="@(freePlan is null ? "Conheça os planos para ampliar quantas vagas você mantém ativas." : $"Ele permite até {freePlan.MaxJobs} vagas ativas ao mesmo tempo. Precisa de mais? Conheça os outros planos.")"
                     TestId="subscription-free">
@@ -120,7 +113,7 @@
 </div>
 
 <ConfirmDialog @ref="cancelDialog">
-    <label class="form-label" for="cancel-reason"><strong>Motivo do cancelamento (opcional)</strong></label>
+    <label class="form-label" for="cancel-reason">Motivo do cancelamento (opcional)</label>
     <textarea id="cancel-reason" class="form-control" rows="3" maxlength="500" @bind="cancelReason" placeholder="Conte-nos o motivo para melhorarmos"></textarea>
 </ConfirmDialog>
 
@@ -170,7 +163,7 @@
         var confirmed = await cancelDialog.ShowAsync(new ConfirmOptions
         {
             Title = "Cancelar assinatura?",
-            Message = $"O plano {subscription.PlanName} será encerrado agora e sua conta volta para o plano gratuito, com limite menor de vagas ativas.",
+            Message = $"O plano {UiLabels.PlanName(subscription.PlanName)} será encerrado agora e sua conta volta para o plano gratuito, com limite menor de vagas ativas.",
             ConfirmText = "Cancelar assinatura",
             CancelText = "Manter plano",
             Destructive = true

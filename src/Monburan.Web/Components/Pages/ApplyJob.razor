@@ -21,28 +21,19 @@
 
 <PageTitle>Candidatar-se - Monburan</PageTitle>
 
-<div class="container mt-4 application-page">
-    <header class="page-heading">
-        <div class="page-heading__copy">
-            <span class="page-kicker">CANDIDATURA</span>
-            <h1>Candidatar-se à vaga</h1>
-            <p>Revise os detalhes e envie seu perfil para a empresa.</p>
-        </div>
-        <a class="btn btn-outline-secondary" href="/jobs/@JobId">Voltar à vaga</a>
-    </header>
-    <div class="row">
-        <div class="col-lg-8 mx-auto">
+<div class="page-narrow application-page">
+    <PageHeader Title="Candidatar-se à vaga" Description="Revise os detalhes e envie seu perfil para a empresa."
+                BackHref="@($"/jobs/{JobId}")" BackText="Voltar à vaga" />
+    <div>
+        <div>
 
             @if (isLoading)
             {
-                <LoadingState Message="Carregando a vaga..." />
+                <LoadingState Message="Carregando a vaga…" />
             }
             else if (!isCandidate)
             {
-                <div class="alert alert-info" role="status">
-                    Esta etapa é exclusiva para candidatos. Entre com uma conta de candidato para enviar sua candidatura.
-                    <a href="/dashboard">Voltar ao início</a>
-                </div>
+                <AccessRestricted Reason="A candidatura é exclusiva para contas de candidato. Entre com uma conta de candidato para enviar sua candidatura." />
             }
             else if (lookupFailed)
             {
@@ -55,7 +46,7 @@
                 <section class="card" data-testid="application-already" aria-live="polite">
                     <div class="card-body">
                         <h2 class="h4" id="apply-step-title" tabindex="-1">Você já se candidatou a esta vaga</h2>
-                        <p>Situação atual: <span class="badge @UiLabels.ApplicationStatusBadge(existingApplication.Status)">@UiLabels.ApplicationStatus(existingApplication.Status)</span></p>
+                        <p>Situação atual: <StatusBadge Kind="StatusKind.Application" Value="@existingApplication.Status" /></p>
                         <p>A empresa já recebeu seu perfil. Você pode acompanhar as etapas do processo seletivo em Minhas candidaturas.</p>
                         <a class="btn btn-primary" href="/my-applications?aba=candidaturas" data-testid="application-track">Acompanhar candidatura</a>
                     </div>
@@ -65,7 +56,7 @@
             {
                 <section class="card" data-testid="application-feedback" aria-live="polite">
                     <div class="card-body">
-                        <h2 class="h4" id="apply-step-title" tabindex="-1">Candidatura enviada!</h2>
+                        <h2 class="h4" id="apply-step-title" tabindex="-1">Candidatura enviada</h2>
                         <p>A empresa já pode ver seu perfil para esta vaga. Acompanhe as atualizações em Minhas candidaturas.</p>
                         <h3 class="h6">Próximos passos</h3>
                         <ul>
@@ -145,19 +136,19 @@
                             else
                             {
                                 <div class="alert alert-info" role="status">
-                                    Você ainda não tem currículo cadastrado. <a href="/resumes/new">Crie um currículo</a> para enviá-lo junto com a candidatura.
+                                    Você ainda não tem currículo cadastrado. <a href="/resumes/wizard">Crie um currículo</a> para enviá-lo junto com a candidatura.
                                 </div>
                             }
 
                             <div class="mb-3">
                                 <label class="form-label" for="application-notes">Observações (opcional)</label>
                                 <InputTextArea id="application-notes" class="form-control" @bind-Value="model.Notes" rows="4" data-testid="application-notes"
-                                               placeholder="Escreva uma breve mensagem ou destaque suas qualificações..." />
+                                               placeholder="Escreva uma breve mensagem ou destaque suas qualificações…" />
                             </div>
 
                             <div class="d-grid gap-2">
                                 <button type="button" class="btn btn-primary btn-lg" @onclick="GoToConfirm" data-testid="application-continue">
-                                    Continuar <span aria-hidden="true">→</span>
+                                    Continuar<Icon Name="arrow-right" Size="18" />
                                 </button>
                             </div>
                         }
@@ -184,30 +175,29 @@
                                 <dd>@(string.IsNullOrWhiteSpace(model.Notes) ? "Sem observações" : model.Notes)</dd>
                             </dl>
 
-                            <div class="form-check mb-3">
+                            <label class="form-check form-check--boxed mb-3" for="application-confirm">
                                 <input type="checkbox" class="form-check-input" id="application-confirm"
                                        @bind="confirmed" data-testid="application-confirm" />
-                                <label class="form-check-label" for="application-confirm">
-                                    Confirmo que as informações estão corretas
-                                </label>
-                            </div>
+                                <span class="form-check-label">Confirmo que as informações estão corretas</span>
+                            </label>
 
                             @if (!confirmed)
                             {
                                 @* Explica por que o envio está desabilitado *@
                                 <p id="application-confirm-hint" class="form-text mb-3">Marque a confirmação acima para enviar.</p>
                             }
-                            <div class="d-flex gap-2">
-                                <button type="button" class="btn btn-secondary" @onclick="BackToReview">
-                                    <span aria-hidden="true">←</span> Voltar
+                            <div class="form-actions">
+                                <button type="button" class="btn btn-outline-secondary" @onclick="BackToReview">
+                                    <Icon Name="arrow-left" Size="18" />Voltar
                                 </button>
-                                <button type="button" class="btn btn-success btn-lg flex-grow-1" disabled="@(!confirmed || isSubmitting)"
+                                <button type="button" class="btn btn-primary btn-lg flex-grow-1" disabled="@(!confirmed || isSubmitting)"
+                                        aria-busy="@(isSubmitting ? "true" : null)"
                                         aria-describedby="@(confirmed ? null : "application-confirm-hint")"
                                         @onclick="SubmitForm" data-testid="application-submit">
                                     @if (isSubmitting)
                                     {
-                                        <span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>
-                                        <span>Enviando...</span>
+                                        <span class="spinner-border spinner-border-sm" aria-hidden="true"></span>
+                                        <span>Enviando…</span>
                                     }
                                     else
                                     {

@@ -3,12 +3,12 @@
 <div class="row g-3">
     <div class="col-md-4">
         <label class="form-label" for="zipcode">CEP *</label>
-        <InputText class="form-control" @bind-Value="Model.ZipCode" id="zipcode" placeholder="00000-000" inputmode="numeric" />
+        <InputText class="form-control" @bind-Value="Model.ZipCode" id="zipcode" placeholder="00000-000" inputmode="numeric" autocomplete="postal-code" />
         <ValidationMessage class="text-danger" For="@(() => Model.ZipCode)" />
     </div>
     <div class="col-md-8">
         <label class="form-label" for="street">Rua / Logradouro *</label>
-        <InputText class="form-control" @bind-Value="Model.Street" id="street" />
+        <InputText class="form-control" @bind-Value="Model.Street" id="street" autocomplete="address-line1" />
         <ValidationMessage class="text-danger" For="@(() => Model.Street)" />
     </div>
     <div class="col-md-4">
@@ -18,27 +18,27 @@
     </div>
     <div class="col-md-8">
         <label class="form-label" for="complement">Complemento</label>
-        <InputText class="form-control" @bind-Value="Model.Complement" id="complement" placeholder="Apto, bloco, sala..." />
+        <InputText class="form-control" @bind-Value="Model.Complement" id="complement" placeholder="Apto, bloco, sala…" autocomplete="address-line2" />
         <ValidationMessage class="text-danger" For="@(() => Model.Complement)" />
     </div>
     <div class="col-md-4">
         <label class="form-label" for="district">Bairro</label>
-        <InputText class="form-control" @bind-Value="Model.District" id="district" />
+        <InputText class="form-control" @bind-Value="Model.District" id="district" autocomplete="address-level3" />
         <ValidationMessage class="text-danger" For="@(() => Model.District)" />
     </div>
     <div class="col-md-4">
         <label class="form-label" for="city">Cidade *</label>
-        <InputText class="form-control" @bind-Value="Model.City" id="city" />
+        <InputText class="form-control" @bind-Value="Model.City" id="city" autocomplete="address-level2" />
         <ValidationMessage class="text-danger" For="@(() => Model.City)" />
     </div>
     <div class="col-md-2">
         <label class="form-label" for="state">UF *</label>
-        <InputText class="form-control" @bind-Value="Model.State" id="state" placeholder="SP" maxlength="2" />
+        <InputText class="form-control" @bind-Value="Model.State" id="state" placeholder="SP" maxlength="2" autocomplete="address-level1" />
         <ValidationMessage class="text-danger" For="@(() => Model.State)" />
     </div>
     <div class="col-md-2">
         <label class="form-label" for="country">País</label>
-        <InputText class="form-control" @bind-Value="Model.Country" id="country" placeholder="BR" maxlength="2" />
+        <InputText class="form-control" @bind-Value="Model.Country" id="country" placeholder="BR" maxlength="2" autocomplete="country" />
         <ValidationMessage class="text-danger" For="@(() => Model.Country)" />
     </div>
 </div>

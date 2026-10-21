@@ -41,19 +41,16 @@
     }
 </HeadContent>
 
-<div class="container job-detail-page@(showStickyCta ? " has-sticky-cta" : string.Empty)">
+<div class="job-detail-page@(showStickyCta ? " has-sticky-cta" : string.Empty)">
     @if (loadFailed)
     {
-        <section class="empty-state error-state" role="alert" data-testid="error-state">
-            <span class="empty-state__icon error-state__icon" aria-hidden="true">!</span>
-            <h1 tabindex="-1">Não foi possível carregar a vaga</h1>
-            <p>Tivemos um problema ao abrir esta oportunidade. Tente novamente em instantes.</p>
-            <a class="btn btn-primary" href="@Navigation.Uri" data-enhance-nav="false" data-testid="error-retry">Tentar novamente</a>
-        </section>
+        <ErrorState Title="Não foi possível carregar a vaga" HeadingLevel="1"
+                    Message="Tivemos um problema ao abrir esta oportunidade. Tente novamente em instantes."
+                    RetryHref="@Navigation.Uri" />
     }
     else if (job is null)
     {
-        <EmptyState Icon="?" Title="Vaga não encontrada" HeadingLevel="1" Message="Ela pode ter sido encerrada ou removida pela empresa." TestId="job-not-found">
+        <EmptyState Icon="search" Title="Vaga não encontrada" HeadingLevel="1" Message="Ela pode ter sido encerrada ou removida pela empresa." TestId="job-not-found">
             <a class="btn btn-primary" href="/jobs">Ver vagas abertas</a>
         </EmptyState>
     }
@@ -97,7 +94,7 @@
                         }
                     </span>
                     <div class="job-hero__text">
-                        <h1 id="job-title" data-testid="job-detail-title">@job.Title</h1>
+                        <h1 id="job-title" tabindex="-1" data-testid="job-detail-title">@job.Title</h1>
                         @if (!string.IsNullOrWhiteSpace(job.AdvertiserName))
                         {
                             <p class="job-hero__company">@job.AdvertiserName</p>
@@ -164,7 +161,7 @@
                 {
                     <section class="aside-card job-owner-card" data-testid="job-owner-card">
                         <h2 class="aside-card__title">Sua vaga</h2>
-                        <p class="job-owner-card__status">Situação: <span class="badge @UiLabels.JobStatusBadge(job.Status)">@UiLabels.JobStatus(job.Status)</span></p>
+                        <p class="job-owner-card__status">Situação: <StatusBadge Kind="StatusKind.Job" Value="@job.Status" /></p>
                         <dl class="job-owner-card__stats">
                             <div><dt>Candidaturas</dt><dd>@job.Applications</dd></div>
                             <div><dt>Visualizações</dt><dd>@job.Views</dd></div>
@@ -172,7 +169,7 @@
                         </dl>
                         <div class="aside-card__actions">
                             <a class="btn btn-primary btn-cta" href="@($"/jobs/{job.Id}/applications")">Ver candidaturas</a>
-                            <a class="btn btn-outline-primary btn-cta" href="@($"/jobs/edit/{job.Id}")">Editar vaga</a>
+                            <a class="btn btn-outline-secondary" href="@($"/jobs/edit/{job.Id}")">Editar vaga</a>
                         </div>
                     </section>
                 }
@@ -183,7 +180,7 @@
                         @if (existingApplication is not null)
                         {
                             <p>Você já se candidatou a esta vaga.</p>
-                            <p class="mb-3">Situação: <span class="badge @UiLabels.ApplicationStatusBadge(existingApplication.Status)">@UiLabels.ApplicationStatus(existingApplication.Status)</span></p>
+                            <p class="mb-3">Situação: <StatusBadge Kind="StatusKind.Application" Value="@existingApplication.Status" /></p>
                             <a class="btn btn-primary btn-cta" href="/my-applications?aba=candidaturas" data-testid="job-track-application">Acompanhar candidatura</a>
                         }
                         else if (applicationLookupFailed)
@@ -194,13 +191,13 @@
                         else if (isCandidate)
                         {
                             <p>Envie sua candidatura em poucos cliques.</p>
-                            <a class="btn btn-primary btn-cta" href="@applyUrl" data-testid="job-apply">Candidatar-se <span aria-hidden="true">↗</span></a>
+                            <a class="btn btn-primary btn-cta" href="@applyUrl" data-testid="job-apply">Candidatar-se</a>
                         }
                         else if (!isAuthenticated)
                         {
                             <p>Entre ou crie uma conta gratuita de candidato para se candidatar.</p>
                             <a class="btn btn-primary btn-cta" href="@loginUrl" data-testid="job-apply">Entrar para se candidatar</a>
-                            <a class="btn btn-outline-primary btn-cta" href="@registerUrl" data-testid="job-register">Criar conta de candidato</a>
+                            <a class="btn btn-outline-secondary" href="@registerUrl" data-testid="job-register">Criar conta de candidato</a>
                         }
                         else
                         {
@@ -219,10 +216,10 @@
                 <section class="aside-card job-share" aria-labelledby="share-title">
                     <h2 id="share-title" class="aside-card__title">Compartilhar esta vaga</h2>
                     <div class="job-share__actions">
-                        <a class="btn btn-outline-primary" href="@JobDisplay.WhatsAppUrl(job.Title, canonicalUrl)" target="_blank" rel="noopener noreferrer" data-testid="job-share-whatsapp">
+                        <a class="btn btn-outline-secondary" href="@JobDisplay.WhatsAppUrl(job.Title, canonicalUrl)" target="_blank" rel="noopener noreferrer" data-testid="job-share-whatsapp">
                             <Icon Name="message" Size="16" />WhatsApp
                         </a>
-                        <button type="button" class="btn btn-outline-primary" data-action="copy-link" data-url="@canonicalUrl" data-testid="job-share-copy">
+                        <button type="button" class="btn btn-outline-secondary" data-action="copy-link" data-url="@canonicalUrl" data-testid="job-share-copy">
                             <Icon Name="link" Size="16" /><span data-copy-label>Copiar link</span>
                         </button>
                     </div>
@@ -242,7 +239,7 @@
                             </span>
                             <strong>@job.AdvertiserName</strong>
                         </div>
-                        <a class="btn btn-outline-primary btn-sm mt-2" href="/companies/@job.AdvertiserId">
+                        <a class="btn btn-outline-secondary btn-sm mt-2" href="/companies/@job.AdvertiserId">
                             Ver perfil da empresa e todas as vagas
                         </a>
                     </section>
@@ -254,19 +251,19 @@
         {
             <section class="job-similar" aria-labelledby="similar-title" data-testid="job-similar">
                 <h2 id="similar-title">Vagas semelhantes</h2>
-                <div class="jobs-grid">
+                <ul class="jobs-grid">
                     @foreach (var item in similar)
                     {
-                        <JobCard @key="item.Id" Job="item" Compact="true" />
+                        <li @key="item.Id"><JobCard Job="item" Compact="true" /></li>
                     }
-                </div>
+                </ul>
             </section>
         }
 
         @if (showStickyCta)
         {
             <div class="job-sticky-cta" data-testid="job-sticky-cta">
-                <button type="button" class="btn btn-outline-primary job-sticky-cta__share" data-action="share-job"
+                <button type="button" class="btn btn-outline-secondary job-sticky-cta__share" data-action="share-job"
                         data-title="@job.Title" data-url="@canonicalUrl" aria-label="Compartilhar vaga">
                     <Icon Name="share" Size="18" />
                 </button>

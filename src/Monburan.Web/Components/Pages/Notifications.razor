@@ -14,18 +14,12 @@
 
 <PageTitle>Notificações - Monburan</PageTitle>
 
-<div class="container mt-4 notifications-page">
-    <header class="page-heading">
-        <div class="page-heading__copy">
-            <span class="page-kicker">ATUALIZAÇÕES</span>
-            <h1>Notificações</h1>
-            <p>Acompanhe as atualizações das suas vagas e candidaturas.</p>
-        </div>
-    </header>
+<div class="container notifications-page">
+    <PageHeader Title="Notificações" Description="Acompanhe as atualizações das suas vagas e candidaturas." />
 
     @if (recipientId is null)
     {
-        <EmptyState Icon="◌" Title="Sem notificações para esta conta" Message="As notificações chegam para perfis de candidato e de empresa.">
+        <EmptyState Icon="bell" Title="Sem notificações para esta conta" Message="As notificações chegam para perfis de candidato e de empresa.">
             <a class="btn btn-primary" href="/dashboard">Voltar ao início</a>
         </EmptyState>
     }
@@ -61,17 +55,17 @@
         <section class="notifications-toolbar">
             <h2>Atualizações recentes</h2>
             <div class="notifications-toolbar__actions">
-                <button class="btn btn-outline-primary" @onclick="MarkAllAsReadAsync" disabled="@(unreadCount == 0 || isMarkingAll)">
-                    @(isMarkingAll ? "Marcando..." : "Marcar todas como lidas")
+                <button type="button" class="btn btn-outline-secondary" @onclick="MarkAllAsReadAsync" disabled="@(unreadCount == 0 || isMarkingAll)" aria-busy="@(isMarkingAll ? "true" : null)">
+                    @(isMarkingAll ? "Marcando…" : "Marcar todas como lidas")
                 </button>
-                <button class="btn btn-secondary" @onclick="LoadNotificationsAsync" disabled="@isLoading">Atualizar</button>
+                <button type="button" class="btn btn-outline-secondary" @onclick="LoadNotificationsAsync" disabled="@isLoading" aria-busy="@(isLoading ? "true" : null)">Recarregar</button>
             </div>
         </section>
 
         @if (isLoading)
         {
             <div class="skeleton-stack" role="status" aria-live="polite" data-testid="loading-state">
-                <span class="visually-hidden">Carregando notificações...</span>
+                <span class="visually-hidden">Carregando notificações…</span>
                 <div class="skeleton-grid">
                     <SkeletonBlock Height="5.5rem" Radius="var(--r-md)" />
                     <SkeletonBlock Height="5.5rem" Radius="var(--r-md)" />
@@ -100,10 +94,10 @@
                                 <div class="d-flex align-items-center mb-1">
                                     @if (!notification.IsRead)
                                     {
-                                        <span class="badge bg-primary me-2">Nova</span>
+                                        <StatusBadge Text="Nova" Tone="StatusTone.Brand" />
                                     }
                                     <h3 class="h6 mb-1">
-                                        <span aria-hidden="true">@GetNotificationIcon(notification.Type)</span> @notification.Title
+                                        <Icon Name="@GetNotificationIcon(notification.Type)" Size="16" /> @notification.Title
                                     </h3>
                                 </div>
                                 <p class="mb-1">@notification.Message</p>
@@ -117,7 +111,7 @@
                             </div>
                             @if (!notification.IsRead)
                             {
-                                <button type="button" class="btn btn-sm btn-outline-primary ms-2" @onclick="() => MarkAsReadAsync(notification)" disabled="@(markingId == notification.Id)"
+                                <button type="button" class="btn btn-sm btn-outline-secondary ms-2" @onclick="() => MarkAsReadAsync(notification)" disabled="@(markingId == notification.Id)"
                                         aria-label="Marcar como lida: @notification.Title">
                                     Marcar como lida
                                 </button>
@@ -129,7 +123,7 @@
         }
         else
         {
-            <EmptyState Icon="◌"
+            <EmptyState Icon="bell"
                         Title="Nenhuma notificação por enquanto"
                         Message="Avisamos aqui quando houver novidades sobre suas vagas e candidaturas."
                         TestId="notifications-empty" />
@@ -235,12 +229,12 @@
 
     private static string GetNotificationIcon(ENotificationType type) => type switch
     {
-        ENotificationType.System => "◇",
-        ENotificationType.NewJob => "▣",
-        ENotificationType.ApplicationStatus => "↗",
-        ENotificationType.JobExpired => "!",
-        ENotificationType.Promotional => "✦",
-        _ => "◌"
+        ENotificationType.System => "info",
+        ENotificationType.NewJob => "briefcase",
+        ENotificationType.ApplicationStatus => "send",
+        ENotificationType.JobExpired => "clock",
+        ENotificationType.Promotional => "sparkles",
+        _ => "bell"
     };
 
     private static string FormatDate(DateTime date)

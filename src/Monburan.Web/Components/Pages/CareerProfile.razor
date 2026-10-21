@@ -17,18 +17,12 @@
 
 <PageTitle>Perfil de carreira - Monburan</PageTitle>
 
-<div class="container mt-4 my-applications-page">
-    <header class="page-heading">
-        <div class="page-heading__copy">
-            <span class="page-kicker">MINHA CARREIRA</span>
-            <h1>Perfil de carreira</h1>
-            <p>Usamos estas informações para recomendar vagas.</p>
-        </div>
-    </header>
+<div class="container my-applications-page">
+    <PageHeader Title="Perfil de carreira" Description="Usamos estas informações para recomendar vagas." />
 
     @if (isLoading)
     {
-        <LoadingState Message="Carregando seu perfil de carreira..." />
+        <LoadingState Message="Carregando seu perfil de carreira…" />
     }
     else if (loadFailed)
     {
@@ -54,7 +48,6 @@
                                 <label class="form-label" for="career-role">Cargo desejado</label>
                                 <InputText id="career-role" class="form-control" @bind-Value="model.DesiredRole" data-testid="career-role"
                                            placeholder="Ex.: Atendente, Vendedor(a), Desenvolvedor(a)" />
-                                <div class="form-text">Usamos estas informações para recomendar vagas.</div>
                             </div>
 
                             <div class="row g-2">
@@ -110,16 +103,16 @@
                                 <div class="col-md-5">
                                     <label class="form-label" for="career-salary">Salário mínimo (R$)</label>
                                     <InputNumber id="career-salary" class="form-control" @bind-Value="model.MinimumSalary"
-                                                 Culture="@BrazilianCulture" data-testid="career-salary" />
+                                                 Culture="@BrazilianCulture" inputmode="decimal" data-testid="career-salary" />
                                 </div>
                             </div>
 
-                            <div class="d-flex gap-2 mt-4">
-                                <button type="submit" class="btn btn-primary" disabled="@isSaving" data-testid="career-profile-submit">
+                            <div class="form-actions">
+                                <button type="submit" class="btn btn-primary" disabled="@isSaving" aria-busy="@(isSaving ? "true" : null)" data-testid="career-profile-submit">
                                     @if (isSaving)
                                     {
-                                        <span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>
-                                        <span>Salvando...</span>
+                                        <span class="spinner-border spinner-border-sm" aria-hidden="true"></span>
+                                        <span>Salvando…</span>
                                     }
                                     else
                                     {

@@ -11,31 +11,26 @@
 @using Monburan.Core.Entities;
 @using Monburan.Web.Services;
 
-<PageTitle>Remover endereço - Monburan</PageTitle>
+<PageTitle>Excluir endereço - Monburan</PageTitle>
 
-<div class="container mt-4 page-form-shell address-form-page">
+<div class="container page-form-shell address-form-page">
     @if (isLoading)
     {
-        <LoadingState Message="Carregando endereço..." />
+        <LoadingState Message="Carregando endereço…" />
     }
     else if (address == null)
     {
-        <EmptyState Icon="!" Title="Endereço não encontrado" HeadingLevel="1" Message="O endereço solicitado não existe ou já foi removido.">
+        <EmptyState Icon="search" Title="Endereço não encontrado" HeadingLevel="1" Message="O endereço solicitado não existe ou já foi removido.">
             <a class="btn btn-primary" href="/address/list">Voltar para a lista</a>
         </EmptyState>
     }
     else
     {
-        <header class="page-heading">
-            <div class="page-heading__copy">
-                <span class="page-kicker">CONFIGURAÇÕES</span>
-                <h1>Remover endereço</h1>
-                <p>Confirme se deseja remover este endereço do perfil.</p>
-            </div>
-        </header>
+        <PageHeader Title="Excluir endereço" Description="Confirme se deseja excluir este endereço do perfil."
+                    BackHref="/address/list" BackText="Voltar a endereços" />
         <section class="card address-delete-card">
             <div class="card-body">
-                <span class="address-delete-card__icon" aria-hidden="true">!</span>
+                <span class="address-delete-card__icon" aria-hidden="true"><Icon Name="alert" Size="20" /></span>
                 <h2>Excluir este endereço?</h2>
                 <p>
                     <strong>@address.Street, @address.Number</strong><br />
@@ -51,13 +46,17 @@
                 </p>
                 <p class="text-muted">Essa ação não pode ser desfeita.</p>
                 <div class="address-delete-card__actions">
-                    <button class="btn btn-secondary" @onclick="Cancel" disabled="@isDeleting">Manter endereço</button>
-                    <button class="btn btn-danger" @onclick="Remove" disabled="@isDeleting">
+                    <button type="button" class="btn btn-outline-secondary" @onclick="Cancel" disabled="@isDeleting">Manter endereço</button>
+                    <button type="button" class="btn btn-outline-danger" @onclick="Remove" disabled="@isDeleting" aria-busy="@(isDeleting ? "true" : null)">
                         @if (isDeleting)
                         {
-                            <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                            <span class="spinner-border spinner-border-sm" aria-hidden="true"></span>
+                            <span>Excluindo…</span>
                         }
-                        Excluir endereço
+                        else
+                        {
+                            <span>Excluir endereço</span>
+                        }
                     </button>
                 </div>
             </div>
