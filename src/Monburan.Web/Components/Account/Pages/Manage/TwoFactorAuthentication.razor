@@ -9,8 +9,9 @@
 @inject IdentityUserAccessor UserAccessor
 @inject IdentityRedirectManager RedirectManager
 
-<PageTitle>Autenticação em duas etapas</PageTitle>
+<PageTitle>Verificação em duas etapas - Monburan</PageTitle>
 
+<h2>Verificação em duas etapas</h2>
 <StatusMessage />
 @if (AdminRequired && !is2faEnabled)
 {
@@ -20,7 +21,6 @@
             (Google Authenticator, Microsoft Authenticator, Authy...), guarde os códigos de recuperação e depois volte à administração.</p>
     </div>
 }
-<h3>Autenticação em duas etapas</h3>
 @if (canTrack)
 {
     if (is2faEnabled)
@@ -59,7 +59,7 @@
         <a href="Account/Manage/GenerateRecoveryCodes" class="btn btn-primary">Gerar novos códigos de recuperação</a>
     }
 
-    <h4>Aplicativo autenticador</h4>
+    <h3>Aplicativo autenticador</h3>
     @if (!hasAuthenticator)
     {
         <a href="Account/Manage/EnableAuthenticator" class="btn btn-primary">Adicionar aplicativo autenticador</a>

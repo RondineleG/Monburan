@@ -5,7 +5,7 @@
 @if (IsManagePage)
 {
     @* Gerenciamento de conta roda dentro do app shell (MainLayout já fornece o <main>) *@
-    <section class="container account-settings-page">
+    <section class="container mt-4 account-settings-page">
         @if (HttpContext is null)
         {
             <div class="loading-state loading-state--compact">
@@ -26,25 +26,26 @@ else
         <div class="auth-hero__grid" aria-hidden="true"></div>
         <div class="auth-hero__content">
             <span class="auth-hero__eyebrow">MONBURAN / TALENTOS QUE FICAM</span>
-            <h2>O trabalho certo muda tudo.</h2>
+            @* Frase de marca, não título: o h1 da página é o do formulário ao lado *@
+            <p class="auth-hero__title">O trabalho certo muda tudo.</p>
             <p>Uma forma mais humana de encontrar oportunidades, contratar melhor e construir o próximo capítulo.</p>
             <div class="auth-hero__proof">
                 <div>
-                    <span class="auth-hero__proof-icon">✓</span>
+                    <span class="auth-hero__proof-icon" aria-hidden="true">✓</span>
                     <span>Perfil em um só lugar</span>
                 </div>
                 <div>
-                    <span class="auth-hero__proof-icon">⌕</span>
+                    <span class="auth-hero__proof-icon" aria-hidden="true">⌕</span>
                     <span>Busca sem complicação</span>
                 </div>
             </div>
         </div>
         <div class="auth-hero__foot">
-            <span class="auth-hero__dot"></span>
+            <span class="auth-hero__dot" aria-hidden="true"></span>
             <span>Ambiente seguro e gratuito para começar</span>
         </div>
     </aside>
-    <section class="auth-content @(IsManagePage ? "auth-content--wide" : string.Empty)" data-testid="auth-content">
+    <section class="auth-content" data-testid="auth-content">
         @if (HttpContext is null)
         {
             <div class="loading-state loading-state--compact">

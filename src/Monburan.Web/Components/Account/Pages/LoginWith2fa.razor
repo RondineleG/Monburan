@@ -18,7 +18,7 @@
         <p>Digite o código gerado pelo seu aplicativo autenticador.</p>
     </header>
     <section class="auth-form-card">
-        <StatusMessage Message="@message" />
+        <StatusMessage Message="@message" IsError="true" />
         <EditForm Model="Input" FormName="login-with-2fa" OnValidSubmit="OnValidSubmitAsync" method="post">
             <input type="hidden" name="ReturnUrl" value="@ReturnUrl" />
             <input type="hidden" name="RememberMe" value="@RememberMe" />
@@ -45,6 +45,9 @@
     private string? message;
     private ApplicationUser user = default!;
 
+    [CascadingParameter]
+    private HttpContext HttpContext { get; set; } = default!;
+
     [SupplyParameterFromForm]
     private InputModel Input
     {
@@ -63,8 +66,17 @@
     protected override async Task OnInitializedAsync()
     {
         // Ensure the user has gone through the username & password screen first
-        user = await SignInManager.GetTwoFactorAuthenticationUserAsync() ??
-            throw new InvalidOperationException("Unable to load two-factor authentication user.");
+        var pendingUser = await SignInManager.GetTwoFactorAuthenticationUserAsync();
+        if (pendingUser is null)
+        {
+            // Acesso direto ou cookie de 2FA vencido: volta ao login em vez de dar erro 500
+            RedirectManager.RedirectToWithStatus(
+                "Account/Login",
+                "Erro: sua verificação em duas etapas expirou. Entre novamente.",
+                HttpContext);
+        }
+
+        user = pendingUser;
     }
 
     private async Task OnValidSubmitAsync()

@@ -13,11 +13,12 @@
 
 <PageTitle>Excluir conta - Monburan</PageTitle>
 
-<StatusMessage Message="@message" />
+<h2>Excluir conta e dados pessoais</h2>
 
-<h3>Excluir conta e dados pessoais</h3>
+@* Nesta página a mensagem local só aparece em falha: o sucesso redireciona para o login *@
+<StatusMessage Message="@message" IsError="true" />
 
-<div class="alert alert-warning" role="alert">
+<div class="alert alert-warning">
     <p>
         <strong>Esta ação é permanente.</strong> Sua conta será removida e seus dados pessoais
         (nome, e-mail, telefone, currículos) serão apagados. Não será possível recuperá-los.
@@ -30,9 +31,9 @@
         <ValidationSummary class="text-danger" role="alert" />
         @if (requirePassword)
         {
-            <div class="form-floating mb-3">
-                <InputText id="password" type="password" @bind-Value="Input.Password" class="form-control" autocomplete="current-password" aria-required="true" placeholder=" " />
+            <div class="mb-3">
                 <label for="password" class="form-label">Confirme sua senha</label>
+                <InputText id="password" type="password" @bind-Value="Input.Password" class="form-control" autocomplete="current-password" aria-required="true" />
                 <ValidationMessage For="() => Input.Password" class="text-danger" />
             </div>
         }

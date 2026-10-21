@@ -37,7 +37,7 @@
     </div>
     <div class="auth-form-grid auth-form-grid--single">
         <section class="auth-form-card">
-        <StatusMessage Message="@Message" />
+        <StatusMessage Message="@Message" IsError="true" />
         @if (identityErrors is not null)
         {
             <ul class="auth-error-list text-danger" data-testid="register-errors">
@@ -53,10 +53,7 @@
         }
         @if (!string.IsNullOrEmpty(successMessage))
         {
-            <div class="alert alert-success alert-dismissible fade show" role="alert">
-                <i class="bi bi-check-circle"></i> @successMessage
-                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-            </div>
+            <div class="alert alert-success" role="status">@successMessage</div>
         }
         <EditForm Model="Input" asp-route-returnUrl="@ReturnUrl" method="post" OnValidSubmit="RegisterUser" FormName="register">
             <DataAnnotationsValidator />

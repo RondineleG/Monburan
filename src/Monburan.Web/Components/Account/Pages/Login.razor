@@ -20,7 +20,8 @@
     </div>
     <div class="auth-form-grid auth-form-grid--single">
         <section class="auth-form-card">
-            <StatusMessage Message="@errorMessage" />
+            @* Erro local é sempre erro; recado vindo de redirecionamento (ex.: conta excluída) usa o prefixo *@
+            <StatusMessage Message="@errorMessage" IsError="@(errorMessage is null ? (bool?)null : true)" />
             <EditForm Model="Input" method="post" OnValidSubmit="LoginUser" FormName="login">
                 <DataAnnotationsValidator />
                 <div class="form-floating mb-3">

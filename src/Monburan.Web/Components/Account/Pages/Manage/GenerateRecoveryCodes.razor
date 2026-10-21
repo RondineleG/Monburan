@@ -8,7 +8,7 @@
 @inject IdentityRedirectManager RedirectManager
 @inject ILogger<GenerateRecoveryCodes> Logger
 
-<PageTitle>Gerar códigos de recuperação</PageTitle>
+<PageTitle>Gerar códigos de recuperação - Monburan</PageTitle>
 
 @if (recoveryCodes is not null)
 {
@@ -16,11 +16,10 @@
 }
 else
 {
-    <h3>Gerar códigos de recuperação</h3>
-    <div class="alert alert-warning" role="alert">
+    <h2>Gerar códigos de recuperação</h2>
+    <div class="alert alert-warning">
         <p>
-            <span class="glyphicon glyphicon-warning-sign"></span>
-            <strong>Guarde estes códigos em um lugar seguro.</strong>
+            <strong>Atenção: guarde estes códigos em um lugar seguro.</strong>
         </p>
         <p>
             Se você perder o dispositivo e não tiver os códigos de recuperação, perderá o acesso à conta.
@@ -33,7 +32,7 @@ else
     <div>
         <form @formname="generate-recovery-codes" @onsubmit="OnSubmitAsync" method="post">
             <AntiforgeryToken />
-            <button class="btn btn-danger" type="submit">Generate Recovery Codes</button>
+            <button class="btn btn-danger" type="submit">Gerar códigos de recuperação</button>
         </form>
     </div>
 }

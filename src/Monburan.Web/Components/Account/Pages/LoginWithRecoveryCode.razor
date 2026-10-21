@@ -18,7 +18,7 @@
         <p>Os códigos de recuperação são de uso único. Guarde os demais em um lugar seguro.</p>
     </header>
     <section class="auth-form-card">
-        <StatusMessage Message="@message" />
+        <StatusMessage Message="@message" IsError="true" />
         <EditForm Model="Input" FormName="login-with-recovery-code" OnValidSubmit="OnValidSubmitAsync" method="post">
             <DataAnnotationsValidator />
             <ValidationSummary class="text-danger" role="alert" />
@@ -36,6 +36,9 @@
     private string? message;
     private ApplicationUser user = default!;
 
+    [CascadingParameter]
+    private HttpContext HttpContext { get; set; } = default!;
+
     [SupplyParameterFromForm]
     private InputModel Input
     {
@@ -51,8 +54,17 @@
     protected override async Task OnInitializedAsync()
     {
         // Ensure the user has gone through the username & password screen first
-        user = await SignInManager.GetTwoFactorAuthenticationUserAsync() ??
-            throw new InvalidOperationException("Unable to load two-factor authentication user.");
+        var pendingUser = await SignInManager.GetTwoFactorAuthenticationUserAsync();
+        if (pendingUser is null)
+        {
+            // Acesso direto ou cookie de 2FA vencido: volta ao login em vez de dar erro 500
+            RedirectManager.RedirectToWithStatus(
+                "Account/Login",
+                "Erro: sua verificação em duas etapas expirou. Entre novamente.",
+                HttpContext);
+        }
+
+        user = pendingUser;
     }
 
     private async Task OnValidSubmitAsync()

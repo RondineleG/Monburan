@@ -1,11 +1,10 @@
 ﻿@if (!string.IsNullOrEmpty(DisplayMessage))
 {
-    var statusMessageClass = DisplayMessage.StartsWith("Error", StringComparison.OrdinalIgnoreCase)
-        || DisplayMessage.StartsWith("Erro", StringComparison.OrdinalIgnoreCase)
-        ? "danger"
-        : "success";
-    <div class="alert alert-@statusMessageClass" role="alert" data-testid="account-status">
-        @DisplayMessage
+    // Quem sabe o tipo informa IsError; mensagens vindas do cookie de redirecionamento só têm o prefixo
+    var isError = IsError ?? (DisplayMessage.StartsWith("Error", StringComparison.OrdinalIgnoreCase)
+        || DisplayMessage.StartsWith("Erro", StringComparison.OrdinalIgnoreCase));
+    <div class="alert alert-@(isError ? "danger" : "success")" role="@(isError ? "alert" : "status")" data-testid="account-status">
+        @WithoutTechnicalPrefix(DisplayMessage)
     </div>
 }
 
@@ -14,6 +13,19 @@
 
     [Parameter]
     public string? Message { get; set; }
+
+    /// <summary>Tipo da mensagem quando a página sabe; sem valor, vale o prefixo "Erro:"/"Error:" do texto.</summary>
+    [Parameter]
+    public bool? IsError { get; set; }
+
+    // "Error: ..." e "Erro: ..." eram marcadores para a cor; a pessoa lê só a mensagem
+    private static string WithoutTechnicalPrefix(string message)
+    {
+        foreach (var prefix in new[] { "Error:", "Erro:" })
+            if (message.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+                return message[prefix.Length..].TrimStart();
+        return message;
+    }
 
     [CascadingParameter]
     private HttpContext HttpContext { get; set; } = default!;
