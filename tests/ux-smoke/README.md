@@ -21,3 +21,18 @@ mantém o host vivo para inspeção no endereço `HOST=` impresso no log.
 - Navegador restrito a loopback (`127.0.0.1`/`localhost`) — nenhuma chamada externa.
 - Requer SDK .NET 10 e os navegadores Playwright já instalados no perfil do usuário.
 - Seed InMemory: cria currículo/assinatura/candidatura só no banco em memória do teste.
+
+## Captura para revisão visual e regressão (`--capture`)
+
+Percorre, somente leitura, todas as rotas do site por papel (visitante, candidato, empresa, admin) em
+1440×900, 834×1112 e 390×844 nos dois temas, e as telas do app em 360×800, 390×844 e 412×915 pela pré-visualização
+(`tests/ux-mobile-preview`). Grava as capturas, `results.json` (métricas por página: contraste de cada texto, texto
+< 12px, alvos < 24px, campos sem rótulo, controles sem nome, ids duplicados, overflow, títulos, erros de console) e
+`summary.txt`. Diálogos e gavetas são só abertos e fechados; nada é confirmado.
+
+```bash
+cd tests/ux-mobile-preview && dotnet build            # só para incluir o app
+cd ../ux-smoke && dotnet run -- --capture all --out <pasta>   # all | web | mobile
+```
+
+O `summary.txt` não pode ter overflow, contraste abaixo de AA, texto < 12px, campo sem rótulo ou controle sem nome.

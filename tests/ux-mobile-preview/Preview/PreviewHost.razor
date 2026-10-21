@@ -1,0 +1,40 @@
+@* Página hospedeira equivalente ao wwwroot/index.html do app: mesmo CSS e o mesmo script de tema (lido do próprio
+   index.html, para não divergir). Sem pré-renderização, como no BlazorWebView. *@
+@using Monburan.Mobile.Components
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#0A0806" />
+    <title>Monburan</title>
+    <base href="/" />
+    <link rel="stylesheet" href="app.css" />
+    <HeadOutlet @rendermode="RenderMode" />
+</head>
+<body>
+    <Routes @rendermode="RenderMode" />
+
+    <div id="blazor-error-ui" data-nosnippet>
+        Ocorreu um erro inesperado.
+        <a href="." class="reload">Recarregar</a>
+        <button type="button" class="dismiss" aria-label="Fechar aviso">×</button>
+    </div>
+
+    <script src="_framework/blazor.web.js"></script>
+    <script>@((MarkupString)AppScript.Value)</script>
+</body>
+</html>
+
+@code {
+    private static readonly IComponentRenderMode RenderMode = new InteractiveServerRenderMode(prerender: false);
+
+    private static readonly Lazy<string> AppScript = new(() =>
+    {
+        var html = File.ReadAllText(Path.Combine(PreviewPaths.MobileWwwroot, "index.html"));
+        // O bloco inline (sem src) define window.monburan e aplica o tema salvo antes do primeiro paint
+        var match = System.Text.RegularExpressions.Regex.Match(html, @"<script>(?<js>[\s\S]*?)</script>");
+        return match.Success ? match.Groups["js"].Value : string.Empty;
+    });
+}

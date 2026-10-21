@@ -45,6 +45,19 @@ static async Task LoopbackOnly(Microsoft.Playwright.IRoute route)
         await route.AbortAsync();
 }
 
+// Modo de captura (revisão visual e regressão): ver Capture/CaptureRunner.cs e o README
+if (args.Contains("--capture"))
+{
+    Environment.ExitCode = await CaptureRunner.RunAsync(args, FindRepoRoot(), contentRoot =>
+    {
+        var captureFactory = new UxFactory(contentRoot);
+        captureFactory.UseKestrel(0);
+        var captureClient = captureFactory.CreateClient();
+        return new MonburanApiFactoryHandle(captureFactory, captureClient.BaseAddress!.ToString().TrimEnd('/'), captureFactory.Services);
+    });
+    return;
+}
+
 var repoRoot = FindRepoRoot();
 var outputDir = Path.Combine(Path.GetTempPath(), "monburan-ux-smoke-" + Guid.NewGuid().ToString("N"));
 Directory.CreateDirectory(outputDir);
