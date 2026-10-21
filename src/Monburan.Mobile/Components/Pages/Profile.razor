@@ -3,12 +3,12 @@
 @inject MonburanApiClient Api
 @inject IToastService Toast
 
-<h1 class="page-title">Perfil</h1>
+<h1 class="page-title" tabindex="-1">Perfil</h1>
 <p class="page-subtitle">Seus dados de candidato</p>
 
 @if (_loading)
 {
-    <LoadingState Message="Carregando perfil..." />
+    <LoadingState Message="Carregando perfil…" />
 }
 else if (_loadError is not null)
 {
@@ -24,16 +24,16 @@ else if (_candidate is not null)
             </div>
             @if (_candidate.IsEmailVerified)
             {
-                <span class="badge ok">E-mail verificado</span>
+                <span class="badge badge--ok"><Icon Name="check" Size="14" /> E-mail verificado</span>
             }
         </div>
         <div class="card-meta">
-            <span class="meta-chip">@_candidate.ResumesCount currículo(s)</span>
-            <span class="meta-chip">@_candidate.ApplicationsCount candidatura(s)</span>
+            <span class="meta-chip"><Icon Name="file" Size="16" /> @_candidate.ResumesCount currículo(s)</span>
+            <span class="meta-chip"><Icon Name="send" Size="16" /> @_candidate.ApplicationsCount candidatura(s)</span>
         </div>
     </div>
 
-    <h2 class="section-label">Editar dados</h2>
+    <h2 class="section-title">Editar dados</h2>
     <form class="card" @onsubmit="SaveAsync" novalidate>
         <div class="form-field">
             <label for="profile-name">Nome</label>
@@ -60,12 +60,14 @@ else if (_candidate is not null)
             }
         </div>
         <button type="submit" class="btn btn-primary btn-block" disabled="@_busy">
-            @(_busy ? "Salvando..." : "Salvar")
+            @(_busy ? "Salvando…" : "Salvar")
         </button>
     </form>
 
-    <a class="btn btn-block" href="/resumes" style="margin-bottom: var(--s-3)">Meus currículos</a>
-    <button class="btn btn-ghost btn-block" @onclick="LogoutAsync">Sair da conta</button>
+    <div class="action-stack">
+        <a class="btn btn-secondary btn-block" href="/resumes"><Icon Name="file" /> Meus currículos</a>
+        <button type="button" class="btn btn-ghost btn-block" @onclick="LogoutAsync"><Icon Name="log-out" /> Sair da conta</button>
+    </div>
 }
 
 @code {

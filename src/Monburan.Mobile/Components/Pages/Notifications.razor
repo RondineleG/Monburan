@@ -4,12 +4,12 @@
 @inject IToastService Toast
 @inject NotificationBadgeState Badge
 
-<h1 class="page-title">Avisos</h1>
+<h1 class="page-title" tabindex="-1">Avisos</h1>
 <p class="page-subtitle">Notificações sobre suas candidaturas</p>
 
 @if (_loading)
 {
-    <LoadingState Message="Carregando avisos..." />
+    <LoadingState Message="Carregando avisos…" />
 }
 else if (_error is not null)
 {
@@ -17,7 +17,7 @@ else if (_error is not null)
 }
 else if (_items.Count == 0)
 {
-    <EmptyState Icon="◈" Title="Nenhum aviso" Message="Quando houver novidades sobre suas candidaturas, elas aparecem aqui.">
+    <EmptyState IconName="bell" Title="Nenhum aviso" Message="Quando houver novidades sobre suas candidaturas, elas aparecem aqui.">
         <a class="btn btn-primary" href="/">Ver vagas</a>
     </EmptyState>
 }
@@ -25,8 +25,9 @@ else
 {
     @if (_items.Any(n => !n.IsRead))
     {
-        <button class="btn btn-block" @onclick="MarkAllAsync" disabled="@_markingAll" style="margin-bottom: var(--s-3)">
-            @(_markingAll ? "Marcando..." : "Marcar todos como lidos")
+        <button type="button" class="btn btn-secondary btn-block page-action" @onclick="MarkAllAsync" disabled="@_markingAll" aria-busy="@(_markingAll ? "true" : null)">
+            <Icon Name="check" />
+            @(_markingAll ? "Marcando…" : "Marcar todos como lidos")
         </button>
     }
 
@@ -39,7 +40,7 @@ else
                 <h2 class="card-title">@n.Title</h2>
                 @if (!n.IsRead)
                 {
-                    <span class="badge gold">Novo</span>
+                    <span class="badge badge--brand">Novo</span>
                 }
             </div>
             <p class="card-snippet">@n.Message</p>

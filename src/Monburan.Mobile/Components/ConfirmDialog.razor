@@ -1,15 +1,20 @@
 @implements IDisposable
 
-@* Confirmação para ações destrutivas: if (!await dialog.ShowAsync(...)) return; *@
+@* Confirmação para ações destrutivas: if (!await dialog.ShowAsync(...)) return;
+   Mesmo diálogo da web na forma de celular: folha presa à base, ações ao alcance do polegar. *@
 @if (isOpen)
 {
     <div class="sheet-backdrop" role="presentation" @onclick="Cancel">
-        <section class="sheet" role="alertdialog" aria-modal="true" aria-labelledby="confirm-title" @onclick:stopPropagation="true">
-            <h2 id="confirm-title" class="sheet-title">@options.Title</h2>
-            <p class="sheet-message">@options.Message</p>
-            <div class="sheet-actions">
+        <section class="sheet" role="alertdialog" aria-modal="true" aria-labelledby="confirm-title" aria-describedby="confirm-message"
+                 @onclick:stopPropagation="true" @onkeydown="OnKeyDown">
+            <div class="sheet__header">
+                <span class="confirm-dialog__icon@(options.Destructive ? " confirm-dialog__icon--danger" : string.Empty)"><Icon Name="@(options.Destructive ? "alert" : "info")" /></span>
+                <h2 id="confirm-title" class="sheet__title" tabindex="-1" @ref="titleRef">@options.Title</h2>
+            </div>
+            <p id="confirm-message" class="sheet__message">@options.Message</p>
+            <div class="sheet__actions">
                 <button type="button" class="btn @(options.Destructive ? "btn-danger-solid" : "btn-primary") btn-block" @onclick="Confirm">@options.ConfirmText</button>
-                <button type="button" class="btn btn-ghost btn-block" @onclick="Cancel">@options.CancelText</button>
+                <button type="button" class="btn btn-secondary btn-block" @onclick="Cancel">@options.CancelText</button>
             </div>
         </section>
     </div>
@@ -18,7 +23,9 @@
 @code {
     private ConfirmOptions options = new();
     private TaskCompletionSource<bool>? pending;
+    private ElementReference titleRef;
     private bool isOpen;
+    private bool focusPending;
 
     /// <summary>Abre o diálogo e devolve <c>true</c> só se o usuário confirmar.</summary>
     public Task<bool> ShowAsync(ConfirmOptions confirmOptions)
@@ -28,9 +35,33 @@
         options = confirmOptions;
         pending = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
         isOpen = true;
+        focusPending = true;
         StateHasChanged();
 
         return pending.Task;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        // Leitor de tela anuncia o título ao abrir; o anel não aparece (h2 com tabindex -1)
+        if (isOpen && focusPending)
+        {
+            focusPending = false;
+            try
+            {
+                await titleRef.FocusAsync();
+            }
+            catch (Exception ex) when (ex is InvalidOperationException or JSException or JSDisconnectedException)
+            {
+                // Foco é acessório: o diálogo continua utilizável sem ele
+            }
+        }
+    }
+
+    private void OnKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Escape")
+            Cancel();
     }
 
     private void Confirm() => Close(true);

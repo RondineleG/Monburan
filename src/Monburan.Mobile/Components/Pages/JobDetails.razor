@@ -6,13 +6,13 @@
 
 @if (_loading)
 {
-    <LoadingState Message="Carregando vaga..." />
+    <LoadingState Message="Carregando vaga…" />
 }
 else if (_error is not null)
 {
     @if (_error.StatusCode == System.Net.HttpStatusCode.NotFound)
     {
-        <EmptyState Icon="?" Title="Vaga não encontrada" Message="Ela pode ter sido encerrada ou removida pela empresa.">
+        <EmptyState IconName="search" HeadingLevel="1" Title="Vaga não encontrada" Message="Ela pode ter sido encerrada ou removida pela empresa.">
             <a class="btn btn-primary" href="/">Ver vagas abertas</a>
         </EmptyState>
     }
@@ -23,22 +23,9 @@ else if (_error is not null)
 }
 else if (_job is not null)
 {
+    var mode = Formatters.JobMode(_job);
     <div class="detail-hero">
-        <div class="tag-row">
-            @if (_job.IsRemote)
-            {
-                <span class="badge gold">Remoto</span>
-            }
-            @if (!string.IsNullOrEmpty(_job.Type) && !_job.IsRemote)
-            {
-                <span class="badge">@Formatters.JobType(_job.Type)</span>
-            }
-            @if (!string.IsNullOrEmpty(_job.Category))
-            {
-                <span class="badge">@_job.Category</span>
-            }
-        </div>
-        <h1>@_job.Title</h1>
+        <h1 tabindex="-1">@_job.Title</h1>
         @if (!string.IsNullOrEmpty(_job.AdvertiserName))
         {
             <div class="text-dim">@_job.AdvertiserName</div>
@@ -46,20 +33,25 @@ else if (_job is not null)
         <div class="card-meta">
             @if (!string.IsNullOrEmpty(_job.City))
             {
-                <span class="meta-chip"><span aria-hidden="true">📍</span> @_job.City@(_job.State is not null ? $"/{_job.State}" : "")</span>
+                <span class="meta-chip"><Icon Name="map-pin" Size="16" /> @_job.City@(_job.State is not null ? $"/{_job.State}" : "")</span>
             }
+            <span class="meta-chip"><Icon Name="@Formatters.JobModeIcon(mode)" Size="16" /> @Formatters.JobType(mode)</span>
             @if (Formatters.Salary(_job) is { } salary)
             {
-                <span class="salary">@salary</span>
+                <span class="meta-chip salary"><Icon Name="banknote" Size="16" /> @salary</span>
             }
-            <span class="meta-chip">até @Formatters.CalendarDate(_job.ExpirationDate)</span>
+            <span class="meta-chip"><Icon Name="calendar" Size="16" /> Até @Formatters.CalendarDate(_job.ExpirationDate)</span>
         </div>
+        @if (!string.IsNullOrEmpty(_job.Category))
+        {
+            <div class="tag-row"><span class="badge badge--neutral">@_job.Category</span></div>
+        }
     </div>
 
     @if (!string.IsNullOrEmpty(_job.Description))
     {
         <div class="detail-section">
-            <h3>Sobre a vaga</h3>
+            <h2>Sobre a vaga</h2>
             <p class="body-text">@_job.Description</p>
         </div>
     }
@@ -67,7 +59,7 @@ else if (_job is not null)
     @if (!string.IsNullOrEmpty(_job.Requirements))
     {
         <div class="detail-section">
-            <h3>Requisitos</h3>
+            <h2>Requisitos</h2>
             <p class="body-text">@_job.Requirements</p>
         </div>
     }
@@ -75,7 +67,7 @@ else if (_job is not null)
     @if (!string.IsNullOrEmpty(_job.Responsibilities))
     {
         <div class="detail-section">
-            <h3>Responsabilidades</h3>
+            <h2>Responsabilidades</h2>
             <p class="body-text">@_job.Responsibilities</p>
         </div>
     }
@@ -83,7 +75,7 @@ else if (_job is not null)
     @if (!string.IsNullOrEmpty(_job.Benefits))
     {
         <div class="detail-section">
-            <h3>Benefícios</h3>
+            <h2>Benefícios</h2>
             <p class="body-text">@_job.Benefits</p>
         </div>
     }
@@ -91,7 +83,7 @@ else if (_job is not null)
     @if (!string.IsNullOrEmpty(_job.ApplicationInstructions))
     {
         <div class="detail-section">
-            <h3>Como se candidatar</h3>
+            <h2>Como se candidatar</h2>
             <p class="body-text">@_job.ApplicationInstructions</p>
         </div>
     }
@@ -100,17 +92,17 @@ else if (_job is not null)
 
     @if (_alreadyApplied)
     {
-        <div class="alert alert-ok">Você já se candidatou a esta vaga.</div>
-        <a class="btn btn-block" href="/applications">Ver minhas candidaturas</a>
+        <div class="alert alert-success" role="status">Você já se candidatou a esta vaga.</div>
+        <a class="btn btn-secondary btn-block" href="/applications">Ver minhas candidaturas</a>
     }
     else if (_job.Status != "Active")
     {
         <div class="alert alert-info">Esta vaga não está mais recebendo candidaturas.</div>
-        <a class="btn btn-block" href="/">Ver outras vagas</a>
+        <a class="btn btn-secondary btn-block" href="/">Ver outras vagas</a>
     }
     else
     {
-        <button class="btn btn-primary btn-block" @onclick="Apply">
+        <button type="button" class="btn btn-primary btn-block" @onclick="Apply">
             Candidatar-se
         </button>
     }

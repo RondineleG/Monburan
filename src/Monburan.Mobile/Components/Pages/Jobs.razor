@@ -4,23 +4,32 @@
 @inject NavigationManager Nav
 @inject IToastService Toast
 
-<h1 class="page-title">Oportunidades</h1>
+<h1 class="page-title" tabindex="-1">Oportunidades</h1>
 <p class="page-subtitle">Encontre a vaga ideal para você</p>
 
 <form class="search-row" role="search" @onsubmit="Search">
-    <input class="input" type="search" aria-label="Buscar vagas" placeholder="Buscar cargo, empresa..." @bind="_searchTerm" @bind:event="oninput" />
-    <button type="submit" class="btn btn-primary">Buscar</button>
+    <input class="input" type="search" aria-label="Buscar vagas" placeholder="Buscar cargo, empresa…" @bind="_searchTerm" @bind:event="oninput" />
+    <button type="submit" class="btn btn-primary"><Icon Name="search" /> Buscar</button>
 </form>
 
-<div class="filter-chips">
-    <button type="button" class="filter-chip @(_isRemote == null ? "active" : "")" aria-pressed="@(_isRemote == null ? "true" : "false")" @onclick="() => SetRemote(null)">Todas</button>
-    <button type="button" class="filter-chip @(_isRemote == true ? "active" : "")" aria-pressed="@(_isRemote == true ? "true" : "false")" @onclick="() => SetRemote(true)">Remoto</button>
-    <button type="button" class="filter-chip @(_isRemote == false ? "active" : "")" aria-pressed="@(_isRemote == false ? "true" : "false")" @onclick="() => SetRemote(false)">Presencial</button>
+@* Modalidade pelo tipo da vaga (Remote/Hybrid/OnSite), como na web: vaga híbrida não entra em "Remoto" *@
+<div class="chip-group filter-chips" role="group" aria-label="Modalidade">
+    @foreach (var (value, label) in Modes)
+    {
+        var active = _type == value;
+        <button type="button" class="chip@(active ? " is-active" : string.Empty)" aria-pressed="@(active ? "true" : "false")" @onclick="() => SetType(value)">
+            @if (value is not null)
+            {
+                <Icon Name="@Formatters.JobModeIcon(value)" Size="16" />
+            }
+            @label
+        </button>
+    }
 </div>
 
 @if (_loading)
 {
-    <LoadingState Message="Buscando vagas..." />
+    <LoadingState Message="Buscando vagas…" />
 }
 else if (_error is not null)
 {
@@ -28,22 +37,17 @@ else if (_error is not null)
 }
 else if (_jobs.Count == 0)
 {
-    <EmptyState Icon="⌂" Title="Nenhuma vaga encontrada"
+    <EmptyState IconName="search" Title="Nenhuma vaga encontrada"
                 Message="Tente ajustar os filtros ou buscar por outro termo." />
 }
 else
 {
     @foreach (var job in _jobs)
     {
+        var mode = Formatters.JobMode(job);
         <a class="card-link" href="/jobs/@job.Id">
             <div class="card">
-                <div class="list-row">
-                    <h2 class="card-title">@job.Title</h2>
-                    @if (job.IsRemote)
-                    {
-                        <span class="badge gold">Remoto</span>
-                    }
-                </div>
+                <h2 class="card-title">@job.Title</h2>
                 @if (!string.IsNullOrEmpty(job.AdvertiserName))
                 {
                     <div class="text-dim">@job.AdvertiserName</div>
@@ -55,25 +59,26 @@ else
                 <div class="card-meta">
                     @if (!string.IsNullOrEmpty(job.City))
                     {
-                        <span class="meta-chip"><span aria-hidden="true">📍</span> @job.City@(job.State is not null ? $"/{job.State}" : "")</span>
+                        <span class="meta-chip"><Icon Name="map-pin" Size="16" /> @job.City@(job.State is not null ? $"/{job.State}" : "")</span>
                     }
+                    <span class="meta-chip"><Icon Name="@Formatters.JobModeIcon(mode)" Size="16" /> @Formatters.JobType(mode)</span>
                     @if (Formatters.Salary(job) is { } salary)
                     {
-                        <span class="salary">@salary</span>
-                    }
-                    @if (!string.IsNullOrEmpty(job.Category))
-                    {
-                        <span class="badge">@job.Category</span>
+                        <span class="meta-chip salary"><Icon Name="banknote" Size="16" /> @salary</span>
                     }
                 </div>
+                @if (!string.IsNullOrEmpty(job.Category))
+                {
+                    <div class="tag-row"><span class="badge badge--neutral">@job.Category</span></div>
+                }
             </div>
         </a>
     }
 
     @if (_hasMore)
     {
-        <button class="btn btn-block" @onclick="LoadMoreAsync" disabled="@_loadingMore">
-            @(_loadingMore ? "Carregando..." : "Carregar mais")
+        <button type="button" class="btn btn-secondary btn-block" @onclick="LoadMoreAsync" disabled="@_loadingMore" aria-busy="@(_loadingMore ? "true" : null)">
+            @(_loadingMore ? "Carregando…" : "Carregar mais")
         </button>
     }
 }
@@ -81,7 +86,15 @@ else
 @code {
     private readonly List<JobResponse> _jobs = [];
     private string? _searchTerm;
-    private bool? _isRemote;
+    private static readonly (string? Value, string Label)[] Modes =
+    [
+        (null, "Todas"),
+        ("Remote", "Remoto"),
+        ("Hybrid", "Híbrido"),
+        ("OnSite", "Presencial")
+    ];
+
+    private string? _type;
     private int _page = 1;
     private const int PageSize = 10;
     private bool _hasMore;
@@ -154,15 +167,15 @@ else
         Page = page,
         Size = PageSize,
         SearchTerm = string.IsNullOrWhiteSpace(_searchTerm) ? null : _searchTerm,
-        IsRemote = _isRemote,
+        Type = _type,
         SortDescending = true
     };
 
     private Task Search() => LoadAsync();
 
-    private Task SetRemote(bool? value)
+    private Task SetType(string? value)
     {
-        _isRemote = value;
+        _type = value;
         return LoadAsync();
     }
 }

@@ -16,11 +16,14 @@
             @if (ShowBack)
             {
                 @* O iOS não tem botão voltar do sistema: telas internas (vaga, candidatura) precisam de um *@
-                <button type="button" class="app-back" @onclick="GoBackAsync" aria-label="Voltar"><span aria-hidden="true">‹</span></button>
+                <button type="button" class="icon-button app-back" @onclick="GoBackAsync" aria-label="Voltar"><Icon Name="chevron-left" Size="22" /></button>
             }
-            <a class="app-brand" href="/">Monburan</a>
-            <button type="button" class="theme-toggle" @onclick="ToggleTheme" aria-label="Tema escuro" aria-pressed="@(_isDark ? "true" : "false")">
-                @(_isDark ? "☀" : "☾")
+            <a class="app-brand" href="/" aria-label="Monburan, vagas">
+                <BrandMark />
+                <span class="app-brand__name">Monburan</span>
+            </a>
+            <button type="button" class="icon-button theme-toggle" @onclick="ToggleTheme" aria-label="Tema escuro" aria-pressed="@(_isDark ? "true" : "false")">
+                <Icon Name="@(_isDark ? "moon" : "sun")" Size="20" />
             </button>
         </header>
     }
@@ -31,7 +34,7 @@
 
     @if (!IsAuthPage)
     {
-        <BottomNav UnreadCount="_unread" />
+        <BottomNav UnreadCount="_unread" CurrentPath="@CurrentPath" />
     }
 
     <ToastHost />
@@ -45,14 +48,9 @@
     private bool _isDark = true;
 
     // Abas da barra inferior não têm "voltar"; as demais telas (detalhe, candidatura, currículos) têm
-    private bool ShowBack
-    {
-        get
-        {
-            var path = "/" + Nav.ToBaseRelativePath(Nav.Uri).Split('?', '#')[0].Trim('/');
-            return path is not ("/" or "/jobs" or "/applications" or "/notifications" or "/profile");
-        }
-    }
+    private bool ShowBack => CurrentPath is not ("/" or "/jobs" or "/applications" or "/notifications" or "/profile");
+
+    private string CurrentPath => "/" + Nav.ToBaseRelativePath(Nav.Uri).Split('?', '#')[0].Trim('/');
 
     private async Task GoBackAsync()
     {

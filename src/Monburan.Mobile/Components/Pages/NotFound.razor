@@ -1,9 +1,6 @@
 @page "/not-found"
 @layout MainLayout
 
-<div class="state-box">
-    <div class="state-icon">◌</div>
-    <div class="state-title">Página não encontrada</div>
-    <p>O conteúdo que você procura não existe ou foi movido.</p>
+<EmptyState IconName="search" HeadingLevel="1" Title="Página não encontrada" Message="O conteúdo que você procura não existe ou foi movido.">
     <a class="btn btn-primary" href="/">Voltar para vagas</a>
-</div>
+</EmptyState>

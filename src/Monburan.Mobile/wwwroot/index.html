@@ -6,9 +6,8 @@
     <meta name="theme-color" content="#0A0806" />
     <title>Monburan</title>
     <base href="/" />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Cormorant+Garamond&family=Share+Tech+Mono&display=swap" rel="stylesheet" />
+    <!-- Sem Google Fonts: interface na fonte do sistema e a Cinzel do logotipo vem de fonts/ (app.css) -->
+    <link rel="preload" href="fonts/cinzel-latin.woff2" as="font" type="font/woff2" crossorigin />
     <link rel="stylesheet" href="app.css" />
     <link rel="stylesheet" href="Monburan.Mobile.styles.css" />
     <link rel="icon" href="data:,">
@@ -16,7 +15,7 @@
 
 <body>
 
-    <div id="app">Carregando...</div>
+    <div id="app">Carregando…</div>
 
     <div id="blazor-error-ui" data-nosnippet>
         Ocorreu um erro inesperado.

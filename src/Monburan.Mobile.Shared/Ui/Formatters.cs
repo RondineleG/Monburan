@@ -44,6 +44,21 @@ public static class Formatters
         _ => "Presencial"
     };
 
+    /// <summary>
+    /// Modalidade da vaga pelo campo <see cref="JobResponse.Type"/> (Remote, Hybrid, OnSite). <c>IsRemote</c> só vale
+    /// quando a vaga não traz o tipo: vaga híbrida também chega com <c>IsRemote</c> e não pode aparecer como remota.
+    /// </summary>
+    public static string JobMode(JobResponse job) =>
+        string.IsNullOrWhiteSpace(job.Type) ? (job.IsRemote ? "Remote" : "OnSite") : job.Type;
+
+    /// <summary>Nome do ícone da modalidade (mesmos da web: casa, setas, prédio).</summary>
+    public static string JobModeIcon(string? type) => type switch
+    {
+        "Remote" => "home",
+        "Hybrid" => "shuffle",
+        _ => "building"
+    };
+
     public static string ApplicationStatus(string? status) => status switch
     {
         "Sent" => "Enviada",
@@ -54,12 +69,17 @@ public static class Formatters
         _ => "Em análise"
     };
 
-    public static string ApplicationStatusClass(string? status) => status switch
+    /// <summary>
+    /// Tom do selo de situação (classe <c>badge--{tom}</c>), igual a <c>UiLabels.ApplicationStatusTone</c> da web:
+    /// a cor nunca é o único sinal, o rótulo vai junto.
+    /// </summary>
+    public static string ApplicationStatusTone(string? status) => status switch
     {
+        "Viewed" => "info",
         "Selected" => "ok",
         "Rejected" => "er",
-        "Viewed" => "info",
-        _ => "gold"
+        "Sent" or "Archived" => "neutral",
+        _ => "brand"
     };
 
     /// <summary>Momento (UTC no servidor) no fuso do aparelho, com hora.</summary>

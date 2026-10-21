@@ -2,12 +2,12 @@
 @inherits ProtectedPage
 @inject MonburanApiClient Api
 
-<h1 class="page-title">Minhas candidaturas</h1>
+<h1 class="page-title" tabindex="-1">Minhas candidaturas</h1>
 <p class="page-subtitle">Acompanhe o status das suas candidaturas</p>
 
 @if (_loading)
 {
-    <LoadingState Message="Carregando candidaturas..." />
+    <LoadingState Message="Carregando candidaturas…" />
 }
 else if (_error is not null)
 {
@@ -15,7 +15,7 @@ else if (_error is not null)
 }
 else if (_items.Count == 0)
 {
-    <EmptyState Icon="✉" Title="Nenhuma candidatura ainda"
+    <EmptyState IconName="send" Title="Nenhuma candidatura ainda"
                 Message="Explore as vagas abertas e candidate-se às que combinam com você.">
         <a class="btn btn-primary" href="/">Ver vagas</a>
     </EmptyState>
@@ -28,12 +28,12 @@ else
             <div class="card">
                 <div class="list-row">
                     <h2 class="card-title">@(app.JobTitle ?? "Vaga")</h2>
-                    <span class="badge @Formatters.ApplicationStatusClass(app.Status)">@Formatters.ApplicationStatus(app.Status)</span>
+                    <span class="badge badge--@Formatters.ApplicationStatusTone(app.Status)">@Formatters.ApplicationStatus(app.Status)</span>
                 </div>
                 <div class="card-meta">
                     @if (app.AppliedAt.HasValue)
                     {
-                        <span class="meta-chip">Enviada em @Formatters.MomentDate(app.AppliedAt.Value)</span>
+                        <span class="meta-chip"><Icon Name="calendar" Size="16" /> Enviada em @Formatters.MomentDate(app.AppliedAt.Value)</span>
                     }
                 </div>
             </div>

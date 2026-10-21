@@ -1,8 +1,8 @@
-<div class="state-box" role="status" aria-live="polite">
-    <div class="spinner" aria-hidden="true"></div>
+<div class="loading-state" role="status" aria-live="polite">
+    <span class="spinner-border" aria-hidden="true"></span>
     <p>@Message</p>
 </div>
 
 @code {
-    [Parameter] public string Message { get; set; } = "Carregando...";
+    [Parameter] public string Message { get; set; } = "Carregando…";
 }

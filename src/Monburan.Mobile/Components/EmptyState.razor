@@ -1,16 +1,30 @@
-<div class="state-box">
-    <div class="state-icon" aria-hidden="true">@Icon</div>
-    <h2 class="state-title">@Title</h2>
+@* Estado vazio (mesmo componente da web): ícone, título, mensagem e ações. HeadingLevel="1" quando o estado é a tela inteira. *@
+<div class="empty-state@(Compact ? " empty-state--compact" : string.Empty)">
+    <div class="empty-state__icon"><Icon Name="@IconName" Size="24" /></div>
+    @if (HeadingLevel == 1)
+    {
+        <h1 tabindex="-1">@Title</h1>
+    }
+    else
+    {
+        <h2>@Title</h2>
+    }
     @if (!string.IsNullOrWhiteSpace(Message))
     {
         <p>@Message</p>
     }
-    @ChildContent
+    @if (ChildContent is not null)
+    {
+        <div class="empty-state__actions">@ChildContent</div>
+    }
 </div>
 
 @code {
-    [Parameter] public string Icon { get; set; } = "◌";
+    /// <summary>Nome do ícone (Icon.razor).</summary>
+    [Parameter] public string IconName { get; set; } = "search";
     [Parameter] public string Title { get; set; } = "Nada por aqui";
     [Parameter] public string Message { get; set; } = "";
+    [Parameter] public int HeadingLevel { get; set; } = 2;
+    [Parameter] public bool Compact { get; set; }
     [Parameter] public RenderFragment? ChildContent { get; set; }
 }

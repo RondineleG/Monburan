@@ -4,7 +4,7 @@
 @inject IToastService Toast
 @inject ILogger<Resumes> Logger
 
-<h1 class="page-title">Meus currículos</h1>
+<h1 class="page-title" tabindex="-1">Meus currículos</h1>
 <p class="page-subtitle">Envie um PDF ou cadastre seu currículo</p>
 
 <div class="card">
@@ -13,13 +13,13 @@
             <h2 class="card-title">Enviar PDF</h2>
             <div class="text-dim">PDF até 10MB — vira um currículo na sua lista</div>
         </div>
-        <button class="btn" @onclick="PickAndUploadAsync" disabled="@_uploading">
-            @(_uploading ? "Enviando..." : "Escolher arquivo")
+        <button type="button" class="btn btn-secondary" @onclick="PickAndUploadAsync" disabled="@_uploading" aria-busy="@(_uploading ? "true" : null)">
+            <Icon Name="upload" /> @(_uploading ? "Enviando…" : "Escolher arquivo")
         </button>
     </div>
 </div>
 
-<h2 class="section-label">Novo currículo</h2>
+<h2 class="section-title">Novo currículo</h2>
 <form class="card" @onsubmit="CreateAsync" novalidate>
     <div class="form-field">
         <label for="resume-title">Título</label>
@@ -34,15 +34,15 @@
         <textarea id="resume-summary" class="input" @bind="_newSummary" placeholder="Breve resumo profissional" maxlength="2000"></textarea>
     </div>
     <button type="submit" class="btn btn-primary btn-block" disabled="@_busy">
-        @(_busy ? "Salvando..." : "Salvar currículo")
+        @(_busy ? "Salvando…" : "Salvar currículo")
     </button>
 </form>
 
-<h2 class="section-label">Cadastrados</h2>
+<h2 class="section-title">Cadastrados</h2>
 
 @if (_loading)
 {
-    <LoadingState Message="Carregando currículos..." />
+    <LoadingState Message="Carregando currículos…" />
 }
 else if (_error is not null)
 {
@@ -50,7 +50,7 @@ else if (_error is not null)
 }
 else if (_items.Count == 0)
 {
-    <EmptyState Icon="▤" Title="Nenhum currículo" Message="Envie um PDF ou crie um currículo acima." />
+    <EmptyState IconName="file" Compact="true" Title="Nenhum currículo" Message="Envie um PDF ou crie um currículo acima." />
 }
 else
 {
@@ -65,9 +65,11 @@ else
                 <div class="tag-row">
                     @if (r.IsActive)
                     {
-                        <span class="badge ok">Ativo</span>
+                        <span class="badge badge--ok">Ativo</span>
                     }
-                    <button class="btn btn-ghost btn-danger" @onclick="() => DeleteAsync(r)" disabled="@(_deletingId == r.Id)">@(_deletingId == r.Id ? "Excluindo..." : "Excluir")</button>
+                    <button type="button" class="btn btn-danger" @onclick="() => DeleteAsync(r)" disabled="@(_deletingId == r.Id)" aria-label="@($"Excluir o currículo {r.Title}")">
+                        <Icon Name="trash" /> @(_deletingId == r.Id ? "Excluindo…" : "Excluir")
+                    </button>
                 </div>
             </div>
             @if (!string.IsNullOrEmpty(r.Summary))
