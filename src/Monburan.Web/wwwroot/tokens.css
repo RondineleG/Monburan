@@ -6,9 +6,19 @@
    DesignTokenContrastTests (UnitTests): texto >= 4.5:1, bordas de controle e foco >= 3:1.
    ============================================================ */
 
-/* Ordem das camadas: o que vem depois vence. "legacy" guarda as folhas anteriores
-   (ui.css, jobs.css e o fim do app.css) até a migração de cada componente terminar. */
-@layer tokens, base, legacy, components, utilities;
+/* Ordem das camadas: o que vem depois vence. base.css (elementos e grade), components.css, shell.css e
+   pages.css (componentes e padrões), utilities.css (utilitários). */
+@layer tokens, base, components, utilities;
+
+/* Cinzel hospedada no próprio site (SIL OFL 1.1, fonts/OFL.txt): só o peso 600, só na marca e no título da home */
+@font-face {
+    font-family: "Cinzel";
+    font-style: normal;
+    font-weight: 600;
+    font-display: swap;
+    src: url("/fonts/cinzel-latin.woff2") format("woff2");
+    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+20AC, U+2122, U+2212;
+}
 
 @layer tokens {
     :root {
@@ -36,7 +46,6 @@
 
         /* Escala tipográfica. 12px só para metadado; texto de leitura a partir de 14px. */
         --fs-2xs: 0.75rem;
-        --fs-xs: 0.875rem;
         --fs-sm: 0.875rem;
         --fs-md: 1rem;
         --fs-lg: 1.125rem;
@@ -44,18 +53,32 @@
         --fs-2xl: 1.75rem;
         --fs-3xl: 2.25rem;
 
+        --lh-tight: 1.15;
+        --lh-snug: 1.35;
+        --lh-body: 1.55;
+
+        --fw-regular: 400;
+        --fw-semibold: 600;
+        --fw-bold: 700;
+
+        /* Interface na fonte do sistema; a Cinzel é só identidade (logotipo e título da página inicial). */
         --f-display: "Cinzel", Georgia, serif;
-        --f-serif: "Cormorant Garamond", Georgia, serif;
-        --f-mono: "Share Tech Mono", "Courier New", monospace;
-        --f-ui: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        --f-ui: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 
         /* Alturas de controle: 44px é o alvo de toque; o compacto só vale com ponteiro fino. */
         --control-h: 2.75rem;
         --control-h-sm: 2.5rem;
         --control-h-lg: 3rem;
 
+        /* Contêineres: listas e painéis, formulário em duas colunas, leitura e formulário simples */
+        --container: 77.5rem;
+        --container-md: 68.75rem;
+        --container-narrow: 47.5rem;
+        --gutter: 1rem;
+        --topbar-h: 4rem;
+
         --sidebar-w: 16rem;
-        --rail-w: 4.6rem;
+        --rail-w: 4.5rem;
 
         /* Camadas de empilhamento, da mais baixa para a mais alta */
         --z-raised: 1;
@@ -72,6 +95,10 @@
 
     @media (pointer: coarse) {
         :root { --control-h-sm: 2.75rem; }
+    }
+
+    @media (min-width: 768px) {
+        :root { --gutter: 1.5rem; }
     }
 
     :root,
@@ -109,6 +136,12 @@
         --info: #2d6e94;
         --info-bg: rgb(45 110 148 / 9%);
         --info-tx: #285c7a;
+        /* Tons de selo e aviso: neutro, marca e aviso completam ok/er/info */
+        --warn-bg: rgb(138 85 0 / 9%);
+        --neutral-tx: var(--tx-2);
+        --neutral-bg: rgb(80 60 30 / 7%);
+        --brand-tx: var(--gold-d);
+        --brand-bg: var(--gold-soft);
         --shadow-sm: 0 2px 8px rgb(80 40 0 / 6%);
         --shadow-md: 0 8px 28px rgb(80 40 0 / 10%);
         --shadow-lg: 0 24px 60px rgb(80 40 0 / 14%), 0 4px 16px rgb(80 40 0 / 6%);
@@ -125,7 +158,6 @@
         --selection-ink: #1a0f00;
         --logo-bg: #fff;
         --focus-ring: var(--gold-d);
-        --grain-opacity: 0;
     }
 
     html[data-theme="dark"] {
@@ -161,6 +193,11 @@
         --info: #7fb3d5;
         --info-bg: rgb(127 179 213 / 12%);
         --info-tx: #7fb3d5;
+        --warn-bg: rgb(201 168 76 / 12%);
+        --neutral-tx: var(--tx-2);
+        --neutral-bg: rgb(255 255 255 / 6%);
+        --brand-tx: var(--gold-d);
+        --brand-bg: var(--gold-soft);
         --shadow-sm: 0 2px 10px rgb(0 0 0 / 35%);
         --shadow-md: 0 10px 32px rgb(0 0 0 / 45%);
         --shadow-lg: 0 28px 70px rgb(0 0 0 / 55%), 0 6px 20px rgb(0 0 0 / 35%);
@@ -177,6 +214,5 @@
         --selection-ink: #221a08;
         --logo-bg: #f5efe0;
         --focus-ring: var(--gold-l);
-        --grain-opacity: 0;
     }
 }

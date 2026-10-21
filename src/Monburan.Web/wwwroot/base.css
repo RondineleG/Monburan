@@ -1,0 +1,159 @@
+/* ============================================================
+   Base: reset, elementos nativos, tipografia, foco, grade e contêineres.
+   Só seletores de elemento e a grade de colunas; componentes ficam em components.css.
+   Breakpoints do sistema (larguras fixas, verificadas por teste): 576, 768, 992 e 1200px.
+   ============================================================ */
+@layer base {
+    *,
+    *::before,
+    *::after {
+        box-sizing: border-box;
+    }
+
+    html {
+        min-width: 320px;
+        min-height: 100%;
+        background: var(--bg);
+        color: var(--tx);
+        font-size: 16px;
+        scroll-behavior: smooth;
+        -webkit-text-size-adjust: 100%;
+        -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+        min-width: 320px;
+        min-height: 100vh;
+        margin: 0;
+        overflow-x: hidden;
+        background: var(--bg);
+        color: var(--tx);
+        font-family: var(--f-ui);
+        font-size: var(--fs-md);
+        line-height: var(--lh-body);
+    }
+
+    ::selection { background: var(--gold-l); color: var(--selection-ink); }
+
+    img,
+    svg { display: block; max-width: 100%; }
+
+    /* ---- Tipografia ---- */
+    h1, h2, h3, h4, h5, h6 { margin: 0 0 var(--s-3); color: var(--tx); font-family: var(--f-ui); line-height: var(--lh-snug); }
+    h1 { font-size: var(--fs-2xl); font-weight: var(--fw-bold); letter-spacing: -0.02em; line-height: var(--lh-tight); }
+    h2 { font-size: var(--fs-xl); font-weight: var(--fw-bold); letter-spacing: -0.01em; }
+    h3 { font-size: var(--fs-lg); font-weight: var(--fw-semibold); }
+    h4, h5, h6 { font-size: var(--fs-md); font-weight: var(--fw-semibold); }
+    p { margin: 0 0 var(--s-4); }
+    p:last-child { margin-bottom: 0; }
+    ul, ol { margin: 0 0 var(--s-4); }
+    dl { margin: 0 0 var(--s-4); }
+    dd { margin: 0; }
+    small { font-size: var(--fs-sm); }
+    strong, b { font-weight: var(--fw-bold); }
+    hr { margin: var(--s-6) 0; border: 0; border-top: 1px solid var(--border); }
+    code { font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; font-size: 0.92em; overflow-wrap: anywhere; }
+
+    a { color: var(--gold-d); text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 0.18em; transition: color var(--dur-xs) ease; }
+    a:hover { color: var(--tx); }
+
+    /* ---- Foco: anel único em todo controle; o título que recebe foco programático não ganha anel ---- */
+    :focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+    h1[tabindex="-1"]:focus,
+    h2[tabindex="-1"]:focus { outline: none; }
+    /* O foco nunca fica escondido sob a barra superior fixa */
+    :target,
+    :focus { scroll-margin-top: calc(var(--topbar-h) + var(--s-4)); }
+
+    /* ---- Campos ---- */
+    button, input, select, textarea { margin: 0; color: inherit; font: inherit; }
+    button { cursor: pointer; touch-action: manipulation; }
+    button:disabled { cursor: not-allowed; }
+    a, input, select, textarea, label, summary { touch-action: manipulation; }
+    summary { cursor: pointer; }
+    fieldset { min-width: 0; margin: 0; padding: 0; border: 0; }
+    legend { padding: 0; }
+    table { border-collapse: collapse; }
+
+    input:not([type="checkbox"], [type="radio"], [type="file"], [type="range"]),
+    select,
+    textarea {
+        display: block;
+        width: 100%;
+        min-height: var(--control-h);
+        padding: var(--s-2) var(--s-3);
+        border: 1px solid var(--border-input);
+        border-radius: var(--r-sm);
+        background: var(--bg-input);
+        color: var(--tx);
+        font-size: var(--fs-md);
+        line-height: 1.4;
+    }
+    textarea { min-height: 7rem; resize: vertical; }
+    ::placeholder { color: var(--tx-muted); opacity: 1; }
+    input:focus, select:focus, textarea:focus { border-color: var(--gold); box-shadow: 0 0 0 3px var(--gold-soft); outline-offset: 1px; }
+    input:disabled, select:disabled, textarea:disabled { cursor: not-allowed; opacity: 0.6; }
+    input[type="checkbox"],
+    input[type="radio"] { width: 1.125rem; height: 1.125rem; flex: 0 0 auto; accent-color: var(--action-bg); }
+    input[type="file"] { width: 100%; max-width: 100%; min-height: var(--control-h); padding: var(--s-2); border: 1px dashed var(--border-input); border-radius: var(--r-sm); background: var(--bg-input); font-size: var(--fs-sm); }
+
+    label { display: block; margin-bottom: var(--s-1); color: var(--tx-2); font-size: var(--fs-sm); font-weight: var(--fw-semibold); }
+    /* Caixa e botão de opção dentro do rótulo: o rótulo inteiro é o alvo de toque */
+    label:has(> input[type="checkbox"]),
+    label:has(> input[type="radio"]) { display: inline-flex; min-height: var(--control-h); align-items: center; gap: var(--s-2); }
+
+    /* ---- Contêineres e grade de 12 colunas (só as larguras que as páginas usam) ---- */
+    .container,
+    .container-fluid { width: min(calc(100% - 2 * var(--gutter)), var(--container)); margin-inline: auto; }
+
+    .row { display: flex; flex-wrap: wrap; margin-inline: calc(var(--s-3) * -1); }
+    .row > * { width: 100%; min-width: 0; padding-inline: var(--s-3); }
+    .row.g-2 { row-gap: var(--s-2); }
+    .row.g-3 { row-gap: var(--s-4); }
+    .row.g-4 { row-gap: var(--s-6); }
+
+    .col { flex: 1 0 0%; width: auto; }
+    .col-4 { flex: 0 0 auto; width: 33.3333%; }
+    .col-8 { flex: 0 0 auto; width: 66.6667%; }
+    .col-12 { flex: 0 0 auto; width: 100%; }
+
+    @media (min-width: 768px) {
+        .col-md-1 { flex: 0 0 auto; width: 8.3333%; }
+        .col-md-2 { flex: 0 0 auto; width: 16.6667%; }
+        .col-md-3 { flex: 0 0 auto; width: 25%; }
+        .col-md-4 { flex: 0 0 auto; width: 33.3333%; }
+        .col-md-5 { flex: 0 0 auto; width: 41.6667%; }
+        .col-md-6 { flex: 0 0 auto; width: 50%; }
+        .col-md-7 { flex: 0 0 auto; width: 58.3333%; }
+        .col-md-8 { flex: 0 0 auto; width: 66.6667%; }
+        .col-md-9 { flex: 0 0 auto; width: 75%; }
+        .col-md-12 { flex: 0 0 auto; width: 100%; }
+    }
+
+    @media (min-width: 992px) {
+        .col-lg-4 { flex: 0 0 auto; width: 33.3333%; }
+        .col-lg-5 { flex: 0 0 auto; width: 41.6667%; }
+        .col-lg-6 { flex: 0 0 auto; width: 50%; }
+        .col-lg-7 { flex: 0 0 auto; width: 58.3333%; }
+        .col-lg-8 { flex: 0 0 auto; width: 66.6667%; }
+        .col-lg-9 { flex: 0 0 auto; width: 75%; }
+        .col-lg-10 { flex: 0 0 auto; width: 83.3333%; }
+    }
+
+    /* ---- Tema escuro: barra de rolagem discreta ---- */
+    html[data-theme="dark"] ::-webkit-scrollbar { width: 10px; height: 10px; }
+    html[data-theme="dark"] ::-webkit-scrollbar-track { background: var(--bg); }
+    html[data-theme="dark"] ::-webkit-scrollbar-thumb { border: 2px solid var(--bg); border-radius: var(--r-sm); background: var(--bg-3); }
+
+    /* ---- Movimento reduzido ---- */
+    @media (prefers-reduced-motion: reduce) {
+        *,
+        *::before,
+        *::after {
+            scroll-behavior: auto !important;
+            animation-duration: 0.01ms !important;
+            animation-iteration-count: 1 !important;
+            transition-duration: 0.01ms !important;
+        }
+    }
+}

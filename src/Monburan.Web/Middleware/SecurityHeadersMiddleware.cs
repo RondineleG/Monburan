@@ -34,8 +34,8 @@ public class SecurityHeadersMiddleware
     }
 
     /// <summary>
-    /// Política de conteúdo: scripts só do próprio site (nada inline, nada de eval); folhas de estilo só do site e do Google
-    /// Fonts (o atributo style continua permitido, porque o Blazor e alguns componentes dependem dele); sem plugins,
+    /// Política de conteúdo: scripts só do próprio site (nada inline, nada de eval); folhas de estilo e fontes só do próprio site
+    /// (o atributo style continua permitido, porque o Blazor e alguns componentes dependem dele); sem plugins,
     /// sem trocar a base dos links, formulários só para o próprio site e a página nunca dentro de um frame.
     /// O WebSocket do Blazor é liberado de forma explícita para o próprio host, porque nem todo navegador entende que
     /// <c>'self'</c> cobre ws/wss.
@@ -47,11 +47,11 @@ public class SecurityHeadersMiddleware
         var webSocket = IsSafeHost(host) ? " " + (isHttps ? "wss://" : "ws://") + host : string.Empty;
         var policy = "default-src 'self'; " +
                      "script-src 'self'; " +
-                     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
-                     "style-src-elem 'self' https://fonts.googleapis.com; " +
+                     "style-src 'self' 'unsafe-inline'; " +
+                     "style-src-elem 'self'; " +
                      "style-src-attr 'unsafe-inline'; " +
                      "img-src 'self' data: https:; " +
-                     "font-src 'self' https://fonts.gstatic.com; " +
+                     "font-src 'self'; " +
                      $"connect-src 'self'{webSocket}; " +
                      "object-src 'none'; " +
                      "base-uri 'self'; " +

@@ -49,13 +49,82 @@ public partial class StylesheetGuardTests
         offenders.Should().BeEmpty("cores de tema só se declaram em tokens.css");
     }
 
-    [Fact]
-    public void ComponentsLayer_UsesOnlyTokens_AndNoImportant()
+    [Theory]
+    [InlineData("base.css")]
+    [InlineData("components.css")]
+    [InlineData("shell.css")]
+    [InlineData("utilities.css")]
+    public void DesignSystemSheets_UseOnlyTokenColors(string sheet)
     {
-        var css = ReadWithoutComments(Path.Combine(WebRoot, "wwwroot", "components.css"));
+        var css = ReadWithoutComments(Path.Combine(WebRoot, "wwwroot", sheet));
 
-        HardcodedColor().Matches(css).Select(m => m.Value).Should().BeEmpty("componentes usam cor por token");
-        css.Should().NotContain("!important", "a camada components vence legacy pela ordem, sem !important");
+        HardcodedColor().Matches(css).Select(m => m.Value).Should().BeEmpty($"{sheet} usa cor por token");
+    }
+
+    [Fact]
+    public void PagesSheet_UsesFixedColorsOnlyOnThePrintedCvSheet()
+    {
+        // Exceção documentada: a folha de CV (.cv-*) é papel neutro, igual nos dois temas e na impressão
+        var css = ReadWithoutComments(Path.Combine(WebRoot, "wwwroot", "pages.css"));
+        var offenders = Rule().Matches(css)
+            .Where(rule => !rule.Groups["selector"].Value.Contains(".cv-") && !rule.Groups["selector"].Value.Contains("cv-print-area"))
+            .SelectMany(rule => HardcodedColor().Matches(rule.Groups["body"].Value).Select(m => $"{rule.Groups["selector"].Value.Trim()}: {m.Value}"))
+            .ToList();
+
+        offenders.Should().BeEmpty("fora da folha de CV, cor só por token");
+    }
+
+    [Fact]
+    public void Important_IsOnlyUsedToHonorReducedMotion()
+    {
+        // Sem camada legacy, a ordem das camadas resolve a precedência; !important só no bloco de movimento reduzido
+        var offenders = Stylesheets()
+            .Select(f => (File: Path.GetFileName(f), Css: ReadWithoutComments(f)))
+            .Select(s => (s.File, Css: ReducedMotionBlock().Replace(s.Css, string.Empty)))
+            .Where(s => s.Css.Contains("!important"))
+            .Select(s => s.File)
+            .ToList();
+
+        offenders.Should().BeEmpty("!important fora de prefers-reduced-motion quebra a ordem das camadas");
+    }
+
+    [Fact]
+    public void Stylesheets_UseOnlyTheSystemBreakpoints()
+    {
+        // 576, 768, 992 e 1200px (DESIGN.md); max-width usa o valor menos 0,02px
+        var allowed = new[] { "576px", "768px", "992px", "1200px", "575.98px", "767.98px", "991.98px", "1199.98px" };
+        var offenders = Stylesheets()
+            .SelectMany(f => MediaWidth().Matches(ReadWithoutComments(f)).Select(m => (File: Path.GetFileName(f), Value: m.Groups[1].Value)))
+            .Where(m => !allowed.Contains(m.Value))
+            .Select(m => $"{m.File}: {m.Value}")
+            .Distinct()
+            .ToList();
+
+        offenders.Should().BeEmpty("breakpoints fora da escala do sistema criam layouts intermediários não planejados");
+    }
+
+    [Fact]
+    public void LegacyLayerIsGone()
+    {
+        var tokens = ReadWithoutComments(Path.Combine(WebRoot, "wwwroot", "tokens.css"));
+
+        tokens.Should().Contain("@layer tokens, base, components, utilities;");
+        Stylesheets().Select(ReadWithoutComments).Should().NotContain(css => css.Contains("layer(legacy)") || css.Contains("@layer legacy"));
+        File.Exists(Path.Combine(WebRoot, "wwwroot", "ui.css")).Should().BeFalse();
+        File.Exists(Path.Combine(WebRoot, "wwwroot", "jobs.css")).Should().BeFalse();
+    }
+
+    [Fact]
+    public void Markup_UsesTheSystemButtonsAndIcons()
+    {
+        // Ação primária é .btn-primary (verde é estado, não ação); ícone é o componente Icon, nunca glifo de texto
+        var offenders = Directory.EnumerateFiles(Path.Combine(WebRoot, "Components"), "*.razor", SearchOption.AllDirectories)
+            .SelectMany(file => File.ReadLines(file).Select((line, index) => (File: Path.GetFileName(file), Line: index + 1, Text: line)))
+            .Where(item => !item.Text.TrimStart().StartsWith("@*") && (item.Text.Contains("btn-success") || GlyphIcon().IsMatch(item.Text)))
+            .Select(item => $"{item.File}:{item.Line}")
+            .ToList();
+
+        offenders.Should().BeEmpty("use btn-primary e o componente Icon");
     }
 
     [Fact]
@@ -93,4 +162,16 @@ public partial class StylesheetGuardTests
 
     [GeneratedRegex(@"#[0-9a-fA-F]{3,8}\b|\brgba?\(|\boklch\(|\bhsla?\(")]
     private static partial Regex HardcodedColor();
+
+    [GeneratedRegex(@"(?<selector>[^{}]+)\{(?<body>[^{}]*)\}")]
+    private static partial Regex Rule();
+
+    [GeneratedRegex(@"@media\s*\(prefers-reduced-motion:\s*reduce\)\s*\{(?:[^{}]*\{[^{}]*\})*[^{}]*\}")]
+    private static partial Regex ReducedMotionBlock();
+
+    [GeneratedRegex(@"\((?:min|max)-width:\s*([\d.]+px)\)")]
+    private static partial Regex MediaWidth();
+
+    [GeneratedRegex(@"[✦✓⌕◈◌◎◷▣▤▦☰☆★↗▾▴⚠☾☀]")]
+    private static partial Regex GlyphIcon();
 }

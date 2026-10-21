@@ -52,8 +52,8 @@ protege contra quem tenta muitas contas. O contador fica em memória, por instâ
 
 ## Política de conteúdo (CSP)
 
-Scripts só de arquivos do próprio site: nada de `<script>` com código dentro da página, nada de `eval`. Estilos só do site e
-do Google Fonts; sem plugins; formulários só para o próprio site; a página nunca dentro de um frame.
+Scripts só de arquivos do próprio site: nada de `<script>` com código dentro da página, nada de `eval`. Estilos e fontes só do
+próprio site (a fonte da marca é servida em `/fonts`); sem plugins; formulários só para o próprio site; a página nunca dentro de um frame.
 
 - **Script novo:** coloque em um arquivo de `wwwroot` e referencie em `Components/App.razor`. Código inline não roda.
 - **Emergência:** se uma política nova quebrar uma página em produção, `Security__CspReportOnly=true` passa a política para

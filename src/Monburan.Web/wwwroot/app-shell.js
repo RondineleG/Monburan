@@ -103,7 +103,7 @@
         var sidebar = document.querySelector('.app-sidebar');
         var main = document.querySelector('.app-main');
         var toggle = document.querySelector('.menu-toggle');
-        if (window.innerWidth > 980) open = false;
+        if (window.innerWidth >= 992) open = false;
         if (open) drawerTrigger = drawerTrigger || toggle;
         if (sidebar) sidebar.classList.toggle('app-sidebar--open', open);
         document.body.classList.toggle('drawer-open', open);
@@ -128,7 +128,7 @@
         else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
     });
     window.addEventListener('resize', function () {
-        if (window.innerWidth > 980) setDrawer(false);
+        if (window.innerWidth >= 992) setDrawer(false);
     });
     window.addEventListener('pageshow', function () { setDrawer(false); });
     if (window.Blazor && window.Blazor.addEventListener) {
