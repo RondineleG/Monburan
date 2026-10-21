@@ -23,6 +23,19 @@
     .landing-hero__proof { display: flex; flex-wrap: wrap; gap: var(--s-2) var(--s-6); margin: var(--s-6) 0 0; padding: 0; color: var(--tx-2); font-size: var(--fs-sm); list-style: none; }
     .landing-hero__proof li { display: inline-flex; align-items: center; gap: var(--s-2); }
     .landing-hero__proof .icon { color: var(--ok); }
+    .landing-section { margin-bottom: var(--s-12); }
+    .landing-section > h2 { margin-bottom: var(--s-5); }
+    .landing-paths { display: grid; gap: var(--s-4); grid-template-columns: minmax(0, 1fr); }
+    @media (min-width: 768px) { .landing-paths { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+    .landing-path { display: flex; flex-direction: column; align-items: flex-start; gap: var(--s-4); padding: var(--s-6); border: 1px solid var(--border); border-radius: var(--r-lg); background: var(--bg-card); }
+    .landing-path h3 { display: flex; align-items: center; gap: var(--s-2); margin: 0; }
+    .landing-path h3 .icon { color: var(--gold-d); }
+    .landing-path .btn { margin-top: auto; }
+    .landing-steps { display: grid; gap: var(--s-3); margin: 0; padding-left: var(--s-5); color: var(--tx-2); }
+    .landing-steps strong { color: var(--tx); }
+    .area-links { display: flex; flex-wrap: wrap; gap: var(--s-2); margin: 0; padding: 0; list-style: none; }
+    .area-link { display: inline-flex; min-height: var(--control-h-sm); align-items: center; padding: var(--s-1) var(--s-4); border: 1px solid var(--border-input); border-radius: var(--r-pill); background: var(--bg-card); color: var(--tx); font-size: var(--fs-sm); font-weight: var(--fw-semibold); text-decoration: none; }
+    .area-link:hover { border-color: var(--gold); background: var(--gold-soft); color: var(--gold-d); }
 
     /* ---------- Busca de vagas ---------- */
     .jobs-header { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: var(--s-4); margin-bottom: var(--s-5); }

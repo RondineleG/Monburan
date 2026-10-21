@@ -27,7 +27,10 @@
     /* ---- Marca ---- */
     .brand { display: inline-flex; min-height: var(--control-h); align-items: center; gap: var(--s-2); color: var(--tx); text-decoration: none; }
     .brand:hover { color: var(--tx); }
-    .brand__mark { display: block; flex: 0 0 auto; width: 1.75rem; height: 1.75rem; color: var(--gold); }
+    .brand__mark { display: block; flex: 0 0 auto; width: 2.25rem; height: 2.25rem; }
+    .brand-mark__gold { fill: var(--brand-gold); }
+    .brand-mark__ink { fill: var(--brand-ink); }
+    .brand-mark__snow { fill: var(--brand-snow); }
     .brand__copy { display: flex; flex-direction: column; line-height: var(--lh-tight); }
     .brand__copy strong { font-family: var(--f-display); font-size: var(--fs-lg); font-weight: var(--fw-semibold); letter-spacing: 0.04em; }
     .brand__copy small { margin-top: 0.125rem; color: var(--tx-muted); font-size: var(--fs-2xs); }
@@ -155,11 +158,17 @@
     .public-nav > a[aria-current="page"] { color: var(--gold-d); }
     .public-nav .btn { margin-left: var(--s-2); }
 
-    /* ---- Rodapé ---- */
+    /* ---- Rodapé: marca, colunas por público e a linha legal ---- */
     .site-footer { border-top: 1px solid var(--border); background: var(--bg-card); }
-    .site-footer__inner { display: flex; width: min(calc(100% - 2 * var(--gutter)), var(--container)); flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--s-2) var(--s-4); margin-inline: auto; padding-block: var(--s-4); color: var(--tx-muted); font-size: var(--fs-sm); }
-    .site-footer__links { display: flex; flex-wrap: wrap; gap: var(--s-1) var(--s-4); }
-    .site-footer__links a { display: inline-flex; min-height: var(--control-h-sm); align-items: center; color: var(--tx-2); }
+    .site-footer__inner { display: grid; width: min(calc(100% - 2 * var(--gutter)), var(--container)); gap: var(--s-8); margin-inline: auto; padding-block: var(--s-10) var(--s-6); grid-template-columns: minmax(0, 1fr); }
+    .site-footer__brand p { max-width: 34ch; margin: var(--s-3) 0 0; color: var(--tx-2); font-size: var(--fs-sm); }
+    .site-footer__nav { display: grid; gap: var(--s-6); grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr)); }
+    .site-footer__col { display: flex; flex-direction: column; align-items: flex-start; }
+    .site-footer__title { margin: 0 0 var(--s-2); color: var(--tx); font-size: var(--fs-sm); font-weight: var(--fw-bold); }
+    .site-footer__col a { display: inline-flex; min-height: var(--control-h-sm); align-items: center; color: var(--tx-2); font-size: var(--fs-sm); text-decoration: none; }
+    .site-footer__col a:hover { color: var(--gold-d); text-decoration: underline; }
+    .site-footer__legal { margin: 0; padding-top: var(--s-5); border-top: 1px solid var(--border); color: var(--tx-muted); font-size: var(--fs-sm); grid-column: 1 / -1; }
+    @media (min-width: 992px) { .site-footer__inner { grid-template-columns: minmax(16rem, 0.9fr) minmax(0, 2fr); } }
 
     /* ---- Telas de entrada (login, cadastro, recuperação) ---- */
     .auth-header { display: flex; min-height: var(--topbar-h); align-items: center; justify-content: space-between; gap: var(--s-4); padding-inline: var(--gutter); border-bottom: 1px solid var(--border); background: var(--topbar-bg); }
@@ -312,7 +321,6 @@
         .public-header { flex-wrap: wrap; gap: var(--s-2); }
         .public-nav { order: 3; width: 100%; justify-content: space-between; }
         .public-nav .btn { margin-left: 0; }
-        .site-footer__inner { flex-direction: column; align-items: flex-start; }
         .trail__item:not(:last-child) { display: none; }
         /* Ação global da empresa só com ícone no celular (o nome acessível vem do aria-label) */
         .topbar-publish { width: var(--control-h); padding-inline: 0; }

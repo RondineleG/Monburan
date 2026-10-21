@@ -354,6 +354,26 @@
     /* ---------- Estados: carregando, vazio, erro ---------- */
     .loading-state { display: grid; min-height: 12rem; place-items: center; align-content: center; gap: var(--s-3); color: var(--tx-2); }
     .loading-state--compact { min-height: 6rem; }
+    /* O sino balança a partir do topo, como um sino de verdade */
+    .loading-state__mark { transform-origin: 50% 6%; animation: bell-swing 1.4s var(--ease) infinite; }
+    @keyframes bell-swing { 0%, 100% { transform: rotate(0); } 25% { transform: rotate(-9deg); } 75% { transform: rotate(9deg); } }
+
+    /* Reconexão do circuito: escondida até o Blazor mostrar */
+    .reconnect { position: fixed; inset: 0; z-index: var(--z-dialog); display: none; place-items: center; padding: var(--s-4); background: var(--modal-scrim-bg); backdrop-filter: blur(4px); }
+    .reconnect.components-reconnect-show,
+    .reconnect.components-reconnect-retrying,
+    .reconnect.components-reconnect-failed,
+    .reconnect.components-reconnect-paused,
+    .reconnect.components-reconnect-resume-failed { display: grid; }
+    .reconnect__card { display: grid; justify-items: center; gap: var(--s-3); width: min(100%, 26rem); padding: var(--s-8) var(--s-6); border: 1px solid var(--border-2); border-radius: var(--r-lg); background: var(--bg-card); box-shadow: var(--shadow-lg); text-align: center; }
+    .reconnect__title { margin: 0; font-size: var(--fs-xl); }
+    .reconnect__text { margin: 0; color: var(--tx-2); }
+    .reconnect__actions { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--s-2); margin-top: var(--s-2); }
+    .reconnect__when-failed { display: none; }
+    .reconnect:is(.components-reconnect-failed, .components-reconnect-resume-failed) .reconnect__when-failed { display: revert; }
+    .reconnect:is(.components-reconnect-failed, .components-reconnect-resume-failed) .reconnect__actions { display: flex; }
+    .reconnect:is(.components-reconnect-failed, .components-reconnect-resume-failed) .reconnect__when-retrying { display: none; }
+    .reconnect:is(.components-reconnect-failed, .components-reconnect-resume-failed) .loading-state__mark { animation: none; }
     .empty-state { display: flex; min-height: 16rem; flex-direction: column; align-items: center; justify-content: center; gap: var(--s-2); padding: var(--s-10) var(--s-6); border: 1px dashed var(--border-2); border-radius: var(--r-lg); background: var(--empty-bg); text-align: center; }
     .empty-state__icon { display: grid; width: 3.5rem; height: 3.5rem; place-items: center; margin-bottom: var(--s-2); border: 1px solid var(--gold-border); border-radius: 50%; background: var(--gold-soft); color: var(--gold-d); }
     .empty-state :is(h1, h2, h3) { max-width: 28ch; margin: 0; font-size: var(--fs-xl); }

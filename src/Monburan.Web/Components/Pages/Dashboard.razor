@@ -1,6 +1,7 @@
 @page "/"
 @page "/dashboard"
 @rendermode InteractiveServer
+@using Monburan.Core.Catalogs
 @using Monburan.Core.DTOs.Request
 @using Monburan.Core.DTOs.Response
 @using Monburan.Core.Enums
@@ -46,14 +47,45 @@
                     <button type="submit" class="btn btn-cta jobs-search__submit">Buscar vagas</button>
                 </div>
             </form>
-            <div class="landing-hero__actions">
-                <a class="btn btn-outline-secondary" href="/Account/Register">Criar conta gratuita</a>
-                <a class="btn btn-ghost" href="/Account/Register?AccountType=advertiser">Sou empresa e quero contratar</a>
-            </div>
             <ul class="landing-hero__proof">
                 <li><Icon Name="check" Size="16" />Vagas abertas a todos, sem login para ler</li>
                 <li><Icon Name="check" Size="16" />Candidatura gratuita</li>
                 <li><Icon Name="check" Size="16" />Acompanhamento de cada etapa</li>
+            </ul>
+        </section>
+
+        @* A página inicial apresenta o portal; a busca completa, com filtros e todas as vagas, fica em /jobs *@
+        <section class="landing-section" aria-labelledby="how-title">
+            <h2 id="how-title">Como funciona</h2>
+            <div class="landing-paths">
+                <article class="landing-path">
+                    <h3><Icon Name="user" Size="20" />Para quem procura trabalho</h3>
+                    <ol class="landing-steps">
+                        <li><strong>Encontre</strong> vagas por cargo, cidade, modalidade e área.</li>
+                        <li><strong>Candidate-se</strong> em poucos passos, com ou sem currículo anexado.</li>
+                        <li><strong>Acompanhe</strong> cada etapa do processo em Minhas candidaturas.</li>
+                    </ol>
+                    <a class="btn btn-primary" href="/Account/Register">Criar conta gratuita</a>
+                </article>
+                <article class="landing-path">
+                    <h3><Icon Name="building" Size="20" />Para empresas</h3>
+                    <ol class="landing-steps">
+                        <li><strong>Publique</strong> a vaga com um passo a passo guiado.</li>
+                        <li><strong>Receba</strong> as candidaturas organizadas por vaga e situação.</li>
+                        <li><strong>Selecione</strong> com o perfil e o currículo de cada pessoa à mão.</li>
+                    </ol>
+                    <a class="btn btn-outline-secondary" href="/Account/Register?AccountType=advertiser">Cadastrar minha empresa</a>
+                </article>
+            </div>
+        </section>
+
+        <section class="landing-section" aria-labelledby="areas-title">
+            <h2 id="areas-title">Explore por área</h2>
+            <ul class="area-links">
+                @foreach (var category in JobCategories.All.Where(c => c != "Outras áreas"))
+                {
+                    <li><a class="area-link" href="@($"/jobs?area={Uri.EscapeDataString(category)}")">@category</a></li>
+                }
             </ul>
         </section>
     }
@@ -267,14 +299,14 @@
                 <h2 id="jobs-title">@JobsHeading</h2>
                 @if (displayJobs.Count > 0)
                 {
-                    <a class="btn btn-ghost" href="/jobs">Ver todas as vagas<Icon Name="arrow-right" Size="16" /></a>
+                    <a class="btn btn-ghost" href="/jobs">@(openJobsTotal > 0 ? $"Ver as {openJobsTotal} vagas" : "Ver todas as vagas")<Icon Name="arrow-right" Size="16" /></a>
                 }
             </div>
 
             @if (displayJobs.Count > 0)
             {
                 <ul class="jobs-grid">
-                    @foreach (var job in displayJobs.Take(6))
+                    @foreach (var job in displayJobs.Take(isAnonymous ? 3 : 6))
                     {
                         <li><JobCard Job="job" ShowSave="isCandidate" CanSave="isCandidate" SaveReturnUrl="/" /></li>
                     }
@@ -316,6 +348,7 @@
     private IReadOnlyList<CandidateProgressChecklistItem> nextSteps = [];
     private bool hasCareerProfile;
     private bool isLoading = true;
+    private int openJobsTotal;
     private bool loadFailed;
     private bool isAuthenticated;
     private bool isAdvertiser;
@@ -327,7 +360,7 @@
 
     private string JobsHeading => isCandidate
         ? (recommendedJobs.Count > 0 ? "Recomendadas para você" : "Vagas recentes")
-        : (isAnonymous ? "Vagas em destaque" : "Vagas recentes");
+        : "Vagas recentes";
 
     private int InProgressApplications =>
         (progress?.Applications.Sent ?? 0) + (progress?.Applications.Viewed ?? 0);
@@ -393,6 +426,7 @@
             if (jobsResult.Status == EResultStatus.Success && jobsResult.Data is not null)
             {
                 recentJobs = jobsResult.Data.Jobs.ToList();
+                openJobsTotal = jobsResult.Data.TotalCount;
             }
             else
             {

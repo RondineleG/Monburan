@@ -1,5 +1,6 @@
 @page "/jobs"
 @using System.Globalization
+@using Monburan.Core.Catalogs
 @using Monburan.Core.Enums
 @inject SearchJobsUseCase SearchJobsUseCase
 @inject ICurrentUserHelper CurrentUserHelper
@@ -62,6 +63,18 @@
                     </label>
                 }
             </fieldset>
+
+            <label class="chip-select@(area.Length > 0 ? " is-active" : string.Empty)">
+                <span class="visually-hidden">Área</span>
+                <select name="area" data-autosubmit data-default="" data-testid="filter-area">
+                    <option value="">Todas as áreas</option>
+                    @foreach (var category in JobCategories.All)
+                    {
+                        <option value="@category" selected="@(area == category)">@category</option>
+                    }
+                </select>
+                <Icon Name="chevron-down" Size="14" />
+            </label>
 
             <label class="chip-select@(salaryFloor.Length > 0 ? " is-active" : string.Empty)">
                 <span class="visually-hidden">Salário mínimo</span>
@@ -190,6 +203,9 @@
     [SupplyParameterFromQuery(Name = "modo")]
     private string? QueryMode { get; set; }
 
+    [SupplyParameterFromQuery(Name = "area")]
+    private string? QueryArea { get; set; }
+
     [SupplyParameterFromQuery(Name = "salario")]
     private string? QuerySalary { get; set; }
 
@@ -206,6 +222,7 @@
     private string searchTerm = string.Empty;
     private string locationText = string.Empty;
     private string jobType = string.Empty;
+    private string area = string.Empty;
     private string salaryFloor = string.Empty;
     private string sortKey = DefaultSort;
     private int page = 1;
@@ -217,7 +234,7 @@
     private Guid? advertiserId;
 
     private bool isFiltered =>
-        searchTerm.Length > 0 || locationText.Length > 0 || jobType.Length > 0 || salaryFloor.Length > 0;
+        searchTerm.Length > 0 || locationText.Length > 0 || jobType.Length > 0 || area.Length > 0 || salaryFloor.Length > 0;
 
     // Leva a busca atual para o formulário de alerta da área do candidato
     private string AlertUrl
@@ -234,7 +251,7 @@
 
     private string TitleText => searchTerm.Length > 0
         ? $"Vagas de {searchTerm} - Monburan"
-        : "Vagas de emprego - Monburan";
+        : area.Length > 0 ? $"Vagas em {area} - Monburan" : "Vagas de emprego - Monburan";
 
     private string CountText => results.TotalCount switch
     {
@@ -259,6 +276,8 @@
 
             if (jobType.Length > 0)
                 parts.Add(UiLabels.JobType(jobType));
+            if (area.Length > 0)
+                parts.Add(area);
             if (decimal.TryParse(salaryFloor, NumberStyles.Number, CultureInfo.InvariantCulture, out var floor))
                 parts.Add($"A partir de R$ {JobDisplay.Money(floor)}");
 
@@ -301,6 +320,8 @@
         searchTerm = (QueryTerm ?? string.Empty).Trim();
         locationText = (QueryLocation ?? string.Empty).Trim();
         jobType = QueryMode is "OnSite" or "Remote" or "Hybrid" ? QueryMode : string.Empty;
+        // Só áreas do catálogo: um valor livre na URL não vira filtro
+        area = JobCategories.All.FirstOrDefault(c => string.Equals(c, QueryArea?.Trim(), StringComparison.OrdinalIgnoreCase)) ?? string.Empty;
         salaryFloor = decimal.TryParse(QuerySalary, NumberStyles.Number, CultureInfo.InvariantCulture, out var floor) && floor > 0
             ? floor.ToString(CultureInfo.InvariantCulture)
             : string.Empty;
@@ -333,6 +354,7 @@
             City = city,
             State = state,
             Type = jobType.Length == 0 ? null : jobType,
+            Category = area.Length == 0 ? null : area,
             SalaryMin = decimal.TryParse(salaryFloor, NumberStyles.Number, CultureInfo.InvariantCulture, out var floor) ? floor : null,
             SortBy = sortBy,
             SortDescending = descending
@@ -352,6 +374,7 @@
         Add("q", searchTerm);
         Add("local", locationText);
         Add("modo", jobType);
+        Add("area", area);
         Add("salario", salaryFloor);
         if (sortKey != DefaultSort)
             Add("ordem", sortKey);
