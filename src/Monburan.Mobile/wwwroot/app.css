@@ -831,7 +831,7 @@ textarea.input { min-height: 6.5rem; resize: vertical; }
 
 /* ---------- Início ---------- */
 
-.home-hero { margin: var(--s-4) 0 var(--s-6); }
+.home-hero { margin: var(--s-4) 0 var(--s-6); text-align: center; }
 .home-hero h1 { margin-bottom: var(--s-2); }
 .home-hero p { color: var(--tx-2); }
 

@@ -15,12 +15,13 @@
     .address-form-page { width: min(calc(100% - 2 * var(--gutter)), var(--container-narrow)); margin-inline: auto; }
 
     /* ---------- Página inicial do visitante ---------- */
-    .landing-hero { margin-bottom: var(--s-10); padding: clamp(var(--s-8), 6vw, var(--s-16)) clamp(var(--s-5), 4vw, var(--s-10)); border: 1px solid var(--border); border-radius: var(--r-lg); background: radial-gradient(ellipse at 15% 10%, var(--hero-glow), transparent 55%), linear-gradient(140deg, var(--bg-card), var(--bg-elev) 70%); }
-    .landing-hero h1 { max-width: 18ch; margin: var(--s-3) 0; font-family: var(--f-display); font-size: clamp(2rem, 5vw, 3.25rem); font-weight: var(--fw-semibold); letter-spacing: 0.02em; line-height: 1.08; }
-    .landing-hero p { max-width: 48ch; color: var(--tx-2); font-size: var(--fs-lg); }
-    .landing-search { max-width: 48rem; margin-top: var(--s-6); }
+    /* Topo da página inicial centralizado: título, texto, busca e garantias no mesmo eixo */
+    .landing-hero { margin-bottom: var(--s-10); text-align: center; padding: clamp(var(--s-8), 6vw, var(--s-16)) clamp(var(--s-5), 4vw, var(--s-10)); border: 1px solid var(--border); border-radius: var(--r-lg); background: radial-gradient(ellipse at 50% 0%, var(--hero-glow), transparent 55%), linear-gradient(140deg, var(--bg-card), var(--bg-elev) 70%); }
+    .landing-hero h1 { max-width: 18ch; margin: var(--s-3) auto; font-family: var(--f-display); font-size: clamp(2rem, 5vw, 3.25rem); font-weight: var(--fw-semibold); letter-spacing: 0.02em; line-height: 1.08; }
+    .landing-hero p { max-width: 48ch; margin-inline: auto; color: var(--tx-2); font-size: var(--fs-lg); }
+    .landing-search { max-width: 48rem; margin: var(--s-6) auto 0; text-align: start; }
     .landing-hero__actions { display: flex; flex-wrap: wrap; gap: var(--s-3); margin-top: var(--s-6); }
-    .landing-hero__proof { display: flex; flex-wrap: wrap; gap: var(--s-2) var(--s-6); margin: var(--s-6) 0 0; padding: 0; color: var(--tx-2); font-size: var(--fs-sm); list-style: none; }
+    .landing-hero__proof { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--s-2) var(--s-6); margin: var(--s-6) 0 0; padding: 0; color: var(--tx-2); font-size: var(--fs-sm); list-style: none; }
     .landing-hero__proof li { display: inline-flex; align-items: center; gap: var(--s-2); }
     .landing-hero__proof .icon { color: var(--ok); }
     .landing-section { margin-bottom: var(--s-12); }

@@ -158,15 +158,14 @@
 
     /* ---- Rodapé: marca, colunas por público e a linha legal ---- */
     .site-footer { border-top: 1px solid var(--border); background: var(--bg-card); }
-    .site-footer__inner { display: grid; width: min(calc(100% - 2 * var(--gutter)), var(--container)); gap: var(--s-8); margin-inline: auto; padding-block: var(--s-10) var(--s-6); grid-template-columns: minmax(0, 1fr); }
-    .site-footer__brand p { max-width: 34ch; margin: var(--s-3) 0 0; color: var(--tx-2); font-size: var(--fs-sm); }
-    .site-footer__nav { display: grid; gap: var(--s-6); grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr)); }
-    .site-footer__col { display: flex; flex-direction: column; align-items: flex-start; }
+    .site-footer__inner { display: grid; justify-items: center; text-align: center; width: min(calc(100% - 2 * var(--gutter)), var(--container)); gap: var(--s-8); margin-inline: auto; padding-block: var(--s-10) var(--s-6); grid-template-columns: minmax(0, 1fr); }
+    .site-footer__brand p { max-width: 34ch; margin: var(--s-3) auto 0; color: var(--tx-2); font-size: var(--fs-sm); }
+    .site-footer__nav { display: grid; width: min(100%, 48rem); gap: var(--s-6); grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr)); }
+    .site-footer__col { display: flex; flex-direction: column; align-items: center; }
     .site-footer__title { margin: 0 0 var(--s-2); color: var(--tx); font-size: var(--fs-sm); font-weight: var(--fw-bold); }
     .site-footer__col a { display: inline-flex; min-height: var(--control-h-sm); align-items: center; color: var(--tx-2); font-size: var(--fs-sm); text-decoration: none; }
     .site-footer__col a:hover { color: var(--gold-d); text-decoration: underline; }
-    .site-footer__legal { margin: 0; padding-top: var(--s-5); border-top: 1px solid var(--border); color: var(--tx-muted); font-size: var(--fs-sm); grid-column: 1 / -1; }
-    @media (min-width: 992px) { .site-footer__inner { grid-template-columns: minmax(16rem, 0.9fr) minmax(0, 2fr); } }
+    .site-footer__legal { width: 100%; margin: 0; padding-top: var(--s-5); border-top: 1px solid var(--border); color: var(--tx-muted); font-size: var(--fs-sm); grid-column: 1 / -1; }
 
     /* ---- Telas de entrada (login, cadastro, recuperação) ---- */
     .auth-header { display: flex; min-height: var(--topbar-h); align-items: center; justify-content: space-between; gap: var(--s-4); padding-inline: var(--gutter); border-bottom: 1px solid var(--border); background: var(--topbar-bg); }
