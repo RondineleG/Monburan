@@ -20,7 +20,7 @@ public class CandidateFlowTests : E2ETestBase
 
         var body = await Page.Locator("body").InnerTextAsync();
         Assert.Contains("SUA JORNADA", body, StringComparison.OrdinalIgnoreCase);
-        Assert.DoesNotContain("SEU ESPAÇO MONBURAN", body, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("Ver candidaturas recebidas", body, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("Total de vagas", body, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("Minhas candidaturas", body, StringComparison.OrdinalIgnoreCase);
     }

@@ -33,7 +33,7 @@ public class AuthenticationTests : E2ETestBase
         await GotoAsync("/dashboard");
         await WaitForBlazorAsync();
         Assert.True(await Page.GetByTestId("nav-my-jobs").IsVisibleAsync());
-        Assert.Contains("SEU ESPAÇO MONBURAN", await Page.Locator("body").InnerTextAsync());
+        Assert.Contains("Ver candidaturas recebidas", await Page.Locator("body").InnerTextAsync());
     }
 
     [Fact]
