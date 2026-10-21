@@ -1,15 +1,19 @@
 @implements IDisposable
 @inject IToastService ToastService
 
-@* Ilha interativa no layout (SSR): a região aria-live existe antes dos avisos para leitores de tela *@
-<div class="toast-stack" role="region" aria-live="polite" aria-label="Avisos" data-testid="toast-stack">
+@* Ilha interativa no layout (SSR). O cartão visível não é região viva: quem anuncia são as duas regiões
+   permanentes abaixo, uma vez por aviso (erro com prioridade), sem leitura duplicada. *@
+<div class="toast-stack" role="region" aria-label="Avisos" data-testid="toast-stack">
     @foreach (var toast in ToastService.Toasts)
     {
         <div @key="toast.Id"
              class="toast-card toast-card--@LevelClass(toast.Level)"
-             role="@(toast.Level == ToastLevel.Error ? "alert" : "status")"
              data-testid="toast"
-             data-level="@LevelClass(toast.Level)">
+             data-level="@LevelClass(toast.Level)"
+             @onmouseenter="() => ToastService.Pause(toast.Id)"
+             @onmouseleave="() => ToastService.Resume(toast.Id)"
+             @onfocusin="() => ToastService.Pause(toast.Id)"
+             @onfocusout="() => ToastService.Resume(toast.Id)">
             <span class="toast-card__icon" aria-hidden="true">@Icon(toast.Level)</span>
             <div class="toast-card__body">
                 @if (!string.IsNullOrWhiteSpace(toast.Title))
@@ -22,12 +26,31 @@
         </div>
     }
 </div>
+<div class="visually-hidden" role="status" aria-live="polite" aria-atomic="true">@politeAnnouncement</div>
+<div class="visually-hidden" role="alert" aria-live="assertive" aria-atomic="true">@assertiveAnnouncement</div>
 
 @code {
+    private readonly HashSet<Guid> announced = [];
+    private string politeAnnouncement = string.Empty;
+    private string assertiveAnnouncement = string.Empty;
+
     protected override void OnInitialized() => ToastService.Changed += OnToastsChanged;
 
     // Timers de auto-dismiss disparam fora do contexto de renderização
-    private void OnToastsChanged() => _ = InvokeAsync(StateHasChanged);
+    private void OnToastsChanged() => _ = InvokeAsync(() =>
+    {
+        foreach (var toast in ToastService.Toasts.Where(t => announced.Add(t.Id)))
+        {
+            var text = string.IsNullOrWhiteSpace(toast.Title) ? toast.Message : $"{toast.Title}. {toast.Message}";
+            if (toast.Level == ToastLevel.Error)
+                assertiveAnnouncement = text;
+            else
+                politeAnnouncement = text;
+        }
+
+        announced.IntersectWith(ToastService.Toasts.Select(t => t.Id));
+        StateHasChanged();
+    });
 
     private static string LevelClass(ToastLevel level) => level switch
     {

@@ -1,6 +1,6 @@
 <section class="empty-state error-state" role="alert" data-testid="error-state">
     <span class="empty-state__icon error-state__icon" aria-hidden="true">!</span>
-    <h2>@Title</h2>
+    <StateHeading Level="HeadingLevel" Text="@Title" />
     <p>@Message</p>
     @if (OnRetry.HasDelegate)
     {
@@ -22,6 +22,10 @@
 
     [Parameter]
     public EventCallback OnRetry { get; set; }
+
+    /// <summary>1 quando o erro substitui a página inteira (não há outro h1); 2 dentro de uma página.</summary>
+    [Parameter]
+    public int HeadingLevel { get; set; } = 2;
 
     [Parameter]
     public RenderFragment? ChildContent { get; set; }

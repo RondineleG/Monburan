@@ -7,7 +7,7 @@
 
 @* Formulário de vaga em etapas, compartilhado entre criação e edição. O rascunho vive no Model do pai:
    navegar entre etapas não perde nada do que já foi digitado. *@
-<EditForm Model="Model" OnValidSubmit="SubmitAsync" novalidate>
+<EditForm EditContext="editContext" OnValidSubmit="SubmitAsync" OnInvalidSubmit="ShowInvalidStepsAsync" novalidate>
     <DataAnnotationsValidator />
     <ServerValidationErrors @ref="serverErrors" FieldMap="ServerFieldMap" />
 
@@ -15,17 +15,20 @@
         @foreach (var item in StepTitles)
         {
             var stepNumber = item.Key;
-            <li class="job-wizard__step@(step == stepNumber ? " job-wizard__step--active" : string.Empty)"
-                aria-current="@(step == stepNumber ? "step" : null)">
-                @if (stepNumber <= maxStep && stepNumber != step)
+            var hasErrors = errorSteps.Contains(stepNumber);
+            var stepClass = "job-wizard__step"
+                + (step == stepNumber ? " job-wizard__step--active" : string.Empty)
+                + (hasErrors ? " job-wizard__step--error" : string.Empty);
+            <li class="@stepClass" aria-current="@(step == stepNumber ? "step" : null)">
+                @if ((stepNumber <= maxStep || hasErrors) && stepNumber != step)
                 {
                     <button type="button" class="job-wizard__step-link" @onclick="() => GoToStep(stepNumber)" data-testid="job-wizard-step-@stepNumber">
-                        @stepNumber. @item.Value
+                        @stepNumber. @item.Value@(hasErrors ? " (revisar)" : string.Empty)
                     </button>
                 }
                 else
                 {
-                    <span data-testid="job-wizard-step-@stepNumber">@stepNumber. @item.Value</span>
+                    <span data-testid="job-wizard-step-@stepNumber">@stepNumber. @item.Value@(hasErrors ? " (revisar)" : string.Empty)</span>
                 }
             </li>
         }
@@ -37,6 +40,13 @@
     {
         <div class="alert alert-danger" role="alert" data-testid="job-wizard-errors">
             Revise os campos destacados para continuar.
+        </div>
+    }
+    else if (errorSteps.Count > 0)
+    {
+        @* Erro do envio (do servidor ou de outra etapa): diz onde está, já que só uma etapa aparece por vez *@
+        <div class="alert alert-danger" role="alert" data-testid="job-wizard-errors">
+            Corrija @(errorSteps.Count == 1 ? "a etapa" : "as etapas") @string.Join(", ", errorSteps.Select(s => $"{s}. {StepTitles[s]}")) antes de @(IsEdit ? "salvar" : "publicar").
         </div>
     }
 
@@ -56,7 +66,6 @@
                        aria-describedby="model.Title-help" />
             <div class="form-text" id="model.Title-help">Seja direto: cargo, senioridade e principal atividade.</div>
             <ValidationMessage class="text-danger" For="@(() => Model.Title)" />
-            @FieldError(nameof(CreateJobRequest.Title))
         </div>
 
         <div class="row g-2">
@@ -87,9 +96,9 @@
             </div>
         </div>
 
-        <fieldset class="mb-3">
+        <fieldset class="mb-3 job-type-fieldset" aria-describedby="@(HasFieldError(nameof(CreateJobRequest.Type)) ? "job-wizard-error-Type" : null)">
             <legend class="form-label">Modalidade *</legend>
-            <div class="job-type-cards" role="radiogroup" aria-label="Modalidade da vaga">
+            <div class="job-type-cards">
                 @foreach (var option in Modes)
                 {
                     <label class="job-type-card@(Model.Type == option.Value ? " is-active" : string.Empty)">
@@ -111,13 +120,11 @@
                     <label class="form-label" for="model.City">Cidade</label>
                     <InputText class="form-control" @bind-Value="Model.City" id="model.City" maxlength="100" placeholder="Cidade..." data-testid="job-city-input" />
                     <ValidationMessage class="text-danger" For="@(() => Model.City)" />
-                    @FieldError(nameof(CreateJobRequest.City))
                 </div>
                 <div class="col-md-4 mb-3">
                     <label class="form-label" for="model.State">UF</label>
                     <InputText class="form-control" @bind-Value="Model.State" id="model.State" maxlength="2" placeholder="UF..." data-testid="job-state-input" />
                     <ValidationMessage class="text-danger" For="@(() => Model.State)" />
-                    @FieldError(nameof(CreateJobRequest.State))
                 </div>
             </div>
         }
@@ -126,7 +133,6 @@
             <label class="form-label" for="model.Tags">Tags</label>
             <InputText class="form-control" @bind-Value="Model.Tags" id="model.Tags" maxlength="500" placeholder="Ex.: atendimento, vendas, caixa (separadas por vírgula)" />
             <ValidationMessage class="text-danger" For="@(() => Model.Tags)" />
-            @FieldError(nameof(CreateJobRequest.Tags))
         </div>
     }
     else if (step == 2)
@@ -140,7 +146,6 @@
                            data-testid="job-description-input" aria-describedby="model.Description-count" />
             <div class="form-text" id="model.Description-count">@Count(Model.Description)/2000 caracteres</div>
             <ValidationMessage class="text-danger" For="@(() => Model.Description)" />
-            @FieldError(nameof(CreateJobRequest.Description))
         </div>
 
         <div class="mb-3">
@@ -149,7 +154,6 @@
                            aria-describedby="model.Responsibilities-count" />
             <div class="form-text" id="model.Responsibilities-count">@Count(Model.Responsibilities)/2000 caracteres</div>
             <ValidationMessage class="text-danger" For="@(() => Model.Responsibilities)" />
-            @FieldError(nameof(CreateJobRequest.Responsibilities))
         </div>
 
         <div class="mb-3">
@@ -158,7 +162,6 @@
                            aria-describedby="model.Requirements-count" />
             <div class="form-text" id="model.Requirements-count">@Count(Model.Requirements)/2000 caracteres</div>
             <ValidationMessage class="text-danger" For="@(() => Model.Requirements)" />
-            @FieldError(nameof(CreateJobRequest.Requirements))
         </div>
 
         <div class="mb-3">
@@ -167,7 +170,6 @@
                            aria-describedby="model.Benefits-count" />
             <div class="form-text" id="model.Benefits-count">@Count(Model.Benefits)/2000 caracteres</div>
             <ValidationMessage class="text-danger" For="@(() => Model.Benefits)" />
-            @FieldError(nameof(CreateJobRequest.Benefits))
         </div>
     }
     else if (step == 3)
@@ -179,13 +181,11 @@
                 <label class="form-label" for="model.SalaryMin">Salário mínimo (R$)</label>
                 <InputNumber ParsingErrorMessage="Informe um número válido." class="form-control" @bind-Value="Model.SalaryMin" id="model.SalaryMin" />
                 <ValidationMessage class="text-danger" For="@(() => Model.SalaryMin)" />
-                @FieldError(nameof(CreateJobRequest.SalaryMin))
             </div>
             <div class="col-md-4 mb-3">
                 <label class="form-label" for="model.SalaryMax">Salário máximo (R$)</label>
                 <InputNumber ParsingErrorMessage="Informe um número válido." class="form-control" @bind-Value="Model.SalaryMax" id="model.SalaryMax" />
                 <ValidationMessage class="text-danger" For="@(() => Model.SalaryMax)" />
-                @FieldError(nameof(CreateJobRequest.SalaryMax))
             </div>
             <div class="col-md-4 mb-3">
                 <label class="form-label" for="model.SalaryPeriod">Período do salário</label>
@@ -209,13 +209,11 @@
                 <label class="form-label" for="model.NumberOfOpenings">Número de vagas *</label>
                 <InputNumber ParsingErrorMessage="Informe um número válido." class="form-control" @bind-Value="Model.NumberOfOpenings" id="model.NumberOfOpenings" min="1" />
                 <ValidationMessage For="@(() => Model.NumberOfOpenings)" />
-                @FieldError(nameof(CreateJobRequest.NumberOfOpenings))
             </div>
             <div class="col-md-4 mb-3">
                 <label class="form-label" for="model.ExpirationDate">Data de validade *</label>
                 <InputDate ParsingErrorMessage="Informe uma data válida." class="form-control" @bind-Value="Model.ExpirationDate" id="model.ExpirationDate" />
                 <ValidationMessage class="text-danger" For="@(() => Model.ExpirationDate)" />
-                @FieldError(nameof(CreateJobRequest.ExpirationDate))
                 <div class="form-text">A vaga expira automaticamente nesta data.</div>
             </div>
         </div>
@@ -226,14 +224,12 @@
                            aria-describedby="model.ApplicationInstructions-help" />
             <div class="form-text" id="model.ApplicationInstructions-help">Não inclua dados sensíveis nem solicite pagamentos.</div>
             <ValidationMessage class="text-danger" For="@(() => Model.ApplicationInstructions)" />
-            @FieldError(nameof(CreateJobRequest.ApplicationInstructions))
         </div>
 
         <div class="mb-3">
             <label class="form-label" for="model.Observations">Observações</label>
             <InputTextArea class="form-control" @bind-Value="Model.Observations" id="model.Observations" rows="3" maxlength="2000" />
             <ValidationMessage class="text-danger" For="@(() => Model.Observations)" />
-            @FieldError(nameof(CreateJobRequest.Observations))
         </div>
     }
     else
@@ -312,13 +308,19 @@
             <button type="submit" class="btn btn-success btn-lg" disabled="@(IsSubmitting || !CanPublish)" data-testid="job-create-submit">
                 @if (IsSubmitting)
                 {
-                    <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                    <span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>
+                    <span>@(IsEdit ? "Salvando..." : "Publicando...")</span>
                 }
-                @(IsEdit ? "Salvar alterações" : "Publicar vaga")
+                else
+                {
+                    <span>@(IsEdit ? "Salvar alterações" : "Publicar vaga")</span>
+                }
             </button>
         }
     </div>
 </EditForm>
+
+<UnsavedChangesGuard HasChanges="() => editContext.IsModified() && !submitting" />
 
 @code {
     private static readonly Dictionary<int, string> StepTitles = new()
@@ -366,9 +368,26 @@
     public EventCallback OnCancel { get; set; }
 
     private ServerValidationErrors serverErrors = default!;
+    private EditContext editContext = default!;
+    // Erros da validação por etapa entram no EditContext: o campo ganha aria-invalid e o estilo de inválido
+    private ValidationMessageStore stepStore = default!;
     private IReadOnlyList<JobWizardStepError> stepErrors = [];
+    private SortedSet<int> errorSteps = [];
     private int step = 1;
     private int maxStep = 1;
+    private bool submitting;
+
+    protected override void OnParametersSet()
+    {
+        if (editContext is not null && ReferenceEquals(editContext.Model, Model))
+            return;
+
+        editContext = new EditContext(Model);
+        stepStore = new ValidationMessageStore(editContext);
+        editContext.OnFieldChanged += (_, e) => stepStore.Clear(e.FieldIdentifier);
+    }
+
+    private bool HasFieldError(string field) => stepErrors.Any(error => error.Field == field);
 
     private JobResponse PreviewJob => new()
     {
@@ -412,19 +431,32 @@
 
     private void SelectMode(string mode) => Model.Type = mode;
 
-    /// <summary>Erros do servidor por campo (a tela do pai decide a mensagem geral).</summary>
-    public IReadOnlyList<string> DisplayServerFieldErrors(IReadOnlyDictionary<string, string[]> fieldErrors) =>
-        serverErrors.Display(fieldErrors);
+    /// <summary>
+    /// Erros do servidor por campo (a tela do pai decide a mensagem geral). Só uma etapa aparece por vez:
+    /// o assistente vai para a primeira etapa com erro e marca as outras no indicador.
+    /// </summary>
+    public IReadOnlyList<string> DisplayServerFieldErrors(IReadOnlyDictionary<string, string[]> fieldErrors)
+    {
+        var unmatched = serverErrors.Display(fieldErrors);
+        _ = InvokeAsync(ShowStepsWithErrorsAsync);
+        return unmatched;
+    }
 
     private async Task GoForward()
     {
         stepErrors = JobWizardStepValidator.Validate(step, Model);
+        stepStore.Clear();
+        foreach (var error in stepErrors)
+            stepStore.Add(editContext.Field(error.Field), error.Message);
+        editContext.NotifyValidationStateChanged();
+
         if (stepErrors.Count > 0)
         {
-            await FocusFieldAsync($"model.{stepErrors[0].Field}");
+            await FocusFieldAsync(stepErrors[0].Field == nameof(CreateJobRequest.Type) ? "job-wizard-title" : $"model.{stepErrors[0].Field}");
             return;
         }
 
+        errorSteps.Remove(step);
         await GoToStep(step + 1);
     }
 
@@ -436,6 +468,29 @@
         maxStep = Math.Max(maxStep, step);
         stepErrors = [];
         await FocusFieldAsync("job-wizard-title");
+    }
+
+    // Envio com campo inválido em etapa que não está na tela: sem isto o botão "não fazia nada"
+    private Task ShowInvalidStepsAsync(EditContext context) => ShowStepsWithErrorsAsync();
+
+    private async Task ShowStepsWithErrorsAsync()
+    {
+        var invalidFields = JobWizardStepValidator.Fields
+            .Where(field => editContext.GetValidationMessages(editContext.Field(field)).Any())
+            .ToList();
+        errorSteps = new SortedSet<int>(invalidFields.Select(JobWizardStepValidator.StepOf));
+        if (errorSteps.Count == 0)
+        {
+            StateHasChanged();
+            return;
+        }
+
+        step = errorSteps.Min;
+        maxStep = Math.Max(maxStep, step);
+        stepErrors = [];
+        StateHasChanged();
+        var first = invalidFields.First(field => JobWizardStepValidator.StepOf(field) == step);
+        await FocusFieldAsync(first == nameof(CreateJobRequest.Type) ? "job-wizard-title" : $"model.{first}");
     }
 
     private async Task FocusFieldAsync(string elementId)
@@ -452,8 +507,22 @@
 
     private async Task CancelAsync() => await OnCancel.InvokeAsync();
 
-    private async Task SubmitAsync() => await OnSubmit.InvokeAsync();
+    private async Task SubmitAsync()
+    {
+        errorSteps.Clear();
+        // Publicar com sucesso navega para outra página: a guarda de alterações não pode barrar essa saída
+        submitting = true;
+        try
+        {
+            await OnSubmit.InvokeAsync();
+        }
+        finally
+        {
+            submitting = false;
+        }
+    }
 
+    // Só a modalidade (grupo de rádios) usa mensagem própria; os demais campos usam ValidationMessage
     private RenderFragment FieldError(string field) => builder =>
     {
         var error = stepErrors.FirstOrDefault(item => item.Field == field);
@@ -462,8 +531,9 @@
 
         builder.OpenElement(0, "p");
         builder.AddAttribute(1, "class", "text-danger");
-        builder.AddAttribute(2, "data-testid", $"job-wizard-error-{field}");
-        builder.AddContent(3, error.Message);
+        builder.AddAttribute(2, "id", $"job-wizard-error-{field}");
+        builder.AddAttribute(3, "data-testid", $"job-wizard-error-{field}");
+        builder.AddContent(4, error.Message);
         builder.CloseElement();
     };
 }

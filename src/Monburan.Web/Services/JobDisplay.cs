@@ -110,11 +110,13 @@ public static class JobDisplay
     }
 
     /// <summary>Etiquetas da vaga (campo separado por vírgulas), sem repetição.</summary>
-    public static IReadOnlyList<string> Tags(string? tags, int max = int.MaxValue) =>
+    /// <param name="exclude">Valor que já aparece em outro selo (a categoria da vaga) e não deve se repetir como tag.</param>
+    public static IReadOnlyList<string> Tags(string? tags, int max = int.MaxValue, string? exclude = null) =>
         string.IsNullOrWhiteSpace(tags)
             ? []
             : tags.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
                 .Distinct(StringComparer.OrdinalIgnoreCase)
+                .Where(tag => !string.Equals(tag, exclude?.Trim(), StringComparison.OrdinalIgnoreCase))
                 .Take(max)
                 .ToList();
 

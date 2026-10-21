@@ -1,35 +1,35 @@
-@implements IDisposable
+@implements IAsyncDisposable
+@inject IJSRuntime JS
 
 @*
     Confirmação para ações destrutivas. Uso:
         <ConfirmDialog @ref="confirm" />
         if (!await confirm.ShowAsync(new ConfirmOptions { ... })) return;
     ChildContent permite campos extras (ex.: motivo do cancelamento).
+    <dialog> nativo aberto com showModal(): o navegador prende o foco e torna o resto da página inerte;
+    Esc e clique fora acionam o Cancelar (monburan-ui.js) e o foco volta para quem abriu o diálogo.
 *@
 @if (isOpen)
 {
-    <div class="confirm-backdrop" role="presentation" @onclick="Cancel" @onkeydown="OnKeyDown">
-        <section class="confirm-dialog"
-                 role="alertdialog"
-                 aria-modal="true"
-                 aria-labelledby="@titleId"
-                 aria-describedby="@messageId"
-                 data-testid="confirm-dialog"
-                 @onclick:stopPropagation="true">
-            <header class="confirm-dialog__header">
-                <span class="confirm-dialog__icon @(options.Destructive ? "confirm-dialog__icon--danger" : string.Empty)" aria-hidden="true">@(options.Destructive ? "!" : "?")</span>
-                <h2 id="@titleId">@options.Title</h2>
-            </header>
-            <div class="confirm-dialog__body">
-                <p id="@messageId">@options.Message</p>
-                @ChildContent
-            </div>
-            <footer class="confirm-dialog__footer">
-                <button type="button" class="btn btn-secondary" @ref="cancelButton" @onclick="Cancel" data-testid="confirm-cancel">@options.CancelText</button>
-                <button type="button" class="btn @(options.Destructive ? "btn-danger" : "btn-primary")" @onclick="Confirm" data-testid="confirm-accept">@options.ConfirmText</button>
-            </footer>
-        </section>
-    </div>
+    <dialog class="confirm-dialog"
+            role="alertdialog"
+            aria-labelledby="@titleId"
+            aria-describedby="@messageId"
+            data-testid="confirm-dialog"
+            @ref="dialog">
+        <header class="confirm-dialog__header">
+            <span class="confirm-dialog__icon @(options.Destructive ? "confirm-dialog__icon--danger" : string.Empty)" aria-hidden="true">@(options.Destructive ? "!" : "?")</span>
+            <h2 id="@titleId">@options.Title</h2>
+        </header>
+        <div class="confirm-dialog__body">
+            <p id="@messageId">@options.Message</p>
+            @ChildContent
+        </div>
+        <footer class="confirm-dialog__footer">
+            <button type="button" class="btn btn-secondary" @onclick="Cancel" data-dialog-cancel data-testid="confirm-cancel">@options.CancelText</button>
+            <button type="button" class="btn @(options.Destructive ? "btn-danger" : "btn-primary")" @onclick="Confirm" data-testid="confirm-accept">@options.ConfirmText</button>
+        </footer>
+    </dialog>
 }
 
 @code {
@@ -37,9 +37,10 @@
     private readonly string messageId = $"confirm-message-{Guid.NewGuid():N}";
     private ConfirmOptions options = new();
     private TaskCompletionSource<bool>? pending;
-    private ElementReference cancelButton;
+    private ElementReference dialog;
     private bool isOpen;
-    private bool focusPending;
+    private bool openPending;
+    private bool restorePending;
 
     [Parameter]
     public RenderFragment? ChildContent { get; set; }
@@ -52,7 +53,7 @@
         options = confirmOptions;
         pending = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
         isOpen = true;
-        focusPending = true;
+        openPending = true;
         StateHasChanged();
 
         return pending.Task;
@@ -60,18 +61,27 @@
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (!focusPending || !isOpen)
-            return;
-
-        focusPending = false;
         try
         {
-            // Foco na opção segura: Enter acidental não exclui nada
-            await cancelButton.FocusAsync();
+            if (openPending && isOpen)
+            {
+                openPending = false;
+                // Abre modal e põe o foco na opção segura: Enter acidental não exclui nada
+                await JS.InvokeVoidAsync("monburanDialog.open", dialog);
+            }
+            else if (restorePending && !isOpen)
+            {
+                restorePending = false;
+                await JS.InvokeVoidAsync("monburanDialog.restoreFocus");
+            }
+        }
+        catch (JSDisconnectedException)
+        {
+            // Circuito encerrado: não há mais página para focar
         }
         catch (JSException)
         {
-            // Elemento já removido (diálogo fechado no mesmo ciclo) — nada a focar
+            // Diálogo fechado no mesmo ciclo — nada a abrir ou focar
         }
     }
 
@@ -79,19 +89,18 @@
 
     private void Cancel() => Close(false);
 
-    private void OnKeyDown(KeyboardEventArgs e)
-    {
-        if (e.Key == "Escape")
-            Cancel();
-    }
-
     private void Close(bool confirmed)
     {
         isOpen = false;
+        restorePending = true;
         var completion = pending;
         pending = null;
         completion?.TrySetResult(confirmed);
     }
 
-    public void Dispose() => pending?.TrySetResult(false);
+    public ValueTask DisposeAsync()
+    {
+        pending?.TrySetResult(false);
+        return ValueTask.CompletedTask;
+    }
 }

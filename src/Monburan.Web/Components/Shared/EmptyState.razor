@@ -4,7 +4,7 @@
     {
         <span class="page-kicker">@Kicker</span>
     }
-    <h2>@Title</h2>
+    <StateHeading Level="HeadingLevel" Text="@Title" />
     @if (!string.IsNullOrWhiteSpace(Message))
     {
         <p>@Message</p>
@@ -24,6 +24,13 @@
 
     [Parameter]
     public string? Message { get; set; }
+
+    /// <summary>
+    /// Nível do título: 2 dentro de uma página que já tem h1; 1 quando o estado é a página inteira
+    /// (ex.: vaga não encontrada), para o foco de navegação e o leitor de tela acharem o título principal.
+    /// </summary>
+    [Parameter]
+    public int HeadingLevel { get; set; } = 2;
 
     /// <summary>Chamada para ação (ex.: link "Explorar vagas").</summary>
     [Parameter]

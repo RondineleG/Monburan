@@ -1,4 +1,5 @@
-@* Paginação das listas de administração: até cinco números ao redor da página atual, com Anterior e Próximo. *@
+@* Paginação das listas interativas: até cinco números ao redor da página atual, com Anterior e Próxima
+   (mesmos rótulos da paginação por link de /jobs). A página atual é anunciada por aria-current. *@
 @if (TotalPages > 1)
 {
     <nav class="mt-4" aria-label="@AriaLabel" data-testid="pager">
@@ -18,15 +19,16 @@
             @for (var number = start; number <= end; number++)
             {
                 var target = number;
-                <li class="page-item @(target == Page ? "active" : string.Empty)">
-                    <button type="button" class="page-link" @onclick="() => GoToAsync(target)">@target</button>
+                var current = target == Page;
+                <li class="page-item @(current ? "active" : string.Empty)">
+                    <button type="button" class="page-link" aria-label="Página @target" aria-current="@(current ? "page" : null)" @onclick="() => GoToAsync(target)">@target</button>
                 </li>
             }
 
             @if (Page < TotalPages)
             {
                 <li class="page-item">
-                    <button type="button" class="page-link" @onclick="() => GoToAsync(Page + 1)">Próximo</button>
+                    <button type="button" class="page-link" @onclick="() => GoToAsync(Page + 1)">Próxima</button>
                 </li>
             }
         </ul>

@@ -17,30 +17,41 @@
     <div class="card-body">
         <div class="ai-workspace__head">
             <h2 id="ai-workspace-title">Revisar sugestões de melhoria</h2>
-            <button type="button" class="btn btn-outline-secondary btn-sm" @onclick="Close" disabled="@isApplying" data-testid="ai-workspace-close">Fechar</button>
+            <button type="button" class="btn btn-outline-secondary btn-sm" @onclick="Close" disabled="@isApplying" data-testid="ai-workspace-close">Fechar sem aplicar</button>
         </div>
         <p class="text-muted">Marque o que quer aproveitar e edite à vontade. Só os itens marcados entram no currículo.</p>
 
-        <nav class="journey-tabs ai-workspace__nav" aria-label="Seções da revisão">
-            @foreach (var section in Sections)
+        <div class="journey-tabs ai-workspace__nav" role="tablist" aria-label="Seções da revisão">
+            @for (var i = 0; i < Sections.Length; i++)
             {
-                <button type="button"
-                        class="journey-tab@(activeSection == section ? " journey-tab--active" : string.Empty)"
-                        aria-current="@(activeSection == section ? "true" : null)"
+                var index = i;
+                var section = Sections[index];
+                var selected = activeSection == section;
+                <button type="button" role="tab" id="ai-tab-@KeyOf(section)"
+                        class="journey-tab@(selected ? " journey-tab--active" : string.Empty)"
+                        aria-selected="@(selected ? "true" : "false")"
+                        aria-controls="ai-workspace-panel"
+                        tabindex="@(selected ? 0 : -1)"
+                        @ref="tabRefs[index]"
                         @onclick="() => activeSection = section"
+                        @onkeydown="e => OnTabKeyDownAsync(e, index)"
                         data-testid="ai-workspace-section-@KeyOf(section)">@section</button>
             }
-        </nav>
+        </div>
 
-        <p class="ai-save-status" role="status" aria-live="polite" data-testid="ai-save-status">
+        @* O texto visível acompanha cada gravação; só a região escondida é anunciada, e apenas quando
+           o resultado final muda (salvo ↔ falhou) — nada de anúncio a cada tecla *@
+        <p class="ai-save-status" data-testid="ai-save-status">
             @(saveState switch
             {
                 SaveState.Saving => "Salvando rascunho...",
-                SaveState.Failed => "Não foi possível salvar o rascunho neste navegador. As edições seguem nesta sessão.",
-                _ => "Rascunho salvo neste navegador."
+                SaveState.Failed => FailedMessage,
+                _ => SavedMessage
             })
         </p>
+        <span class="visually-hidden" role="status">@saveAnnouncement</span>
 
+        <div role="tabpanel" id="ai-workspace-panel" aria-labelledby="ai-tab-@KeyOf(activeSection)" tabindex="0">
         <fieldset class="ai-workspace__fields" disabled="@(isApplying || applied)">
         @if (activeSection == "Resumo")
         {
@@ -177,10 +188,12 @@
         {
             @* Prévia do documento com as seleções aplicadas *@
             <div class="ai-preview" data-testid="ai-preview">
-                <ResumeDocument Resume="PreviewResume" Name="@ContactName" Email="@ContactEmail" Phone="@ContactPhone" LinkedIn="@ContactLinkedIn" />
+                @* Dentro da seção (h2) e da aba: o nome desce para h3, sem segundo h1 na página *@
+                <ResumeDocument Resume="PreviewResume" Name="@ContactName" Email="@ContactEmail" Phone="@ContactPhone" LinkedIn="@ContactLinkedIn" HeadingLevel="3" />
             </div>
         }
         </fieldset>
+        </div>
 
         @if (blockedFields.Count > 0)
         {
@@ -199,7 +212,6 @@
             <button type="button" class="btn btn-primary" @onclick="ApplyAsync" disabled="@(isApplying || applied || blockedFields.Count > 0 || !HasChanges)" data-testid="ai-apply">
                 @(isApplying ? "Aplicando..." : $"Aplicar {ApplicableCount} selecionado{(ApplicableCount == 1 ? "" : "s")} ao currículo")
             </button>
-            <button type="button" class="btn btn-outline-secondary" @onclick="Close" disabled="@isApplying">Cancelar</button>
         </div>
     </div>
 </section>
@@ -256,7 +268,39 @@
     [Parameter]
     public bool DraftPersisted { get; set; } = true;
 
-    protected override void OnInitialized() => saveState = DraftPersisted ? SaveState.Saved : SaveState.Failed;
+    private const string SavedMessage = "Rascunho salvo neste navegador.";
+    private const string FailedMessage = "Não foi possível salvar o rascunho neste navegador. As edições seguem nesta sessão.";
+
+    // Último resultado final já conhecido: o anúncio só muda quando ele muda
+    private SaveState lastFinalState;
+    private string saveAnnouncement = string.Empty;
+
+    private readonly ElementReference[] tabRefs = new ElementReference[Sections.Length];
+
+    protected override void OnInitialized()
+    {
+        saveState = DraftPersisted ? SaveState.Saved : SaveState.Failed;
+        lastFinalState = saveState;
+    }
+
+    // Padrão de abas: setas, Home e End trocam de aba e levam o foco junto
+    private async Task OnTabKeyDownAsync(KeyboardEventArgs e, int index)
+    {
+        var target = e.Key switch
+        {
+            "ArrowRight" => (index + 1) % Sections.Length,
+            "ArrowLeft" => (index - 1 + Sections.Length) % Sections.Length,
+            "Home" => 0,
+            "End" => Sections.Length - 1,
+            _ => -1
+        };
+        if (target < 0)
+            return;
+
+        activeSection = Sections[target];
+        StateHasChanged();
+        await tabRefs[target].FocusAsync();
+    }
 
     // A prévia e a coluna "atual" comparam contra o snapshot do rascunho, não contra
     // dados novos: um índice casado no snapshot nunca renderiza a experiência errada.
@@ -285,6 +329,11 @@
     {
         saveState = SaveState.Saving;
         saveState = await Drafts.SaveAsync(Draft) ? SaveState.Saved : SaveState.Failed;
+        if (saveState != lastFinalState)
+        {
+            lastFinalState = saveState;
+            saveAnnouncement = saveState == SaveState.Failed ? FailedMessage : SavedMessage;
+        }
         await OnDraftPersisted.InvokeAsync(saveState == SaveState.Saved);
     }
 

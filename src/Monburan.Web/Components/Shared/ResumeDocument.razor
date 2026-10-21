@@ -7,7 +7,7 @@
     <header class="cv-header">
         @if (ShowHeader)
         {
-            <h1 class="cv-name">@(string.IsNullOrWhiteSpace(Name) ? "Currículo" : Name)</h1>
+            @NameHeading(string.IsNullOrWhiteSpace(Name) ? "Currículo" : Name)
         }
         <p class="cv-headline">@Resume.Title</p>
         @if (HasContact)
@@ -32,7 +32,7 @@
     @if (!string.IsNullOrWhiteSpace(Resume.Summary))
     {
         <section class="cv-section" id="@SectionId("summary")">
-            <h2>Resumo</h2>
+            <h2 aria-level="@SectionLevel">Resumo</h2>
             <p class="cv-pre">@Resume.Summary</p>
         </section>
     }
@@ -40,7 +40,7 @@
     @if (Resume.ExperienceHistory is { Count: > 0 })
     {
         <section class="cv-section" id="@SectionId("experience")">
-            <h2>Experiência Profissional</h2>
+            <h2 aria-level="@SectionLevel">Experiência profissional</h2>
             @foreach (var experience in Resume.ExperienceHistory)
             {
                 <article class="cv-item">
@@ -61,7 +61,7 @@
     @if (Resume.EducationHistory is { Count: > 0 })
     {
         <section class="cv-section" id="@SectionId("education")">
-            <h2>Formação Acadêmica</h2>
+            <h2 aria-level="@SectionLevel">Formação acadêmica</h2>
             @foreach (var education in Resume.EducationHistory)
             {
                 <article class="cv-item">
@@ -69,7 +69,7 @@
                         <strong>@education.Course</strong>
                         <span class="cv-period">@Period(education.StartDate, education.EndDate, education.Status == "Ongoing")</span>
                     </div>
-                    <div class="cv-company">@education.Institution · @EducationLevel(education.Level) · @EducationStatus(education.Status)</div>
+                    <div class="cv-company">@education.Institution · @UiLabels.EducationLevel(education.Level) · @UiLabels.EducationStatus(education.Status)</div>
                 </article>
             }
         </section>
@@ -78,15 +78,15 @@
     @if (Resume.Languages is { Count: > 0 })
     {
         <section class="cv-section" id="@SectionId("languages")">
-            <h2>Idiomas</h2>
-            <p>@string.Join(" · ", Resume.Languages.Select(l => $"{l.Language} ({LanguageLevel(l.Level)})"))</p>
+            <h2 aria-level="@SectionLevel">Idiomas</h2>
+            <p>@string.Join(" · ", Resume.Languages.Select(l => $"{l.Language} ({UiLabels.LanguageLevel(l.Level)})"))</p>
         </section>
     }
 
     @if (Resume.Skills is { Count: > 0 })
     {
         <section class="cv-section" id="@SectionId("skills")">
-            <h2>Habilidades</h2>
+            <h2 aria-level="@SectionLevel">Habilidades</h2>
             <p>@string.Join(" · ", Resume.Skills.Select(s => s.Skill))</p>
         </section>
     }
@@ -97,6 +97,20 @@
     [Parameter] public string? SectionIdPrefix { get; set; }
     /// Mostra o cabeçalho com nome/contato (desligável quando a página já o exibe).
     [Parameter] public bool ShowHeader { get; set; } = true;
+    /// Nível do nome no cabeçalho: 1 na página de CV; dentro de outra tela (prévia da revisão)
+    /// desce para não criar um segundo h1. As seções ficam um nível abaixo.
+    [Parameter] public int HeadingLevel { get; set; } = 1;
+
+    // Seções seguem em <h2> para manter o estilo da folha; o aria-level corrige o nível quando a folha está aninhada
+    private string? SectionLevel => HeadingLevel <= 1 ? null : Math.Min(HeadingLevel + 1, 6).ToString();
+
+    private RenderFragment NameHeading(string text) => builder =>
+    {
+        builder.OpenElement(0, $"h{Math.Clamp(HeadingLevel, 1, 6)}");
+        builder.AddAttribute(1, "class", "cv-name");
+        builder.AddContent(2, text);
+        builder.CloseElement();
+    };
 
     private string? SectionId(string key) =>
         SectionIdPrefix is null ? null : $"{SectionIdPrefix}-{key}";
@@ -131,32 +145,4 @@
             _ => string.Empty
         };
     }
-
-    internal static string EducationLevel(string? level) => level switch
-    {
-        "Elementary" => "Ensino fundamental",
-        "HighSchool" => "Ensino médio",
-        "Technical" => "Técnico",
-        "Postgraduate" => "Pós-graduação",
-        "Master" => "Mestrado",
-        "Doctorate" => "Doutorado",
-        _ => "Graduação"
-    };
-
-    internal static string EducationStatus(string? status) => status switch
-    {
-        "Ongoing" => "em andamento",
-        "Dropped" => "interrompido",
-        "Incomplete" => "incompleto",
-        _ => "concluído"
-    };
-
-    internal static string LanguageLevel(string? level) => level switch
-    {
-        "Basic" => "básico",
-        "Advanced" => "avançado",
-        "Fluent" => "fluente",
-        "Native" => "nativo",
-        _ => "intermediário"
-    };
 }

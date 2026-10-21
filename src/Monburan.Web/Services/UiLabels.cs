@@ -16,6 +16,17 @@ public static class UiLabels
         _ => "Em análise"
     };
 
+    /// <summary>Plural para contagens ("3 Não selecionadas"): mesmos termos do singular.</summary>
+    public static string ApplicationStatusPlural(string? status) => status switch
+    {
+        "Sent" => "Enviadas",
+        "Viewed" => "Visualizadas",
+        "Selected" => "Selecionadas",
+        "Rejected" => "Não selecionadas",
+        "Archived" => "Arquivadas",
+        _ => "Em análise"
+    };
+
     public static string ApplicationStatusBadge(string? status) => status switch
     {
         "Sent" => "bg-primary",
@@ -33,6 +44,17 @@ public static class UiLabels
         "Rejected" => "Reprovada",
         "Paused" => "Pausada",
         _ => "Indefinida"
+    };
+
+    /// <summary>Plural para contagens de vagas: "Rejected" de vaga é reprovação na moderação.</summary>
+    public static string JobStatusPlural(string? status) => status switch
+    {
+        "Active" => "Ativas",
+        "Expired" => "Expiradas",
+        "Hidden" => "Ocultas",
+        "Rejected" => "Reprovadas",
+        "Paused" => "Pausadas",
+        _ => "Outras"
     };
 
     public static string JobStatusBadge(string? status) => status switch
@@ -75,6 +97,11 @@ public static class UiLabels
         _ => string.Empty
     };
 
+    /// <summary>Nome do plano para a tela: o plano básico se chama "Free" no cadastro, mas a interface é em português.</summary>
+    public static string PlanName(string? name) => string.IsNullOrWhiteSpace(name) || name.Trim().Equals("Free", StringComparison.OrdinalIgnoreCase)
+        ? "Gratuito"
+        : name.Trim();
+
     public static string SubscriptionStatus(string? status) => status switch
     {
         "Active" => "Ativa",
@@ -104,6 +131,40 @@ public static class UiLabels
         EAdvertiserStatus.Active => "Ativa",
         EAdvertiserStatus.Blocked => "Bloqueada",
         _ => "Cadastro incompleto"
+    };
+
+    /// <summary>Nível de formação do currículo (<c>EEducationLevel</c>); valor desconhecido aparece como veio.</summary>
+    public static string EducationLevel(string? level) => level switch
+    {
+        "Elementary" => "Ensino fundamental",
+        "HighSchool" => "Ensino médio",
+        "Technical" => "Técnico",
+        "Bachelor" => "Graduação",
+        "Postgraduate" => "Pós-graduação",
+        "Master" => "Mestrado",
+        "Doctorate" => "Doutorado",
+        _ => level ?? string.Empty
+    };
+
+    /// <summary>Situação do curso (<c>EEducationStatus</c>); valor desconhecido aparece como veio.</summary>
+    public static string EducationStatus(string? status) => status switch
+    {
+        "Ongoing" => "Em andamento",
+        "Completed" => "Concluído",
+        "Dropped" => "Trancado",
+        "Incomplete" => "Incompleto",
+        _ => status ?? string.Empty
+    };
+
+    /// <summary>Nível do idioma (<c>ELanguageLevel</c>); valor desconhecido aparece como veio.</summary>
+    public static string LanguageLevel(string? level) => level switch
+    {
+        "Basic" => "Básico",
+        "Intermediate" => "Intermediário",
+        "Advanced" => "Avançado",
+        "Fluent" => "Fluente",
+        "Native" => "Nativo",
+        _ => level ?? string.Empty
     };
 
     public static string CurrencySymbol(string? currency) => currency switch

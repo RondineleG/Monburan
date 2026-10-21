@@ -10,9 +10,9 @@
 @* Botão de salvar vaga, interativo por conta própria: o restante da página pode continuar estático. *@
 @if (CanSave)
 {
+    @* O texto já diz o estado ("Salva"/"Salvar"); aria-pressed repetiria a mesma informação *@
     <button type="button"
             class="btn @(IsSaved ? "btn-primary" : "btn-outline-primary") save-job-button"
-            aria-pressed="@IsSaved"
             disabled="@isWorking"
             data-testid="save-job-button"
             @onclick="ToggleAsync">
@@ -59,23 +59,29 @@ else
             return;
 
         isWorking = true;
-        var wasSaved = IsSaved;
-        var result = wasSaved
-            ? await UnsaveJobUseCase.ExecuteAsync(new UnsaveJobRequest(candidateId.Value, JobId))
-            : await SaveJobUseCase.ExecuteAsync(new SaveJobRequest(candidateId.Value, JobId));
-
-        if (result.Status == EResultStatus.Success)
+        try
         {
-            IsSaved = !wasSaved;
-            Toast.ShowSuccess(
-                IsSaved ? "Vaga salva em Minhas vagas." : "Vaga removida das suas vagas salvas.",
-                IsSaved ? "Vaga salva" : "Vaga removida");
-        }
-        else
-        {
-            Toast.ShowError("Não foi possível atualizar suas vagas salvas. Tente novamente.");
-        }
+            var wasSaved = IsSaved;
+            var result = wasSaved
+                ? await UnsaveJobUseCase.ExecuteAsync(new UnsaveJobRequest(candidateId.Value, JobId))
+                : await SaveJobUseCase.ExecuteAsync(new SaveJobRequest(candidateId.Value, JobId));
 
-        isWorking = false;
+            if (result.Status == EResultStatus.Success)
+            {
+                IsSaved = !wasSaved;
+                Toast.ShowSuccess(
+                    IsSaved ? "Ela fica na aba Vagas salvas de Minhas candidaturas." : "Vaga removida das suas vagas salvas.",
+                    IsSaved ? "Vaga salva" : "Vaga removida");
+            }
+            else
+            {
+                Toast.ShowError("Não foi possível atualizar suas vagas salvas. Tente novamente.");
+            }
+        }
+        finally
+        {
+            // Falha inesperada não pode deixar o botão travado em "ocupado"
+            isWorking = false;
+        }
     }
 }
