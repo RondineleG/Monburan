@@ -5,38 +5,23 @@
 @inject ILogger<Resumes> Logger
 
 <h1 class="page-title" tabindex="-1">Meus currículos</h1>
-<p class="page-subtitle">Envie um PDF ou cadastre seu currículo</p>
+<p class="page-subtitle">Crie seu currículo no app ou envie um PDF</p>
 
-<div class="card">
+<div class="action-stack">
+    <a class="btn btn-primary btn-block" href="/resumes/new"><Icon Name="plus" /> Criar currículo</a>
+</div>
+
+<div class="card upload-card">
     <div class="list-row">
         <div>
             <h2 class="card-title">Enviar PDF</h2>
-            <div class="text-dim">PDF até 10MB — vira um currículo na sua lista</div>
+            <div class="text-dim">PDF até 10 MB — vira um currículo na sua lista</div>
         </div>
         <button type="button" class="btn btn-secondary" @onclick="PickAndUploadAsync" disabled="@_uploading" aria-busy="@(_uploading ? "true" : null)">
             <Icon Name="upload" /> @(_uploading ? "Enviando…" : "Escolher arquivo")
         </button>
     </div>
 </div>
-
-<h2 class="section-title">Novo currículo</h2>
-<form class="card" @onsubmit="CreateAsync" novalidate>
-    <div class="form-field">
-        <label for="resume-title">Título</label>
-        <input id="resume-title" class="input" @bind="_newTitle" placeholder="Ex.: Currículo Dev .NET" maxlength="200" />
-        @if (_titleError is not null)
-        {
-            <div class="field-error">@_titleError</div>
-        }
-    </div>
-    <div class="form-field">
-        <label for="resume-summary">Resumo</label>
-        <textarea id="resume-summary" class="input" @bind="_newSummary" placeholder="Breve resumo profissional" maxlength="2000"></textarea>
-    </div>
-    <button type="submit" class="btn btn-primary btn-block" disabled="@_busy">
-        @(_busy ? "Salvando…" : "Salvar currículo")
-    </button>
-</form>
 
 <h2 class="section-title">Cadastrados</h2>
 
@@ -50,49 +35,35 @@ else if (_error is not null)
 }
 else if (_items.Count == 0)
 {
-    <EmptyState IconName="file" Compact="true" Title="Nenhum currículo" Message="Envie um PDF ou crie um currículo acima." />
+    <EmptyState IconName="file" Compact="true" Title="Nenhum currículo" Message="Crie um currículo ou envie um PDF para se candidatar mais rápido." />
 }
 else
 {
     @foreach (var r in _items)
     {
-        <div class="card">
-            <div class="list-row">
-                <div>
-                    <h2 class="card-title">@r.Title</h2>
-                    <div class="text-dim">@Formatters.MomentDate(r.CreatedAt)</div>
+        <a class="card-link" href="/resumes/@r.Id" @key="r.Id">
+            <div class="card">
+                <div class="list-row">
+                    <div>
+                        <h3 class="card-title">@r.Title</h3>
+                        <div class="text-dim">Atualizado em @Formatters.MomentDate(r.UpdatedAt ?? r.CreatedAt)</div>
+                    </div>
+                    <span class="badge badge--@(r.IsActive ? "ok" : "neutral")">@(r.IsActive ? "Ativo" : "Inativo")</span>
                 </div>
-                <div class="tag-row">
-                    @if (r.IsActive)
-                    {
-                        <span class="badge badge--ok">Ativo</span>
-                    }
-                    <button type="button" class="btn btn-danger" @onclick="() => DeleteAsync(r)" disabled="@(_deletingId == r.Id)" aria-label="@($"Excluir o currículo {r.Title}")">
-                        <Icon Name="trash" /> @(_deletingId == r.Id ? "Excluindo…" : "Excluir")
-                    </button>
-                </div>
+                @if (!string.IsNullOrEmpty(r.Summary))
+                {
+                    <p class="card-snippet">@r.Summary</p>
+                }
             </div>
-            @if (!string.IsNullOrEmpty(r.Summary))
-            {
-                <p class="card-snippet">@r.Summary</p>
-            }
-        </div>
+        </a>
     }
 }
-
-<ConfirmDialog @ref="_confirm" />
 
 @code {
     private const long MaxPdfBytes = 10 * 1024 * 1024;
 
     private List<ResumeResponse> _items = [];
-    private string _newTitle = "";
-    private string? _newSummary;
-    private string? _titleError;
-    private Guid? _deletingId;
-    private ConfirmDialog _confirm = default!;
     private bool _loading = true;
-    private bool _busy;
     private bool _uploading;
     private ApiException? _error;
 
@@ -117,43 +88,6 @@ else
         finally
         {
             _loading = false;
-        }
-    }
-
-    private async Task CreateAsync()
-    {
-        if (_busy)
-            return;
-
-        _titleError = null;
-        if (string.IsNullOrWhiteSpace(_newTitle))
-        {
-            _titleError = "Informe um título para o currículo.";
-            return;
-        }
-
-        _busy = true;
-        try
-        {
-            await Api.CreateResumeAsync(new CreateResumeRequest
-            {
-                Title = _newTitle.Trim(),
-                Summary = _newSummary,
-                IsActive = true
-            });
-            _newTitle = "";
-            _newSummary = null;
-            Toast.ShowSuccess("Currículo criado!");
-            await LoadAsync();
-        }
-        catch (ApiException ex)
-        {
-            _titleError = ex.FieldError("title");
-            Toast.ShowError(ex.Message);
-        }
-        finally
-        {
-            _busy = false;
         }
     }
 
@@ -212,36 +146,6 @@ else
         finally
         {
             _uploading = false;
-        }
-    }
-
-    private async Task DeleteAsync(ResumeResponse resume)
-    {
-        // Antes excluía direto, sem confirmação
-        var confirmed = await _confirm.ShowAsync(new ConfirmOptions
-        {
-            Title = "Excluir currículo?",
-            Message = $"\"{resume.Title}\" será removido e não poderá mais ser enviado em candidaturas.",
-            ConfirmText = "Excluir currículo",
-            Destructive = true
-        });
-        if (!confirmed)
-            return;
-
-        _deletingId = resume.Id;
-        try
-        {
-            await Api.DeleteResumeAsync(resume.Id);
-            _items.Remove(resume);
-            Toast.ShowSuccess("Currículo excluído.");
-        }
-        catch (ApiException ex)
-        {
-            Toast.ShowError(ex.Message);
-        }
-        finally
-        {
-            _deletingId = null;
         }
     }
 }

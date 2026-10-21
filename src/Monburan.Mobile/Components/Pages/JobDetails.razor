@@ -13,7 +13,7 @@ else if (_error is not null)
     @if (_error.StatusCode == System.Net.HttpStatusCode.NotFound)
     {
         <EmptyState IconName="search" HeadingLevel="1" Title="Vaga não encontrada" Message="Ela pode ter sido encerrada ou removida pela empresa.">
-            <a class="btn btn-primary" href="/">Ver vagas abertas</a>
+            <a class="btn btn-primary" href="/jobs">Ver vagas abertas</a>
         </EmptyState>
     }
     else
@@ -88,6 +88,10 @@ else if (_job is not null)
         </div>
     }
 
+    <div class="action-stack detail-actions">
+        <SaveJobButton JobId="_job.Id" JobTitle="@_job.Title" @bind-IsSaved="_job.IsSaved" />
+    </div>
+
     <div class="alert alert-info">Nunca pague para participar de um processo seletivo nem envie dados bancários por canais desconhecidos.</div>
 
     @if (_alreadyApplied)
@@ -98,7 +102,7 @@ else if (_job is not null)
     else if (_job.Status != "Active")
     {
         <div class="alert alert-info">Esta vaga não está mais recebendo candidaturas.</div>
-        <a class="btn btn-secondary btn-block" href="/">Ver outras vagas</a>
+        <a class="btn btn-secondary btn-block" href="/jobs">Ver outras vagas</a>
     }
     else
     {

@@ -1,0 +1,60 @@
+@* Cartão de vaga das listas (busca e início). O link do título cobre o cartão inteiro; o botão de salvar fica por cima,
+   fora do link (botão dentro de link não é permitido). *@
+@{
+    var mode = Formatters.JobMode(Job);
+}
+<article class="card job-card">
+    <div class="list-row">
+        <div class="job-card__head">
+            <a class="job-card__link" href="/jobs/@Job.Id">
+                @if (HeadingLevel == 3)
+                {
+                    <h3 class="card-title">@Job.Title</h3>
+                }
+                else
+                {
+                    <h2 class="card-title">@Job.Title</h2>
+                }
+            </a>
+            @if (!string.IsNullOrEmpty(Job.AdvertiserName))
+            {
+                <div class="text-dim">@Job.AdvertiserName</div>
+            }
+        </div>
+        @if (ShowSave)
+        {
+            <SaveJobButton JobId="Job.Id" JobTitle="@Job.Title" Compact="true" IsSaved="Job.IsSaved" IsSavedChanged="OnSavedChanged" />
+        }
+    </div>
+    @if (!string.IsNullOrEmpty(Job.Description))
+    {
+        <p class="card-snippet">@Job.Description</p>
+    }
+    <div class="card-meta">
+        @if (Formatters.Location(Job.City, Job.State) is { } location)
+        {
+            <span class="meta-chip"><Icon Name="map-pin" Size="16" /> @location</span>
+        }
+        <span class="meta-chip"><Icon Name="@Formatters.JobModeIcon(mode)" Size="16" /> @Formatters.JobType(mode)</span>
+        @if (Formatters.Salary(Job) is { } salary)
+        {
+            <span class="meta-chip salary"><Icon Name="banknote" Size="16" /> @salary</span>
+        }
+    </div>
+    @if (!string.IsNullOrEmpty(Job.Category))
+    {
+        <div class="tag-row"><span class="badge badge--neutral">@Job.Category</span></div>
+    }
+</article>
+
+@code {
+    [Parameter, EditorRequired] public JobResponse Job { get; set; } = default!;
+
+    /// <summary>Mostra o botão de salvar (estrela). Sem sessão, o toque leva ao login.</summary>
+    [Parameter] public bool ShowSave { get; set; } = true;
+
+    /// <summary>2 nas listas que são a tela; 3 quando o cartão fica sob uma seção com h2.</summary>
+    [Parameter] public int HeadingLevel { get; set; } = 2;
+
+    private void OnSavedChanged(bool saved) => Job.IsSaved = saved;
+}

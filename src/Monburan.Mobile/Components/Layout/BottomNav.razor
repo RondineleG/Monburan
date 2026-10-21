@@ -1,4 +1,4 @@
-@* Barra inferior: 4 destinos, ícone + rótulo visível; o destino atual leva aria-current="page" *@
+@* Barra inferior: 5 destinos, ícone + rótulo visível; o destino atual leva aria-current="page" *@
 <nav class="bottom-nav" aria-label="Navegação principal">
     @foreach (var item in Items)
     {
@@ -30,9 +30,10 @@
 
     private static readonly NavItem[] Items =
     [
-        new("/", "Vagas", "search", ["/", "/jobs", "/apply"]),
+        new("/", "Início", "home", ["/"]),
+        new("/jobs", "Vagas", "search", ["/jobs", "/apply"]),
         new("/applications", "Candidaturas", "send", ["/applications"]),
         new("/notifications", "Avisos", "bell", ["/notifications"]),
-        new("/profile", "Perfil", "user", ["/profile", "/resumes"])
+        new("/profile", "Perfil", "user", ["/profile", "/resumes", "/career-profile", "/plans"])
     ];
 }

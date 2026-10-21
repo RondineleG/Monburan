@@ -1,0 +1,202 @@
+@page "/"
+@inject MonburanApiClient Api
+@inject AuthStateService Auth
+@inject ILogger<Home> Logger
+
+@* Início: para o candidato, progresso do perfil, próximos passos e vagas recomendadas (com vagas recentes
+   quando ainda não há recomendação), como o painel da web. Sem sessão, convite para entrar e vagas recentes. *@
+
+@if (!_initialized)
+{
+    <h1 class="visually-hidden" tabindex="-1">Início</h1>
+    <LoadingState />
+}
+else if (!_authenticated)
+{
+    <section class="home-hero" aria-labelledby="home-title">
+        <h1 id="home-title" tabindex="-1">O trabalho certo muda tudo.</h1>
+        <p>Encontre vagas por cargo e cidade, candidate-se de graça e acompanhe cada etapa em um só lugar.</p>
+        <div class="action-stack">
+            <a class="btn btn-primary btn-block" href="/login">Entrar</a>
+            <a class="btn btn-secondary btn-block" href="/register">Criar conta gratuita</a>
+        </div>
+    </section>
+}
+else
+{
+    <h1 class="page-title" tabindex="-1">Continue sua jornada</h1>
+    <p class="page-subtitle">Acompanhe suas candidaturas e descubra a próxima oportunidade.</p>
+}
+
+@if (_initialized)
+{
+    @if (_loading)
+    {
+        <LoadingState Message="Carregando seu painel…" />
+    }
+    else if (_error is not null)
+    {
+        <ErrorState Message="@_error.Message" IsOffline="@_error.IsNetworkError" OnRetry="LoadAsync" />
+    }
+    else
+    {
+        @if (_progress is not null)
+        {
+            var percent = Math.Clamp(_progress.CompletenessPercent, 0, 100);
+            var nextSteps = _progress.Checklist.Where(item => !item.Done).ToList();
+            <section class="card progress-card" aria-labelledby="progress-title">
+                <div class="list-row">
+                    <h2 id="progress-title" class="card-title">Continue de onde parou</h2>
+                    <span class="badge badge--@(percent >= 100 ? "ok" : "brand")">Perfil @percent% completo</span>
+                </div>
+                <div class="progress-track" role="progressbar" aria-valuenow="@percent" aria-valuemin="0" aria-valuemax="100" aria-label="Perfil completo">
+                    <div class="progress-track__bar" style="width: @(percent)%"></div>
+                </div>
+
+                <h3 class="progress-card__subtitle">Próximos passos</h3>
+                @if (nextSteps.Count > 0)
+                {
+                    <ul class="link-list">
+                        @foreach (var step in nextSteps)
+                        {
+                            <li>
+                                <a class="link-list__item" href="@AppRoute(step.ActionUrl)">
+                                    <span>@step.Label</span>
+                                    <Icon Name="chevron-right" />
+                                </a>
+                            </li>
+                        }
+                    </ul>
+                }
+                else
+                {
+                    <p class="text-dim">Tudo certo por aqui: seu perfil está completo.</p>
+                }
+            </section>
+
+            <nav class="stat-grid" aria-label="Resumo das suas candidaturas">
+                <a class="stat-grid__cell" href="/applications">
+                    <strong>@_progress.Applications.Total</strong>
+                    <span>Candidaturas</span>
+                    <small>@(_progress.Applications.Sent + _progress.Applications.Viewed) em andamento</small>
+                </a>
+                <a class="stat-grid__cell" href="/applications">
+                    <strong>@_progress.Applications.Selected</strong>
+                    <span>Selecionadas</span>
+                </a>
+                <a class="stat-grid__cell" href="/applications?aba=salvas">
+                    <strong>@_progress.SavedJobs</strong>
+                    <span>Vagas salvas</span>
+                </a>
+                <a class="stat-grid__cell" href="/applications?aba=alertas">
+                    <strong>@_progress.ActiveAlerts</strong>
+                    <span>Alertas ativos</span>
+                </a>
+            </nav>
+
+            @if (!_progress.Checklist.Any(item => item.Key == "careerProfile" && item.Done))
+            {
+                <aside class="card promo-card" aria-label="Perfil de carreira">
+                    <h2 class="card-title">Receba vagas que combinam com você</h2>
+                    <p class="text-dim">Conte o cargo, a cidade e a modalidade que procura no perfil de carreira.</p>
+                    <a class="btn btn-secondary btn-block" href="/career-profile">Completar perfil de carreira</a>
+                </aside>
+            }
+        }
+
+        <section aria-labelledby="home-jobs-title">
+            <div class="section-heading">
+                <h2 id="home-jobs-title" class="section-title">@(_recommended.Count > 0 ? "Recomendadas para você" : "Vagas recentes")</h2>
+                @if (DisplayJobs.Count > 0)
+                {
+                    <a class="btn btn-ghost" href="/jobs">Ver todas <Icon Name="arrow-right" Size="16" /></a>
+                }
+            </div>
+
+            @if (DisplayJobs.Count > 0)
+            {
+                @foreach (var job in DisplayJobs.Take(6))
+                {
+                    <JobCard @key="job.Id" Job="job" HeadingLevel="3" ShowSave="_authenticated" />
+                }
+            }
+            else
+            {
+                <EmptyState IconName="briefcase" Compact="true" Title="Nenhuma vaga disponível no momento"
+                            Message="Novas oportunidades são publicadas todos os dias. Volte em breve." />
+            }
+        </section>
+    }
+}
+
+@code {
+    private CandidateProgressResponse? _progress;
+    private List<JobResponse> _recommended = [];
+    private List<JobResponse> _recent = [];
+    private bool _initialized;
+    private bool _authenticated;
+    private bool _loading = true;
+    private ApiException? _error;
+
+    private List<JobResponse> DisplayJobs => _recommended.Count > 0 ? _recommended : _recent;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await Auth.InitializeAsync();
+        _authenticated = Auth.IsAuthenticated;
+        _initialized = true;
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        _error = null;
+        try
+        {
+            if (_authenticated)
+            {
+                var progressTask = Api.GetMyProgressAsync();
+                var recommendedTask = LoadRecommendedAsync();
+                await Task.WhenAll(progressTask, recommendedTask);
+                _progress = progressTask.Result;
+                _recommended = recommendedTask.Result;
+            }
+
+            // Recentes só quando não há recomendação (ou sem sessão): evita um GET à toa
+            _recent = _recommended.Count > 0
+                ? []
+                : (await Api.GetJobsAsync(new ListJobsRequest { Page = 1, Size = 6, SortDescending = true })).Jobs.ToList();
+        }
+        catch (ApiException ex)
+        {
+            _error = ex;
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    // Recomendação é acessória: se falhar, a lista cai para as vagas recentes
+    private async Task<List<JobResponse>> LoadRecommendedAsync()
+    {
+        try
+        {
+            return (await Api.GetRecommendedJobsAsync()).Jobs.ToList();
+        }
+        catch (ApiException ex) when (!ex.IsUnauthorized)
+        {
+            Logger.LogDebug(ex, "Não foi possível carregar as vagas recomendadas");
+            return [];
+        }
+    }
+
+    // O servidor devolve rotas do site; no app o dado pessoal fica no Perfil
+    private static string AppRoute(string? actionUrl) => actionUrl switch
+    {
+        "/resumes" => "/resumes",
+        "/career-profile" => "/career-profile",
+        _ => "/profile"
+    };
+}

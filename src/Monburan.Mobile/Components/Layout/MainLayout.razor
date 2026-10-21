@@ -18,7 +18,7 @@
                 @* O iOS não tem botão voltar do sistema: telas internas (vaga, candidatura) precisam de um *@
                 <button type="button" class="icon-button app-back" @onclick="GoBackAsync" aria-label="Voltar"><Icon Name="chevron-left" Size="22" /></button>
             }
-            <a class="app-brand" href="/" aria-label="Monburan, vagas">
+            <a class="app-brand" href="/" aria-label="Monburan, início">
                 <BrandMark />
                 <span class="app-brand__name">Monburan</span>
             </a>
@@ -47,7 +47,7 @@
     private DateTime _lastUnreadFetch = DateTime.MinValue;
     private bool _isDark = true;
 
-    // Abas da barra inferior não têm "voltar"; as demais telas (detalhe, candidatura, currículos) têm
+    // Destinos da barra inferior não têm "voltar"; as demais telas (detalhe, candidatura, currículos, perfil de carreira, plano) têm
     private bool ShowBack => CurrentPath is not ("/" or "/jobs" or "/applications" or "/notifications" or "/profile");
 
     private string CurrentPath => "/" + Nav.ToBaseRelativePath(Nav.Uri).Split('?', '#')[0].Trim('/');

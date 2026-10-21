@@ -4,7 +4,7 @@
 @inject IToastService Toast
 
 <h1 class="page-title" tabindex="-1">Perfil</h1>
-<p class="page-subtitle">Seus dados de candidato</p>
+<p class="page-subtitle">Seus dados, currículos e preferências</p>
 
 @if (_loading)
 {
@@ -28,12 +28,53 @@ else if (_candidate is not null)
             }
         </div>
         <div class="card-meta">
-            <span class="meta-chip"><Icon Name="file" Size="16" /> @_candidate.ResumesCount currículo(s)</span>
-            <span class="meta-chip"><Icon Name="send" Size="16" /> @_candidate.ApplicationsCount candidatura(s)</span>
+            @if (_resumesCount is int resumes)
+            {
+                <span class="meta-chip"><Icon Name="file" Size="16" /> @resumes @(resumes == 1 ? "currículo" : "currículos")</span>
+            }
+            @if (_applicationsCount is int applications)
+            {
+                <span class="meta-chip"><Icon Name="send" Size="16" /> @applications @(applications == 1 ? "candidatura" : "candidaturas")</span>
+            }
         </div>
     </div>
 
-    <h2 class="section-title">Editar dados</h2>
+    <nav aria-label="Sua conta">
+        <ul class="link-list link-list--card">
+            <li>
+                <a class="link-list__item" href="/career-profile">
+                    <Icon Name="briefcase" />
+                    <span class="link-list__text">
+                        <strong>Perfil de carreira</strong>
+                        <small>Cargo, cidade e modalidade que você procura</small>
+                    </span>
+                    <Icon Name="chevron-right" />
+                </a>
+            </li>
+            <li>
+                <a class="link-list__item" href="/resumes">
+                    <Icon Name="file" />
+                    <span class="link-list__text">
+                        <strong>Meus currículos</strong>
+                        <small>Crie, edite ou envie em PDF</small>
+                    </span>
+                    <Icon Name="chevron-right" />
+                </a>
+            </li>
+            <li>
+                <a class="link-list__item" href="/plans">
+                    <Icon Name="star" />
+                    <span class="link-list__text">
+                        <strong>Plano</strong>
+                        <small>Seu plano e os planos disponíveis</small>
+                    </span>
+                    <Icon Name="chevron-right" />
+                </a>
+            </li>
+        </ul>
+    </nav>
+
+    <h2 class="section-title">Dados pessoais</h2>
     <form class="card" @onsubmit="SaveAsync" novalidate>
         <div class="form-field">
             <label for="profile-name">Nome</label>
@@ -63,10 +104,13 @@ else if (_candidate is not null)
             @(_busy ? "Salvando…" : "Salvar")
         </button>
     </form>
+}
 
-    <div class="action-stack">
-        <a class="btn btn-secondary btn-block" href="/resumes"><Icon Name="file" /> Meus currículos</a>
-        <button type="button" class="btn btn-ghost btn-block" @onclick="LogoutAsync"><Icon Name="log-out" /> Sair da conta</button>
+@if (!_loading)
+{
+    @* Fora do bloco do perfil: sair continua possível mesmo quando o carregamento falha *@
+    <div class="action-stack page-end">
+        <button type="button" class="btn btn-secondary btn-block" @onclick="LogoutAsync"><Icon Name="log-out" /> Sair da conta</button>
     </div>
 }
 
@@ -79,11 +123,31 @@ else if (_candidate is not null)
     private bool _loading = true;
     private bool _busy;
     private ApiException? _loadError;
+    // Contagens vêm do progresso e da lista de currículos: os campos de contagem de candidates/me chegam zerados
+    private int? _resumesCount;
+    private int? _applicationsCount;
 
     protected override async Task OnInitializedAsync()
     {
         if (await EnsureAuthenticatedAsync())
             await LoadAsync();
+    }
+
+    // Contagem é complemento: se falhar, o perfil continua na tela sem os números
+    private async Task LoadCountsAsync()
+    {
+        try
+        {
+            var resumes = Api.GetMyResumesAsync();
+            var progress = Api.GetMyProgressAsync();
+            _resumesCount = (await resumes).Count;
+            _applicationsCount = (await progress).Applications.Total;
+        }
+        catch (ApiException)
+        {
+            _resumesCount = null;
+            _applicationsCount = null;
+        }
     }
 
     private async Task LoadAsync()
@@ -96,6 +160,7 @@ else if (_candidate is not null)
             _name = _candidate.Name;
             _phone = _candidate.Phone;
             _linkedIn = _candidate.LinkedIn;
+            await LoadCountsAsync();
         }
         catch (ApiException ex)
         {

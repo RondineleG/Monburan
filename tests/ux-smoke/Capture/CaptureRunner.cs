@@ -126,7 +126,9 @@ static class CaptureRunner
                 catch (Exception ex) { console.Add("goto: " + ex.Message[..Math.Min(150, ex.Message.Length)]); }
                 await page.WaitForTimeoutAsync(1500);
                 var file = $"{site}__{role}__{name}__{vp.Name}__{theme}.png";
-                await page.ScreenshotAsync(new() { Path = Path.Combine(outDir, file), FullPage = true });
+                // Uma tela que não deixa capturar não derruba a rodada: o erro entra no resultado
+                try { await page.ScreenshotAsync(new() { Path = Path.Combine(outDir, file), FullPage = true, Timeout = 45000 }); }
+                catch (TimeoutException ex) { console.Add("screenshot: " + ex.Message.Split('\n')[0]); file = string.Empty; }
                 var row = new Dictionary<string, object?>
                 {
                     ["site"] = site, ["role"] = role, ["page"] = name, ["path"] = url.Replace(baseUrl, ""), ["finalUrl"] = page.Url,
@@ -389,13 +391,16 @@ static class CaptureRunner
 
         var jobs = new List<(string, string)>
         {
-            ("jobs", "/"), ("job-details", "/jobs/" + seed.AppliedJobId), ("login", "/login"), ("register", "/register"),
+            ("home", "/"), ("jobs", "/jobs"), ("job-details", "/jobs/" + seed.AppliedJobId), ("login", "/login"), ("register", "/register"),
             ("forgot-password", "/forgot-password"), ("not-found", "/not-found"), ("protected", "/applications"),
         };
         var candidate = new List<(string, string)>
         {
-            ("jobs", "/"), ("job-details", "/jobs/" + seed.AppliedJobId), ("apply-done", "/apply/" + seed.AppliedJobId),
-            ("applications", "/applications"), ("notifications", "/notifications"), ("profile", "/profile"), ("resumes", "/resumes"),
+            ("home", "/"), ("jobs", "/jobs"), ("job-details", "/jobs/" + seed.AppliedJobId), ("apply-done", "/apply/" + seed.AppliedJobId),
+            ("applications", "/applications"), ("saved-jobs", "/applications?aba=salvas"), ("job-alerts", "/applications?aba=alertas"),
+            ("notifications", "/notifications"), ("profile", "/profile"), ("career-profile", "/career-profile"), ("plans", "/plans"),
+            ("resumes", "/resumes"), ("resume-details", "/resumes/" + seed.ResumeId), ("resume-edit", "/resumes/" + seed.ResumeId + "/edit"),
+            ("resume-new", "/resumes/new"),
         };
 
         // Uma pessoa por processo (as sessões do app são singletons): visitante e candidato em processos separados

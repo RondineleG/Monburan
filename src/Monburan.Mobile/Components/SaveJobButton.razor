@@ -1,0 +1,72 @@
+@inject MonburanApiClient Api
+@inject AuthStateService Auth
+@inject NavigationManager Nav
+@inject IToastService Toast
+
+@* Salvar/remover vaga das salvas (PUT/DELETE jobs/{id}/save). Sem sessão leva ao login e volta para cá.
+   Compact: só o ícone (cartão da lista), com nome acessível; senão botão com texto (detalhe da vaga). *@
+@if (Compact)
+{
+    <button type="button" class="icon-button save-toggle@(IsSaved ? " is-saved" : string.Empty)" @onclick="ToggleAsync"
+            disabled="@_busy" aria-busy="@(_busy ? "true" : null)" aria-pressed="@(IsSaved ? "true" : "false")"
+            aria-label="@($"Salvar a vaga {JobTitle}")">
+        <Icon Name="star" Size="20" />
+    </button>
+}
+else
+{
+    <button type="button" class="btn btn-secondary btn-block save-toggle@(IsSaved ? " is-saved" : string.Empty)" @onclick="ToggleAsync"
+            disabled="@_busy" aria-busy="@(_busy ? "true" : null)" aria-pressed="@(IsSaved ? "true" : "false")">
+        <Icon Name="star" /> @(IsSaved ? "Vaga salva" : "Salvar vaga")
+    </button>
+}
+
+@code {
+    [Parameter, EditorRequired] public Guid JobId { get; set; }
+
+    [Parameter] public string JobTitle { get; set; } = "";
+
+    [Parameter] public bool IsSaved { get; set; }
+
+    [Parameter] public EventCallback<bool> IsSavedChanged { get; set; }
+
+    [Parameter] public bool Compact { get; set; }
+
+    private bool _busy;
+
+    private async Task ToggleAsync()
+    {
+        if (_busy)
+            return;
+
+        await Auth.InitializeAsync();
+        if (!Auth.IsAuthenticated)
+        {
+            var here = "/" + Nav.ToBaseRelativePath(Nav.Uri);
+            Nav.NavigateTo($"/login?returnUrl={Uri.EscapeDataString(here)}");
+            return;
+        }
+
+        _busy = true;
+        var save = !IsSaved;
+        try
+        {
+            if (save)
+                await Api.SaveJobAsync(JobId);
+            else
+                await Api.UnsaveJobAsync(JobId);
+
+            IsSaved = save;
+            await IsSavedChanged.InvokeAsync(save);
+            Toast.ShowSuccess(save ? "Vaga salva. Você a encontra em Candidaturas, na aba Vagas salvas." : "Vaga removida das salvas.");
+        }
+        catch (ApiException ex)
+        {
+            Toast.ShowError(ex.Message);
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+}

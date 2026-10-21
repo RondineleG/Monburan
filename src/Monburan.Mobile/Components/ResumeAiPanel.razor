@@ -1,0 +1,170 @@
+@inject MonburanApiClient Api
+@inject ILogger<ResumeAiPanel> Logger
+
+@* Sugestões de melhoria com IA (benefício do plano Premium). Fechado por padrão; só gera com autorização expressa
+   a cada uso (acceptsExternalProcessing). As sugestões são só leitura: nada muda no currículo sem a pessoa editar. *@
+@if (_availability is not null)
+{
+    <section class="card ai-panel" aria-labelledby="ai-panel-title">
+        @* Padrão sanfona: o título contém o botão que abre e fecha *@
+        <h2 class="ai-panel__heading">
+            <button type="button" class="btn btn-ghost btn-block disclosure ai-panel__toggle" aria-expanded="@(_open ? "true" : "false")"
+                    aria-controls="ai-panel-body" @onclick="() => _open = !_open">
+                <Icon Name="sparkles" />
+                <span id="ai-panel-title">Melhorar com IA</span>
+                <Icon Name="chevron-down" Size="16" Class="@(_open ? "icon--flip" : null)" />
+            </button>
+        </h2>
+
+        @if (_open)
+        {
+            <div id="ai-panel-body" class="ai-panel__body">
+                @if (!_availability.Premium)
+                {
+                    <p class="text-dim">
+                        As sugestões de melhoria com IA são um benefício do plano Premium. Com ele, a IA lê o conteúdo profissional
+                        do seu currículo e sugere como deixá-lo mais claro e forte — e você decide o que aproveitar.
+                    </p>
+                    <a class="btn btn-secondary btn-block" href="/plans">Ver planos</a>
+                }
+                else if (!_availability.Enabled)
+                {
+                    <p class="text-dim">As sugestões de melhoria com IA não estão disponíveis no momento.</p>
+                }
+                else
+                {
+                    <p class="text-dim">
+                        A IA lê o conteúdo profissional do currículo (título, resumo, experiências, formação, habilidades e idiomas)
+                        e sugere como deixá-lo mais claro e forte. Nada muda no currículo sem a sua revisão.
+                    </p>
+                    <label class="check-field" for="ai-consent">
+                        <input id="ai-consent" type="checkbox" @bind="_consent" />
+                        <span>
+                            Autorizo o envio do conteúdo profissional deste currículo a um serviço externo de IA@(string.IsNullOrWhiteSpace(_availability.Provider) ? "" : $" ({_availability.Provider})").
+                            Dados de contato do perfil não são enviados.
+                        </span>
+                    </label>
+                    <button type="button" class="btn btn-primary btn-block" @onclick="GenerateAsync" disabled="@(!_consent || _running)" aria-busy="@(_running ? "true" : null)">
+                        <Icon Name="sparkles" /> @(_running ? "Analisando…" : _result is null ? "Gerar sugestões com IA" : "Gerar novas sugestões")
+                    </button>
+
+                    @if (_running)
+                    {
+                        <LoadingState Message="Analisando seu currículo… pode levar até um minuto." />
+                    }
+
+                    @if (_error is not null)
+                    {
+                        <div class="alert alert-warning ai-panel__error" role="alert">@_error</div>
+                    }
+
+                    @if (_result is not null && !_running)
+                    {
+                        <div class="ai-result" role="region" aria-label="Sugestões geradas">
+                            @if (!string.IsNullOrWhiteSpace(_result.Summary))
+                            {
+                                <h3>Resumo sugerido</h3>
+                                <p class="body-text">@_result.Summary</p>
+                            }
+                            @foreach (var exp in _result.Experiences.Where(e => e.Suggestions.Count > 0))
+                            {
+                                <h3>@JoinParts(exp.Position, exp.Company)</h3>
+                                <ul class="ai-result__list">
+                                    @foreach (var suggestion in exp.Suggestions)
+                                    {
+                                        <li>@suggestion</li>
+                                    }
+                                </ul>
+                            }
+                            @if (_result.SkillsToAdd.Count > 0)
+                            {
+                                <h3>Habilidades para considerar</h3>
+                                <div class="tag-row">
+                                    @foreach (var skill in _result.SkillsToAdd)
+                                    {
+                                        <span class="badge badge--neutral">@skill</span>
+                                    }
+                                </div>
+                            }
+                            @if (_result.MissingSections.Count > 0)
+                            {
+                                <h3>Seções que faltam</h3>
+                                <ul class="ai-result__list">
+                                    @foreach (var section in _result.MissingSections)
+                                    {
+                                        <li>@section</li>
+                                    }
+                                </ul>
+                            }
+                            @if (_result.Tips.Count > 0)
+                            {
+                                <h3>Dicas</h3>
+                                <ul class="ai-result__list">
+                                    @foreach (var tip in _result.Tips)
+                                    {
+                                        <li>@tip</li>
+                                    }
+                                </ul>
+                            }
+                            <p class="form-text">
+                                Gerado em @Formatters.Moment(_result.GeneratedAt)@(string.IsNullOrWhiteSpace(_result.Model) ? "" : $" · {_result.Model}").
+                                Para aproveitar uma sugestão, edite o currículo.
+                            </p>
+                            <a class="btn btn-secondary btn-block" href="/resumes/@ResumeId/edit"><Icon Name="edit" /> Editar currículo</a>
+                        </div>
+                    }
+                }
+            </div>
+        }
+    </section>
+}
+
+@code {
+    [Parameter, EditorRequired] public Guid ResumeId { get; set; }
+
+    private ResumeImprovementAvailability? _availability;
+    private ResumeImprovementResponse? _result;
+    private bool _open;
+    private bool _consent;
+    private bool _running;
+    private string? _error;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _availability = await Api.GetResumeImprovementAvailabilityAsync();
+        }
+        catch (ApiException ex)
+        {
+            // Recurso acessório: sem a consulta, o painel simplesmente não aparece
+            Logger.LogDebug(ex, "Não foi possível consultar a disponibilidade das sugestões com IA");
+        }
+    }
+
+    private async Task GenerateAsync()
+    {
+        if (!_consent || _running)
+            return;
+
+        _running = true;
+        _error = null;
+        try
+        {
+            _result = await Api.ImproveResumeAsync(ResumeId, acceptsExternalProcessing: true);
+        }
+        catch (ApiException ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _running = false;
+            // Autorização vale para um uso só
+            _consent = false;
+        }
+    }
+
+    private static string JoinParts(params string?[] parts) =>
+        string.Join(" · ", parts.Where(p => !string.IsNullOrWhiteSpace(p)));
+}

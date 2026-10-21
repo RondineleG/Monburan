@@ -32,6 +32,36 @@ public class MonburanApiClient
     public Task<JobResponse> GetJobAsync(Guid id, CancellationToken ct = default) =>
         SendAsync<JobResponse>(HttpMethod.Get, $"api/v1/jobs/{id}", null, ct);
 
+    // ---- Jobs (candidato) ----
+
+    public Task<ListJobsResponse> GetRecommendedJobsAsync(CancellationToken ct = default) =>
+        SendAsync<ListJobsResponse>(HttpMethod.Get, "api/v1/jobs/recommended", null, ct);
+
+    public Task<ListJobsResponse> GetSavedJobsAsync(CancellationToken ct = default) =>
+        SendAsync<ListJobsResponse>(HttpMethod.Get, "api/v1/jobs/saved", null, ct);
+
+    /// <summary>Salva a vaga (idempotente: salvar de novo não dá erro).</summary>
+    public Task SaveJobAsync(Guid jobId, CancellationToken ct = default) =>
+        SendAsync<object>(HttpMethod.Put, $"api/v1/jobs/{jobId}/save", null, ct);
+
+    /// <summary>Remove a vaga das salvas (idempotente).</summary>
+    public Task UnsaveJobAsync(Guid jobId, CancellationToken ct = default) =>
+        SendAsync<object>(HttpMethod.Delete, $"api/v1/jobs/{jobId}/save", null, ct);
+
+    // ---- Job alerts ----
+
+    public Task<List<JobAlertResponse>> GetJobAlertsAsync(CancellationToken ct = default) =>
+        SendAsync<List<JobAlertResponse>>(HttpMethod.Get, "api/v1/job-alerts", null, ct);
+
+    public Task<JobAlertResponse> CreateJobAlertAsync(JobAlertRequest request, CancellationToken ct = default) =>
+        SendAsync<JobAlertResponse>(HttpMethod.Post, "api/v1/job-alerts", request, ct);
+
+    public Task<JobAlertResponse> UpdateJobAlertAsync(Guid id, JobAlertRequest request, CancellationToken ct = default) =>
+        SendAsync<JobAlertResponse>(HttpMethod.Put, $"api/v1/job-alerts/{id}", request, ct);
+
+    public Task DeleteJobAlertAsync(Guid id, CancellationToken ct = default) =>
+        SendAsync<object>(HttpMethod.Delete, $"api/v1/job-alerts/{id}", null, ct);
+
     // ---- Candidates ----
 
     public Task<CandidateResponse> GetMyCandidateAsync(CancellationToken ct = default) =>
@@ -39,6 +69,17 @@ public class MonburanApiClient
 
     public Task<CandidateResponse> UpdateMyCandidateAsync(UpdateCandidateRequest request, CancellationToken ct = default) =>
         SendAsync<CandidateResponse>(HttpMethod.Put, "api/v1/candidates/me", request, ct);
+
+    /// <summary>Completude do perfil, próximos passos e contagens (candidaturas, vagas salvas, alertas ativos).</summary>
+    public Task<CandidateProgressResponse> GetMyProgressAsync(CancellationToken ct = default) =>
+        SendAsync<CandidateProgressResponse>(HttpMethod.Get, "api/v1/candidates/me/progress", null, ct);
+
+    /// <summary>Perfil de carreira (200 com campos nulos quando ainda não existe).</summary>
+    public Task<CareerProfileResponse> GetCareerProfileAsync(CancellationToken ct = default) =>
+        SendAsync<CareerProfileResponse>(HttpMethod.Get, "api/v1/candidates/me/career-profile", null, ct);
+
+    public Task<CareerProfileResponse> UpdateCareerProfileAsync(CareerProfileRequest request, CancellationToken ct = default) =>
+        SendAsync<CareerProfileResponse>(HttpMethod.Put, "api/v1/candidates/me/career-profile", request, ct);
 
     // ---- Applications ----
 
@@ -48,6 +89,10 @@ public class MonburanApiClient
 
     public Task<List<ApplicationResponse>> GetMyApplicationsAsync(CancellationToken ct = default) =>
         SendAsync<List<ApplicationResponse>>(HttpMethod.Get, "api/v1/applications/mine", null, ct);
+
+    /// <summary>Etapas da candidatura (o servidor só devolve as do candidato dono).</summary>
+    public Task<List<ApplicationHistoryItemResponse>> GetApplicationHistoryAsync(Guid applicationId, CancellationToken ct = default) =>
+        SendAsync<List<ApplicationHistoryItemResponse>>(HttpMethod.Get, $"api/v1/applications/{applicationId}/history", null, ct);
 
     // ---- Resumes ----
 
@@ -65,6 +110,18 @@ public class MonburanApiClient
 
     public Task DeleteResumeAsync(Guid id, CancellationToken ct = default) =>
         SendAsync<object>(HttpMethod.Delete, $"api/v1/resumes/{id}", null, ct);
+
+    /// <summary>Se as sugestões com IA estão ativas para o candidato (IA configurada e plano com assistente).</summary>
+    public Task<ResumeImprovementAvailability> GetResumeImprovementAvailabilityAsync(CancellationToken ct = default) =>
+        SendAsync<ResumeImprovementAvailability>(HttpMethod.Get, "api/v1/resumes/improvements/availability", null, ct);
+
+    /// <summary>
+    /// Gera sugestões de melhoria com IA. Só com autorização expressa da pessoa a cada uso. Usa o cliente de tempo
+    /// limite maior: a geração pode levar perto de um minuto.
+    /// </summary>
+    public Task<ResumeImprovementResponse> ImproveResumeAsync(Guid id, bool acceptsExternalProcessing, CancellationToken ct = default) =>
+        SendAsync<ResumeImprovementResponse>(_uploadHttp, HttpMethod.Post, $"api/v1/resumes/{id}/improvements",
+            new ImproveResumeRequest { AcceptsExternalProcessing = acceptsExternalProcessing }, ct);
 
     // ---- Files ----
 

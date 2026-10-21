@@ -1,4 +1,3 @@
-@page "/"
 @page "/jobs"
 @inject MonburanApiClient Api
 @inject NavigationManager Nav
@@ -44,35 +43,7 @@ else
 {
     @foreach (var job in _jobs)
     {
-        var mode = Formatters.JobMode(job);
-        <a class="card-link" href="/jobs/@job.Id">
-            <div class="card">
-                <h2 class="card-title">@job.Title</h2>
-                @if (!string.IsNullOrEmpty(job.AdvertiserName))
-                {
-                    <div class="text-dim">@job.AdvertiserName</div>
-                }
-                @if (!string.IsNullOrEmpty(job.Description))
-                {
-                    <p class="card-snippet">@job.Description</p>
-                }
-                <div class="card-meta">
-                    @if (!string.IsNullOrEmpty(job.City))
-                    {
-                        <span class="meta-chip"><Icon Name="map-pin" Size="16" /> @job.City@(job.State is not null ? $"/{job.State}" : "")</span>
-                    }
-                    <span class="meta-chip"><Icon Name="@Formatters.JobModeIcon(mode)" Size="16" /> @Formatters.JobType(mode)</span>
-                    @if (Formatters.Salary(job) is { } salary)
-                    {
-                        <span class="meta-chip salary"><Icon Name="banknote" Size="16" /> @salary</span>
-                    }
-                </div>
-                @if (!string.IsNullOrEmpty(job.Category))
-                {
-                    <div class="tag-row"><span class="badge badge--neutral">@job.Category</span></div>
-                }
-            </div>
-        </a>
+        <JobCard @key="job.Id" Job="job" />
     }
 
     @if (_hasMore)
