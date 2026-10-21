@@ -3,19 +3,35 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <meta name="theme-color" content="#0A0806" />
+    <meta name="theme-color" content="#16110A" />
     <title>Monburan</title>
     <base href="/" />
     <!-- Sem Google Fonts: interface na fonte do sistema e a Cinzel do logotipo vem de fonts/ (app.css) -->
     <link rel="preload" href="fonts/cinzel-latin.woff2" as="font" type="font/woff2" crossorigin />
     <link rel="stylesheet" href="app.css" />
+    <link rel="stylesheet" href="brand.css" />
     <link rel="stylesheet" href="Monburan.Mobile.styles.css" />
     <link rel="icon" href="data:,">
 </head>
 
 <body>
 
-    <div id="app">Carregando…</div>
+    <div id="app">
+        <!-- Tela de abertura: fica até o Blazor montar o app (o conteúdo de #app é substituído) -->
+        <div class="app-splash" role="status" aria-label="Carregando o Monburan">
+            <svg class="app-splash__mark" viewBox="0 0 64 64" aria-hidden="true" focusable="false">
+                <rect class="brand-mark__gold" x="28.6" y="3.5" width="6.8" height="6.5" rx="2.6" />
+                <path class="brand-mark__gold" d="M32 8.4C21 8.4 15.4 17.3 15.4 29.4V39.2C15.4 43.1 12.9 45.7 9.6 47.4H54.4C51.1 45.7 48.6 43.1 48.6 39.2V29.4C48.6 17.3 43 8.4 32 8.4Z" />
+                <path class="brand-mark__ink" d="M17.4 47.4L26.6 21.6L32 31L37.4 21.6L46.6 47.4Z" />
+                <path class="brand-mark__snow" d="M26.6 21.6L30.3 28L28.5 26.9L27.3 29.3L25.6 27L23.9 28.6Z" />
+                <path class="brand-mark__snow" d="M37.4 21.6L40.1 28.6L38.4 27L36.7 29.3L35.5 26.9L33.7 28Z" />
+                <rect class="brand-mark__gold" x="7.2" y="46.6" width="49.6" height="5.6" rx="2.8" />
+                <circle class="brand-mark__gold" cx="32" cy="56.7" r="4.3" />
+            </svg>
+            <p class="app-splash__name">Monburan</p>
+            <p class="app-splash__tagline">talentos que ficam</p>
+        </div>
+    </div>
 
     <div id="blazor-error-ui" data-nosnippet>
         Ocorreu um erro inesperado.

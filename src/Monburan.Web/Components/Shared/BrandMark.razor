@@ -1,0 +1,20 @@
+@* Marca da Monburan: o sino dourado com a montanha branca (Mont Blanc) recortada, duas cristas formando o M.
+   Decorativa por padrão; as cores vêm dos tokens --brand-* (iguais nos dois temas). *@
+<svg class="brand-mark@(string.IsNullOrEmpty(Class) ? string.Empty : " " + Class)" viewBox="0 0 64 64" width="@Size" height="@Size"
+     focusable="false" aria-hidden="true">
+    <rect class="brand-mark__gold" x="28.6" y="3.5" width="6.8" height="6.5" rx="2.6" />
+    <path class="brand-mark__gold" d="M32 8.4C21 8.4 15.4 17.3 15.4 29.4V39.2C15.4 43.1 12.9 45.7 9.6 47.4H54.4C51.1 45.7 48.6 43.1 48.6 39.2V29.4C48.6 17.3 43 8.4 32 8.4Z" />
+    <path class="brand-mark__ink" d="M17.4 47.4L26.6 21.6L32 31L37.4 21.6L46.6 47.4Z" />
+    <path class="brand-mark__snow" d="M26.6 21.6L30.3 28L28.5 26.9L27.3 29.3L25.6 27L23.9 28.6Z" />
+    <path class="brand-mark__snow" d="M37.4 21.6L40.1 28.6L38.4 27L36.7 29.3L35.5 26.9L33.7 28Z" />
+    <rect class="brand-mark__gold" x="7.2" y="46.6" width="49.6" height="5.6" rx="2.8" />
+    <circle class="brand-mark__gold brand-mark__clapper" cx="32" cy="56.7" r="4.3" />
+</svg>
+
+@code {
+    [Parameter]
+    public int Size { get; set; } = 32;
+
+    [Parameter]
+    public string? Class { get; set; }
+}

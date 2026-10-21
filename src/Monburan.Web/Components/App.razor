@@ -1,4 +1,6 @@
 ﻿@inject Microsoft.AspNetCore.Http.IHttpContextAccessor HttpContextAccessor
+@inject IConfiguration Configuration
+@inject NavigationManager Navigation
 @{
     var theme = HttpContextAccessor.HttpContext?.Request.Cookies["monburan-theme"] == "dark" ? "dark" : "light";
     var railClass = HttpContextAccessor.HttpContext?.Request.Cookies["monburan-sidebar"] == "rail" ? "sidebar-rail" : "";
@@ -14,7 +16,12 @@
     <link rel="manifest" href="/manifest.json" />
     @* Fonte da marca hospedada no próprio site (sem Google Fonts): só a Cinzel 600, usada no logotipo *@
     <link rel="preload" href="/fonts/cinzel-latin.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" id="favicon-32" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    @* Imagem de compartilhamento padrão (páginas podem trocar pela própria) *@
+    <meta property="og:image" content="@PublicUrls.Absolute(Configuration, Navigation.BaseUri, "/brand/og-image.png")" />
+    <meta property="og:image:alt" content="Monburan: talentos que ficam" />
     <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" id="favicon-16" />
     <script src="/theme-init.js?v=ux-v9"></script>
     <base href="/" />

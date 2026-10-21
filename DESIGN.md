@@ -14,6 +14,23 @@ cor, ícone ou componente, procure aqui. As regras marcadas com ✔ são verific
 5. **Acessível por construção.** Contraste, alvo, foco e nome de controle verificados por teste e por captura.
 6. **Identidade quente e sóbria.** Dourado e marrom; a Cinzel só no logotipo e no título da página inicial.
 
+## Identidade
+
+- **Nome:** Monburan é a leitura japonesa de *Mont Blanc*, a "montanha branca". A inspiração vem da lenda do navegador
+  e explorador que encontrou uma cidade de ouro, foi chamado de mentiroso e teve a verdade provada séculos depois por um
+  sino dourado. A marca fala de **jornada** (a montanha), **chamado** (o sino que anuncia que algo valioso foi
+  encontrado) e **valor que fica** (o ouro; "talentos que ficam"). A identidade é original: não usa personagens,
+  nomes nem elementos visuais de nenhuma obra.
+- **Marca:** um sino dourado com a montanha branca recortada dentro, em duas cristas nevadas que formam o **M**.
+  Fonte única: `wwwroot/brand/monburan-mark.svg`; nas telas, o componente `BrandMark` (web e app), com as cores dos
+  tokens `--brand-gold` (#C99B42), `--brand-ink` (#1A140B) e `--brand-snow` (#FBF6EA), iguais nos dois temas.
+- **Assinatura:** marca + "Monburan" em Cinzel 600 + "talentos que ficam" na fonte da interface (`Brand`).
+- **Ícones do produto:** `favicon.svg` e PNGs (16, 32, 180, 192, 512 e *maskable*) com a marca sobre a tinta escura;
+  imagem de compartilhamento `brand/og-image.png` (1200×630); no app, `Resources/AppIcon` (fundo #1A140B) e
+  `Resources/Splash` (fundo #16110A).
+- **Carregamento:** o sino balança (`LoadingState`, telas de abertura e de reconexão); com movimento reduzido fica
+  parado. Não confundir com o ícone de notificações (sino de contorno, sem montanha).
+
 ## Arquivos e camadas (web)
 
 | Arquivo | Camada | Conteúdo |

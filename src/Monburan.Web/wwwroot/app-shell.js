@@ -75,7 +75,17 @@
             if (f16) f16.href = next === 'dark' ? '/favicon-dark-16x16.png' : '/favicon-16x16.png';
             return;
         }
-        var pinBtn = e.target.closest('[data-action="sidebar-pin"]');
+        // Tela de reconexão do circuito (ReconnectScreen): sem script inline por causa do CSP
+        if (e.target.closest('[data-action="reconnect"]')) {
+            if (window.Blazor && typeof Blazor.reconnect === 'function') {
+                Blazor.reconnect().then(function (ok) { if (!ok) location.reload(); }, function () { location.reload(); });
+            } else {
+                location.reload();
+            }
+            return;
+        }
+        if (e.target.closest('[data-action="reload"]')) { location.reload(); return; }
+                var pinBtn = e.target.closest('[data-action="sidebar-pin"]');
         if (pinBtn) {
             var collapsed = document.documentElement.classList.toggle('sidebar-rail');
             syncPin(collapsed);

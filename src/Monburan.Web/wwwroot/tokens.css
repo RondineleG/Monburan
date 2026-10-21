@@ -142,6 +142,10 @@
         --neutral-bg: rgb(80 60 30 / 7%);
         --brand-tx: var(--gold-d);
         --brand-bg: var(--gold-soft);
+        /* Cores da marca (sino dourado, montanha e neve): iguais nos dois temas */
+        --brand-gold: #C99B42;
+        --brand-ink: #1A140B;
+        --brand-snow: #FBF6EA;
         --shadow-sm: 0 2px 8px rgb(80 40 0 / 6%);
         --shadow-md: 0 8px 28px rgb(80 40 0 / 10%);
         --shadow-lg: 0 24px 60px rgb(80 40 0 / 14%), 0 4px 16px rgb(80 40 0 / 6%);
@@ -198,6 +202,10 @@
         --neutral-bg: rgb(255 255 255 / 6%);
         --brand-tx: var(--gold-d);
         --brand-bg: var(--gold-soft);
+        /* Cores da marca (sino dourado, montanha e neve): iguais nos dois temas */
+        --brand-gold: #C99B42;
+        --brand-ink: #1A140B;
+        --brand-snow: #FBF6EA;
         --shadow-sm: 0 2px 10px rgb(0 0 0 / 35%);
         --shadow-md: 0 10px 32px rgb(0 0 0 / 45%);
         --shadow-lg: 0 28px 70px rgb(0 0 0 / 55%), 0 6px 20px rgb(0 0 0 / 35%);
