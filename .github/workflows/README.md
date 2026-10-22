@@ -57,13 +57,11 @@ de integração sem validação.
 
 ## Pontos de segurança garantidos no código dos workflows
 
-- Deploy **nunca** roda a partir de PR: `deploy-staging` e `deploy-production` exigem
-  `github.event_name == 'push'`.
-- `deploy-production` exige `github.ref == 'refs/heads/main'` (push na main). Push na dev e
-  PR para main não satisfazem a condição.
-- `deploy-staging` (Azure, pré-existente e preservada) roda só em push na dev e exige a
-  variável `vars.AZURE_RESOURCE_GROUP`; é **staging**, não produção — não confundir com o
-  deploy de produção, que é a VPS.
+- Deploy **nunca** roda a partir de PR: `deploy-production` exige `github.event_name == 'push'`.
+- `deploy-production` (Azure) exige `github.ref == 'refs/heads/main'` (push na main) e a
+  variável `vars.AZURE_RESOURCE_GROUP`. Push na dev e PR para main não satisfazem a condição.
+- Não há job de deploy na dev: nada é publicado a partir da `dev` (ver `AGENTS.md`). O deploy
+  de produção hoje é a VPS (`docker-ghcr.yml` → `deploy-vps`).
 - O deploy na VPS (`docker-ghcr.yml` → `deploy-vps`) só roda na main, com `environment: prod`
   e concorrência serializada (`group: deploy-vps`, sem cancelamento). Esse workflow permanece
   intacto.
@@ -80,7 +78,7 @@ de integração sem validação.
 | `build-and-test` | push main/dev, PR dev/main, dispatch | restore, build da solução, testes unit, integração (Testcontainers/Postgres) e de API; publica o artefato `monburan-app` e os relatórios de cobertura/TRX |
 | `e2e` | **PR para main** e dispatch | suíte Playwright completa (app + Postgres de serviço + Chromium) |
 | `security-scan` | push main/dev, PR dev/main, dispatch | varredura de segredos versionados + pacotes NuGet vulneráveis |
-| `deploy-staging` / `deploy-production` | push (dev/main) com Azure configurado | só rodam depois de `build-and-test` + `security-scan` verdes; nunca em PR |
+| `deploy-production` | push na main com Azure configurado | só roda depois de `build-and-test` + `security-scan` verdes; nunca em PR |
 
 Falhas sempre propagam: nenhum job de teste usa `continue-on-error`; os únicos
 `continue-on-error` são geração/upload do relatório de cobertura (diagnóstico auxiliar).

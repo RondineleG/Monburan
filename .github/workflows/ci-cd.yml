@@ -262,67 +262,7 @@ jobs:
           exit 1
         fi
 
-  # Os jobs de deploy do Azure só rodam quando o Azure está configurado (variável AZURE_RESOURCE_GROUP).
-  # Hoje a produção é a VPS (imagem do GHCR, ver docker-ghcr.yml e docs/CI-CD.md).
-  deploy-staging:
-    runs-on: ubuntu-latest
-    needs: [build-and-test, security-scan]
-    if: github.ref == 'refs/heads/dev' && github.event_name == 'push' && vars.AZURE_RESOURCE_GROUP != ''
-    environment:
-      name: staging
-      url: https://staging.monburan.com.br
-    env:
-      # O app falha no boot sem Jwt__SigningKey (ValidateOnStart). Com
-      # AZURE_CREDENTIALS + AZURE_RESOURCE_GROUP o pipeline provisiona (secret
-      # JWT_SIGNING_KEY) ou ao menos verifica que o app setting já existe;
-      # sem credenciais o job falha ANTES de deployar uma app quebrada.
-      HAS_AZURE_CREDS: ${{ secrets.AZURE_CREDENTIALS != '' && vars.AZURE_RESOURCE_GROUP != '' }}
-
-    steps:
-    - name: Download build artifacts
-      uses: actions/download-artifact@v8
-      with:
-        name: monburan-app
-
-    - name: Provision/verify Jwt__SigningKey no App Service
-      if: env.HAS_AZURE_CREDS == 'true'
-      uses: azure/CLI@v3
-      env:
-        AZURE_CREDENTIALS: ${{ secrets.AZURE_CREDENTIALS }}
-        JWT_SIGNING_KEY: ${{ secrets.JWT_SIGNING_KEY }}
-      with:
-        inlineScript: |
-          APP_NAME="${{ env.AZURE_WEBAPP_NAME }}-staging"
-          if [ -n "$JWT_SIGNING_KEY" ]; then
-            az webapp config appsettings set \
-              --name "$APP_NAME" \
-              --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
-              --settings "Jwt__SigningKey=$JWT_SIGNING_KEY" --output none
-            echo "Jwt__SigningKey provisionado a partir do secret JWT_SIGNING_KEY"
-          else
-            # Sem secret: exige que o setting já exista (provisionado manualmente)
-            az webapp config appsettings list \
-              --name "$APP_NAME" \
-              --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
-              --query "[?name=='Jwt__SigningKey' && value != ''].name" -o tsv \
-              | grep -q Jwt__SigningKey || { \
-                echo "::error::Jwt__SigningKey ausente no App Service e sem secret JWT_SIGNING_KEY para provisionar. Defina manualmente: az webapp config appsettings set -g <rg> -n $APP_NAME --settings Jwt__SigningKey=\$(openssl rand -base64 48)"; exit 1; }
-            echo "Jwt__SigningKey já configurado no App Service"
-          fi
-
-    - name: Bloquear deploy sem como provisionar/verificar Jwt__SigningKey
-      if: env.HAS_AZURE_CREDS != 'true'
-      run: |
-        echo "::error::Sem AZURE_CREDENTIALS + AZURE_RESOURCE_GROUP não é possível garantir Jwt__SigningKey no App Service — o app cairia no boot (ValidateOnStart). Configure as credenciais ou documente a provisão manual antes de habilitar este job."
-        exit 1
-
-    - name: Deploy to Azure Web App
-      uses: azure/webapps-deploy@v3
-      with:
-        app-name: ${{ env.AZURE_WEBAPP_NAME }}-staging
-        publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE_STAGING }}
-        package: .
-
+  # Deploy de produção no Azure só roda quando o Azure está configurado (variável AZURE_RESOURCE_GROUP).
   deploy-production:
     runs-on: ubuntu-latest
     needs: [build-and-test, security-scan]
@@ -331,7 +271,7 @@ jobs:
       name: production
       url: https://monburan.com.br
     env:
-      # Mesma garantia do staging — app não sobe sem Jwt__SigningKey
+      # App não sobe sem Jwt__SigningKey (ValidateOnStart)
       HAS_AZURE_CREDS: ${{ secrets.AZURE_CREDENTIALS != '' && vars.AZURE_RESOURCE_GROUP != '' }}
 
     steps:
