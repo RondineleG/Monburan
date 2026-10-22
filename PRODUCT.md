@@ -1,15 +1,12 @@
 # Produto — Monburan
 
-## Register
-product
-
 A Monburan é um portal de vagas em pt-BR que conecta candidatos e empresas anunciantes,
 com aplicação web e app móvel compartilhando a mesma identidade.
 
 ## Público e jornadas
 
 - **Candidato**: busca e explora vagas (públicas), salva vagas, cria alertas, se
-  candidata com ou sem currículo anexado e acompanha cada etapa em "Minhas vagas".
+  candidata com ou sem currículo anexado e acompanha cada etapa em "Minhas candidaturas".
   Mantém currículos (criação, importação de PDF, edição, CV para impressão) e pode
   usar sugestões de melhoria com IA (plano Premium), revisando e aplicando só o que escolher.
 - **Empresa (anunciante)**: publica e gerencia vagas, recebe candidaturas, vê perfil e
