@@ -5,7 +5,8 @@
     <div class="page-heading__copy">
         @if (!string.IsNullOrEmpty(BackHref))
         {
-            <a class="page-heading__back" href="@BackHref" data-testid="page-back"><Icon Name="arrow-left" Size="16" />@BackText</a>
+            @* Navegação completa: a aprimorada (Blazor) não passa pelo NavigationLock das telas com formulário, e o aviso de alterações não salvas some *@
+            <a class="page-heading__back" href="@BackHref" data-enhance-nav="false" data-testid="page-back"><Icon Name="arrow-left" Size="16" />@BackText</a>
         }
         <h1 id="@HeadingId" tabindex="-1">@Title</h1>
         @if (!string.IsNullOrWhiteSpace(Description))
