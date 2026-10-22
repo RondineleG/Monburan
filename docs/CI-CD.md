@@ -13,7 +13,7 @@
 | `main-only-from-dev.yml` | PR para a `main` | reprova o PR que não vem da `dev` (a `main` só recebe a promoção); o nome da branch chega por variável de ambiente, nunca interpolado no script. Não publica nada |
 | `infra-scripts.yml` | push e PR em `main`/`dev` que mudam `infra/vps/**`, manual | ShellCheck e testes de verdade, em contêineres, do endurecimento da VPS, do backup com restauração e do `nginx.conf` (`infra/vps/tests`). Não publica nada |
 
-Os jobs `deploy-staging` e `deploy-production` (Azure Web App) só rodam quando existe a variável de repositório
+O job `deploy-production` (Azure Web App, só na `main`) roda quando existe a variável de repositório
 `AZURE_RESOURCE_GROUP` (mais os secrets do Azure). A produção atual é a VPS (abaixo), então eles ficam ignorados.
 
 ## Lançar uma nova versão do app (APK)
