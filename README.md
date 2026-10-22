@@ -1,11 +1,8 @@
 # 🚀 Monburan
 
-![Build Status](https://img.shields.io/badge/build-passing-brightgreen)
+![CI](https://github.com/RondineleG/Monburan/actions/workflows/ci-cd.yml/badge.svg)
 ![.NET](https://img.shields.io/badge/.NET-10.0-blue)
-![License](https://img.shields.io/badge/license-MIT-green)
 ![Blazor](https://img.shields.io/badge/Blazor-WebAssembly%20%7C%20Server-purple)
-![Security](https://img.shields.io/badge/security-critical%20fixes-green)
-![Production Ready](https://img.shields.io/badge/production--ready-success)
 
 > **Plataforma moderna de recrutamento e seleção para conectar talentos a oportunidades.**
 
@@ -15,12 +12,12 @@ Monburan é uma aplicação web completa para gestão de vagas, candidaturas e c
 
 ## 🎉 Status do Projeto
 
-- ✅ **Production-Ready**: Sim (98% completude)
-- ✅ **Segurança**: Críticos resolvidos
-- ✅ **Funcionalidades**: 100% implementadas
+- ✅ **Pronto para produção com ressalvas**: pendências listadas em [IMPROVEMENTS.md](IMPROVEMENTS.md)
+- ✅ **Segurança**: principais medidas implementadas (ver seção abaixo)
+- ✅ **Escopo da Etapa 1**: implementado; tempo real (SignalR) previsto para a Etapa 2
 - ✅ **CI/CD**: Pipeline configurado
 - ✅ **Monitoramento**: Health checks + logging
-- ✅ **Documentação**: Swagger/OpenAPI completo
+- ✅ **Documentação**: Swagger/OpenAPI em desenvolvimento
 
 📄 **[Veja as melhorias implementadas](IMPROVEMENTS.md)**
 
@@ -63,12 +60,12 @@ Monburan é uma aplicação web completa para gestão de vagas, candidaturas e c
 - ✅ Autenticação e autorização com Identity + API REST com JWT Bearer
 - ✅ Sistema de notificações por e-mail (SMTP via Resend; SendGrid como fallback)
 - ✅ Upload de arquivos com storage local
-- ✅ Multi-tenant ready
+- ✅ Multi-tenant: campo `TenantId` nas entidades (isolamento por tenant ainda não implementado)
 - ✅ Design system próprio (dark) para web e mobile
 - ✅ App Android (.NET MAUI Blazor Hybrid)
 - ✅ Administração: contas (inativar, reativar, desbloquear, 2FA, papéis), moderação das vagas de todas as empresas, trilha de auditoria e provedores de IA
 - ✅ Seed Data para desenvolvimento
-- ✅ Migrations automáticas (`APPLY_MIGRATIONS=true`)
+- ✅ Migrations sob demanda (`APPLY_MIGRATIONS=true`); seed roda no boot em Development
 
 ---
 
@@ -81,21 +78,21 @@ Monburan é uma aplicação web completa para gestão de vagas, candidaturas e c
 - ✅ **Security Headers**: CSP sem `unsafe-inline` nem `unsafe-eval` nos scripts, HSTS, X-Content-Type-Options, X-Frame-Options, etc.
 - ✅ **Administração protegida**: 2FA obrigatório para administradores e trilha de auditoria de toda ação administrativa
 - ✅ **VPS**: firewall só com SSH/80/443, SSH só por chave, fail2ban, atualizações automáticas e backup criptografado fora do servidor
-- ✅ **Repositório**: Dependabot, CodeQL, secret scanning com bloqueio de push e branches protegidas
-- ✅ **Credenciais Seguras**: Variáveis de ambiente (sem hardcoded)
+- ✅ **Repositório**: Dependabot e CodeQL; scan de segredos no CI
+- ✅ **Credenciais**: segredos de produção por variáveis de ambiente; defaults de desenvolvimento ficam só no `appsettings.Development.json`
 - ✅ **Anti-Forgery**: Proteção CSRF habilitada
 - ✅ **HTTPS Redirection**: Forçado em produção
-- ✅ **Identity**: Autenticação robusta com claims
-- ✅ **Input Validation**: Validação rigorosa em todos os inputs
+- ✅ **Identity**: ASP.NET Core Identity com claims
+- ✅ **Input Validation**: validação de entrada nos formulários e na API
 
 Detalhes, configuração e passo a passo para produção: [docs/SEGURANCA.md](docs/SEGURANCA.md).
 
 ### Configuração de Segurança
 ```bash
-# Variáveis de ambiente obrigatórias para produção
+# Obrigatórias para produção
 export ConnectionStrings__DefaultConnection="Host=...;Database=...;Username=...;Password=..."
 export Jwt__SigningKey="$(openssl rand -base64 48)"   # obrigatório — app falha no boot sem ele
-# E-mail (SMTP — Resend em produção)
+# Recomendadas: e-mail (SMTP — Resend em produção; sem Smtp__Host cai no SendGrid)
 export Smtp__Host="smtp.resend.com"
 export Smtp__User="resend"
 export Smtp__Password="sua-api-key-resend"
@@ -112,13 +109,13 @@ export Smtp__Password="sua-api-key-resend"
 ### Logging Estruturado
 - **Framework**: Serilog
 - **Output**: Console + Arquivo (rotação diária)
-- **Nível**: Information (desenvolvimento), Warning (produção)
+- **Nível**: Information em todos os ambientes; `Microsoft` e `System` em Warning
 - **Contexto**: Propriedades da aplicação enriquecidas
 
 ### CI/CD Pipeline
 - **Plataforma**: GitHub Actions
 - **Workflows**:
-  - `ci-cd.yml` → build + testes (unit, integração e API, com coverage), E2E (Playwright + Postgres de serviço), scan de segredos e de pacotes NuGet vulneráveis; deploy no Azure (staging `dev` / produção `main`) só quando o Azure está configurado
+  - `ci-cd.yml` → build + testes (unit, integração e API, com coverage), E2E (Playwright + Postgres de serviço, só em PR para a `main`), scan de segredos e de pacotes NuGet vulneráveis; deploy de produção no Azure (`main`) só quando o Azure está configurado
   - `docker-ghcr.yml` → build e push da imagem Docker para `ghcr.io/rondineleg/monburan` a cada push na `main`; em seguida, o job `deploy-vps` envia `infra/vps` e roda o `deploy.sh` na VPS (backup, rollback e espera do `/health`)
   - `android-release.yml` → APK release assinado a partir da `main`; publica a release `v<versão>` quando a versão do csproj é nova
   - `ios-build.yml` → em macOS: build do app para o simulador (com print) e `.ipa` sem assinatura anexado à release; sem conta Apple Developer não há TestFlight nem App Store
@@ -134,7 +131,7 @@ export Smtp__Password="sua-api-key-resend"
 |--------|------------|
 | **Framework** | .NET 10.0 (ASP.NET Core) |
 | **Frontend** | Blazor WebAssembly + Server (Interactive Render Modes) |
-| **UI** | Design system próprio (dark) — `wwwroot/ui.css` (web) e `wwwroot/app.css` (mobile) |
+| **UI** | Design system próprio (dark) — folhas em `src/Monburan.Web/wwwroot` (ex.: `tokens.css`, `components.css`) |
 | **Mobile** | .NET MAUI Blazor Hybrid (Android) |
 | **ORM** | Entity Framework Core 10.0 |
 | **Database** | PostgreSQL (Npgsql) |
@@ -142,7 +139,7 @@ export Smtp__Password="sua-api-key-resend"
 | **Email** | SMTP via MailKit (Resend em produção) / SendGrid API (fallback) |
 | **Storage** | Local File System (extensível para cloud) |
 | **Arquitetura** | Clean Architecture com Use Cases |
-| **Validação** | FluentValidation pattern |
+| **Validação** | Validadores próprios em `src/Monburan.Core/Validations` |
 | **Containerização** | Docker & Docker Compose; imagem publicada no GHCR |
 | **Reverse proxy** | nginx + TLS (certbot) na VPS |
 
@@ -212,8 +209,9 @@ Monburan/
 │   ├── backup.env.example      # Configuração do backup
 │   └── env.example             # Variáveis de produção
 │
-├── deploy/                     # Deploy alternativo (systemd, sem Docker)
-├── docs/                       # Relatório da Etapa 1 + configuração SCRUM
+├── .github/                    # Workflows do GitHub Actions (ver .github/workflows/README.md)
+├── docs/                       # Documentação: segurança, CI/CD, IA, Docker
+├── Monburan.sln                # Solução (inclui o app MAUI, que exige o workload Android)
 ├── docker-compose.yml          # Orquestração Docker (produção local)
 ├── docker-compose.dev.yml      # Orquestração Docker (desenvolvimento)
 ├── .env.example                # Variáveis de ambiente (template)
@@ -228,6 +226,7 @@ Monburan/
 ### Pré-requisitos
 - [.NET 10.0 SDK](https://dotnet.microsoft.com/download/dotnet/10.0)
 - [PostgreSQL](https://www.postgresql.org/download/) (ou via `docker compose up -d postgres`)
+- CLI do EF Core para migrations: `dotnet tool install --global dotnet-ef`
 - (Opcional) [Docker](https://www.docker.com/products/docker-desktop)
 - (Opcional) workload MAUI Android para build do app mobile: `dotnet workload install maui-android`
 
@@ -238,15 +237,17 @@ Monburan/
 git clone https://github.com/RondineleG/Monburan.git
 cd Monburan
 
-# 2. Subir o PostgreSQL (Docker) — ou use uma instância local
+# 2. Subir o PostgreSQL (Docker) — ou use uma instância local.
+#    O compose cria o banco `monburan` por padrão; o appsettings.Development usa `monburan_dev`.
+#    Para alinhar, defina DB_NAME=monburan_dev no .env antes de subir.
 docker compose up -d postgres
 
 # 3. Restaurar pacotes
 dotnet restore
 
-# 4. Aplicar migrations + seed (executa no boot em Development,
-#    ou explicitamente com APPLY_MIGRATIONS=true)
+# 4. Aplicar as migrations (o seed roda no boot em Development)
 dotnet ef database update --project src/Monburan.Web
+# ou, na execução: APPLY_MIGRATIONS=true dotnet run --project src/Monburan.Web
 
 # 5. Executar a aplicação
 dotnet run --project src/Monburan.Web
@@ -306,27 +307,46 @@ A camada API REST (JWT Bearer) fica em `src/Monburan.Web/Endpoints` e serve o ap
 | `POST` | `/api/auth/forgot-password` | `{email}` → e-mail de reset |
 
 Claims emitidas: `sub`, `candidate_id`/`advertiser_id`, `user_type`.
-Endpoints `/api/**` exigem `Authorization: Bearer` (policy `ApiBearer`) e respondem
-ProblemDetails — nunca redirecionam para login em cookie.
+As rotas `/api/v1/**` exigem `Authorization: Bearer` (policy `ApiBearer`), exceto as marcadas
+como anônimas nas tabelas abaixo; `/api/auth/*` é anônimo. As respostas são ProblemDetails —
+nunca redirecionam para login em cookie.
 
 ### Endpoints `/api/v1`
 
 | Método | Endpoint | Auth | Descrição |
 |--------|----------|------|-----------|
-| `GET` | `/api/v1/jobs` | anon | Lista paginada (`page,size,searchTerm,city,state,isRemote,type,salaryMin/Max,category,sortBy,sortDescending`) |
+| `GET` | `/api/v1/jobs` | anon | Lista paginada (`page,size,searchTerm,city,state,isRemote,type,salaryMin/Max,category,contractType,salaryPeriod,publishedWithinDays,sortBy,sortDescending`) |
 | `GET` | `/api/v1/jobs/{id}` | anon | Detalhes da vaga |
+| `GET` | `/api/v1/jobs/recommended`, `/api/v1/jobs/saved` | candidate | Vagas recomendadas e salvas |
+| `PUT`/`DELETE` | `/api/v1/jobs/{id}/save` | candidate | Salvar / remover vaga salva |
+| `POST` | `/api/v1/jobs/{id}/views` | anon | Registra visualização da vaga |
 | `POST` | `/api/v1/jobs` | advertiser | Criar vaga |
-| `GET`/`PUT`/`DELETE` | `/api/v1/jobs/mine`, `/{id}` | advertiser | Vagas do anunciante |
+| `GET` | `/api/v1/jobs/mine` | advertiser | Vagas do anunciante |
+| `PUT`/`DELETE` | `/api/v1/jobs/{id}` | advertiser | Editar / excluir vaga do anunciante |
 | `POST` | `/api/v1/applications` | candidate | Candidatar-se (`candidateId` do body é ignorado — usa a claim) |
 | `GET` | `/api/v1/applications/mine` | candidate | Minhas candidaturas |
+| `GET` | `/api/v1/applications/{id}/history` | bearer | Histórico de status da candidatura |
+| `GET` | `/api/v1/jobs/{jobId}/applications` | advertiser | Candidaturas recebidas para a vaga |
+| `PUT` | `/api/v1/applications/{id}/status` | advertiser | Atualiza o status da candidatura |
+| `GET`/`POST`/`PUT`/`DELETE` | `/api/v1/job-alerts/**` | candidate | Alertas de vagas |
 | `GET`/`PUT` | `/api/v1/candidates/me` | candidate | Perfil do candidato |
+| `GET`/`PUT` | `/api/v1/candidates/me/career-profile` | candidate | Perfil profissional |
+| `GET` | `/api/v1/candidates/me/progress` | candidate | Progresso do perfil |
 | `GET`/`POST`/`PUT`/`DELETE` | `/api/v1/resumes/**` | candidate | Currículos (`/mine`, `/{id}`) |
+| `GET` | `/api/v1/resumes/improvements/availability` | candidate | Se as sugestões de IA estão disponíveis ao candidato |
+| `POST` | `/api/v1/resumes/{id}/improvements` | candidate | Sugestões de melhoria com IA (plano Premium) |
 | `POST` | `/api/v1/files/upload?fileType=Pdf` | bearer | Multipart `file` → `fileUrl` (imagem ≤5MB, PDF ≤10MB) |
-| `GET`/`PUT` | `/api/v1/notifications/mine`, `/{id}/read` | bearer | Notificações |
+| `GET` | `/api/v1/notifications/mine` | bearer | Notificações |
+| `PUT` | `/api/v1/notifications/mine/read-all` | bearer | Marca todas como lidas |
+| `PUT` | `/api/v1/notifications/{id}/read` | bearer | Marca uma como lida |
+| `GET` | `/api/v1/notifications/mine/unread-count` | bearer | Contagem de não lidas (badge) |
+| `GET`/`PUT` | `/api/v1/advertisers/me` | advertiser | Perfil da empresa |
 | `POST` | `/api/v1/advertisers/logo` | advertiser | Upload de logo (multipart `file`) + atualiza perfil |
 | `GET` | `/api/v1/dashboard` | advertiser | Métricas |
 | `GET` | `/api/v1/plans` | anon | Planos (com assinatura atual se anunciante logado) |
-| `GET` | `/api/v1/notifications/mine/unread-count` | bearer | Contagem de não lidas (badge) |
+| `POST` | `/api/v1/subscriptions/upgrade`, `/api/v1/subscriptions/cancel` | advertiser | Troca e cancelamento de plano |
+
+Lista completa e schemas: Swagger em desenvolvimento (`/swagger`).
 
 ### JWT config
 
@@ -344,9 +364,9 @@ A app falha no boot sem `Jwt__SigningKey` (`ValidateOnStart`). Em produção:
 `docker-compose.yml` exige `JWT_SIGNING_KEY` no `.env` e `infra/vps/deploy.sh`
 configura a stack Docker (imagem do GHCR) com os segredos no `.env` da VPS
 (chmod 600). Gere com `openssl rand -base64 48`. No Azure App Service, provisione o app setting
-`Jwt__SigningKey` (os jobs de deploy do CI fazem isso quando
-`AZURE_CREDENTIALS`+`AZURE_RESOURCE_GROUP`+`JWT_SIGNING_KEY` estão configurados —
-sem eles o deploy falha cedo em vez de derrubar a produção).
+`Jwt__SigningKey`. O job `deploy-production` do CI exige `AZURE_CREDENTIALS` e
+`AZURE_RESOURCE_GROUP`; `JWT_SIGNING_KEY` é opcional, para provisionar a chave no App Service.
+Sem a chave, o deploy falha cedo em vez de derrubar a produção.
 
 `App__PublicBaseUrl` (ex.: `https://monburan.com.br`) é opcional mas recomendado em
 produção: os links de confirmação de e-mail e reset de senha usam essa base. Sem ela, a
@@ -403,8 +423,13 @@ Testes de API: `tests/Monburan.ApiTests` (WebApplicationFactory + EF InMemory).
   "title": "Desenvolvedor Full Stack",
   "description": "...",
   "requirements": ".NET, React, SQL",
-  "location": { "city": "São Paulo", "state": "SP", "type": "Hybrid" },
-  "salary": { "min": 8000, "max": 12000, "display": true },
+  "city": "São Paulo",
+  "state": "SP",
+  "type": "Hybrid",
+  "isRemote": false,
+  "salaryMin": 8000,
+  "salaryMax": 12000,
+  "salaryDisplay": true,
   "status": "Active",
   "expirationDate": "2026-06-01T00:00:00Z"
 }
@@ -431,7 +456,7 @@ Testes de API: `tests/Monburan.ApiTests` (WebApplicationFactory + EF InMemory).
 - `appsettings.Development.json` - Configuração de desenvolvimento (PostgreSQL local + chave JWT de dev)
 - `appsettings.Production.json.example` - Template para produção
 
-### appsettings.json (Atualizado)
+### appsettings.json (trecho)
 ```json
 {
   "ConnectionStrings": {
@@ -450,8 +475,14 @@ Testes de API: `tests/Monburan.ApiTests` (WebApplicationFactory + EF InMemory).
     "SigningKey": ""  // obrigatório — configure via env/User Secrets
   },
   "Serilog": {
-    "MinimumLevel": "Information",
-    "WriteTo": ["Console", "File"]
+    "MinimumLevel": {
+      "Default": "Information",
+      "Override": { "Microsoft": "Warning", "System": "Warning" }
+    },
+    "WriteTo": [
+      { "Name": "Console" },
+      { "Name": "File", "Args": { "path": "logs/monburan-.log", "rollingInterval": "Day" } }
+    ]
   }
 }
 ```
