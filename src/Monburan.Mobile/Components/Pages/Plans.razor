@@ -54,7 +54,7 @@ else
             <article class="card plan-card" @key="plan.Id">
                 <div class="list-row">
                     <h3 class="card-title">@Formatters.PlanName(plan.Name)</h3>
-                    <span class="plan-card__price">@(plan.Price == 0 ? "Grátis" : $"{Formatters.Money(plan.Price)}/mês")</span>
+                    <span class="plan-card__price">@(plan.Price == 0 ? "Grátis" : $"{Formatters.Money(plan.Price)}{(plan.Period == "Annual" ? "/ano" : "/mês")}")</span>
                 </div>
                 @if (!string.IsNullOrWhiteSpace(plan.Description))
                 {
