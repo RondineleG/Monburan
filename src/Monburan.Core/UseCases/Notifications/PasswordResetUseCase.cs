@@ -22,7 +22,7 @@ public sealed class PasswordResetUseCase : IUseCase<PasswordResetRequest, bool>
         _logger = logger;
     }
 
-    public async Task<RequestResult<bool>> ExecuteAsync(PasswordResetRequest request)
+    public async Task<RequestResult<bool>> ExecuteAsync(PasswordResetRequest request, CancellationToken cancellationToken = default)
     {
         try
         {
@@ -37,7 +37,7 @@ public sealed class PasswordResetUseCase : IUseCase<PasswordResetRequest, bool>
                 HtmlContent = html
             };
 
-            var result = await _sendEmailUseCase.ExecuteAsync(emailRequest);
+            var result = await _sendEmailUseCase.ExecuteAsync(emailRequest, cancellationToken);
 
             if (result.Status == EResultStatus.Success && result.Data)
             {

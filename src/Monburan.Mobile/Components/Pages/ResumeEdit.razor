@@ -1,0 +1,436 @@
+@page "/resumes/new"
+@page "/resumes/{Id:guid}/edit"
+@inherits ProtectedPage
+@inject MonburanApiClient Api
+@inject IToastService Toast
+
+@* Edição do currículo estruturado numa página só, por seções, com linhas que se adicionam e removem
+   (o passo a passo da web não é necessário no app). Serve para criar (/resumes/new) e editar. *@
+
+<h1 class="page-title" tabindex="-1">@(IsNew ? "Novo currículo" : "Editar currículo")</h1>
+<p class="page-subtitle">Complete as seções e mantenha as informações atualizadas.</p>
+
+@if (_loading)
+{
+    <LoadingState Message="Carregando currículo…" />
+}
+else if (_loadError is not null)
+{
+    @if (_loadError.StatusCode is System.Net.HttpStatusCode.NotFound or System.Net.HttpStatusCode.Forbidden)
+    {
+        <EmptyState IconName="alert" Title="Currículo não disponível" Message="Ele não existe mais ou pertence a outra pessoa.">
+            <a class="btn btn-primary" href="/resumes">Voltar para meus currículos</a>
+        </EmptyState>
+    }
+    else
+    {
+        <ErrorState Message="@_loadError.Message" IsOffline="@_loadError.IsNetworkError" OnRetry="LoadAsync" />
+    }
+}
+else
+{
+    @if (_error is not null)
+    {
+        <div class="alert alert-danger" role="alert">@_error</div>
+    }
+
+    <form @onsubmit="SaveAsync" novalidate>
+        <p class="form-text form-required-note">Campos com * são obrigatórios.</p>
+
+        <section class="card" aria-labelledby="resume-basic">
+            <h2 id="resume-basic" class="card-title">Informações básicas</h2>
+            <div class="form-field">
+                <label for="resume-title">Título do currículo *</label>
+                <input id="resume-title" class="input" @ref="_titleRef" @bind="_title" maxlength="100" placeholder="Ex.: Atendente de loja, Desenvolvedor .NET"
+                       aria-required="true"
+                       aria-invalid="@(_titleError is not null ? "true" : null)"
+                       aria-describedby="@(_titleError is not null ? "resume-title-error" : null)" />
+                @if (_titleError is not null)
+                {
+                    <div id="resume-title-error" class="field-error">@_titleError</div>
+                }
+            </div>
+            <div class="form-field">
+                <label for="resume-summary">Resumo profissional</label>
+                <textarea id="resume-summary" class="input" @bind="_summary" maxlength="2000" rows="5" aria-describedby="resume-summary-hint"></textarea>
+                <span id="resume-summary-hint" class="form-text">Máximo de 2000 caracteres.</span>
+            </div>
+            <label class="check-field" for="resume-active">
+                <input id="resume-active" type="checkbox" @bind="_isActive" />
+                <span>Definir como currículo ativo</span>
+            </label>
+        </section>
+
+        <section class="card" aria-labelledby="resume-experiences">
+            <div class="list-row">
+                <h2 id="resume-experiences" class="card-title">Experiência profissional</h2>
+            </div>
+            @for (var i = 0; i < _experiences.Count; i++)
+            {
+                var index = i;
+                var exp = _experiences[index];
+                <fieldset class="row-item">
+                    <legend>Experiência @(index + 1)</legend>
+                    <div class="form-field">
+                        <label for="@($"exp-position-{index}")">Cargo</label>
+                        <input id="@($"exp-position-{index}")" class="input" @bind="exp.Position" maxlength="150" />
+                    </div>
+                    <div class="form-field">
+                        <label for="@($"exp-company-{index}")">Empresa</label>
+                        <input id="@($"exp-company-{index}")" class="input" @bind="exp.Company" autocomplete="organization" maxlength="150" />
+                    </div>
+                    <div class="form-field">
+                        <label for="@($"exp-description-{index}")">Descrição das atividades</label>
+                        <textarea id="@($"exp-description-{index}")" class="input" rows="3" @bind="exp.Description" maxlength="2000"></textarea>
+                    </div>
+                    <div class="form-grid form-grid--even">
+                        <div class="form-field">
+                            <label for="@($"exp-start-{index}")">Início</label>
+                            <input id="@($"exp-start-{index}")" type="date" class="input" @bind="exp.StartDate" />
+                        </div>
+                        <div class="form-field">
+                            <label for="@($"exp-end-{index}")">Fim</label>
+                            <input id="@($"exp-end-{index}")" type="date" class="input" @bind="exp.EndDate" disabled="@exp.IsCurrent" />
+                        </div>
+                    </div>
+                    <label class="check-field" for="@($"exp-current-{index}")">
+                        <input id="@($"exp-current-{index}")" type="checkbox" @bind="exp.IsCurrent" />
+                        <span>Emprego atual</span>
+                    </label>
+                    <button type="button" class="btn btn-danger" @onclick="() => _experiences.RemoveAt(index)" aria-label="@($"Remover experiência {index + 1}")">
+                        <Icon Name="trash" /> Remover
+                    </button>
+                </fieldset>
+            }
+            @if (_experiences.Count == 0)
+            {
+                <p class="text-dim">Nenhuma experiência adicionada.</p>
+            }
+            <button type="button" class="btn btn-secondary btn-block" @onclick="() => _experiences.Add(new ExperienceRequest())"><Icon Name="plus" /> Adicionar experiência</button>
+        </section>
+
+        <section class="card" aria-labelledby="resume-educations">
+            <h2 id="resume-educations" class="card-title">Formação acadêmica</h2>
+            @for (var i = 0; i < _educations.Count; i++)
+            {
+                var index = i;
+                var edu = _educations[index];
+                <fieldset class="row-item">
+                    <legend>Formação @(index + 1)</legend>
+                    <div class="form-field">
+                        <label for="@($"edu-course-{index}")">Curso</label>
+                        <input id="@($"edu-course-{index}")" class="input" @bind="edu.Course" maxlength="150" />
+                    </div>
+                    <div class="form-field">
+                        <label for="@($"edu-institution-{index}")">Instituição</label>
+                        <input id="@($"edu-institution-{index}")" class="input" @bind="edu.Institution" maxlength="150" />
+                    </div>
+                    <div class="form-grid form-grid--even">
+                        <div class="form-field">
+                            <label for="@($"edu-level-{index}")">Nível</label>
+                            <select id="@($"edu-level-{index}")" class="input" @bind="edu.Level">
+                                @foreach (var level in Enum.GetValues<EEducationLevel>())
+                                {
+                                    <option value="@level">@Formatters.EducationLevel(level.ToString())</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="form-field">
+                            <label for="@($"edu-status-{index}")">Situação</label>
+                            <select id="@($"edu-status-{index}")" class="input" @bind="edu.Status">
+                                @foreach (var status in Enum.GetValues<EEducationStatus>())
+                                {
+                                    <option value="@status">@Formatters.EducationStatus(status.ToString())</option>
+                                }
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-grid form-grid--even">
+                        <div class="form-field">
+                            <label for="@($"edu-start-{index}")">Início</label>
+                            <input id="@($"edu-start-{index}")" type="date" class="input" @bind="edu.StartDate" />
+                        </div>
+                        <div class="form-field">
+                            <label for="@($"edu-end-{index}")">Conclusão</label>
+                            <input id="@($"edu-end-{index}")" type="date" class="input" @bind="edu.EndDate" />
+                        </div>
+                    </div>
+                    <button type="button" class="btn btn-danger" @onclick="() => _educations.RemoveAt(index)" aria-label="@($"Remover formação {index + 1}")">
+                        <Icon Name="trash" /> Remover
+                    </button>
+                </fieldset>
+            }
+            @if (_educations.Count == 0)
+            {
+                <p class="text-dim">Nenhuma formação adicionada.</p>
+            }
+            <button type="button" class="btn btn-secondary btn-block" @onclick="AddEducation"><Icon Name="plus" /> Adicionar formação</button>
+        </section>
+
+        <section class="card" aria-labelledby="resume-languages">
+            <h2 id="resume-languages" class="card-title">Idiomas</h2>
+            @for (var i = 0; i < _languages.Count; i++)
+            {
+                var index = i;
+                var lang = _languages[index];
+                <fieldset class="row-item">
+                    <legend>Idioma @(index + 1)</legend>
+                    <div class="form-grid form-grid--even">
+                        <div class="form-field">
+                            <label for="@($"lang-name-{index}")">Idioma</label>
+                            <input id="@($"lang-name-{index}")" class="input" @bind="lang.Language" maxlength="60" />
+                        </div>
+                        <div class="form-field">
+                            <label for="@($"lang-level-{index}")">Nível</label>
+                            <select id="@($"lang-level-{index}")" class="input" @bind="lang.Level">
+                                @foreach (var level in Enum.GetValues<ELanguageLevel>())
+                                {
+                                    <option value="@level">@Formatters.LanguageLevel(level.ToString())</option>
+                                }
+                            </select>
+                        </div>
+                    </div>
+                    <button type="button" class="btn btn-danger" @onclick="() => _languages.RemoveAt(index)" aria-label="@($"Remover idioma {index + 1}")">
+                        <Icon Name="trash" /> Remover
+                    </button>
+                </fieldset>
+            }
+            @if (_languages.Count == 0)
+            {
+                <p class="text-dim">Nenhum idioma adicionado.</p>
+            }
+            <button type="button" class="btn btn-secondary btn-block" @onclick="AddLanguage"><Icon Name="plus" /> Adicionar idioma</button>
+        </section>
+
+        <section class="card" aria-labelledby="resume-skills">
+            <h2 id="resume-skills" class="card-title">Habilidades</h2>
+            @for (var i = 0; i < _skills.Count; i++)
+            {
+                var index = i;
+                var skill = _skills[index];
+                <fieldset class="row-item">
+                    <legend>Habilidade @(index + 1)</legend>
+                    <div class="form-field">
+                        <label for="@($"skill-name-{index}")">Habilidade</label>
+                        <input id="@($"skill-name-{index}")" class="input" @bind="skill.Skill" maxlength="80" />
+                    </div>
+                    <div class="form-grid form-grid--even">
+                        <div class="form-field">
+                            <label for="@($"skill-level-{index}")">Nível (1 a 5)</label>
+                            <input id="@($"skill-level-{index}")" type="number" inputmode="numeric" class="input" min="1" max="5" @bind="skill.Level" />
+                        </div>
+                        <div class="form-field">
+                            <label for="@($"skill-years-{index}")">Anos de experiência</label>
+                            <input id="@($"skill-years-{index}")" type="number" inputmode="numeric" class="input" min="0" max="60" @bind="skill.YearsOfExperience" />
+                        </div>
+                    </div>
+                    <button type="button" class="btn btn-danger" @onclick="() => _skills.RemoveAt(index)" aria-label="@($"Remover habilidade {index + 1}")">
+                        <Icon Name="trash" /> Remover
+                    </button>
+                </fieldset>
+            }
+            @if (_skills.Count == 0)
+            {
+                <p class="text-dim">Nenhuma habilidade adicionada.</p>
+            }
+            <button type="button" class="btn btn-secondary btn-block" @onclick="AddSkill"><Icon Name="plus" /> Adicionar habilidade</button>
+        </section>
+
+        <div class="action-stack page-end">
+            <button type="submit" class="btn btn-primary btn-block" disabled="@_busy" aria-busy="@(_busy ? "true" : null)">
+                @(_busy ? "Salvando…" : IsNew ? "Criar currículo" : "Salvar alterações")
+            </button>
+            <a class="btn btn-secondary btn-block" href="@(IsNew ? "/resumes" : $"/resumes/{Id}")">Cancelar</a>
+        </div>
+    </form>
+}
+
+@code {
+    [Parameter] public Guid? Id { get; set; }
+
+    private bool IsNew => Id is null;
+
+    private string _title = "";
+    private string? _summary;
+    private bool _isActive = true;
+    private List<ExperienceRequest> _experiences = [];
+    private List<EducationRequest> _educations = [];
+    private List<LanguageRequest> _languages = [];
+    private List<SkillRequest> _skills = [];
+
+    private string? _titleError;
+    private string? _error;
+    private bool _loading = true;
+    private bool _busy;
+    private bool _focusTitle;
+    private ElementReference _titleRef;
+    private ApiException? _loadError;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (await EnsureAuthenticatedAsync())
+            await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        if (IsNew)
+        {
+            _loading = false;
+            return;
+        }
+
+        _loading = true;
+        _loadError = null;
+        try
+        {
+            var r = await Api.GetResumeAsync(Id!.Value);
+            _title = r.Title;
+            _summary = r.Summary;
+            _isActive = r.IsActive;
+            _experiences = r.ExperienceHistory?.Select(e => new ExperienceRequest
+            {
+                Company = e.Company,
+                Position = e.Position,
+                Description = e.Description,
+                StartDate = e.StartDate,
+                EndDate = e.EndDate,
+                IsCurrent = e.IsCurrent
+            }).ToList() ?? [];
+            _educations = r.EducationHistory?.Select(e => new EducationRequest
+            {
+                Institution = e.Institution,
+                Course = e.Course,
+                Level = Enum.TryParse<EEducationLevel>(e.Level, out var level) ? level : EEducationLevel.HighSchool,
+                StartDate = e.StartDate,
+                EndDate = e.EndDate,
+                Status = Enum.TryParse<EEducationStatus>(e.Status, out var status) ? status : EEducationStatus.Completed
+            }).ToList() ?? [];
+            _languages = r.Languages?.Select(l => new LanguageRequest
+            {
+                Language = l.Language,
+                Level = Enum.TryParse<ELanguageLevel>(l.Level, out var level) ? level : ELanguageLevel.Intermediate
+            }).ToList() ?? [];
+            _skills = r.Skills?.Select(s => new SkillRequest
+            {
+                Skill = s.Skill,
+                Level = s.Level,
+                YearsOfExperience = s.YearsOfExperience
+            }).ToList() ?? [];
+        }
+        catch (ApiException ex)
+        {
+            _loadError = ex;
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!_focusTitle)
+            return;
+
+        _focusTitle = false;
+        try
+        {
+            await _titleRef.FocusAsync();
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or JSException)
+        {
+            // Foco é acessório: a mensagem de erro já está na tela
+        }
+    }
+
+    private void AddEducation() => _educations.Add(new EducationRequest { Level = EEducationLevel.HighSchool, Status = EEducationStatus.Completed });
+
+    private void AddLanguage() => _languages.Add(new LanguageRequest { Level = ELanguageLevel.Intermediate });
+
+    private void AddSkill() => _skills.Add(new SkillRequest { Level = 3 });
+
+    private async Task SaveAsync()
+    {
+        if (_busy)
+            return;
+
+        _error = null;
+        _titleError = ValidateTitle(_title);
+        if (_titleError is not null)
+        {
+            _focusTitle = true;
+            return;
+        }
+
+        // Linhas deixadas em branco não vão para o servidor (mesma regra da web)
+        var experiences = _experiences.Where(e => !string.IsNullOrWhiteSpace(e.Position) || !string.IsNullOrWhiteSpace(e.Company)).ToList();
+        foreach (var exp in experiences.Where(e => e.IsCurrent))
+            exp.EndDate = null;
+        var educations = _educations.Where(e => !string.IsNullOrWhiteSpace(e.Course) || !string.IsNullOrWhiteSpace(e.Institution)).ToList();
+        var languages = _languages.Where(l => !string.IsNullOrWhiteSpace(l.Language)).ToList();
+        var skills = _skills.Where(s => !string.IsNullOrWhiteSpace(s.Skill)).ToList();
+        foreach (var skill in skills)
+        {
+            skill.Level = Math.Clamp(skill.Level, 1, 5);
+            skill.YearsOfExperience = Math.Max(skill.YearsOfExperience, 0);
+        }
+
+        _busy = true;
+        try
+        {
+            ResumeResponse saved;
+            if (IsNew)
+            {
+                saved = await Api.CreateResumeAsync(new CreateResumeRequest
+                {
+                    Title = _title.Trim(),
+                    Summary = string.IsNullOrWhiteSpace(_summary) ? null : _summary.Trim(),
+                    IsActive = _isActive,
+                    ExperienceHistory = experiences,
+                    EducationHistory = educations,
+                    Languages = languages,
+                    Skills = skills
+                });
+                Toast.ShowSuccess("Seu currículo já pode ser enviado nas candidaturas.", "Currículo criado");
+            }
+            else
+            {
+                saved = await Api.UpdateResumeAsync(Id!.Value, new UpdateResumeRequest
+                {
+                    Id = Id.Value,
+                    Title = _title.Trim(),
+                    Summary = string.IsNullOrWhiteSpace(_summary) ? null : _summary.Trim(),
+                    IsActive = _isActive,
+                    ExperienceHistory = experiences,
+                    EducationHistory = educations,
+                    Languages = languages,
+                    Skills = skills
+                });
+                Toast.ShowSuccess("Suas alterações foram salvas.", "Currículo atualizado");
+            }
+
+            // Sai do formulário sem deixá-lo no histórico: voltar do detalhe leva à lista
+            Nav.NavigateTo($"/resumes/{saved.Id}", replace: true);
+        }
+        catch (ApiException ex)
+        {
+            _titleError = ex.FieldError("title");
+            if (_titleError is not null)
+                _focusTitle = true;
+            _error = ex.Message;
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private static string? ValidateTitle(string? title) => title?.Trim() switch
+    {
+        null or "" => "Informe um título para o currículo.",
+        { Length: < 3 } => "O título precisa ter pelo menos 3 caracteres.",
+        { Length: > 100 } => "O título pode ter no máximo 100 caracteres.",
+        _ => null
+    };
+}

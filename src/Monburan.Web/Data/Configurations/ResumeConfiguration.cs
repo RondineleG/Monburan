@@ -27,6 +27,12 @@ public class ResumeConfiguration : IEntityTypeConfiguration<Resume>
         builder.Property(r => r.IsActive)
             .HasDefaultValue(true);
 
+        builder.Property(r => r.SourceFileName)
+            .HasMaxLength(200);
+
+        builder.Property(r => r.SourceFileUrl)
+            .HasMaxLength(500);
+
         builder.HasOne(r => r.Candidate)
             .WithMany(c => c.Resumes)
             .HasForeignKey(r => r.CandidateId)

@@ -3,6 +3,7 @@
 @inject GetJobByIdUseCase GetJobByIdUseCase
 @inject SearchJobsUseCase SearchJobsUseCase
 @inject RegisterJobViewUseCase RegisterJobViewUseCase
+@inject ApplicationLookupService ApplicationLookup
 @inject ICurrentUserHelper CurrentUserHelper
 @inject NavigationManager Navigation
 @inject IConfiguration Configuration
@@ -40,19 +41,16 @@
     }
 </HeadContent>
 
-<div class="container job-detail-page@(showStickyCta ? " has-sticky-cta" : string.Empty)">
+<div class="job-detail-page@(showStickyCta ? " has-sticky-cta" : string.Empty)">
     @if (loadFailed)
     {
-        <section class="empty-state error-state" role="alert" data-testid="error-state">
-            <span class="empty-state__icon error-state__icon" aria-hidden="true">!</span>
-            <h2>Não foi possível carregar a vaga</h2>
-            <p>Tivemos um problema ao abrir esta oportunidade. Tente novamente em instantes.</p>
-            <a class="btn btn-primary" href="@Navigation.Uri" data-enhance-nav="false" data-testid="error-retry">Tentar novamente</a>
-        </section>
+        <ErrorState Title="Não foi possível carregar a vaga" HeadingLevel="1"
+                    Message="Tivemos um problema ao abrir esta oportunidade. Tente novamente em instantes."
+                    RetryHref="@Navigation.Uri" />
     }
     else if (job is null)
     {
-        <EmptyState Icon="?" Title="Vaga não encontrada" Message="Ela pode ter sido encerrada ou removida pela empresa." TestId="job-not-found">
+        <EmptyState Icon="search" Title="Vaga não encontrada" HeadingLevel="1" Message="Ela pode ter sido encerrada ou removida pela empresa." TestId="job-not-found">
             <a class="btn btn-primary" href="/jobs">Ver vagas abertas</a>
         </EmptyState>
     }
@@ -96,7 +94,7 @@
                         }
                     </span>
                     <div class="job-hero__text">
-                        <h1 id="job-title" data-testid="job-detail-title">@job.Title</h1>
+                        <h1 id="job-title" tabindex="-1" data-testid="job-detail-title">@job.Title</h1>
                         @if (!string.IsNullOrWhiteSpace(job.AdvertiserName))
                         {
                             <p class="job-hero__company">@job.AdvertiserName</p>
@@ -143,8 +141,8 @@
                 @foreach (var section in Sections())
                 {
                     <section class="job-section@(section.Key == "apply" ? " job-section--apply" : string.Empty)" data-testid="@($"job-section-{section.Key}")">
-                        <h2>@section.Title</h2>
-                        <RichText Text="@section.Text" />
+                        <h2>@(section.Title)</h2>
+                        <RichText Text="@(section.Text)" />
                     </section>
                 }
 
@@ -155,7 +153,7 @@
                         <p>Nunca pague para participar de um processo seletivo e não envie documentos, dados bancários ou fotos por canais que você não conhece.</p>
                     </div>
                 </aside>
-                <p class="job-disclaimer">Vaga publicada sob responsabilidade do anunciante. A Monburan não se responsabiliza pelo conteúdo informado.</p>
+                <p class="job-disclaimer">Vaga publicada sob responsabilidade da empresa. A Monburan não se responsabiliza pelo conteúdo informado.</p>
             </article>
 
             <aside class="job-detail-aside" aria-label="Candidatura e compartilhamento">
@@ -163,7 +161,7 @@
                 {
                     <section class="aside-card job-owner-card" data-testid="job-owner-card">
                         <h2 class="aside-card__title">Sua vaga</h2>
-                        <p class="job-owner-card__status">Situação: <span class="badge @UiLabels.JobStatusBadge(job.Status)">@UiLabels.JobStatus(job.Status)</span></p>
+                        <p class="job-owner-card__status">Situação: <StatusBadge Kind="StatusKind.Job" Value="@job.Status" /></p>
                         <dl class="job-owner-card__stats">
                             <div><dt>Candidaturas</dt><dd>@job.Applications</dd></div>
                             <div><dt>Visualizações</dt><dd>@job.Views</dd></div>
@@ -171,7 +169,7 @@
                         </dl>
                         <div class="aside-card__actions">
                             <a class="btn btn-primary btn-cta" href="@($"/jobs/{job.Id}/applications")">Ver candidaturas</a>
-                            <a class="btn btn-outline-primary btn-cta" href="@($"/jobs/edit/{job.Id}")">Editar vaga</a>
+                            <a class="btn btn-outline-secondary" href="@($"/jobs/edit/{job.Id}")">Editar vaga</a>
                         </div>
                     </section>
                 }
@@ -179,34 +177,49 @@
                 {
                     <section class="aside-card job-apply-card" data-testid="job-apply-card">
                         <h2 class="aside-card__title">Interessado nesta vaga?</h2>
-                        @if (isCandidate)
+                        @if (existingApplication is not null)
+                        {
+                            <p>Você já se candidatou a esta vaga.</p>
+                            <p class="mb-3">Situação: <StatusBadge Kind="StatusKind.Application" Value="@existingApplication.Status" /></p>
+                            <a class="btn btn-primary btn-cta" href="/my-applications?aba=candidaturas" data-testid="job-track-application">Acompanhar candidatura</a>
+                        }
+                        else if (applicationLookupFailed)
+                        {
+                            <p>Não foi possível verificar se você já se candidatou.</p>
+                            <a class="btn btn-primary btn-cta" href="@applyUrl" data-testid="job-apply">Verificar candidatura</a>
+                        }
+                        else if (isCandidate)
                         {
                             <p>Envie sua candidatura em poucos cliques.</p>
-                            <a class="btn btn-primary btn-cta" href="@applyUrl" data-testid="job-apply">Candidatar-se <span aria-hidden="true">↗</span></a>
+                            <a class="btn btn-primary btn-cta" href="@applyUrl" data-testid="job-apply">Candidatar-se</a>
                         }
                         else if (!isAuthenticated)
                         {
                             <p>Entre ou crie uma conta gratuita de candidato para se candidatar.</p>
                             <a class="btn btn-primary btn-cta" href="@loginUrl" data-testid="job-apply">Entrar para se candidatar</a>
-                            <a class="btn btn-outline-primary btn-cta" href="@registerUrl" data-testid="job-register">Criar conta de candidato</a>
+                            <a class="btn btn-outline-secondary" href="@registerUrl" data-testid="job-register">Criar conta de candidato</a>
                         }
                         else
                         {
                             <p>A candidatura está disponível para perfis de candidato.</p>
                         }
-                        <div class="job-save">
-                            <SaveJobButton JobId="job.Id" IsSaved="job.IsSaved" CanSave="isCandidate" ReturnUrl="@Navigation.Uri" />
-                        </div>
+                        @* Salvar é do candidato; o visitante recebe o convite para entrar. Empresa e admin não salvam vagas *@
+                        @if (isCandidate || !isAuthenticated)
+                        {
+                            <div class="job-save">
+                                <SaveJobButton JobId="job.Id" IsSaved="job.IsSaved" CanSave="isCandidate" ReturnUrl="@Navigation.Uri" />
+                            </div>
+                        }
                     </section>
                 }
 
                 <section class="aside-card job-share" aria-labelledby="share-title">
                     <h2 id="share-title" class="aside-card__title">Compartilhar esta vaga</h2>
                     <div class="job-share__actions">
-                        <a class="btn btn-outline-primary" href="@JobDisplay.WhatsAppUrl(job.Title, canonicalUrl)" target="_blank" rel="noopener noreferrer" data-testid="job-share-whatsapp">
+                        <a class="btn btn-outline-secondary" href="@JobDisplay.WhatsAppUrl(job.Title, canonicalUrl)" target="_blank" rel="noopener noreferrer" data-testid="job-share-whatsapp">
                             <Icon Name="message" Size="16" />WhatsApp
                         </a>
-                        <button type="button" class="btn btn-outline-primary" data-action="copy-link" data-url="@canonicalUrl" data-testid="job-share-copy">
+                        <button type="button" class="btn btn-outline-secondary" data-action="copy-link" data-url="@canonicalUrl" data-testid="job-share-copy">
                             <Icon Name="link" Size="16" /><span data-copy-label>Copiar link</span>
                         </button>
                     </div>
@@ -226,6 +239,9 @@
                             </span>
                             <strong>@job.AdvertiserName</strong>
                         </div>
+                        <a class="btn btn-outline-secondary btn-sm mt-2" href="/companies/@job.AdvertiserId">
+                            Ver vagas da empresa
+                        </a>
                     </section>
                 }
             </aside>
@@ -235,25 +251,34 @@
         {
             <section class="job-similar" aria-labelledby="similar-title" data-testid="job-similar">
                 <h2 id="similar-title">Vagas semelhantes</h2>
-                <div class="jobs-grid">
+                <ul class="jobs-grid">
                     @foreach (var item in similar)
                     {
-                        <JobCard @key="item.Id" Job="item" Compact="true" />
+                        <li @key="item.Id"><JobCard Job="item" Compact="true" /></li>
                     }
-                </div>
+                </ul>
             </section>
         }
 
         @if (showStickyCta)
         {
             <div class="job-sticky-cta" data-testid="job-sticky-cta">
-                <button type="button" class="btn btn-outline-primary job-sticky-cta__share" data-action="share-job"
+                <button type="button" class="btn btn-outline-secondary job-sticky-cta__share" data-action="share-job"
                         data-title="@job.Title" data-url="@canonicalUrl" aria-label="Compartilhar vaga">
                     <Icon Name="share" Size="18" />
                 </button>
-                <a class="btn btn-primary btn-cta" href="@(isCandidate ? applyUrl : loginUrl)" data-testid="job-apply-mobile">
-                    @(isCandidate ? "Candidatar-se" : "Entrar para se candidatar")
-                </a>
+                @if (existingApplication is not null)
+                {
+                    <a class="btn btn-primary btn-cta" href="/my-applications?aba=candidaturas" data-testid="job-track-application-mobile">
+                        Acompanhar candidatura
+                    </a>
+                }
+                else
+                {
+                    <a class="btn btn-primary btn-cta" href="@(isCandidate || applicationLookupFailed ? applyUrl : loginUrl)" data-testid="job-apply-mobile">
+                        @(applicationLookupFailed ? "Verificar candidatura" : isCandidate ? "Candidatar-se" : "Entrar para se candidatar")
+                    </a>
+                }
             </div>
         }
     }
@@ -270,6 +295,8 @@
     private List<JobResponse> similar = [];
     private IReadOnlyList<string> tags = [];
     private bool loadFailed;
+    private ApplicationResponse? existingApplication;
+    private bool applicationLookupFailed;
     private bool isAuthenticated;
     private bool isCandidate;
     private bool isOwner;
@@ -307,13 +334,35 @@
         }
     }
 
-    protected override async Task OnInitializedAsync()
+    private int loadGeneration;
+
+    protected override async Task OnParametersSetAsync()
     {
+        // OnParametersSet (e não OnInitialized): navegar de uma vaga para outra reaproveita
+        // o componente. Tudo é zerado antes — dados da vaga anterior nunca "vazam" para a nova.
+        var generation = ++loadGeneration;
+        var jobId = JobId;
+
+        job = null;
+        similar = [];
+        tags = [];
+        loadFailed = false;
+        existingApplication = null;
+        applicationLookupFailed = false;
+        isOwner = false;
+        isAdmin = false;
+        salary = null;
+        closing = null;
+        canonicalUrl = string.Empty;
+        structuredData = string.Empty;
+
         isAuthenticated = CurrentUserHelper.IsAuthenticated();
         isCandidate = CurrentUserHelper.GetCandidateId().HasValue;
         var advertiserId = CurrentUserHelper.GetAdvertiserId();
 
-        var result = await GetJobByIdUseCase.ExecuteAsync(JobId, CurrentUserHelper.GetCandidateId());
+        var result = await GetJobByIdUseCase.ExecuteAsync(jobId, CurrentUserHelper.GetCandidateId());
+        if (generation != loadGeneration)
+            return; // já navegou para outra vaga: descarta a resposta atrasada
         if (result.Status == EResultStatus.Success && result.Data is { } found)
         {
             isOwner = advertiserId.HasValue && found.AdvertiserId == advertiserId.Value;
@@ -323,6 +372,8 @@
             // Fora da empresa dona e da administração, só vagas ativas ou encerradas ficam visíveis (pausadas, ocultas e reprovadas, não)
             if (isOwner || isAdmin || found.Status is "Active" or "Expired")
                 job = found;
+            else
+                job = null;
         }
         else if (result.Status != EResultStatus.EntityNotFound)
         {
@@ -333,7 +384,10 @@
 
         // A visita conta uma vez por renderização da página (a do próprio anunciante não conta)
         if (job is not null)
-            await RegisterJobViewUseCase.ExecuteAsync(new RegisterJobViewRequest(JobId, advertiserId));
+            await RegisterJobViewUseCase.ExecuteAsync(new RegisterJobViewRequest(jobId, advertiserId));
+
+        if (generation != loadGeneration)
+            return;
 
         // Vaga inexistente ou indisponível responde 404 (buscadores deixam de indexar) e mostra a tela "Vaga não
         // encontrada". O status só é trocado quando os cabeçalhos vão ser enviados: com 404 já definido aqui o Blazor
@@ -348,9 +402,25 @@
         if (job is null)
             return;
 
+        // Pré-verificação: já candidatado vê a situação em vez do botão de candidatura.
+        // Falha na consulta nunca vira "não se candidatou" — oferece o link de verificação.
+        if (isCandidate)
+        {
+            var lookup = await ApplicationLookup.GetAsync(jobId);
+            if (generation != loadGeneration)
+                return;
+            if (lookup.Status == EResultStatus.Success)
+                existingApplication = lookup.Data;
+            else
+            {
+                Logger.LogFailure(lookup, "Verificar candidatura existente na vaga");
+                applicationLookupFailed = true;
+            }
+        }
+
         salary = JobDisplay.Salary(job);
         closing = JobDisplay.ClosingNotice(job.ExpirationDate);
-        tags = JobDisplay.Tags(job.Tags);
+        tags = JobDisplay.Tags(job.Tags, exclude: job.Category);
         canonicalUrl = PublicUrls.Absolute(Configuration, Navigation.BaseUri, $"/jobs/{job.Id}");
         structuredData = job.Status == "Active" ? JobStructuredData.Build(job, canonicalUrl) : string.Empty;
 

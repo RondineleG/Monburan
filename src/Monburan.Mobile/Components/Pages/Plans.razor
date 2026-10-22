@@ -1,0 +1,120 @@
+@page "/plans"
+@inherits ProtectedPage
+@inject MonburanApiClient Api
+@inject ILogger<Plans> Logger
+
+@* Só leitura: a API não tem mudança de plano para candidato (subscriptions/upgrade é exclusivo de empresa) e
+   GET plans lista os planos de empresa. O plano do candidato vem de resumes/improvements/availability (premium). *@
+
+<h1 class="page-title" tabindex="-1">Plano</h1>
+<p class="page-subtitle">Seu plano e os planos disponíveis no Monburan</p>
+
+@if (_loading)
+{
+    <LoadingState Message="Carregando planos…" />
+}
+else if (_error is not null)
+{
+    <ErrorState Message="@_error.Message" IsOffline="@_error.IsNetworkError" OnRetry="LoadAsync" />
+}
+else
+{
+    @if (_availability is not null)
+    {
+        <section class="card current-plan" aria-labelledby="current-plan-title">
+            <div class="list-row">
+                <h2 id="current-plan-title" class="card-title">Seu plano</h2>
+                <span class="badge badge--@(_availability.Premium ? "brand" : "neutral")">@(_availability.Premium ? "Premium" : "Gratuito")</span>
+            </div>
+            @if (_availability.Premium)
+            {
+                <p class="text-dim">Seu plano inclui o assistente de IA para melhorar o currículo.</p>
+            }
+            else
+            {
+                <p class="text-dim">Buscar vagas, candidatar-se e acompanhar cada etapa é gratuito para candidatos.</p>
+            }
+        </section>
+    }
+
+    <div class="alert alert-info" role="note">
+        Mudanças de plano não são feitas pelo app. Para assinar ou trocar de plano, acesse sua conta no site do Monburan.
+    </div>
+
+    <h2 class="section-title">Planos para empresas</h2>
+    @if (_plans.Count == 0)
+    {
+        <EmptyState IconName="banknote" Compact="true" Title="Nenhum plano disponível no momento" Message="Volte em breve para conhecer as opções." />
+    }
+    else
+    {
+        <p class="text-dim section-lead">Os recursos abaixo valem para contas de empresa que publicam vagas.</p>
+        @foreach (var plan in _plans)
+        {
+            <article class="card plan-card" @key="plan.Id">
+                <div class="list-row">
+                    <h3 class="card-title">@Formatters.PlanName(plan.Name)</h3>
+                    <span class="plan-card__price">@(plan.Price == 0 ? "Grátis" : $"{Formatters.Money(plan.Price)}{(plan.Period == "Annual" ? "/ano" : "/mês")}")</span>
+                </div>
+                @if (!string.IsNullOrWhiteSpace(plan.Description))
+                {
+                    <p class="text-dim">@plan.Description</p>
+                }
+                <ul class="feature-list">
+                    <li><Icon Name="briefcase" Size="16" /> @(plan.MaxJobs == -1 ? "Vagas ativas ilimitadas" : $"Até {plan.MaxJobs} vagas ativas ao mesmo tempo")</li>
+                    <li><Icon Name="users" Size="16" /> Candidaturas ilimitadas em cada vaga</li>
+                    <li><Icon Name="layout" Size="16" /> Painel com indicadores das suas vagas</li>
+                </ul>
+                <p class="form-text">Exclusivo para contas de empresa</p>
+            </article>
+        }
+    }
+}
+
+@code {
+    private List<PlanResponse> _plans = [];
+    private ResumeImprovementAvailability? _availability;
+    private bool _loading = true;
+    private ApiException? _error;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (await EnsureAuthenticatedAsync())
+            await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        _error = null;
+        try
+        {
+            var availability = LoadAvailabilityAsync();
+            var plans = await Api.GetPlansAsync();
+            _plans = plans.Plans.OrderBy(p => p.Price).ToList();
+            _availability = await availability;
+        }
+        catch (ApiException ex)
+        {
+            _error = ex;
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    // O selo do plano atual é acessório: sem ele, a lista de planos continua útil
+    private async Task<ResumeImprovementAvailability?> LoadAvailabilityAsync()
+    {
+        try
+        {
+            return await Api.GetResumeImprovementAvailabilityAsync();
+        }
+        catch (ApiException ex)
+        {
+            Logger.LogDebug(ex, "Não foi possível saber o plano atual do candidato");
+            return null;
+        }
+    }
+}

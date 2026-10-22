@@ -1,0 +1,19 @@
+@* Tela de reconexão do circuito interativo. O Blazor procura #components-reconnect-modal e troca as classes
+   components-reconnect-show | -retrying | -failed | -paused | -resume-failed; os botões são tratados em app-shell.js. *@
+<div id="components-reconnect-modal" class="reconnect" role="alertdialog" aria-modal="true" aria-labelledby="reconnect-title" aria-describedby="reconnect-text">
+    <div class="reconnect__card">
+        <BrandMark Class="loading-state__mark" Size="56" />
+        <h2 id="reconnect-title" class="reconnect__title">
+            <span class="reconnect__when-retrying">Reconectando…</span>
+            <span class="reconnect__when-failed">A conexão caiu</span>
+        </h2>
+        <p id="reconnect-text" class="reconnect__text">
+            <span class="reconnect__when-retrying">Estamos restabelecendo a conexão com o servidor. O que você preencheu continua na tela.</span>
+            <span class="reconnect__when-failed">Não foi possível reconectar. Tente de novo ou recarregue a página.</span>
+        </p>
+        <div class="reconnect__actions reconnect__when-failed">
+            <button type="button" class="btn btn-primary" data-action="reconnect">Tentar de novo</button>
+            <button type="button" class="btn btn-outline-secondary" data-action="reload">Recarregar a página</button>
+        </div>
+    </div>
+</div>

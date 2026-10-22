@@ -17,18 +17,18 @@ public class SubscriptionPlanRepository : IBaseRepository<SubscriptionPlan>
         _contextFactory = contextFactory;
     }
 
-    public async Task<RequestResult<SubscriptionPlan>> CreateAsync(SubscriptionPlan entity)
+    public async Task<RequestResult<SubscriptionPlan>> CreateAsync(SubscriptionPlan entity, CancellationToken cancellationToken = default)
     {
-        await using var context = await _contextFactory.CreateDbContextAsync();
+        await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);
         context.SubscriptionPlans.Add(entity);
-        await context.SaveChangesAsync();
+        await context.SaveChangesAsync(cancellationToken);
         return RequestResult<SubscriptionPlan>.Success(entity);
     }
 
-    public async Task<RequestResult<SubscriptionPlan>> DeleteAsync(Id id)
+    public async Task<RequestResult<SubscriptionPlan>> DeleteAsync(Id id, CancellationToken cancellationToken = default)
     {
-        await using var context = await _contextFactory.CreateDbContextAsync();
-        var plan = await context.SubscriptionPlans.FindAsync(id);
+        await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);
+        var plan = await context.SubscriptionPlans.FindAsync([id], cancellationToken);
         if (plan == null)
             return RequestResult<SubscriptionPlan>.EntityNotFound("SubscriptionPlan", id.Value, "Plano não encontrado.");
 
@@ -36,28 +36,28 @@ public class SubscriptionPlanRepository : IBaseRepository<SubscriptionPlan>
         plan.DeletedAt = DateTime.UtcNow;
 
         context.SubscriptionPlans.Update(plan);
-        await context.SaveChangesAsync();
+        await context.SaveChangesAsync(cancellationToken);
         return RequestResult<SubscriptionPlan>.Success(plan);
     }
 
-    public async Task<RequestResult<IEnumerable<SubscriptionPlan>>> GetAllAsync(int page, int size)
+    public async Task<RequestResult<IEnumerable<SubscriptionPlan>>> GetAllAsync(int page, int size, CancellationToken cancellationToken = default)
     {
-        await using var context = await _contextFactory.CreateDbContextAsync();
+        await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);
         var plans = await context.SubscriptionPlans
             .Where(p => !p.IsDeleted)
             .OrderByDescending(p => p.Price)
             .Skip((page - 1) * size)
             .Take(size)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         return RequestResult<IEnumerable<SubscriptionPlan>>.Success(plans);
     }
 
-    public async Task<RequestResult<SubscriptionPlan>> GetByIdAsync(Id id)
+    public async Task<RequestResult<SubscriptionPlan>> GetByIdAsync(Id id, CancellationToken cancellationToken = default)
     {
-        await using var context = await _contextFactory.CreateDbContextAsync();
+        await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);
         var plan = await context.SubscriptionPlans
-            .FirstOrDefaultAsync(p => p.Id == id && !p.IsDeleted);
+            .FirstOrDefaultAsync(p => p.Id == id && !p.IsDeleted, cancellationToken);
 
         if (plan == null)
             return RequestResult<SubscriptionPlan>.EntityNotFound("SubscriptionPlan", id.Value, "Plano não encontrado.");
@@ -65,11 +65,11 @@ public class SubscriptionPlanRepository : IBaseRepository<SubscriptionPlan>
         return RequestResult<SubscriptionPlan>.Success(plan);
     }
 
-    public async Task<RequestResult<SubscriptionPlan>> UpdateAsync(SubscriptionPlan entity)
+    public async Task<RequestResult<SubscriptionPlan>> UpdateAsync(SubscriptionPlan entity, CancellationToken cancellationToken = default)
     {
-        await using var context = await _contextFactory.CreateDbContextAsync();
+        await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);
         context.SubscriptionPlans.Update(entity);
-        await context.SaveChangesAsync();
+        await context.SaveChangesAsync(cancellationToken);
         return RequestResult<SubscriptionPlan>.Success(entity);
     }
 }

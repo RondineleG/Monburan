@@ -11,79 +11,68 @@
 @inject IToastService Toast
 @inject ILogger<UploadLogo> Logger
 
-<PageTitle>Upload de Logo - Monburan</PageTitle>
+<PageTitle>Logo da empresa - Monburan</PageTitle>
 
-<div class="container mt-4 page-form-shell upload-page">
-    <header class="page-heading">
-        <div class="page-heading__copy">
-            <span class="page-kicker">IDENTIDADE DA EMPRESA</span>
-            <h1>Atualizar logo da empresa</h1>
-            <p>Escolha uma imagem nítida que represente sua organização.</p>
-        </div>
-        <button class="btn btn-secondary" @onclick="Cancel">Voltar</button>
-    </header>
+<div class="container page-form-shell upload-page">
+    <PageHeader Title="Atualizar logo da empresa"
+                Description="Escolha uma imagem nítida que represente sua organização."
+                BackHref="/profile/advertiser"
+                BackText="Perfil da empresa" />
     <div class="row">
         <div class="col-lg-6 mx-auto">
 
             @if (!string.IsNullOrEmpty(errorMessage))
             {
-                <div class="alert alert-danger">
-                    <i class="bi bi-exclamation-triangle"></i> @errorMessage
-                </div>
+                <div class="alert alert-danger" role="alert">@errorMessage</div>
             }
 
-            @if (!string.IsNullOrEmpty(successMessage))
+            @* O aviso de sucesso vai no toast; aqui fica só a logo nova, para conferir *@
+            @if (!string.IsNullOrEmpty(successMessage) && !string.IsNullOrEmpty(logoUrl))
             {
-                <div class="alert alert-success">
-                    <i class="bi bi-check-circle"></i> @successMessage
-                    <br />
-                    @if (!string.IsNullOrEmpty(logoUrl))
-                    {
-                        <div class="mt-3">
-                            <strong>Preview:</strong>
-                            <div class="card mt-2">
-                                <div class="card-body text-center">
-                                    <img src="@logoUrl" alt="Logo da Empresa" class="img-thumbnail" style="max-width: 300px;" />
-                                </div>
-                            </div>
-                        </div>
-                    }
-                </div>
+                <figure class="mb-3 text-center" data-testid="upload-logo-current">
+                    <img src="@logoUrl" alt="Logo atual da empresa" class="img-thumbnail logo-preview logo-preview--lg" />
+                    <figcaption class="form-text">Logo atual da empresa</figcaption>
+                </figure>
             }
 
             <div class="card">
                 <div class="card-body">
                     <div class="mb-3">
                         <label class="form-label" for="logo-file">Selecione o arquivo de logo</label>
-                        <InputFile class="form-control" id="logo-file" OnChange="OnFileSelected" accept="image/jpeg,image/png,image/gif,image/webp" />
-                        <div class="form-text">
-                            Formatos aceitos: JPEG, PNG, GIF, WebP | Tamanho máximo: 5MB
+                        <InputFile class="form-control" id="logo-file" OnChange="OnFileSelected" accept="image/jpeg,image/png,image/gif,image/webp" aria-describedby="logo-file-help" />
+                        <div class="form-text" id="logo-file-help">
+                            Formatos aceitos: JPEG, PNG, GIF ou WebP, com até 5 MB.
                         </div>
                     </div>
 
                     @if (selectedFile != null)
                     {
-                        <div class="alert alert-info">
-                            <strong>Arquivo selecionado:</strong><br />
-                            Nome: @selectedFile.Name<br />
-                            Tamanho: @(selectedFile.Size / 1024) KB<br />
-                            Tipo: @selectedFile.ContentType
-                        </div>
+                        <dl class="apply-summary" aria-label="Arquivo selecionado">
+                            <dt>Arquivo</dt>
+                            <dd>@selectedFile.Name</dd>
+                            <dt>Tamanho</dt>
+                            <dd>@(selectedFile.Size / 1024) KB</dd>
+                        </dl>
                     }
 
                     @if (imagePreviewUrl != null)
                     {
                         <div class="mb-3 text-center">
-                            <strong>Preview:</strong>
-                            <div class="mt-2">
-                                <img src="@imagePreviewUrl" alt="Preview" class="img-thumbnail" style="max-width: 300px;" />
-                            </div>
+                            <img src="@imagePreviewUrl" alt="Prévia do novo logo" class="img-thumbnail logo-preview logo-preview--lg" />
                         </div>
                     }
 
                     <div class="d-grid gap-2">
-                        <button type="button" class="btn btn-success btn-lg" @onclick="UploadLogoAsync" disabled="@(!isFileSelected || isUploading)">
-                            @(isUploading ? "Enviando..." : "Enviar logo")
+                        <button type="button" class="btn btn-primary btn-lg" @onclick="UploadLogoAsync" disabled="@(!isFileSelected || isUploading)" aria-busy="@(isUploading ? "true" : null)">
+                            @if (isUploading)
+                            {
+                                <span class="spinner-border spinner-border-sm" aria-hidden="true"></span>
+                                <span>Enviando…</span>
+                            }
+                            else
+                            {
+                                <span>Enviar logo</span>
+                            }
                         </button>
                     </div>
                 </div>

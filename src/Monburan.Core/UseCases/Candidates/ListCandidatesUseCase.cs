@@ -17,13 +17,13 @@ public sealed class ListCandidatesUseCase : IUseCase<ListCandidatesRequest, List
         _candidateRepository = candidateRepository;
     }
 
-    public async Task<RequestResult<ListCandidatesResponse>> ExecuteAsync(ListCandidatesRequest request)
+    public async Task<RequestResult<ListCandidatesResponse>> ExecuteAsync(ListCandidatesRequest request, CancellationToken cancellationToken = default)
     {
         var page = request.Page < 1 ? 1 : request.Page;
         var size = request.Size is < 1 or > 100 ? 20 : request.Size;
         EAccountStatus? status = Enum.TryParse<EAccountStatus>(request.Status, true, out var parsed) ? parsed : null;
 
-        var result = await _candidateRepository.SearchAsync(request.SearchTerm, status, page, size);
+        var result = await _candidateRepository.SearchAsync(request.SearchTerm, status, page, size, cancellationToken: cancellationToken);
         if (result.Status != EResultStatus.Success || result.Data is null)
             return RequestResult<ListCandidatesResponse>.FromResult(result);
 

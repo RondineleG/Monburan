@@ -27,6 +27,12 @@ internal static class ApiProblemDetails
         if (string.IsNullOrWhiteSpace(problem.Title) || FrameworkTitles.Contains(problem.Title))
             problem.Title = TitleFor(status);
 
+        // A extensão "exception" carrega a stack trace (e cabeçalhos, rota e route values) da
+        // exceção. Ela nunca sai para o cliente, em nenhum status: um 400 ou 404 com exceção
+        // anexada também vaza detalhe interno (e o corpo cresce de ~170 bytes para ~2 KB).
+        if (context.Exception is not null)
+            problem.Extensions.Remove("exception");
+
         if (status >= StatusCodes.Status500InternalServerError)
         {
             // Mensagem de exceção nunca vai para o cliente (pode conter SQL, paths, segredos)

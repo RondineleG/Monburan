@@ -11,11 +11,19 @@
 
 <PageTitle>Confirmar e-mail - Monburan</PageTitle>
 
-<h1>Confirmação de e-mail</h1>
-<StatusMessage Message="@statusMessage" />
+<section class="auth-message-page">
+    <h1>Confirmação de e-mail</h1>
+    <StatusMessage Message="@statusMessage" IsError="@isError" />
+    @* Sem estas ações a página era um beco sem saída depois de clicar no link do e-mail *@
+    <div class="form-actions">
+        <a class="btn btn-primary" href="Account/Login">Entrar</a>
+        <a class="btn btn-outline-secondary" href="./">Ir para o início</a>
+    </div>
+</section>
 
 @code {
     private string? statusMessage;
+    private bool isError;
 
     [CascadingParameter]
     private HttpContext HttpContext { get; set; } = default!;
@@ -36,8 +44,9 @@
         var user = await UserManager.FindByIdAsync(UserId);
         if (user is null)
         {
-            HttpContext.Response.StatusCode = StatusCodes.Status404NotFound;
+            // Sem StatusCode 404: a reexecução de páginas de status quebrava a resposta (erro 500)
             statusMessage = "Erro: não foi possível localizar a conta associada a este link.";
+            isError = true;
         }
         else
         {
@@ -49,6 +58,7 @@
                 await AccountProfiles.MarkEmailVerifiedAsync(user.Email);
             }
 
+            isError = !result.Succeeded;
             statusMessage = result.Succeeded ? "E-mail confirmado com sucesso." : "Erro: não foi possível confirmar o e-mail.";
         }
     }

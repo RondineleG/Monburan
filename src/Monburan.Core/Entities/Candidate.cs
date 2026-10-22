@@ -1,13 +1,16 @@
 ﻿using Monburan.Core.Entities.Base;
 using Monburan.Core.Enums;
+using Monburan.Core.Interfaces;
 using Monburan.Core.ValueObjects;
 
 using System.ComponentModel.DataAnnotations;
 
 namespace Monburan.Core.Entities;
 
-public class Candidate : BaseEntity
+public class Candidate : BaseEntity, IHasActivePlan
 {
+    public string? ActivePlan { get; set; }
+
     public Address? Address { get; set; }
 
     public Id? AddressId { get; set; }

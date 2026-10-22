@@ -1,0 +1,23 @@
+/* Identidade da marca no app: a cor da marca (token --brand-metal, igual ao da web) e a tela de
+   abertura mostrada enquanto o Blazor inicia dentro do WebView. */
+.brand-mark__icon { width: 1.75rem; height: 1.75rem; color: inherit; }
+.brand-mark__metal { fill: var(--brand-metal); }
+
+.app-splash {
+    position: fixed;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    align-content: center;
+    gap: 1rem;
+    background: radial-gradient(ellipse at 50% 30%, rgb(201 168 76 / 16%), transparent 60%), #0A0806;
+    color: #F0E6D0;
+    text-align: center;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+html[data-theme="light"] .app-splash { background: radial-gradient(ellipse at 50% 30%, rgb(138 85 0 / 12%), transparent 60%), #F2EBD9; color: #2A1A08; }
+.app-splash__mark { width: 7rem; height: 7rem; }
+.app-splash__mark .brand-mark__bell { transform-box: fill-box; transform-origin: 50% 0; animation: app-splash-swing 1.4s cubic-bezier(.76, 0, .24, 1) infinite; }
+.app-splash__name { margin: 0; font-family: "Cinzel", Georgia, serif; font-size: 1.75rem; font-weight: 600; letter-spacing: .2em; text-transform: uppercase; }
+@keyframes app-splash-swing { 0%, 100% { transform: rotate(0); } 25% { transform: rotate(-9deg); } 75% { transform: rotate(9deg); } }
+@media (prefers-reduced-motion: reduce) { .app-splash__mark .brand-mark__bell { animation: none; } }

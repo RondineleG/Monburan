@@ -7,9 +7,9 @@ namespace Monburan.Core.Interfaces.Repositories;
 public interface ICareerProfileRepository
 {
     /// <summary>Sucesso com <c>null</c> quando o candidato ainda não tem perfil.</summary>
-    Task<RequestResult<CareerProfile?>> GetByCandidateIdAsync(Guid candidateId);
+    Task<RequestResult<CareerProfile?>> GetByCandidateIdAsync(Guid candidateId, CancellationToken cancellationToken = default);
 
-    Task<RequestResult<CareerProfile>> CreateAsync(CareerProfile entity);
+    Task<RequestResult<CareerProfile>> CreateAsync(CareerProfile entity, CancellationToken cancellationToken = default);
 
-    Task<RequestResult<CareerProfile>> UpdateAsync(CareerProfile entity);
+    Task<RequestResult<CareerProfile>> UpdateAsync(CareerProfile entity, CancellationToken cancellationToken = default);
 }

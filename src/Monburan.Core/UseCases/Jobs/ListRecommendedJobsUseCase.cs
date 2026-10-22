@@ -2,6 +2,7 @@ using Monburan.Core.DTOs.Response;
 using Monburan.Core.Enums;
 using Monburan.Core.Interfaces.Repositories;
 using Monburan.Core.Interfaces.UseCases;
+using Monburan.Core.Mappers;
 using Monburan.Core.Requests;
 using Monburan.Core.Services;
 
@@ -32,13 +33,13 @@ public class ListRecommendedJobsUseCase : IUseCase<Guid, ListJobsResponse>
         _applications = applications;
     }
 
-    public async Task<RequestResult<ListJobsResponse>> ExecuteAsync(Guid request)
+    public async Task<RequestResult<ListJobsResponse>> ExecuteAsync(Guid request, CancellationToken cancellationToken = default)
     {
-        var profileResult = await _careerProfiles.GetByCandidateIdAsync(request);
+        var profileResult = await _careerProfiles.GetByCandidateIdAsync(request, cancellationToken);
         if (profileResult.Status != EResultStatus.Success)
             return RequestResult<ListJobsResponse>.FromResult(profileResult);
 
-        var resumeResult = await _resumes.GetActiveWithSkillsAsync(request);
+        var resumeResult = await _resumes.GetActiveWithSkillsAsync(request, cancellationToken);
         if (resumeResult.Status != EResultStatus.Success)
             return RequestResult<ListJobsResponse>.FromResult(resumeResult);
 
@@ -51,11 +52,11 @@ public class ListRecommendedJobsUseCase : IUseCase<Guid, ListJobsResponse>
         if (profile is null && skills.Count == 0)
             return RequestResult<ListJobsResponse>.Success(EmptyResponse());
 
-        var jobsResult = await _jobRepository.ListActiveForRecommendationsAsync();
+        var jobsResult = await _jobRepository.ListActiveForRecommendationsAsync(cancellationToken);
         if (jobsResult.Status != EResultStatus.Success || jobsResult.Data is null)
             return RequestResult<ListJobsResponse>.FromResult(jobsResult);
 
-        var applicationsResult = await _applications.ListByCandidateAsync(request);
+        var applicationsResult = await _applications.ListByCandidateAsync(request, cancellationToken: cancellationToken);
         if (applicationsResult.Status != EResultStatus.Success || applicationsResult.Data is null)
             return RequestResult<ListJobsResponse>.FromResult(applicationsResult);
 

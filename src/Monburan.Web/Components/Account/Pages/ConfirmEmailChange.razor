@@ -12,11 +12,19 @@
 
 <PageTitle>Confirmar alteração de e-mail - Monburan</PageTitle>
 
-<h1>Confirmar alteração de e-mail</h1>
-
-<StatusMessage Message="@message" />
+<section class="auth-message-page">
+    <h1>Confirmar alteração de e-mail</h1>
+    @* Só existe um desfecho de sucesso; qualquer outra mensagem desta página é erro *@
+    <StatusMessage Message="@message" IsError="@(message != SuccessMessage)" />
+    <div class="form-actions">
+        <a class="btn btn-primary" href="Account/Login">Entrar</a>
+        <a class="btn btn-outline-secondary" href="./">Ir para o início</a>
+    </div>
+</section>
 
 @code {
+    private const string SuccessMessage = "E-mail atualizado com sucesso.";
+
     private string? message;
 
     [CascadingParameter]
@@ -76,6 +84,6 @@
             await AccountProfiles.ChangeEmailAsync(previousEmail, Email);
 
         await SignInManager.RefreshSignInAsync(user);
-        message = "E-mail atualizado com sucesso.";
+        message = SuccessMessage;
     }
 }

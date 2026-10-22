@@ -1,12 +1,13 @@
 ﻿using Monburan.Core.Entities.Base;
 using Monburan.Core.Enums;
+using Monburan.Core.Interfaces;
 using Monburan.Core.ValueObjects;
 
 using System.ComponentModel.DataAnnotations;
 
 namespace Monburan.Core.Entities;
 
-public class Advertiser : BaseEntity
+public class Advertiser : BaseEntity, IHasActivePlan
 {
     public string? ActivePlan { get; set; }
 

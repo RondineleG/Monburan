@@ -23,7 +23,7 @@ public static class CandidateEndpoints
             if (candidateId is null)
                 return Results.Problem(statusCode: StatusCodes.Status403Forbidden, title: "Perfil de candidato necessário");
 
-            var result = await useCase.ExecuteAsync(candidateId.Value);
+            var result = await useCase.ExecuteAsync(candidateId.Value, cancellationToken);
             return result.ToHttpResult();
         })
         .WithSummary("Perfil do candidato autenticado");
@@ -39,7 +39,7 @@ public static class CandidateEndpoints
                 return Results.Problem(statusCode: StatusCodes.Status403Forbidden, title: "Perfil de candidato necessário");
 
             request.Id = candidateId.Value;
-            var result = await useCase.ExecuteAsync(request);
+            var result = await useCase.ExecuteAsync(request, cancellationToken);
             return result.ToHttpResult();
         })
         .WithSummary("Atualiza o perfil do candidato autenticado");
@@ -53,7 +53,7 @@ public static class CandidateEndpoints
             if (candidateId is null)
                 return Results.Problem(statusCode: StatusCodes.Status403Forbidden, title: "Perfil de candidato necessário");
 
-            var result = await useCase.ExecuteAsync(candidateId.Value);
+            var result = await useCase.ExecuteAsync(candidateId.Value, cancellationToken);
             return result.ToHttpResult();
         })
         .WithSummary("Perfil de carreira do candidato (200 com campos nulos quando ainda não existe)");
@@ -68,7 +68,7 @@ public static class CandidateEndpoints
             if (candidateId is null)
                 return Results.Problem(statusCode: StatusCodes.Status403Forbidden, title: "Perfil de candidato necessário");
 
-            var result = await useCase.ExecuteAsync(new UpsertCareerProfileCommand(candidateId.Value, request));
+            var result = await useCase.ExecuteAsync(new UpsertCareerProfileCommand(candidateId.Value, request), cancellationToken);
             return result.ToHttpResult();
         })
         .WithSummary("Cria ou atualiza o perfil de carreira do candidato autenticado");
@@ -82,7 +82,7 @@ public static class CandidateEndpoints
             if (candidateId is null)
                 return Results.Problem(statusCode: StatusCodes.Status403Forbidden, title: "Perfil de candidato necessário");
 
-            var result = await useCase.ExecuteAsync(candidateId.Value);
+            var result = await useCase.ExecuteAsync(candidateId.Value, cancellationToken);
             return result.ToHttpResult();
         })
         .WithSummary("Progresso do candidato: completude, candidaturas por situação, vagas salvas e alertas ativos");
@@ -104,7 +104,7 @@ public static class CandidateEndpoints
             if (advertiserId is null)
                 return Results.Problem(statusCode: StatusCodes.Status403Forbidden, title: "Perfil de anunciante necessário");
 
-            var result = await useCase.ExecuteAsync(advertiserId.Value);
+            var result = await useCase.ExecuteAsync(advertiserId.Value, cancellationToken);
             return result.ToHttpResult();
         })
         .WithSummary("Perfil do anunciante autenticado");
@@ -120,7 +120,7 @@ public static class CandidateEndpoints
                 return Results.Problem(statusCode: StatusCodes.Status403Forbidden, title: "Perfil de anunciante necessário");
 
             request.Id = advertiserId.Value;
-            var result = await useCase.ExecuteAsync(request);
+            var result = await useCase.ExecuteAsync(request, cancellationToken);
             return result.ToHttpResult();
         })
         .WithSummary("Atualiza o perfil do anunciante autenticado");
@@ -152,14 +152,14 @@ public static class CandidateEndpoints
                 FileName = file.FileName,
                 ContentType = file.ContentType,
                 FileType = EFileType.Image
-            });
+            }, cancellationToken);
 
             if (upload.Status != EResultStatus.Success || upload.Data is null)
                 return upload.ToHttpResult();
 
             // Só a logo muda — o upload não depende do restante do perfil estar completo
             var updateResult = await updateLogo.ExecuteAsync(
-                new UpdateAdvertiserLogoRequest(advertiserId.Value, upload.Data.FileUrl));
+                new UpdateAdvertiserLogoRequest(advertiserId.Value, upload.Data.FileUrl), cancellationToken);
 
             return updateResult.ToHttpResult();
         })

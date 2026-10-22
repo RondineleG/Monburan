@@ -4,6 +4,7 @@ using Monburan.Core.Entities;
 using Monburan.Core.Enums;
 using Monburan.Core.Interfaces.Repositories;
 using Monburan.Core.Interfaces.UseCases;
+using Monburan.Core.Mappers;
 using Monburan.Core.Requests;
 
 namespace Monburan.Core.UseCases.Jobs;
@@ -19,9 +20,9 @@ public class ListJobsUseCase : IUseCase<ListJobsRequest, ListJobsResponse>
         _savedJobs = savedJobs;
     }
 
-    public async Task<RequestResult<ListJobsResponse>> ExecuteAsync(ListJobsRequest request)
+    public async Task<RequestResult<ListJobsResponse>> ExecuteAsync(ListJobsRequest request, CancellationToken cancellationToken = default)
     {
-        var pagedResult = await _jobRepository.GetAllPagedAsync(request.Page, request.Size);
+        var pagedResult = await _jobRepository.GetAllPagedAsync(request.Page, request.Size, cancellationToken);
 
         var pageJobs = pagedResult.Data.ToList();
         var savedIds = await GetSavedJobIdsAsync(request.CandidateId, pageJobs);
@@ -41,7 +42,7 @@ public class ListJobsUseCase : IUseCase<ListJobsRequest, ListJobsResponse>
     }
 
     // Uma consulta em lote por página; falha na marcação não derruba a listagem (as vagas só perdem o coração preenchido)
-    private async Task<IReadOnlyCollection<Guid>> GetSavedJobIdsAsync(Guid? candidateId, IEnumerable<Job> jobs)
+    private async Task<IReadOnlyCollection<Guid>> GetSavedJobIdsAsync(Guid? candidateId, IEnumerable<Job> jobs, CancellationToken cancellationToken = default)
     {
         if (!candidateId.HasValue)
             return [];
@@ -50,7 +51,7 @@ public class ListJobsUseCase : IUseCase<ListJobsRequest, ListJobsResponse>
         if (jobIds.Count == 0)
             return [];
 
-        var saved = await _savedJobs.ListSavedJobIdsAsync(candidateId.Value, jobIds);
+        var saved = await _savedJobs.ListSavedJobIdsAsync(candidateId.Value, jobIds, cancellationToken);
         return saved.Status == EResultStatus.Success && saved.Data is not null ? saved.Data : [];
     }
 }

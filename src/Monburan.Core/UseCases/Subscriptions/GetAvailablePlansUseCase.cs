@@ -22,15 +22,15 @@ public sealed class GetAvailablePlansUseCase : IUseCase<Guid, AvailablePlansResp
         _subscriptionRepository = subscriptionRepository;
     }
 
-    public async Task<RequestResult<AvailablePlansResponse>> ExecuteAsync(Guid advertiserId)
+    public async Task<RequestResult<AvailablePlansResponse>> ExecuteAsync(Guid advertiserId, CancellationToken cancellationToken = default)
     {
         // Listar todos os planos ativos
-        var plansResult = await _planRepository.GetAllAsync(1, 100);
+        var plansResult = await _planRepository.GetAllAsync(1, 100, cancellationToken);
         if (plansResult.Status != EResultStatus.Success)
             return RequestResult<AvailablePlansResponse>.FromResult(plansResult);
 
         var plans = plansResult.Data!
-            .Where(p => p.IsActive)
+            .Where(p => p.IsActive && p.Audience == EPlanAudience.Advertiser)
             .Select(MapToPlanResponse)
             .ToList();
 
@@ -38,7 +38,7 @@ public sealed class GetAvailablePlansUseCase : IUseCase<Guid, AvailablePlansResp
         SubscriptionResponse? currentSubscription = null;
         var subscriptionResult = advertiserId == Guid.Empty
             ? null
-            : await _subscriptionRepository.GetActiveByAdvertiserIdAsync(Id.Create(advertiserId));
+            : await _subscriptionRepository.GetActiveByAdvertiserIdAsync(Id.Create(advertiserId), cancellationToken);
         if (subscriptionResult is { Status: not EResultStatus.Success })
             return RequestResult<AvailablePlansResponse>.FromResult(subscriptionResult);
 
@@ -74,6 +74,9 @@ public sealed class GetAvailablePlansUseCase : IUseCase<Guid, AvailablePlansResp
         HasBoost = p.HasBoost,
         HasHighlight = p.HasHighlight,
         HasAnalytics = p.HasAnalytics,
-        MaxResumes = p.MaxResumes
+        MaxResumes = p.MaxResumes,
+        Audience = p.Audience.ToString(),
+        Period = p.Period.ToString(),
+        HasAiAssistant = p.HasAiAssistant
     };
 }

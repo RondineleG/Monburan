@@ -42,7 +42,9 @@ public class SecurityHeadersMiddlewareTests
 
         Directive(policy, "style-src-attr").Should().Be("style-src-attr 'unsafe-inline'");
         Directive(policy, "style-src-elem").Should().NotContain("unsafe-inline");
-        Directive(policy, "style-src-elem").Should().Contain("https://fonts.googleapis.com");
+        // A fonte da marca é servida pelo próprio site: nenhuma origem externa de estilo ou fonte
+        Directive(policy, "style-src-elem").Should().Be("style-src-elem 'self'");
+        Directive(policy, "font-src").Should().Be("font-src 'self'");
     }
 
     [Fact]

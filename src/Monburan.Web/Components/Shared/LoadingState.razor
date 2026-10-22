@@ -1,11 +1,12 @@
+@* Carregamento da marca: o sino balança enquanto os dados chegam (parado com movimento reduzido) *@
 <div class="loading-state @(Compact ? "loading-state--compact" : string.Empty)" role="status" aria-live="polite" data-testid="loading-state">
-    <span class="spinner-border" aria-hidden="true"></span>
+    <BrandMark Class="loading-state__mark" Size="@(Compact ? 32 : 48)" />
     <span>@Message</span>
 </div>
 
 @code {
     [Parameter]
-    public string Message { get; set; } = "Carregando...";
+    public string Message { get; set; } = "Carregando…";
 
     [Parameter]
     public bool Compact { get; set; }

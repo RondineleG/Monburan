@@ -9,5 +9,5 @@ namespace Monburan.Core.Interfaces.Repositories;
 public interface ICandidateRepository : IBaseRepository<Candidate>
 {
     /// <summary>Busca paginada com filtros aplicados no banco (TotalCount é o total filtrado).</summary>
-    Task<RequestResult<PagedResponse<Candidate>>> SearchAsync(string? searchTerm, EAccountStatus? status, int page, int size);
+    Task<RequestResult<PagedResponse<Candidate>>> SearchAsync(string? searchTerm, EAccountStatus? status, int page, int size, CancellationToken cancellationToken = default);
 }

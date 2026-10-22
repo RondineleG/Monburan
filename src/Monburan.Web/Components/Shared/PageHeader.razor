@@ -1,0 +1,51 @@
+@* Cabeçalho de página (DESIGN.md, "Cabeçalho de página"): um h1 por tela, que recebe o foco ao navegar;
+   descrição opcional; "Voltar" opcional (um nível acima); até uma ação primária e duas secundárias em Actions.
+   A trilha da barra superior já diz a área: aqui não há rótulo acima do título. *@
+<header class="page-heading" data-testid="@TestId">
+    <div class="page-heading__copy">
+        @if (!string.IsNullOrEmpty(BackHref))
+        {
+            @* Navegação completa: a aprimorada (Blazor) não passa pelo NavigationLock das telas com formulário, e o aviso de alterações não salvas some *@
+            <a class="page-heading__back" href="@BackHref" data-enhance-nav="false" data-testid="page-back"><Icon Name="arrow-left" Size="16" />@BackText</a>
+        }
+        <h1 id="@HeadingId" tabindex="-1">@Title</h1>
+        @if (!string.IsNullOrWhiteSpace(Description))
+        {
+            <p>@Description</p>
+        }
+        @ChildContent
+    </div>
+    @if (Actions is not null)
+    {
+        <div class="page-heading__actions">@Actions</div>
+    }
+</header>
+
+@code {
+    [Parameter, EditorRequired]
+    public string Title { get; set; } = string.Empty;
+
+    [Parameter]
+    public string? Description { get; set; }
+
+    /// <summary>Destino do "Voltar" (o nível acima na trilha). Sem valor, o link não aparece.</summary>
+    [Parameter]
+    public string? BackHref { get; set; }
+
+    [Parameter]
+    public string BackText { get; set; } = "Voltar";
+
+    /// <summary>Ações do cabeçalho: no máximo uma .btn-primary e duas secundárias.</summary>
+    [Parameter]
+    public RenderFragment? Actions { get; set; }
+
+    /// <summary>Conteúdo extra abaixo do título (ex.: selo de situação).</summary>
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    [Parameter]
+    public string? HeadingId { get; set; }
+
+    [Parameter]
+    public string? TestId { get; set; }
+}

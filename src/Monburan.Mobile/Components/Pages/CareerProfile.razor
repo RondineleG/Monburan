@@ -1,0 +1,192 @@
+@page "/career-profile"
+@inherits ProtectedPage
+@inject MonburanApiClient Api
+@inject IToastService Toast
+
+<h1 class="page-title" tabindex="-1">Perfil de carreira</h1>
+<p class="page-subtitle">Usamos estas informações para recomendar vagas.</p>
+
+@if (_loading)
+{
+    <LoadingState Message="Carregando seu perfil de carreira…" />
+}
+else if (_loadError is not null)
+{
+    <ErrorState Message="@_loadError.Message" IsOffline="@_loadError.IsNetworkError" OnRetry="LoadAsync" />
+}
+else
+{
+    @if (_error is not null)
+    {
+        <div class="alert alert-danger" role="alert">@_error</div>
+    }
+
+    <form class="card" @onsubmit="SaveAsync" novalidate>
+        <div class="form-field">
+            <label for="career-role">Cargo desejado</label>
+            <input id="career-role" class="input" @bind="_desiredRole" maxlength="150" placeholder="Ex.: Atendente, Vendedor(a), Desenvolvedor(a)" />
+        </div>
+        <div class="form-grid">
+            <div class="form-field">
+                <label for="career-city">Cidade</label>
+                <input id="career-city" class="input" @bind="_city" maxlength="100" autocomplete="address-level2" />
+            </div>
+            <div class="form-field">
+                <label for="career-state">UF</label>
+                <select id="career-state" class="input" @bind="_state">
+                    <option value="">Selecione</option>
+                    @foreach (var uf in FormOptions.States)
+                    {
+                        <option value="@uf">@uf</option>
+                    }
+                </select>
+            </div>
+        </div>
+        <div class="form-field">
+            <label for="career-mode">Modalidade</label>
+            <select id="career-mode" class="input" @bind="_mode">
+                <option value="">Qualquer modalidade</option>
+                @foreach (var (value, label) in FormOptions.Modes)
+                {
+                    <option value="@value">@label</option>
+                }
+            </select>
+        </div>
+        <div class="form-field">
+            <label for="career-contract">Tipo de contrato</label>
+            <select id="career-contract" class="input" @bind="_contractType">
+                <option value="">Qualquer contrato</option>
+                @foreach (var contract in Enum.GetValues<EContractType>())
+                {
+                    <option value="@contract">@Formatters.ContractType(contract.ToString())</option>
+                }
+            </select>
+        </div>
+        <div class="form-field">
+            <label for="career-category">Categoria</label>
+            <select id="career-category" class="input" @bind="_category">
+                <option value="">Qualquer categoria</option>
+                @foreach (var category in Categories)
+                {
+                    <option value="@category">@category</option>
+                }
+            </select>
+        </div>
+        <div class="form-field">
+            <label for="career-salary">Salário mínimo (R$)</label>
+            <input id="career-salary" class="input" type="number" inputmode="decimal" min="0" step="100" @bind="_minimumSalary"
+                   aria-invalid="@(_salaryError is not null ? "true" : null)" aria-describedby="@(_salaryError is not null ? "career-salary-error" : null)" />
+            @if (_salaryError is not null)
+            {
+                <div id="career-salary-error" class="field-error">@_salaryError</div>
+            }
+        </div>
+        @if (_updatedAt.HasValue)
+        {
+            <p class="form-text">Atualizado em @Formatters.MomentDate(_updatedAt.Value)</p>
+        }
+        <button type="submit" class="btn btn-primary btn-block" disabled="@_busy" aria-busy="@(_busy ? "true" : null)">
+            @(_busy ? "Salvando…" : "Salvar perfil de carreira")
+        </button>
+    </form>
+}
+
+@code {
+    private string? _desiredRole;
+    private string? _city;
+    private string _state = "";
+    private string _mode = "";
+    private string _contractType = "";
+    private string _category = "";
+    private decimal? _minimumSalary;
+    private DateTime? _updatedAt;
+    private string? _error;
+    private string? _salaryError;
+    private bool _loading = true;
+    private bool _busy;
+    private ApiException? _loadError;
+
+    // Valor salvo fora do catálogo (texto livre antigo) continua aparecendo como opção
+    private IEnumerable<string> Categories =>
+        string.IsNullOrEmpty(_category) || Monburan.Core.Catalogs.JobCategories.All.Contains(_category)
+            ? Monburan.Core.Catalogs.JobCategories.All
+            : Monburan.Core.Catalogs.JobCategories.All.Append(_category);
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (await EnsureAuthenticatedAsync())
+            await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        _loadError = null;
+        try
+        {
+            Apply(await Api.GetCareerProfileAsync());
+        }
+        catch (ApiException ex)
+        {
+            _loadError = ex;
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private void Apply(CareerProfileResponse profile)
+    {
+        _desiredRole = profile.DesiredRole;
+        _city = profile.City;
+        _state = profile.State ?? "";
+        _mode = profile.Mode ?? "";
+        _contractType = profile.ContractType?.ToString() ?? "";
+        _category = profile.Category ?? "";
+        _minimumSalary = profile.MinimumSalary;
+        _updatedAt = profile.UpdatedAt;
+    }
+
+    private async Task SaveAsync()
+    {
+        if (_busy)
+            return;
+
+        _error = null;
+        _salaryError = null;
+        if (_minimumSalary is < 0)
+        {
+            _salaryError = "Informe um valor maior ou igual a zero.";
+            return;
+        }
+
+        _busy = true;
+        try
+        {
+            var saved = await Api.UpdateCareerProfileAsync(new CareerProfileRequest
+            {
+                DesiredRole = Clean(_desiredRole),
+                City = Clean(_city),
+                State = Clean(_state),
+                Mode = Clean(_mode),
+                Category = Clean(_category),
+                MinimumSalary = _minimumSalary,
+                ContractType = Enum.TryParse<EContractType>(_contractType, out var contract) ? contract : null
+            });
+            Apply(saved);
+            Toast.ShowSuccess("Suas recomendações já consideram as novas informações.", "Perfil de carreira salvo");
+        }
+        catch (ApiException ex)
+        {
+            _salaryError = ex.FieldError("minimumSalary");
+            _error = ex.Message;
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private static string? Clean(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+}

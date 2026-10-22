@@ -1,4 +1,4 @@
-using Monburan.Core.DTOs.Request;
+﻿using Monburan.Core.DTOs.Request;
 using Monburan.Core.DTOs.Response;
 using Monburan.Core.Entities;
 using Monburan.Core.Enums;
@@ -23,7 +23,7 @@ public class CreateResumeUseCase : IUseCase<CreateResumeRequest, ResumeResponse>
         _validator = validator;
     }
 
-    public async Task<RequestResult<ResumeResponse>> ExecuteAsync(CreateResumeRequest request)
+    public async Task<RequestResult<ResumeResponse>> ExecuteAsync(CreateResumeRequest request, CancellationToken cancellationToken = default)
     {
         var resume = new Resume
         {
@@ -32,6 +32,8 @@ public class CreateResumeUseCase : IUseCase<CreateResumeRequest, ResumeResponse>
             Title = request.Title,
             Summary = request.Summary,
             IsActive = request.IsActive,
+            SourceFileName = request.SourceFileName,
+            SourceFileUrl = request.SourceFileUrl,
             TenantId = "default",
             EducationHistory = MapEducationHistory(request.EducationHistory),
             ExperienceHistory = MapExperienceHistory(request.ExperienceHistory),
@@ -43,7 +45,7 @@ public class CreateResumeUseCase : IUseCase<CreateResumeRequest, ResumeResponse>
         if (!validationResult.IsValid)
             return RequestResult<ResumeResponse>.WithValidationError(validationResult.Errors.First().Message);
 
-        var result = await _resumeRepository.CreateAsync(resume);
+        var result = await _resumeRepository.CreateAsync(resume, cancellationToken);
         if (result.Status != EResultStatus.Success)
             return RequestResult<ResumeResponse>.FromResult(result);
 
@@ -110,6 +112,8 @@ public class CreateResumeUseCase : IUseCase<CreateResumeRequest, ResumeResponse>
         Title = r.Title,
         Summary = r.Summary,
         IsActive = r.IsActive,
+        SourceFileName = r.SourceFileName,
+        SourceFileUrl = r.SourceFileUrl,
         CreatedAt = r.CreatedAt,
         UpdatedAt = r.UpdatedAt,
         EducationHistory = r.EducationHistory?.Select(e => new EducationResponse

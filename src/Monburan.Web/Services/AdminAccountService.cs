@@ -1,8 +1,11 @@
 using Monburan.Core.Entities;
 using Monburan.Core.Enums;
+using Monburan.Core.Interfaces;
+using Monburan.Core.Interfaces.Repositories;
 using Monburan.Core.Interfaces.Services;
 using Monburan.Core.Requests;
 using Monburan.Core.Services;
+using Monburan.Core.ValueObjects;
 
 namespace Monburan.Web.Services;
 
@@ -13,6 +16,7 @@ public sealed record AdminAccountRow(
     string Email,
     string Name,
     string? ProfileType,
+    string? PlanName,
     bool IsAdmin,
     bool IsConfiguredAdmin,
     bool IsActive,
@@ -27,6 +31,9 @@ public sealed record AdminAccountRow(
     string? DeactivationReason);
 
 public sealed record AdminAccountCounts(int Total, int Active, int Inactive, int Locked);
+
+/// <summary>Plano oferecido no dropdown da tela de contas (filtrado pela audiência do perfil).</summary>
+public sealed record AdminPlanOption(Guid Id, string Name, decimal Price, ESubscriptionPeriod Period);
 
 public sealed record AdminAccountPage(IReadOnlyList<AdminAccountRow> Items, int TotalCount, int Page, int Size, AdminAccountCounts Counts)
 {
@@ -54,6 +61,7 @@ public sealed class AdminAccountService
     private readonly IAdminAuditLog _audit;
     private readonly ActiveAccountChecker _activeAccounts;
     private readonly AccountProfileService _profiles;
+    private readonly ISubscriptionRepository _subscriptions;
     private readonly IConfiguration _configuration;
     private readonly TimeProvider _time;
 
@@ -64,6 +72,7 @@ public sealed class AdminAccountService
         IAdminAuditLog audit,
         ActiveAccountChecker activeAccounts,
         AccountProfileService profiles,
+        ISubscriptionRepository subscriptions,
         IConfiguration configuration,
         TimeProvider time)
     {
@@ -73,6 +82,7 @@ public sealed class AdminAccountService
         _audit = audit;
         _activeAccounts = activeAccounts;
         _profiles = profiles;
+        _subscriptions = subscriptions;
         _configuration = configuration;
         _time = time;
     }
@@ -160,11 +170,11 @@ public sealed class AdminAccountService
 
         var candidateNames = await context.Candidates.AsNoTracking()
             .Where(candidate => !candidate.IsDeleted && emails.Contains(candidate.Email.ToLower()))
-            .Select(candidate => new { Email = candidate.Email.ToLower(), candidate.Name })
+            .Select(candidate => new { Email = candidate.Email.ToLower(), candidate.Name, candidate.ActivePlan })
             .ToListAsync(cancellationToken);
         var advertiserNames = await context.Advertisers.AsNoTracking()
             .Where(advertiser => !advertiser.IsDeleted && emails.Contains(advertiser.Email.ToLower()))
-            .Select(advertiser => new { Email = advertiser.Email.ToLower(), advertiser.Name })
+            .Select(advertiser => new { Email = advertiser.Email.ToLower(), advertiser.Name, advertiser.ActivePlan })
             .ToListAsync(cancellationToken);
         var adminIds = await (
             from link in context.UserRoles
@@ -186,6 +196,7 @@ public sealed class AdminAccountService
                 email,
                 candidate?.Name ?? advertiser?.Name ?? (fullName.Length > 0 ? fullName : email),
                 candidate is not null ? "candidate" : advertiser is not null ? "advertiser" : null,
+                candidate?.ActivePlan ?? advertiser?.ActivePlan,
                 adminIds.Contains(user.Id) || configured,
                 configured,
                 user.IsActive,
@@ -372,6 +383,106 @@ public sealed class AdminAccountService
 
         await _users.UpdateSecurityStampAsync(user);
         await RecordAsync(AdminAuditActions.AccountAdminRevoked, actor, user);
+        return RequestResult.Success();
+    }
+
+    /// <summary>Planos ativos da audiência do perfil da conta — o que o dropdown da tela oferece.</summary>
+    public async Task<IReadOnlyList<AdminPlanOption>> ListPlansAsync(string? profileType, CancellationToken cancellationToken = default)
+    {
+        var audience = profileType == "candidate" ? EPlanAudience.Candidate : EPlanAudience.Advertiser;
+        await using var context = await _contexts.CreateDbContextAsync(cancellationToken);
+        return await context.SubscriptionPlans.AsNoTracking()
+            .Where(plan => plan.IsActive && plan.Audience == audience)
+            .OrderBy(plan => plan.Price)
+            .Select(plan => new AdminPlanOption(plan.Id.Value, plan.Name, plan.Price, plan.Period))
+            .ToListAsync(cancellationToken);
+    }
+
+    /// <summary>
+    /// Aplica um plano à conta pela administração, sem cobrança: cancela a assinatura ativa,
+    /// grava a nova com a vigência do período do plano e atualiza o plano do perfil — na mesma
+    /// transação. Aplicar o plano Free equivale a inativar o premium da conta.
+    /// </summary>
+    public async Task<RequestResult> SetPlanAsync(Guid userId, Guid planId, AdminActor actor, CancellationToken cancellationToken = default)
+    {
+        var user = await _users.FindByIdAsync(userId.ToString());
+        if (user is null)
+            return NotFound(userId);
+        if (string.IsNullOrWhiteSpace(user.Email))
+            return RequestResult.WithDomainError("Esta conta não tem e-mail para localizar o perfil.");
+
+        await using var context = await _contexts.CreateDbContextAsync(cancellationToken);
+        var key = user.Email.ToLowerInvariant();
+        var candidate = await context.Candidates.AsNoTracking()
+            .FirstOrDefaultAsync(item => !item.IsDeleted && item.Email.ToLower() == key, cancellationToken);
+        var advertiser = candidate is null
+            ? await context.Advertisers.AsNoTracking()
+                .FirstOrDefaultAsync(item => !item.IsDeleted && item.Email.ToLower() == key, cancellationToken)
+            : null;
+        if (candidate is null && advertiser is null)
+            return RequestResult.WithDomainError("A conta não tem perfil de candidato nem de empresa para receber um plano.");
+
+        var plan = await context.SubscriptionPlans.AsNoTracking()
+            .FirstOrDefaultAsync(item => item.Id == Id.Create(planId) && item.IsActive, cancellationToken);
+        if (plan is null)
+            return RequestResult.EntityNotFound("SubscriptionPlan", planId, "Plano não encontrado.");
+
+        IHasActivePlan owner;
+        RequestResult<Subscription?> activeResult;
+        if (candidate is not null)
+        {
+            if (plan.Audience != EPlanAudience.Candidate)
+                return RequestResult.WithDomainError("Este plano é de empresa e não vale para candidato.");
+            owner = candidate;
+            activeResult = await _subscriptions.GetActiveByCandidateIdAsync(candidate.Id, cancellationToken);
+        }
+        else
+        {
+            if (plan.Audience != EPlanAudience.Advertiser)
+                return RequestResult.WithDomainError("Este plano é de candidato e não vale para empresa.");
+            owner = advertiser!;
+            activeResult = await _subscriptions.GetActiveByAdvertiserIdAsync(advertiser!.Id, cancellationToken);
+        }
+        if (activeResult.Status != EResultStatus.Success)
+            return RequestResult.FromResult(activeResult);
+
+        var previous = activeResult.Data;
+        if (previous is not null && previous.PlanId == plan.Id)
+            return RequestResult.WithDomainError("A conta já está neste plano.");
+
+        var now = _time.GetUtcNow().UtcDateTime;
+        if (previous is not null)
+        {
+            previous.Status = ESubscriptionStatus.Cancelled;
+            previous.EndDate = now;
+            previous.CancellationReason = "Plano alterado pela administração";
+        }
+
+        var subscription = new Subscription
+        {
+            Id = Id.Create(Guid.NewGuid()),
+            AdvertiserId = advertiser?.Id,
+            CandidateId = candidate?.Id,
+            PlanId = plan.Id,
+            StartDate = now,
+            EndDate = plan.Period switch
+            {
+                ESubscriptionPeriod.Monthly => now.AddMonths(1),
+                ESubscriptionPeriod.Annual => now.AddYears(1),
+                _ => null
+            },
+            Status = ESubscriptionStatus.Active,
+            TenantId = "default"
+        };
+
+        var previousPlan = owner.ActivePlan;
+        owner.ActivePlan = plan.Name;
+        var change = await _subscriptions.ChangePlanAsync(previous, subscription, owner, cancellationToken);
+        if (change.Status != EResultStatus.Success)
+            return RequestResult.FromResult(change);
+
+        await RecordAsync(AdminAuditActions.AccountPlanChanged, actor, user,
+            $"{previousPlan ?? "nenhum"} → {plan.Name}");
         return RequestResult.Success();
     }
 

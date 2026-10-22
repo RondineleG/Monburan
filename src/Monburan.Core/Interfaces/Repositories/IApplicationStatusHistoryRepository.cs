@@ -6,8 +6,8 @@ namespace Monburan.Core.Interfaces.Repositories;
 /// <summary>Histórico de etapas da candidatura: uma linha por mudança de status.</summary>
 public interface IApplicationStatusHistoryRepository
 {
-    Task<RequestResult<ApplicationStatusHistory>> CreateAsync(ApplicationStatusHistory entity);
+    Task<RequestResult<ApplicationStatusHistory>> CreateAsync(ApplicationStatusHistory entity, CancellationToken cancellationToken = default);
 
     /// <summary>Linhas da candidatura, da mais antiga para a mais nova.</summary>
-    Task<RequestResult<IEnumerable<ApplicationStatusHistory>>> ListByApplicationAsync(Guid applicationId);
+    Task<RequestResult<IEnumerable<ApplicationStatusHistory>>> ListByApplicationAsync(Guid applicationId, CancellationToken cancellationToken = default);
 }

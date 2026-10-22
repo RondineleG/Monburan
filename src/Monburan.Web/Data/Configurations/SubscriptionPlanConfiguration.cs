@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 using Monburan.Core.Entities;
+using Monburan.Core.Enums;
 using Monburan.Core.ValueObjects;
 
 namespace Monburan.Web.Data.Configurations;
@@ -34,6 +35,19 @@ public class SubscriptionPlanConfiguration : IEntityTypeConfiguration<Subscripti
 
         builder.Property(p => p.MaxJobs)
             .HasDefaultValue(0);
+
+        builder.Property(p => p.Audience)
+            .HasConversion<string>()
+            .HasMaxLength(50)
+            .HasDefaultValue(EPlanAudience.Advertiser);
+
+        builder.Property(p => p.Period)
+            .HasConversion<string>()
+            .HasMaxLength(50)
+            .HasDefaultValue(ESubscriptionPeriod.Monthly);
+
+        builder.Property(p => p.HasAiAssistant)
+            .HasDefaultValue(false);
 
         builder.Property(p => p.IsActive)
             .HasDefaultValue(true);

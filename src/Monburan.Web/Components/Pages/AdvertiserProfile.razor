@@ -9,20 +9,14 @@
 @inject ILogger<AdvertiserProfile> Logger
 @inject IToastService Toast
 
-<PageTitle>Perfil da Empresa - Monburan</PageTitle>
+<PageTitle>Perfil da empresa - Monburan</PageTitle>
 
-<div class="container mt-4 profile-layout advertiser-profile-page">
-    <header class="page-heading">
-        <div class="page-heading__copy">
-            <span class="page-kicker">ÁREA DA EMPRESA</span>
-            <h1>Perfil da empresa</h1>
-            <p>Apresente sua organização para atrair profissionais alinhados à oportunidade.</p>
-        </div>
-    </header>
+<div class="container profile-layout advertiser-profile-page">
+    <PageHeader Title="Perfil da empresa" Description="Apresente sua organização para atrair profissionais alinhados à oportunidade." />
 
     @if (_isLoading)
     {
-        <LoadingState Message="Carregando o perfil da empresa..." />
+        <LoadingState Message="Carregando o perfil da empresa…" />
     }
     else if (_loadFailed)
     {
@@ -32,32 +26,32 @@
     }
     else if (_advertiser != null)
     {
-        <div class="row mt-4">
-            <div class="col-md-8">
-                <div class="card profile-form-card">
-                    <div class="card-header">
-                        <h5 class="mb-0">Dados da Empresa</h5>
-                    </div>
-                    <div class="card-body">
-                        <EditForm Model="_editModel" OnValidSubmit="HandleSaveAsync">
+        <div class="settings-layout">
+                <section class="settings-main" aria-labelledby="company-heading">
+                    <h2 id="company-heading">Dados da empresa</h2>
+                    <div>
+                        <EditForm Model="_editModel" OnValidSubmit="HandleSaveAsync" Context="form">
+                            <UnsavedChangesGuard HasChanges="() => form.IsModified() && !_isSaving" />
+                            <p class="form-required-note">Campos com * são obrigatórios.</p>
+                            <div class="form-grid">
                             <DataAnnotationsValidator />
                             <ServerValidationErrors @ref="_serverErrors" />
 
-                            <div class="mb-3">
-                                <label class="form-label" for="_editModel.Name">Nome da Empresa *</label>
-                                <InputText @bind-Value="_editModel.Name" class="form-control" id="_editModel.Name" data-testid="advertiser-profile-name" />
+                            <div class="mb-3 col-span-2">
+                                <label class="form-label" for="_editModel.Name">Nome da empresa *</label>
+                                <InputText @bind-Value="_editModel.Name" class="form-control" id="_editModel.Name" autocomplete="organization" data-testid="advertiser-profile-name" />
                                 <ValidationMessage For="@(() => _editModel.Name)" />
                             </div>
 
-                            <div class="mb-3">
-                                <label class="form-label" for="_editModel.Email">Email</label>
-                                <InputText @bind-Value="_editModel.Email" class="form-control" id="_editModel.Email" disabled />
-                                <small class="text-muted">Email não pode ser alterado</small>
+                            <div class="mb-3 col-span-2">
+                                <label class="form-label" for="_editModel.Email">E-mail</label>
+                                <InputText @bind-Value="_editModel.Email" type="email" class="form-control" id="_editModel.Email" disabled aria-describedby="advertiser-email-help" />
+                                <small class="form-text" id="advertiser-email-help">Para trocar o e-mail de acesso, use <a href="/Account/Manage/Email">Conta e segurança</a>.</small>
                             </div>
 
                             <div class="mb-3">
                                 <label class="form-label" for="_editModel.Phone">Telefone *</label>
-                                <InputText @bind-Value="_editModel.Phone" class="form-control" id="_editModel.Phone" />
+                                <InputText @bind-Value="_editModel.Phone" type="tel" class="form-control" id="_editModel.Phone" autocomplete="tel" placeholder="(00) 00000-0000" />
                                 <ValidationMessage For="@(() => _editModel.Phone)" />
                             </div>
 
@@ -68,113 +62,82 @@
                             </div>
 
                             <div class="mb-3">
-                                <label class="form-label" for="_editModel.PersonType">Tipo de Pessoa *</label>
+                                <label class="form-label" for="_editModel.PersonType">Tipo de pessoa *</label>
                                 <InputSelect @bind-Value="_editModel.PersonType" class="form-select" id="_editModel.PersonType">
-                                    <option value="@Monburan.Core.Enums.EPersonType.Individual">Pessoa Física</option>
-                                    <option value="@Monburan.Core.Enums.EPersonType.Company">Pessoa Jurídica</option>
+                                    <option value="@Monburan.Core.Enums.EPersonType.Individual">Pessoa física</option>
+                                    <option value="@Monburan.Core.Enums.EPersonType.Company">Pessoa jurídica</option>
                                 </InputSelect>
                                 <ValidationMessage For="@(() => _editModel.PersonType)" />
                             </div>
 
-                            <div class="mb-3">
-                                <label class="form-label" for="_editModel.CompanyDescription">Descrição da Empresa</label>
-                                <InputTextArea @bind-Value="_editModel.CompanyDescription" class="form-control" id="_editModel.CompanyDescription" rows="4" placeholder="Descreva sua empresa, cultura e benefícios..." />
+                            <div class="mb-3 col-span-2">
+                                <label class="form-label" for="_editModel.CompanyDescription">Descrição da empresa</label>
+                                <InputTextArea @bind-Value="_editModel.CompanyDescription" class="form-control" id="_editModel.CompanyDescription" rows="4" placeholder="Descreva sua empresa, cultura e benefícios" />
                                 <ValidationMessage class="text-danger" For="@(() => _editModel.CompanyDescription)" />
                             </div>
 
-                            <div class="mb-3">
-                                <label class="form-label" for="_editModel.Website">Website</label>
-                                <InputText @bind-Value="_editModel.Website" class="form-control" id="_editModel.Website" placeholder="https://www.suaempresa.com.br" />
+                            <div class="mb-3 col-span-2">
+                                <label class="form-label" for="_editModel.Website">Site</label>
+                                <InputText @bind-Value="_editModel.Website" type="url" autocomplete="url" inputmode="url" class="form-control" id="_editModel.Website" placeholder="https://www.suaempresa.com.br" />
                                 <ValidationMessage class="text-danger" For="@(() => _editModel.Website)" />
                             </div>
 
-                            <div class="mb-3">
+                            <div class="mb-3 col-span-2">
                                 <label class="form-label" for="_editModel.LogoUrl">Logo da empresa</label>
-                                <InputText @bind-Value="_editModel.LogoUrl" class="form-control" id="_editModel.LogoUrl" placeholder="https://www.suaempresa.com.br/logo.png" />
+                                <InputText @bind-Value="_editModel.LogoUrl" type="url" inputmode="url" class="form-control" id="_editModel.LogoUrl" placeholder="https://www.suaempresa.com.br/logo.png" />
                                 <ValidationMessage class="text-danger" For="@(() => _editModel.LogoUrl)" />
                                 <div class="form-text">Cole o endereço de uma imagem ou <a href="/advertiser/upload-logo">envie um arquivo do seu computador</a>.</div>
                                 @if (!string.IsNullOrEmpty(_editModel.LogoUrl))
                                 {
                                     <div class="mt-2">
-                                        <img src="@_editModel.LogoUrl" alt="Logo da Empresa" style="max-height: 80px; max-width: 200px;" class="img-thumbnail" onerror="this.parentElement.style.display='none'" />
+                                        <img src="@_editModel.LogoUrl" alt="Prévia do logo da empresa" class="img-thumbnail logo-preview" onerror="this.hidden=true" />
                                     </div>
                                 }
                             </div>
 
-                            <div class="d-flex gap-2">
-                                <button type="submit" class="btn btn-primary" disabled="@_isSaving">
+                            </div>
+                            <div class="form-actions">
+                                <button type="submit" class="btn btn-primary" disabled="@_isSaving" aria-busy="@(_isSaving ? "true" : null)">
                                     @if (_isSaving)
                                     {
-                                        <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                                        <span class="spinner-border spinner-border-sm" aria-hidden="true"></span>
+                                        <span>Salvando…</span>
                                     }
-                                    Salvar Alterações
+                                    else
+                                    {
+                                        <span>Salvar alterações</span>
+                                    }
                                 </button>
-                                <button type="button" class="btn btn-outline-secondary" @onclick="CancelEdit">Cancelar</button>
+                                <button type="button" class="btn btn-outline-secondary" @onclick="CancelEdit">Desfazer alterações</button>
                             </div>
                         </EditForm>
                     </div>
+                </section>
+
+            <aside class="settings-aside" aria-label="Informações da conta">
+                <div class="settings-group">
+                    <h3>Conta</h3>
+                    <p class="small">Situação: <StatusBadge Text="@UiLabels.AccountStatus(_advertiser.Status)" Tone="@UiLabels.AccountStatusTone(_advertiser.Status)" /></p>
+                    <p class="small">Plano: <a href="/my-subscription">@UiLabels.PlanName(_advertiser.ActivePlan)</a></p>
+                    <p class="small">E-mail verificado:
+                        <StatusBadge Text="@(_advertiser.IsEmailVerified ? "Sim" : "Não")" Tone="@(_advertiser.IsEmailVerified ? StatusTone.Ok : StatusTone.Warn)" />
+                    </p>
+                    <p class="small text-muted">Desde @UiLabels.FormatMomentDate(_advertiser.CreatedAt)</p>
                 </div>
-            </div>
-
-            <div class="col-md-4">
-                <div class="card mb-3">
-                    <div class="card-header">
-                        <h5 class="mb-0">Informações da Conta</h5>
-                    </div>
-                    <div class="card-body">
-                        <dl class="mb-0">
-                            <dt>Status</dt>
-                            <dd>
-                                <span class="badge @(GetStatusBadgeClass())">@UiLabels.AccountStatus(_advertiser.Status)</span>
-                            </dd>
-
-                            <dt>Plano Ativo</dt>
-                            <dd>
-                                <a class="badge bg-info" href="/my-subscription">@(_advertiser.ActivePlan ?? "Free")</a>
-                            </dd>
-
-                            <dt>E-mail verificado</dt>
-                            <dd>
-                                @if (_advertiser.IsEmailVerified)
-                                {
-                                    <span class="badge bg-success">Sim</span>
-                                }
-                                else
-                                {
-                                    <span class="badge bg-warning">Não</span>
-                                }
-                            </dd>
-
-                            <dt>Membro desde</dt>
-                            <dd>@UiLabels.FormatMomentDate(_advertiser.CreatedAt)</dd>
-                        </dl>
-                    </div>
+                <div class="settings-group">
+                    <h3>Atalhos</h3>
+                    <a class="btn btn-outline-secondary btn-sm" href="/my-jobs">Minhas vagas</a>
+                    <a class="btn btn-outline-secondary btn-sm" href="/received-applications">Candidaturas recebidas</a>
+                    <a class="btn btn-outline-secondary btn-sm" href="/advertiser/upload-logo">Enviar logo</a>
+                    <a class="btn btn-outline-secondary btn-sm" href="/address/list">Endereço da empresa</a>
+                    <a class="btn btn-outline-secondary btn-sm" href="/Account/Manage">Senha e segurança</a>
                 </div>
-
-                <div class="card">
-                    <div class="card-header">
-                        <h5 class="mb-0">Ações Rápidas</h5>
-                    </div>
-                    <div class="card-body">
-                        <div class="d-grid gap-2">
-                            <button class="btn btn-outline-primary btn-sm" @onclick="NavigateToJobs">
-                                <i class="bi bi-briefcase"></i> Minhas Vagas
-                            </button>
-                            <button class="btn btn-outline-primary btn-sm" @onclick="NavigateToApplications">
-                                <i class="bi bi-send"></i> Candidaturas Recebidas
-                            </button>
-                            <a class="btn btn-outline-primary btn-sm" href="/advertiser/upload-logo">Enviar logo</a>
-                            <a class="btn btn-outline-primary btn-sm" href="/address/list">Endereço da empresa</a>
-                            <a class="btn btn-outline-primary btn-sm" href="/Account/Manage">Senha e segurança da conta</a>
-                        </div>
-                    </div>
-                </div>
-            </div>
+            </aside>
         </div>
     }
     else
     {
-        <EmptyState Icon="!" Title="Perfil de empresa não encontrado" Message="Esta área é exclusiva para contas de empresa.">
+        <EmptyState Icon="alert" Title="Perfil de empresa não encontrado" Message="Esta área é exclusiva para contas de empresa.">
             <a class="btn btn-primary" href="/dashboard">Voltar ao início</a>
         </EmptyState>
     }
@@ -301,17 +264,6 @@
             };
             _serverErrors.Clear();
         }
-    }
-
-    private string GetStatusBadgeClass()
-    {
-        return _advertiser?.Status switch
-        {
-            Monburan.Core.Enums.EAdvertiserStatus.Active => "bg-success",
-            Monburan.Core.Enums.EAdvertiserStatus.Incomplete => "bg-warning",
-            Monburan.Core.Enums.EAdvertiserStatus.Blocked => "bg-danger",
-            _ => "bg-secondary"
-        };
     }
 
     private void NavigateToJobs()

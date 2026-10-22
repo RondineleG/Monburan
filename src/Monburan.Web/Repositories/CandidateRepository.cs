@@ -18,18 +18,18 @@ public class CandidateRepository : ICandidateRepository
         _contextFactory = contextFactory;
     }
 
-    public async Task<RequestResult<Candidate>> CreateAsync(Candidate entity)
+    public async Task<RequestResult<Candidate>> CreateAsync(Candidate entity, CancellationToken cancellationToken = default)
     {
-        await using var context = await _contextFactory.CreateDbContextAsync();
+        await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);
         context.Candidates.Add(entity);
-        await context.SaveChangesAsync();
+        await context.SaveChangesAsync(cancellationToken);
         return RequestResult<Candidate>.Success(entity);
     }
 
-    public async Task<RequestResult<Candidate>> DeleteAsync(Id id)
+    public async Task<RequestResult<Candidate>> DeleteAsync(Id id, CancellationToken cancellationToken = default)
     {
-        await using var context = await _contextFactory.CreateDbContextAsync();
-        var candidate = await context.Candidates.FindAsync(id);
+        await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);
+        var candidate = await context.Candidates.FindAsync([id], cancellationToken);
         if (candidate == null)
             return RequestResult<Candidate>.EntityNotFound("Candidate", id.Value, "Candidato não encontrado.");
 
@@ -37,30 +37,30 @@ public class CandidateRepository : ICandidateRepository
         candidate.DeletedAt = DateTime.UtcNow;
         
         context.Candidates.Update(candidate);
-        await context.SaveChangesAsync();
+        await context.SaveChangesAsync(cancellationToken);
         return RequestResult<Candidate>.Success(candidate);
     }
 
-    public async Task<RequestResult<IEnumerable<Candidate>>> GetAllAsync(int page, int size)
+    public async Task<RequestResult<IEnumerable<Candidate>>> GetAllAsync(int page, int size, CancellationToken cancellationToken = default)
     {
-        await using var context = await _contextFactory.CreateDbContextAsync();
+        await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);
         var candidates = await context.Candidates
             .Include(c => c.Address)
             .Where(c => !c.IsDeleted)
             .OrderByDescending(c => c.CreatedAt)
             .Skip((page - 1) * size)
             .Take(size)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         return RequestResult<IEnumerable<Candidate>>.Success(candidates);
     }
 
-    public async Task<RequestResult<Candidate>> GetByIdAsync(Id id)
+    public async Task<RequestResult<Candidate>> GetByIdAsync(Id id, CancellationToken cancellationToken = default)
     {
-        await using var context = await _contextFactory.CreateDbContextAsync();
+        await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);
         var candidate = await context.Candidates
             .Include(c => c.Address)
-            .FirstOrDefaultAsync(c => c.Id == id && !c.IsDeleted);
+            .FirstOrDefaultAsync(c => c.Id == id && !c.IsDeleted, cancellationToken);
 
         if (candidate == null)
             return RequestResult<Candidate>.EntityNotFound("Candidate", id.Value, "Candidato não encontrado.");
@@ -68,17 +68,17 @@ public class CandidateRepository : ICandidateRepository
         return RequestResult<Candidate>.Success(candidate);
     }
 
-    public async Task<RequestResult<Candidate>> UpdateAsync(Candidate entity)
+    public async Task<RequestResult<Candidate>> UpdateAsync(Candidate entity, CancellationToken cancellationToken = default)
     {
-        await using var context = await _contextFactory.CreateDbContextAsync();
+        await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);
         context.Candidates.Update(entity);
-        await context.SaveChangesAsync();
+        await context.SaveChangesAsync(cancellationToken);
         return RequestResult<Candidate>.Success(entity);
     }
 
-    public async Task<RequestResult<PagedResponse<Candidate>>> SearchAsync(string? searchTerm, EAccountStatus? status, int page, int size)
+    public async Task<RequestResult<PagedResponse<Candidate>>> SearchAsync(string? searchTerm, EAccountStatus? status, int page, int size, CancellationToken cancellationToken = default)
     {
-        await using var context = await _contextFactory.CreateDbContextAsync();
+        await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);
         var query = context.Candidates
             .AsNoTracking()
             .Include(c => c.Address)
@@ -86,23 +86,37 @@ public class CandidateRepository : ICandidateRepository
 
         if (!string.IsNullOrWhiteSpace(searchTerm))
         {
-            var term = searchTerm.Trim().ToLower();
-            query = query.Where(c =>
-                c.Name.ToLower().Contains(term) ||
-                c.Email.ToLower().Contains(term) ||
-                (c.Phone != null && c.Phone.ToLower().Contains(term)));
+            var term = searchTerm.Trim();
+            // No Postgres a busca usa ILike, que aproveita o índice de trigramas; no InMemory
+            // (testes de API) cai para ToLower().Contains, que o provider sabe traduzir.
+            if (TextSearch.SupportsILike(context))
+            {
+                var pattern = TextSearch.Pattern(term);
+                query = query.Where(c =>
+                    EF.Functions.ILike(c.Name, pattern)
+                    || EF.Functions.ILike(c.Email, pattern)
+                    || (c.Phone != null && EF.Functions.ILike(c.Phone, pattern)));
+            }
+            else
+            {
+                var lowered = term.ToLower();
+                query = query.Where(c =>
+                    c.Name.ToLower().Contains(lowered)
+                    || c.Email.ToLower().Contains(lowered)
+                    || (c.Phone != null && c.Phone.ToLower().Contains(lowered)));
+            }
         }
 
         if (status.HasValue)
             query = query.Where(c => c.Status == status.Value);
 
         // Filtro antes da paginação — TotalCount é o total filtrado, não o tamanho da página
-        var total = await query.CountAsync();
+        var total = await query.CountAsync(cancellationToken);
         var candidates = await query
             .OrderByDescending(c => c.CreatedAt)
             .Skip((page - 1) * size)
             .Take(size)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         return RequestResult<PagedResponse<Candidate>>.Success(new PagedResponse<Candidate>
         {

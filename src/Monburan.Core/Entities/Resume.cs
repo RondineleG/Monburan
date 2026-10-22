@@ -27,4 +27,10 @@ public class Resume : BaseEntity
 
     [Required]
     public string Title { get; set; } = string.Empty;
+
+    /// <summary>Nome do PDF de origem quando o currículo veio de importação; nulo nos demais casos.</summary>
+    public string? SourceFileName { get; set; }
+
+    /// <summary>Caminho do PDF de origem no armazenamento; nulo nos demais casos.</summary>
+    public string? SourceFileUrl { get; set; }
 }

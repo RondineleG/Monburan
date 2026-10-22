@@ -2,8 +2,8 @@
 // Network First Strategy with basic offline caching
 
 // Nomes novos a cada mudança de regra: o activate apaga os caches antigos (o v8 guardava páginas logadas)
-const CACHE_NAME = 'monburan-v9';
-const RUNTIME_CACHE = 'monburan-runtime-v9';
+const CACHE_NAME = 'monburan-v14';
+const RUNTIME_CACHE = 'monburan-runtime-v14';
 
 // Só arquivos estáticos entram no cache. A navegação aprimorada do Blazor busca as páginas por fetch (não por "navigate"),
 // então páginas logadas (currículos, candidaturas, a chave do autenticador) ficavam guardadas no navegador depois de sair da conta
@@ -12,8 +12,13 @@ const CACHEABLE_DESTINATIONS = ['style', 'script', 'image', 'font', 'manifest'];
 // Assets to cache on install
 const PRECACHE_ASSETS = [
     '/',
-    '/app.css',
-    '/ui.css',
+    '/tokens.css',
+    '/base.css',
+    '/components.css',
+    '/shell.css',
+    '/pages.css',
+    '/utilities.css',
+    '/fonts/cinzel-latin.woff2',
     '/manifest.json',
     '/favicon-16x16.png',
     '/favicon-32x32.png',

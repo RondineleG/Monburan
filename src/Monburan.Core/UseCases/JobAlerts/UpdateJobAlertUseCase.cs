@@ -21,13 +21,13 @@ public class UpdateJobAlertUseCase : IUseCase<UpdateJobAlertCommand, JobAlertRes
         _alerts = alerts;
     }
 
-    public async Task<RequestResult<JobAlertResponse>> ExecuteAsync(UpdateJobAlertCommand request)
+    public async Task<RequestResult<JobAlertResponse>> ExecuteAsync(UpdateJobAlertCommand request, CancellationToken cancellationToken = default)
     {
         var errors = JobAlertInputValidation.Validate(request.Alert);
         if (errors.Count != 0)
             return RequestResult<JobAlertResponse>.WithValidations(errors);
 
-        var found = await _alerts.GetByIdAsync(Id.Create(request.AlertId));
+        var found = await _alerts.GetByIdAsync(Id.Create(request.AlertId), cancellationToken);
         if (found.Status != EResultStatus.Success || found.Data is null
             || found.Data.CandidateId.Value != request.CandidateId)
         {
@@ -44,7 +44,7 @@ public class UpdateJobAlertUseCase : IUseCase<UpdateJobAlertCommand, JobAlertRes
         alert.SalaryMin = request.Alert.SalaryMin;
         alert.IsActive = request.Alert.IsActive ?? alert.IsActive;
 
-        var result = await _alerts.UpdateAsync(alert);
+        var result = await _alerts.UpdateAsync(alert, cancellationToken);
         if (result.Status != EResultStatus.Success)
             return RequestResult<JobAlertResponse>.FromResult(result);
 

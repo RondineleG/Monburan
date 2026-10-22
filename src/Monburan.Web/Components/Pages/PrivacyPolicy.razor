@@ -1,211 +1,190 @@
 @page "/privacy"
-@rendermode InteractiveServer
-@using Monburan.Core.Interfaces.Services
-@inject IAiTextClient Ai
 
-<PageTitle>Política de Privacidade - Monburan</PageTitle>
+<PageTitle>Política de privacidade - Monburan</PageTitle>
 
-<div class="container mt-4 mb-5 legal-page">
-    <div class="row justify-content-center">
-        <div class="col-lg-10">
-            <div class="card">
-                <div class="card-body p-5">
-                    <h1 class="text-center mb-4">Política de Privacidade</h1>
-                    <p class="text-muted text-center">Última atualização: Outubro de 2026</p>
-
-                    <div class="alert alert-info" role="alert">
-                        <i class="bi bi-info-circle"></i>
-                        Esta Política de Privacidade está em conformidade com a Lei Geral de Proteção de Dados 
-                        (LGPD - Lei nº 13.709/2018) e descreve como coletamos, usamos, armazenamos e protegemos 
-                        suas informações pessoais.
-                    </div>
-
-                    <hr class="my-4" />
-
-                    <section class="mb-4">
-                        <h2>1. Introdução</h2>
-                        <p>
-                            O Monburan está comprometido com a proteção da sua privacidade. Esta política 
-                            descreve como coletamos, usamos, armazenamos e compartilhamos suas informações 
-                            pessoais quando você usa nossa plataforma.
-                        </p>
-                        <p>
-                            Ao usar o Monburan, você consente com as práticas descritas nesta política. 
-                            Se você não concorda com esta política, não deverá usar nossos serviços.
-                        </p>
-                    </section>
-
-                    <section class="mb-4">
-                        <h2>2. Dados Coletados</h2>
-                        
-                        <h3>2.1. Dados Fornecidos por Você</h3>
-                        <ul>
-                            <li><strong>Dados de cadastro:</strong> nome, email, senha</li>
-                            <li><strong>Dados de perfil (candidato):</strong> currículo, experiência profissional, formação acadêmica, habilidades</li>
-                            <li><strong>Dados de perfil (empresa):</strong> nome da empresa, logotipo, descrição</li>
-                            <li><strong>Conteúdo publicado:</strong> descrições de vagas, candidaturas, mensagens</li>
-                        </ul>
-
-                        <h3>2.2. Dados Coletados Automaticamente</h3>
-                        <ul>
-                            <li><strong>Dados de acesso:</strong> endereço IP, tipo de navegador, sistema operacional</li>
-                            <li><strong>Dados de uso:</strong> páginas visitadas, tempo de sessão, cliques</li>
-                            <li><strong>Cookies e tecnologias similares:</strong> para melhorar a experiência do usuário</li>
-                        </ul>
-                    </section>
-
-                    <section class="mb-4">
-                        <h2>3. Finalidade do Uso dos Dados</h2>
-                        <p>Utilizamos seus dados pessoais para:</p>
-                        <ul>
-                            <li>Fornecer e melhorar nossos serviços</li>
-                            <li>Processar candidaturas a vagas</li>
-                            <li>Enviar notificações relevantes (novas vagas, status de candidaturas)</li>
-                            <li>Verificar identidade e prevenir fraudes</li>
-                            <li>Cumprir obrigações legais</li>
-                            <li>Melhorar a experiência do usuário na plataforma</li>
-                            <li>Comunicar mudanças nos termos ou políticas</li>
-                        </ul>
-                    </section>
-
-                    <section class="mb-4">
-                        <h2>4. Base Legal para o Tratamento de Dados</h2>
-                        <p>Tratamos seus dados pessoais com base nas seguintes bases legais:</p>
-                        <ul>
-                            <li><strong>Consentimento:</strong> quando você consente explicitamente com o tratamento</li>
-                            <li><strong>Execução de contrato:</strong> quando necessário para fornecer nossos serviços</li>
-                            <li><strong>Interesse legítimo:</strong> para melhorar nossos serviços e prevenir fraudes</li>
-                            <li><strong>Obrigação legal:</strong> quando exigido por lei</li>
-                        </ul>
-                    </section>
-
-                    <section class="mb-4">
-                        <h2>5. Compartilhamento de Dados</h2>
-                        <p>
-                            Não vendemos seus dados pessoais. Podemos compartilhar suas informações apenas nas 
-                            seguintes situações:
-                        </p>
-                        <ul>
-                            <li><strong>Com anunciantes:</strong> quando você se candidata a uma vaga, seu perfil e currículo são compartilhados com o anunciante</li>
-                            <li><strong>Com prestadores de serviços:</strong> empresas que nos auxiliam na operação (hospedagem, email, analytics)</li>
-                            <li><strong>Com o provedor de IA, só se você pedir:</strong> ao usar "Sugestões de melhoria com IA" no currículo, enviamos o conteúdo profissional dele (título, resumo, experiências, formação, habilidades e idiomas), sem nome, e-mail, telefone nem endereço, ao serviço de IA indicado na tela@(Ai.IsConfigured ? $" (hoje, {Ai.ProviderName})" : string.Empty), que pode tratá-lo fora do Brasil. O envio exige a sua autorização a cada uso, não guardamos o resultado e o tratamento pelo provedor segue os termos dele</li>
-                            <li><strong>Por exigência legal:</strong> quando requerido por lei, regulamento ou autoridade competente</li>
-                            <li><strong>Para proteger direitos:</strong> para proteger os direitos, propriedade ou segurança do Monburan, nossos usuários ou o público</li>
-                        </ul>
-                    </section>
-
-                    <section class="mb-4">
-                        <h2>6. Armazenamento e Segurança</h2>
-                        <p>
-                            Seus dados são armazenados em servidores seguros com medidas técnicas e 
-                            organizacionais adequadas para proteger contra acesso não autorizado, alteração, 
-                            divulgação ou destruição.
-                        </p>
-                        <p>
-                            Mantemos seus dados apenas pelo tempo necessário para cumprir as finalidades 
-                            descritas nesta política, exceto quando retenção adicional for exigida por lei.
-                        </p>
-                    </section>
-
-                    <section class="mb-4">
-                        <h2>7. Seus Direitos (LGPD)</h2>
-                        <p>De acordo com a LGPD, você tem os seguintes direitos:</p>
-                        <ul>
-                            <li><strong>Acesso:</strong> solicitar uma cópia dos seus dados pessoais</li>
-                            <li><strong>Correção:</strong> corrigir dados incompletos, inexatos ou desatualizados</li>
-                            <li><strong>Anonimização, bloqueio ou eliminação:</strong> solicitar a eliminação ou anonimização de dados desnecessários</li>
-                            <li><strong>Portabilidade:</strong> transferir seus dados para outro fornecedor de serviço</li>
-                            <li><strong>Revogação do consentimento:</strong> retirar seu consentimento a qualquer momento</li>
-                            <li><strong>Informação:</strong> saber com quem seus dados foram compartilhados</li>
-                            <li><strong>Oposição:</strong> opor-se ao tratamento de dados com base em interesse legítimo</li>
-                        </ul>
-                        <p>
-                            Para exercer seus direitos, entre em contato conosco pelo email 
-                            <strong>privacidade@monburan.com.br</strong>.
-                        </p>
-                    </section>
-
-                    <section class="mb-4">
-                        <h2>8. Cookies</h2>
-                        <p>
-                            Usamos cookies e tecnologias similares para:
-                        </p>
-                        <ul>
-                            <li>Manter sua sessão autenticada</li>
-                            <li>Lembrar suas preferências</li>
-                            <li>Analisar o uso da plataforma para melhorias</li>
-                            <li>Fornecer conteúdo relevante</li>
-                        </ul>
-                        <p>
-                            Você pode gerenciar cookies nas configurações do seu navegador. Desabilitar cookies 
-                            pode afetar a funcionalidade da plataforma.
-                        </p>
-                    </section>
-
-                    <section class="mb-4">
-                        <h2>9. Transferência Internacional de Dados</h2>
-                        <p>
-                            Seus dados são processados e armazenados no Brasil. Caso haja transferência 
-                            internacional de dados, garantiremos que medidas adequadas de proteção estejam 
-                            em vigor, conforme exigido pela LGPD.
-                        </p>
-                    </section>
-
-                    <section class="mb-4">
-                        <h2>10. Menores de Idade</h2>
-                        <p>
-                            O Monburan não se destina a menores de 18 anos. Não coletamos intencionalmente 
-                            dados pessoais de menores. Se tomarmos conhecimento de que coletamos dados de um 
-                            menor sem verificação de consentimento dos pais, tomaremos medidas para excluir 
-                            essas informações.
-                        </p>
-                    </section>
-
-                    <section class="mb-4">
-                        <h2>11. Alterações nesta Política</h2>
-                        <p>
-                            Podemos atualizar esta Política de Privacidade periodicamente. Notificaremos os 
-                            usuários sobre mudanças significativas por meio de notificações na plataforma ou 
-                            por email. A data da última atualização será revisada no topo desta página.
-                        </p>
-                    </section>
-
-                    <section class="mb-4">
-                        <h2>12. Encarregado de Proteção de Dados (DPO)</h2>
-                        <p>
-                            Nosso Encarregado de Proteção de Dados pode ser contatado para questões relacionadas 
-                            à privacidade:
-                        </p>
-                        <ul>
-                            <li><strong>Email:</strong> privacidade@monburan.com.br</li>
-                            <li><strong>Endereço:</strong> Brasil</li>
-                        </ul>
-                    </section>
-
-                    <section class="mb-4">
-                        <h2>13. Contato</h2>
-                        <p>
-                            Se você tiver dúvidas ou preocupações sobre esta Política de Privacidade, 
-                            entre em contato conosco:
-                        </p>
-                        <ul>
-                            <li><strong>Email:</strong> suporte@monburan.com.br</li>
-                            <li><strong>Site:</strong> www.monburan.com.br</li>
-                        </ul>
-                    </section>
-
-                    <hr class="my-4" />
-
-                    <div class="text-center">
-                        <a href="/terms" class="btn btn-outline-secondary me-2">
-                            <i class="bi bi-file-text"></i> Termos de Uso
-                        </a>
-                        <a href="/" class="btn btn-primary">
-                            <i class="bi bi-house"></i> Voltar para o Início
-                        </a>
-                    </div>
-                </div>
+<div class="legal-page">
+    <PageHeader Title="Política de Privacidade" Description="Última atualização: Outubro de 2026" BackHref="/" BackText="Voltar para o início" />
+    <div class="card">
+        <div class="card-body">
+            <div class="alert alert-info" role="note">
+                Esta Política de Privacidade está em conformidade com a Lei Geral de Proteção de Dados 
+                (LGPD - Lei nº 13.709/2018) e descreve como coletamos, usamos, armazenamos e protegemos 
+                suas informações pessoais.
             </div>
+
+            <section class="mb-4">
+                <h2>1. Introdução</h2>
+                <p>
+                    O Monburan está comprometido com a proteção da sua privacidade. Esta política 
+                    descreve como coletamos, usamos, armazenamos e compartilhamos suas informações 
+                    pessoais quando você usa nossa plataforma.
+                </p>
+                <p>
+                    Ao usar o Monburan, você consente com as práticas descritas nesta política. 
+                    Se você não concorda com esta política, não deverá usar nossos serviços.
+                </p>
+            </section>
+
+            <section class="mb-4">
+                <h2>2. Dados Coletados</h2>
+
+                <h3>2.1. Dados Fornecidos por Você</h3>
+                <ul>
+                    <li><strong>Dados de cadastro:</strong> nome, email, senha</li>
+                    <li><strong>Dados de perfil (candidato):</strong> currículo, experiência profissional, formação acadêmica, habilidades</li>
+                    <li><strong>Dados de perfil (empresa):</strong> nome da empresa, logotipo, descrição</li>
+                    <li><strong>Conteúdo publicado:</strong> descrições de vagas, candidaturas, mensagens</li>
+                </ul>
+
+                <h3>2.2. Dados Coletados Automaticamente</h3>
+                <ul>
+                    <li><strong>Dados de acesso:</strong> endereço IP, tipo de navegador, sistema operacional</li>
+                    <li><strong>Dados de uso:</strong> páginas visitadas, tempo de sessão, cliques</li>
+                    <li><strong>Cookies e tecnologias similares:</strong> para melhorar a experiência do usuário</li>
+                </ul>
+            </section>
+
+            <section class="mb-4">
+                <h2>3. Finalidade do Uso dos Dados</h2>
+                <p>Utilizamos seus dados pessoais para:</p>
+                <ul>
+                    <li>Fornecer e melhorar nossos serviços</li>
+                    <li>Processar candidaturas a vagas</li>
+                    <li>Enviar notificações relevantes (novas vagas, status de candidaturas)</li>
+                    <li>Verificar identidade e prevenir fraudes</li>
+                    <li>Cumprir obrigações legais</li>
+                    <li>Melhorar a experiência do usuário na plataforma</li>
+                    <li>Comunicar mudanças nos termos ou políticas</li>
+                </ul>
+            </section>
+
+            <section class="mb-4">
+                <h2>4. Base Legal para o Tratamento de Dados</h2>
+                <p>Tratamos seus dados pessoais com base nas seguintes bases legais:</p>
+                <ul>
+                    <li><strong>Consentimento:</strong> quando você consente explicitamente com o tratamento</li>
+                    <li><strong>Execução de contrato:</strong> quando necessário para fornecer nossos serviços</li>
+                    <li><strong>Interesse legítimo:</strong> para melhorar nossos serviços e prevenir fraudes</li>
+                    <li><strong>Obrigação legal:</strong> quando exigido por lei</li>
+                </ul>
+            </section>
+
+            <section class="mb-4">
+                <h2>5. Compartilhamento de Dados</h2>
+                <p>
+                    Não vendemos seus dados pessoais. Podemos compartilhar suas informações apenas nas 
+                    seguintes situações:
+                </p>
+                <ul>
+                    <li><strong>Com anunciantes:</strong> quando você se candidata a uma vaga, seu perfil e currículo são compartilhados com o anunciante</li>
+                    <li><strong>Com prestadores de serviços:</strong> empresas que nos auxiliam na operação (hospedagem, email, analytics)</li>
+                    <li><strong>Com o provedor de IA, só se você pedir:</strong> ao usar "Sugestões de melhoria com IA" no currículo, enviamos o conteúdo profissional dele (título, resumo, experiências, formação, habilidades e idiomas), sem nome, e-mail, telefone nem endereço, ao serviço de IA configurado, que pode tratá-lo fora do Brasil. O envio acontece só quando você clica em "Gerar sugestões com IA", a cada nova geração, e o tratamento pelo provedor segue os termos dele. Ao importar um PDF, "Importar com IA" envia o texto do arquivo para extrair os dados; "Importar sem IA" faz a leitura localmente, sem envio externo. O resultado vira um rascunho criptografado salvo só no armazenamento do seu navegador (não vai para o banco nem volta ao provedor); você pode descartá-lo limpando os dados do site, e só o que você aplicar de fato é gravado no currículo</li>
+                    <li><strong>Por exigência legal:</strong> quando requerido por lei, regulamento ou autoridade competente</li>
+                    <li><strong>Para proteger direitos:</strong> para proteger os direitos, propriedade ou segurança do Monburan, nossos usuários ou o público</li>
+                </ul>
+            </section>
+
+            <section class="mb-4">
+                <h2>6. Armazenamento e Segurança</h2>
+                <p>
+                    Seus dados são armazenados em servidores seguros com medidas técnicas e 
+                    organizacionais adequadas para proteger contra acesso não autorizado, alteração, 
+                    divulgação ou destruição.
+                </p>
+                <p>
+                    Mantemos seus dados apenas pelo tempo necessário para cumprir as finalidades 
+                    descritas nesta política, exceto quando retenção adicional for exigida por lei.
+                </p>
+            </section>
+
+            <section class="mb-4">
+                <h2>7. Seus Direitos (LGPD)</h2>
+                <p>De acordo com a LGPD, você tem os seguintes direitos:</p>
+                <ul>
+                    <li><strong>Acesso:</strong> solicitar uma cópia dos seus dados pessoais</li>
+                    <li><strong>Correção:</strong> corrigir dados incompletos, inexatos ou desatualizados</li>
+                    <li><strong>Anonimização, bloqueio ou eliminação:</strong> solicitar a eliminação ou anonimização de dados desnecessários</li>
+                    <li><strong>Portabilidade:</strong> transferir seus dados para outro fornecedor de serviço</li>
+                    <li><strong>Revogação do consentimento:</strong> retirar seu consentimento a qualquer momento</li>
+                    <li><strong>Informação:</strong> saber com quem seus dados foram compartilhados</li>
+                    <li><strong>Oposição:</strong> opor-se ao tratamento de dados com base em interesse legítimo</li>
+                </ul>
+                <p>
+                    Para exercer seus direitos, entre em contato conosco pelo email 
+                    <strong>privacidade@monburan.com.br</strong>.
+                </p>
+            </section>
+
+            <section class="mb-4">
+                <h2>8. Cookies</h2>
+                <p>
+                    Usamos cookies e tecnologias similares para:
+                </p>
+                <ul>
+                    <li>Manter sua sessão autenticada</li>
+                    <li>Lembrar suas preferências</li>
+                    <li>Analisar o uso da plataforma para melhorias</li>
+                    <li>Fornecer conteúdo relevante</li>
+                </ul>
+                <p>
+                    Você pode gerenciar cookies nas configurações do seu navegador. Desabilitar cookies 
+                    pode afetar a funcionalidade da plataforma.
+                </p>
+            </section>
+
+            <section class="mb-4">
+                <h2>9. Transferência Internacional de Dados</h2>
+                <p>
+                    Seus dados são processados e armazenados no Brasil. Caso haja transferência 
+                    internacional de dados, garantiremos que medidas adequadas de proteção estejam 
+                    em vigor, conforme exigido pela LGPD.
+                </p>
+            </section>
+
+            <section class="mb-4">
+                <h2>10. Menores de Idade</h2>
+                <p>
+                    O Monburan não se destina a menores de 18 anos. Não coletamos intencionalmente 
+                    dados pessoais de menores. Se tomarmos conhecimento de que coletamos dados de um 
+                    menor sem verificação de consentimento dos pais, tomaremos medidas para excluir 
+                    essas informações.
+                </p>
+            </section>
+
+            <section class="mb-4">
+                <h2>11. Alterações nesta Política</h2>
+                <p>
+                    Podemos atualizar esta Política de Privacidade periodicamente. Notificaremos os 
+                    usuários sobre mudanças significativas por meio de notificações na plataforma ou 
+                    por email. A data da última atualização será revisada no topo desta página.
+                </p>
+            </section>
+
+            <section class="mb-4">
+                <h2>12. Encarregado de Proteção de Dados (DPO)</h2>
+                <p>
+                    Nosso Encarregado de Proteção de Dados pode ser contatado para questões relacionadas 
+                    à privacidade:
+                </p>
+                <ul>
+                    <li><strong>E-mail:</strong> privacidade@monburan.com.br</li>
+                    <li><strong>Endereço:</strong> Brasil</li>
+                </ul>
+            </section>
+
+            <section class="mb-4">
+                <h2>13. Contato</h2>
+                <p>
+                    Se você tiver dúvidas ou preocupações sobre esta Política de Privacidade, 
+                    entre em contato conosco:
+                </p>
+                <ul>
+                    <li><strong>E-mail:</strong> suporte@monburan.com.br</li>
+                    <li><strong>Site:</strong> www.monburan.com.br</li>
+                </ul>
+            </section>
+
+            <p class="mt-4 mb-0">Veja também os <a href="/terms">Termos de uso</a>.</p>
         </div>
     </div>
 </div>

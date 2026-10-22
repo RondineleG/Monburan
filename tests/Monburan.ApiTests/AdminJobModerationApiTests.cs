@@ -109,6 +109,24 @@ public class AdminJobModerationApiTests : IClassFixture<MonburanApiFactory>
     }
 
     [Fact]
+    public async Task CompanyProfile_ShowsOnlyPublicJobs()
+    {
+        var active = await CreateJobAsync("Vaga pública da empresa " + Guid.NewGuid().ToString("N")[..6]);
+        var paused = await CreateJobAsync("Vaga pausada da empresa " + Guid.NewGuid().ToString("N")[..6]);
+        var hidden = await CreateJobAsync("Vaga oculta da empresa " + Guid.NewGuid().ToString("N")[..6]);
+        await ModerateAsync(paused.Id, EJobStatus.Paused);
+        await ModerateAsync(hidden.Id, EJobStatus.Hidden, "Revisão pendente");
+
+        using var site = SiteClient();
+        var response = await site.GetAsync($"/companies/{active.AdvertiserId}");
+        var html = WebUtility.HtmlDecode(await response.Content.ReadAsStringAsync());
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        html.Should().Contain(active.Title);
+        html.Should().NotContain(paused.Title).And.NotContain(hidden.Title);
+    }
+
+    [Fact]
     public async Task ANonPublicJob_DoesNotLeakThroughTheDetailEndpoint_ExceptToItsOwner()
     {
         var job = await CreateJobAsync("Vaga que não pode vazar " + Guid.NewGuid().ToString("N")[..6]);

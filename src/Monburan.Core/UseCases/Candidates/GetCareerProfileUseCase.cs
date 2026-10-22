@@ -16,9 +16,9 @@ public class GetCareerProfileUseCase : IUseCase<Guid, CareerProfileResponse>
         _profiles = profiles;
     }
 
-    public async Task<RequestResult<CareerProfileResponse>> ExecuteAsync(Guid request)
+    public async Task<RequestResult<CareerProfileResponse>> ExecuteAsync(Guid request, CancellationToken cancellationToken = default)
     {
-        var result = await _profiles.GetByCandidateIdAsync(request);
+        var result = await _profiles.GetByCandidateIdAsync(request, cancellationToken);
         if (result.Status != EResultStatus.Success)
             return RequestResult<CareerProfileResponse>.FromResult(result);
 

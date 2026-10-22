@@ -13,15 +13,15 @@
 <PageTitle>Confirme seu e-mail - Monburan</PageTitle>
 
 <section class="auth-message-page">
-    <span class="page-kicker">QUASE LÁ</span>
     <h1>Confirme seu e-mail</h1>
-    <StatusMessage Message="@statusMessage" />
+    @* A única mensagem local é a de conta não encontrada *@
+    <StatusMessage Message="@statusMessage" IsError="true" />
     @if (emailConfirmationLink is not null)
     {
         <p>Para ativar sua conta, confirme o endereço de e-mail informado.</p>
         <a class="btn btn-primary" href="@emailConfirmationLink">Confirmar e-mail</a>
     }
-    else
+    else if (statusMessage is null)
     {
         <p>Enviamos as instruções para o endereço informado. Confira sua caixa de entrada.</p>
     }
@@ -50,8 +50,8 @@
         var user = await UserManager.FindByEmailAsync(Email);
         if (user is null)
         {
-            HttpContext.Response.StatusCode = StatusCodes.Status404NotFound;
-            statusMessage = "Erro: não foi possível localizar a conta associada a este e-mail.";
+            // Sem StatusCode 404: a reexecução de páginas de status quebrava a resposta (erro 500)
+            statusMessage = "Não encontramos uma conta com este e-mail.";
         }
         else if (EmailSender is IdentityNoOpEmailSender)
         {

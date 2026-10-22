@@ -22,13 +22,13 @@ public class UpsertCareerProfileUseCase : IUseCase<UpsertCareerProfileCommand, C
         _profiles = profiles;
     }
 
-    public async Task<RequestResult<CareerProfileResponse>> ExecuteAsync(UpsertCareerProfileCommand request)
+    public async Task<RequestResult<CareerProfileResponse>> ExecuteAsync(UpsertCareerProfileCommand request, CancellationToken cancellationToken = default)
     {
         var errors = CareerProfileInputValidation.Validate(request.Profile);
         if (errors.Count != 0)
             return RequestResult<CareerProfileResponse>.WithValidations(errors);
 
-        var found = await _profiles.GetByCandidateIdAsync(request.CandidateId);
+        var found = await _profiles.GetByCandidateIdAsync(request.CandidateId, cancellationToken);
         if (found.Status != EResultStatus.Success)
             return RequestResult<CareerProfileResponse>.FromResult(found);
 
@@ -50,8 +50,8 @@ public class UpsertCareerProfileUseCase : IUseCase<UpsertCareerProfileCommand, C
         profile.ContractType = request.Profile.ContractType;
 
         var result = isNew
-            ? await _profiles.CreateAsync(profile)
-            : await _profiles.UpdateAsync(profile);
+            ? await _profiles.CreateAsync(profile, cancellationToken)
+            : await _profiles.UpdateAsync(profile, cancellationToken);
 
         if (result.Status != EResultStatus.Success)
             return RequestResult<CareerProfileResponse>.FromResult(result);

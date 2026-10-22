@@ -16,13 +16,25 @@ public static class UiLabels
         _ => "Em análise"
     };
 
-    public static string ApplicationStatusBadge(string? status) => status switch
+    /// <summary>Plural para contagens ("3 Não selecionadas"): mesmos termos do singular.</summary>
+    public static string ApplicationStatusPlural(string? status) => status switch
     {
-        "Sent" => "bg-primary",
-        "Viewed" => "bg-info",
-        "Selected" => "bg-success",
-        "Rejected" => "bg-danger",
-        _ => "bg-secondary"
+        "Sent" => "Enviadas",
+        "Viewed" => "Visualizadas",
+        "Selected" => "Selecionadas",
+        "Rejected" => "Não selecionadas",
+        "Archived" => "Arquivadas",
+        _ => "Em análise"
+    };
+
+    /// <summary>Tom do selo de situação da candidatura (StatusBadge): cor nunca é o único sinal, o texto vai junto.</summary>
+    public static StatusTone ApplicationStatusTone(string? status) => status switch
+    {
+        "Viewed" => StatusTone.Info,
+        "Selected" => StatusTone.Ok,
+        "Rejected" => StatusTone.Error,
+        "Sent" or "Archived" => StatusTone.Neutral,
+        _ => StatusTone.Brand
     };
 
     public static string JobStatus(string? status) => status switch
@@ -35,14 +47,23 @@ public static class UiLabels
         _ => "Indefinida"
     };
 
-    public static string JobStatusBadge(string? status) => status switch
+    /// <summary>Plural para contagens de vagas: "Rejected" de vaga é reprovação na moderação.</summary>
+    public static string JobStatusPlural(string? status) => status switch
     {
-        "Active" => "bg-success",
-        "Expired" => "bg-secondary",
-        "Hidden" => "bg-warning",
-        "Rejected" => "bg-danger",
-        "Paused" => "bg-info",
-        _ => "bg-secondary"
+        "Active" => "Ativas",
+        "Expired" => "Expiradas",
+        "Hidden" => "Ocultas",
+        "Rejected" => "Reprovadas",
+        "Paused" => "Pausadas",
+        _ => "Outras"
+    };
+
+    public static StatusTone JobStatusTone(string? status) => status switch
+    {
+        "Active" => StatusTone.Ok,
+        "Hidden" => StatusTone.Warn,
+        "Rejected" => StatusTone.Error,
+        _ => StatusTone.Neutral
     };
 
     public static string JobType(string? type) => type switch
@@ -75,6 +96,11 @@ public static class UiLabels
         _ => string.Empty
     };
 
+    /// <summary>Nome do plano para a tela: o plano básico se chama "Free" no cadastro, mas a interface é em português.</summary>
+    public static string PlanName(string? name) => string.IsNullOrWhiteSpace(name) || name.Trim().Equals("Free", StringComparison.OrdinalIgnoreCase)
+        ? "Gratuito"
+        : name.Trim();
+
     public static string SubscriptionStatus(string? status) => status switch
     {
         "Active" => "Ativa",
@@ -84,12 +110,37 @@ public static class UiLabels
         _ => "Indefinida"
     };
 
-    public static string SubscriptionStatusBadge(string? status) => status switch
+    public static StatusTone SubscriptionStatusTone(string? status) => status switch
     {
-        "Active" => "bg-success",
-        "Pending" => "bg-info",
-        "Expired" => "bg-warning",
-        _ => "bg-secondary"
+        "Active" => StatusTone.Ok,
+        "Pending" => StatusTone.Info,
+        "Expired" => StatusTone.Warn,
+        _ => StatusTone.Neutral
+    };
+
+    public static StatusTone AccountStatusTone(EAccountStatus status) => status switch
+    {
+        EAccountStatus.Active => StatusTone.Ok,
+        EAccountStatus.Blocked => StatusTone.Error,
+        _ => StatusTone.Warn
+    };
+
+    public static StatusTone AccountStatusTone(EAdvertiserStatus status) => status switch
+    {
+        EAdvertiserStatus.Active => StatusTone.Ok,
+        EAdvertiserStatus.Blocked => StatusTone.Error,
+        _ => StatusTone.Warn
+    };
+
+    /// <summary>Classe CSS do tom (components.css: .badge--*).</summary>
+    public static string ToneClass(StatusTone tone) => tone switch
+    {
+        StatusTone.Info => "badge--info",
+        StatusTone.Brand => "badge--brand",
+        StatusTone.Ok => "badge--ok",
+        StatusTone.Warn => "badge--warn",
+        StatusTone.Error => "badge--er",
+        _ => "badge--neutral"
     };
 
     public static string AccountStatus(EAccountStatus status) => status switch
@@ -104,6 +155,40 @@ public static class UiLabels
         EAdvertiserStatus.Active => "Ativa",
         EAdvertiserStatus.Blocked => "Bloqueada",
         _ => "Cadastro incompleto"
+    };
+
+    /// <summary>Nível de formação do currículo (<c>EEducationLevel</c>); valor desconhecido aparece como veio.</summary>
+    public static string EducationLevel(string? level) => level switch
+    {
+        "Elementary" => "Ensino fundamental",
+        "HighSchool" => "Ensino médio",
+        "Technical" => "Técnico",
+        "Bachelor" => "Graduação",
+        "Postgraduate" => "Pós-graduação",
+        "Master" => "Mestrado",
+        "Doctorate" => "Doutorado",
+        _ => level ?? string.Empty
+    };
+
+    /// <summary>Situação do curso (<c>EEducationStatus</c>); valor desconhecido aparece como veio.</summary>
+    public static string EducationStatus(string? status) => status switch
+    {
+        "Ongoing" => "Em andamento",
+        "Completed" => "Concluído",
+        "Dropped" => "Trancado",
+        "Incomplete" => "Incompleto",
+        _ => status ?? string.Empty
+    };
+
+    /// <summary>Nível do idioma (<c>ELanguageLevel</c>); valor desconhecido aparece como veio.</summary>
+    public static string LanguageLevel(string? level) => level switch
+    {
+        "Basic" => "Básico",
+        "Intermediate" => "Intermediário",
+        "Advanced" => "Avançado",
+        "Fluent" => "Fluente",
+        "Native" => "Nativo",
+        _ => level ?? string.Empty
     };
 
     public static string CurrencySymbol(string? currency) => currency switch
@@ -156,4 +241,24 @@ public static class UiLabels
             return TimeZoneInfo.CreateCustomTimeZone("BRT", TimeSpan.FromHours(-3), "Brasília", "Brasília");
         }
     });
+}
+
+/// <summary>Tons de selo e aviso do design system (DESIGN.md, "Cores semânticas").</summary>
+public enum StatusTone
+{
+    Neutral,
+    Info,
+    Brand,
+    Ok,
+    Warn,
+    Error
+}
+
+/// <summary>Situações com rótulo e tom conhecidos pelo StatusBadge.</summary>
+public enum StatusKind
+{
+    Custom,
+    Application,
+    Job,
+    Subscription
 }

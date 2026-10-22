@@ -1,0 +1,148 @@
+@page "/companies/{advertiserId:guid}"
+@* Página pública renderizada no servidor (como a da vaga): indexável e com 404 de verdade para empresa inexistente *@
+@using Monburan.Core.DTOs.Request
+@using Monburan.Core.DTOs.Response
+@using Monburan.Core.Enums
+@using Monburan.Core.Interfaces.Repositories
+@using Monburan.Core.UseCases.Jobs
+@using Monburan.Core.ValueObjects
+@using Monburan.Web.Services
+@inject SearchJobsUseCase SearchJobsUseCase
+@inject IAdvertiserRepository AdvertiserRepository
+@inject ICurrentUserHelper CurrentUserHelper
+@inject ILogger<CompanyProfile> Logger
+
+<PageTitle>@(advertiser?.Name ?? (loadFailed ? "Empresa" : "Empresa não encontrada")) - Monburan</PageTitle>
+
+<HeadContent>
+    @if (advertiser is null)
+    {
+        <meta name="robots" content="noindex" />
+    }
+    else
+    {
+        <meta name="description" content="Vagas abertas na @advertiser.Name - Monburan" />
+    }
+</HeadContent>
+
+<div class="container">
+    @if (loadFailed)
+    {
+        <ErrorState Title="Não foi possível carregar a empresa" HeadingLevel="1"
+                    Message="Tivemos um problema ao abrir este perfil. Tente novamente em instantes."
+                    RetryHref="@($"/companies/{AdvertiserId}")" />
+    }
+    else if (advertiser is null)
+    {
+        <EmptyState Icon="search" Title="Empresa não encontrada" HeadingLevel="1" Message="Ela pode ter sido removida ou o link está incorreto." TestId="company-not-found">
+            <a class="btn btn-primary" href="/jobs">Ver vagas abertas</a>
+        </EmptyState>
+    }
+    else
+    {
+        <PageHeader Title="@advertiser.Name" Description="@advertiser.CompanyDescription" BackHref="/jobs" BackText="Vagas">
+            @if (!string.IsNullOrWhiteSpace(advertiser.Website))
+            {
+                <p><a href="@advertiser.Website" target="_blank" rel="noopener noreferrer">@advertiser.Website<Icon Name="external" Size="14" Label="(abre em outra aba)" /></a></p>
+            }
+        </PageHeader>
+
+        <h2 class="h4 mb-3">@(jobsLoadFailed ? "Vagas da empresa" : $"Vagas abertas ({jobs.TotalCount})")</h2>
+        @if (jobsLoadFailed)
+        {
+            <ErrorState Title="Não foi possível carregar as vagas"
+                        Message="Tivemos um problema ao buscar as vagas desta empresa. Tente novamente em instantes."
+                        RetryHref="@($"/companies/{AdvertiserId}")" />
+        }
+        else if (jobs.TotalCount > jobs.Jobs.Count())
+        {
+            <p class="text-muted" data-testid="company-jobs-truncated">Mostrando as @jobs.Jobs.Count() vagas mais recentes.</p>
+        }
+
+        @if (!jobsLoadFailed && jobs.Jobs.Any())
+        {
+            <ul class="jobs-grid">
+                @foreach (var job in jobs.Jobs)
+                {
+                    <li @key="job.Id"><JobCard Job="job" IsOwner="isOwner" /></li>
+                }
+            </ul>
+            <Pager Page="CurrentPage" TotalPages="jobs.TotalPages" HrefFor="PageUrl"
+                   Total="jobs.TotalCount" PageSize="PageSize" ItemName="@(jobs.TotalCount == 1 ? "vaga" : "vagas")"
+                   AriaLabel="Páginas de vagas da empresa" />
+        }
+        else if (!jobsLoadFailed && jobs.TotalCount > 0)
+        {
+            <EmptyState Icon="search" Title="Página não encontrada" Message="Esta página da lista não existe. Volte às vagas mais recentes.">
+                <a class="btn btn-outline-secondary" href="@($"/companies/{AdvertiserId}")">Ver vagas mais recentes</a>
+            </EmptyState>
+        }
+        else if (!jobsLoadFailed)
+        {
+            <EmptyState Icon="briefcase" Title="Nenhuma vaga aberta" Message="Esta empresa não tem vagas publicadas no momento.">
+                <a class="btn btn-outline-secondary" href="/jobs">Ver todas as vagas</a>
+            </EmptyState>
+        }
+    }
+</div>
+
+@code {
+    [Parameter]
+    public Guid AdvertiserId { get; set; }
+
+    [SupplyParameterFromQuery(Name = "pagina")]
+    public int RequestedPage { get; set; } = 1;
+
+    private const int PageSize = 20;
+    private Monburan.Core.Entities.Advertiser? advertiser;
+    private ListJobsResponse jobs = new();
+    private bool loadFailed;
+    private bool jobsLoadFailed;
+    private bool isOwner;
+    private int CurrentPage => Math.Max(1, RequestedPage);
+
+    [CascadingParameter]
+    private HttpContext? HttpContext { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        isOwner = CurrentUserHelper.GetAdvertiserId() == AdvertiserId;
+
+        var found = AdvertiserId == Guid.Empty
+            ? null
+            : await AdvertiserRepository.GetByIdAsync(Id.Create(AdvertiserId));
+        if (found?.Status == EResultStatus.Success && found.Data is not null)
+            advertiser = found.Data;
+        else if (found is not null && found.Status != EResultStatus.EntityNotFound)
+        {
+            // Falha de consulta não se disfarça de "não existe"
+            Logger.LogFailure(found, "Carregar perfil público da empresa");
+            loadFailed = true;
+            return;
+        }
+
+        if (advertiser is null)
+        {
+            // Mesmo cuidado da página da vaga: o 404 só entra quando os cabeçalhos saem, senão o corpo some
+            if (HttpContext is { Response.HasStarted: false } http)
+                http.Response.OnStarting(() =>
+                {
+                    http.Response.StatusCode = StatusCodes.Status404NotFound;
+                    return Task.CompletedTask;
+                });
+            return;
+        }
+
+        var result = await SearchJobsUseCase.ExecutePublicByAdvertiserAsync(AdvertiserId, CurrentPage, PageSize);
+        if (result.Status == EResultStatus.Success && result.Data is not null)
+            jobs = result.Data;
+        else
+        {
+            Logger.LogFailure(result, "Listar vagas da empresa");
+            jobsLoadFailed = true;
+        }
+    }
+
+    private string PageUrl(int page) =>
+        page <= 1 ? $"/companies/{AdvertiserId}" : $"/companies/{AdvertiserId}?pagina={page}";
+}

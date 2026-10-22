@@ -1,4 +1,4 @@
-using Monburan.Core.DTOs.Response;
+﻿using Monburan.Core.DTOs.Response;
 using Monburan.Core.Entities;
 using Monburan.Core.Enums;
 using Monburan.Core.Interfaces.Repositories.Base;
@@ -17,13 +17,19 @@ public class GetResumeByIdUseCase : IUseCase<Guid, ResumeResponse>
         _resumeRepository = resumeRepository;
     }
 
-    public async Task<RequestResult<ResumeResponse>> ExecuteAsync(Guid request)
+    public async Task<RequestResult<ResumeResponse>> ExecuteAsync(Guid request, CancellationToken cancellationToken = default)
     {
-        var result = await _resumeRepository.GetByIdAsync(Id.Create(request));
-        if (result.Status != EResultStatus.Success)
+        var result = await _resumeRepository.GetByIdAsync(Id.Create(request), cancellationToken);
+        if (result.Status != EResultStatus.Success || result.Data is null)
+        {
+            // Só "não encontrado" vira not found: falha de banco/serviço sobe como erro,
+            // senão a tela confunde pane com currículo inexistente
+            if (result.Status is EResultStatus.HasError or EResultStatus.EntityHasError or EResultStatus.DomainError)
+                return RequestResult<ResumeResponse>.FromResult(result);
             return RequestResult<ResumeResponse>.EntityNotFound("Resume", request, "Currículo não encontrado.");
+        }
 
-        return RequestResult<ResumeResponse>.Success(MapToResponse(result.Data!));
+        return RequestResult<ResumeResponse>.Success(MapToResponse(result.Data));
     }
 
     private static ResumeResponse MapToResponse(Resume r) => new()
@@ -33,6 +39,8 @@ public class GetResumeByIdUseCase : IUseCase<Guid, ResumeResponse>
         Title = r.Title,
         Summary = r.Summary,
         IsActive = r.IsActive,
+        SourceFileName = r.SourceFileName,
+        SourceFileUrl = r.SourceFileUrl,
         CreatedAt = r.CreatedAt,
         UpdatedAt = r.UpdatedAt,
         EducationHistory = r.EducationHistory?.Select(e => new EducationResponse

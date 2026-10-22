@@ -1,151 +1,234 @@
 @implements IDisposable
+@using Monburan.Core.DTOs.Response
 @using Monburan.Core.Enums
+@using Monburan.Core.Interfaces.Repositories
 @using Monburan.Core.Interfaces.Services
 @using Monburan.Core.UseCases.Resumes
+@using Monburan.Web.Models
 @inject IAiTextClient Ai
 @inject ICurrentUserHelper CurrentUser
 @inject ImproveResumeUseCase ImproveResumeUseCase
+@inject ISubscriptionRepository Subscriptions
+@inject ResumeImprovementDraftService Drafts
 @inject IJSRuntime JS
 @inject IToastService Toast
+@inject ILogger<ResumeAiPanel> Logger
 
-@* Sugestões de melhoria do currículo com IA. Só aparece quando a IA está configurada. Nada é gravado: o resultado
-   existe só na tela e a pessoa decide o que aproveitar. O envio do conteúdo ao provedor exige autorização expressa
-   a cada uso (a caixa de seleção abaixo). *@
-@if (Ai.IsConfigured)
+@* Sugestões de melhoria do currículo com IA — benefício do plano Premium. Só aparece quando a IA está configurada.
+   O resultado vira um rascunho criptografado no navegador (escopo por candidato + currículo): a pessoa revisa,
+   escolhe o que aproveitar e só então aplica. Nada regenera sozinho. *@
+@if (loaded && OpenRequested)
 {
     <section class="card mb-4 ai-panel" aria-labelledby="ai-panel-title" data-testid="resume-ai-panel">
         <div class="card-body">
-            <h2 id="ai-panel-title" class="ai-panel__title"><span aria-hidden="true">✦</span> Sugestões de melhoria com IA</h2>
-            <p class="ai-panel__lead">
-                A IA lê o conteúdo profissional do currículo (título, resumo, experiências, formação, habilidades e idiomas)
-                e sugere como deixá-lo mais claro e forte. Você decide o que aproveitar: nada é alterado nem guardado.
-            </p>
+            <h2 id="ai-panel-title" class="ai-panel__title"><span aria-hidden="true"><Icon Name="sparkles" Size="18" /></span> Sugestões de melhoria com IA</h2>
 
-            <div class="ai-panel__consent">
-                <input id="ai-consent" type="checkbox" @bind="consent" data-testid="resume-ai-consent" />
-                <label for="ai-consent">
-                    Autorizo enviar o conteúdo profissional deste currículo, sem nome, e-mail, telefone nem endereço, ao serviço
-                    de IA externo <strong>@Ai.ProviderName</strong>, só para gerar as sugestões.
-                    <a href="/privacy" target="_blank" rel="noopener">Como tratamos seus dados</a>.
-                </label>
-            </div>
-
-            <button type="button" class="btn btn-primary" @onclick="GenerateAsync" disabled="@(!consent || isRunning)" data-testid="resume-ai-generate">
-                @(isRunning ? "Analisando..." : improvement is null ? "Gerar sugestões" : "Gerar novamente")
-            </button>
-
-            <div aria-live="polite">
-                @if (isRunning)
-                {
-                    <LoadingState Compact="true" Message="Analisando seu currículo… pode levar até um minuto." />
-                }
-
-                @if (!string.IsNullOrEmpty(errorMessage))
-                {
-                    <div class="alert alert-warning mt-3 mb-0" role="alert" data-testid="resume-ai-error">@errorMessage</div>
-                }
-            </div>
-
-            @if (improvement is not null)
+            @if (!storageChecked)
             {
-                <div class="ai-result" data-testid="resume-ai-result">
-                    @if (!string.IsNullOrWhiteSpace(improvement.Summary))
-                    {
-                        <section class="ai-result__block" data-testid="resume-ai-summary">
-                            <div class="ai-result__head">
-                                <h3>Resumo profissional sugerido</h3>
-                                <button type="button" class="btn btn-outline-primary btn-sm" @onclick="() => CopyAsync(improvement.Summary)">Copiar</button>
-                            </div>
-                            <p class="ai-result__text">@improvement.Summary</p>
-                        </section>
-                    }
-
-                    @if (improvement.Experiences.Count > 0)
-                    {
-                        <section class="ai-result__block" data-testid="resume-ai-experiences">
-                            <h3>Experiências: frases de destaque</h3>
-                            @foreach (var experience in improvement.Experiences)
-                            {
-                                <article class="ai-result__experience">
-                                    <h4>@experience.Position @if (!string.IsNullOrWhiteSpace(experience.Company)) { <small>· @experience.Company</small> }</h4>
-                                    <ul>
-                                        @foreach (var suggestion in experience.Suggestions)
-                                        {
-                                            <li>
-                                                <span>@suggestion</span>
-                                                <button type="button" class="btn btn-outline-primary btn-sm" @onclick="() => CopyAsync(suggestion)">Copiar</button>
-                                            </li>
-                                        }
-                                    </ul>
-                                </article>
-                            }
-                        </section>
-                    }
-
-                    @if (improvement.SkillsToAdd.Count > 0)
-                    {
-                        <section class="ai-result__block" data-testid="resume-ai-skills">
-                            <h3>Habilidades que valem destacar</h3>
-                            <ul class="ai-result__chips">
-                                @foreach (var skill in improvement.SkillsToAdd)
-                                {
-                                    <li>@skill</li>
-                                }
-                            </ul>
-                        </section>
-                    }
-
-                    @if (improvement.MissingSections.Count > 0)
-                    {
-                        <section class="ai-result__block" data-testid="resume-ai-missing">
-                            <h3>O que falta no currículo</h3>
-                            <ul>
-                                @foreach (var section in improvement.MissingSections)
-                                {
-                                    <li>@section</li>
-                                }
-                            </ul>
-                        </section>
-                    }
-
-                    @if (improvement.Tips.Count > 0)
-                    {
-                        <section class="ai-result__block" data-testid="resume-ai-tips">
-                            <h3>Dicas gerais</h3>
-                            <ul>
-                                @foreach (var tip in improvement.Tips)
-                                {
-                                    <li>@tip</li>
-                                }
-                            </ul>
-                        </section>
-                    }
-
-                    <p class="ai-result__foot">
-                        Gerado por @(improvement.Model ?? "IA") em @UiLabels.FormatMoment(improvement.GeneratedAt). É um ponto de partida: revise
-                        e só use o que for verdadeiro e você puder comprovar. Onde aparecer algo como [X%], preencha com o seu número real.
+                <LoadingState Compact="true" Message="Verificando rascunho salvo…" />
+            }
+            else if (draft is not null)
+            {
+                @* Rascunho salvo: revisar, aplicar e descartar funcionam mesmo sem IA ativa nem plano agora *@
+                <div class="ai-draft" data-testid="resume-ai-draft">
+                    <p class="ai-draft__status">
+                        <strong>Rascunho com sugestões@(draftPersisted ? " salvo neste navegador" : "")</strong>
+                        · gerado em @UiLabels.FormatMoment(draft.GeneratedAtUtc)
                     </p>
+                    @if (!draftPersisted)
+                    {
+                        <p class="alert alert-warning mb-2" role="status" data-testid="resume-ai-draft-warning">
+                            Não foi possível salvar o rascunho neste navegador — ele ficará disponível só nesta sessão.
+                        </p>
+                    }
+                    <div class="d-flex flex-wrap gap-2">
+                        <button type="button" class="btn btn-primary" @onclick="ReviewDraft" disabled="@isRunning" data-testid="resume-ai-review">Revisar e aplicar</button>
+                        @if (!regenerating && canGenerate)
+                        {
+                            <button type="button" class="btn btn-outline-secondary" @onclick="AskReplaceAsync" disabled="@isRunning" data-testid="resume-ai-regenerate">Gerar novas sugestões</button>
+                        }
+                        <button type="button" class="btn btn-outline-danger btn-sm" @onclick="DiscardAsync" disabled="@isRunning" data-testid="resume-ai-discard">Descartar rascunho</button>
+                    </div>
                 </div>
+            }
+            else if (!Ai.IsConfigured)
+            {
+                <p class="ai-panel__lead" data-testid="resume-ai-unavailable">
+                    As sugestões de melhoria com IA não estão disponíveis neste ambiente no momento.
+                </p>
+            }
+            else if (!entitled)
+            {
+                <p class="ai-panel__lead" data-testid="resume-ai-premium">
+                    As sugestões de melhoria com IA são um benefício do plano <strong>Premium</strong>. Com ele, a IA lê o
+                    conteúdo profissional do seu currículo e sugere como deixá-lo mais claro e forte — e você decide o que aproveitar.
+                </p>
+            }
+            else
+            {
+                <p class="ai-panel__lead">
+                    A IA lê o conteúdo profissional do currículo (título, resumo, experiências, formação, habilidades e idiomas)
+                    e sugere como deixá-lo mais claro e forte. Nada muda no currículo sem a sua revisão.
+                </p>
+            }
+
+            @if (storageChecked && canGenerate && (draft is null || regenerating))
+            {
+                <p class="ai-panel__note" id="resume-ai-processing-note">
+                    Ao gerar sugestões com IA, você autoriza o envio do conteúdo profissional a um serviço externo.
+                    Dados de contato do perfil não são enviados. Você revisa tudo antes de aplicar.
+                    <a href="/privacy" target="_blank" rel="noopener">Como tratamos seus dados<span class="visually-hidden"> (abre em nova aba)</span></a>.
+                </p>
+                <button type="button" class="btn btn-primary" @onclick="GenerateAsync" disabled="@isRunning" aria-busy="@(isRunning ? "true" : null)"
+                        aria-describedby="resume-ai-processing-note" data-testid="resume-ai-generate">
+                    @if (isRunning)
+                    {
+                        <span class="spinner-border spinner-border-sm" aria-hidden="true"></span>
+                        <span>Analisando…</span>
+                    }
+                    else
+                    {
+                        <Icon Name="sparkles" Size="16" /><span>Gerar sugestões com IA</span>
+                    }
+                </button>
+            }
+
+            @if (storageLoadFailed)
+            {
+                <div class="alert alert-warning mt-3 mb-0" role="status" data-testid="resume-ai-storage-warning">
+                    Não foi possível ler o armazenamento do navegador. Você pode gerar sugestões, mas o rascunho pode não ser salvo.
+                </div>
+            }
+
+            @* Sem região viva extra em volta: o LoadingState (status) e o alerta já se anunciam sozinhos *@
+            @if (isRunning)
+            {
+                <LoadingState Compact="true" Message="Analisando seu currículo… pode levar até um minuto." />
+            }
+
+            @if (!string.IsNullOrEmpty(errorMessage))
+            {
+                <div class="alert alert-warning mt-3 mb-0" role="alert" data-testid="resume-ai-error">@errorMessage</div>
             }
         </div>
     </section>
 }
 
+
+<ConfirmDialog @ref="confirmDialog" />
+
 @code {
     private readonly CancellationTokenSource cancellation = new();
 
-    private bool consent;
     private bool isRunning;
+    private bool loaded;
+    private bool entitled;
+    private bool storageChecked;
+    private bool storageLoadFailed;
+    private bool draftPersisted;
+    private bool regenerating;
     private string? errorMessage;
-    private ResumeImprovementResponse? improvement;
+    private ResumeImprovementDraft? draft;
+    private ConfirmDialog confirmDialog = default!;
 
+    /// <summary>Currículo dono das sugestões (snapshot que vai para o rascunho).</summary>
     [Parameter, EditorRequired]
-    public Guid ResumeId { get; set; }
+    public ResumeResponse Resume { get; set; } = new();
+
+    /// <summary>A página abre/fecha o painel (a tela de CV linka com ?melhorar=true).</summary>
+    [Parameter]
+    public bool OpenRequested { get; set; }
+
+    /// <summary>A página hospeda a área de revisão em largura total.</summary>
+    [Parameter]
+    public EventCallback<ResumeImprovementDraft> OnReviewRequested { get; set; }
+
+    /// <summary>Rascunho descartado: a página fecha a área de revisão aberta.</summary>
+    [Parameter]
+    public EventCallback OnDraftDiscarded { get; set; }
+
+    /// <summary>Rascunho atual em memória (a página usa para abrir a revisão).</summary>
+    public ResumeImprovementDraft? Draft => draft;
+
+    /// <summary>A página informa se a gravação mais recente no navegador funcionou.</summary>
+    public bool DraftPersisted
+    {
+        get => draftPersisted;
+        set => draftPersisted = value;
+    }
+
+    private bool canGenerate => Ai.IsConfigured && entitled;
+
+    /// <summary>Aplicação concluída: a página descarta o rascunho em memória.</summary>
+    public void ClearDraft()
+    {
+        draft = null;
+        draftPersisted = false;
+        regenerating = false;
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        // A oferta do recurso depende do plano do candidato (HasAiAssistant), não só da IA configurada
+        var candidateId = CurrentUser.GetCandidateId();
+        if (Ai.IsConfigured && candidateId is not null)
+        {
+            var active = await Subscriptions.GetActiveByCandidateIdAsync(
+                Monburan.Core.ValueObjects.Id.Create(candidateId.Value), cancellation.Token);
+            entitled = active.Status == EResultStatus.Success && active.Data?.Plan?.HasAiAssistant == true;
+        }
+
+        loaded = true;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender)
+            return;
+
+        // O rascunho mora no navegador: a leitura só acontece depois do pré-render (sem JS antes)
+        var candidateId = CurrentUser.GetCandidateId();
+        if (candidateId is null)
+        {
+            storageChecked = true;
+            return;
+        }
+
+        var (outcome, found) = await Drafts.LoadAsync(candidateId.Value, Resume.Id, cancellation.Token);
+        if (outcome == ResumeImprovementDraftLoad.Found && found is not null)
+        {
+            draft = found;
+            draftPersisted = true;
+        }
+        else if (outcome == ResumeImprovementDraftLoad.Error)
+        {
+            storageLoadFailed = true;
+        }
+
+        storageChecked = true;
+        StateHasChanged();
+    }
+
+    private async Task AskReplaceAsync()
+    {
+        // Gerar de novo chama a IA outra vez e substitui o rascunho — a pessoa confirma antes
+        var confirmed = await confirmDialog.ShowAsync(new ConfirmOptions
+        {
+            Title = "Gerar novas sugestões?",
+            Message = "A IA vai analisar o currículo novamente e, ao terminar, o novo rascunho substitui o atual. Suas seleções e edições atuais serão descartadas.",
+            ConfirmText = "Gerar novas sugestões"
+        });
+        if (!confirmed)
+            return;
+
+        regenerating = true;
+        await GenerateAsync();
+    }
 
     private async Task GenerateAsync()
     {
         var candidateId = CurrentUser.GetCandidateId();
-        if (!consent || isRunning || candidateId is null)
+        if (!canGenerate || isRunning || candidateId is null)
             return;
 
         isRunning = true;
@@ -156,16 +239,25 @@
             var result = await ImproveResumeUseCase.ExecuteAsync(
                 new ImproveResumeRequest
                 {
-                    ResumeId = ResumeId,
+                    ResumeId = Resume.Id,
                     CandidateId = candidateId.Value,
-                    AcceptsExternalProcessing = consent
+                    AcceptsExternalProcessing = true
                 },
                 cancellation.Token);
 
             if (result.Status == EResultStatus.Success && result.Data is not null)
-                improvement = result.Data;
+            {
+                var newDraft = ResumeImprovementEditor.CreateDraft(candidateId.Value, Resume, result.Data);
+                draftPersisted = await Drafts.SaveAsync(newDraft, cancellation.Token);
+                draft = newDraft;
+                regenerating = false;
+                if (draftPersisted)
+                    Toast.ShowSuccess("Rascunho salvo neste navegador.");
+            }
             else
+            {
                 errorMessage = ResultMessages.ToUserMessage(result, "Não foi possível gerar as sugestões agora. Tente novamente em instantes.");
+            }
         }
         catch (OperationCanceledException)
         {
@@ -177,17 +269,42 @@
         }
     }
 
-    private async Task CopyAsync(string text)
+    private async Task DiscardAsync()
     {
-        try
+        if (draft is null || isRunning)
+            return;
+
+        var confirmed = await confirmDialog.ShowAsync(new ConfirmOptions
         {
-            await JS.InvokeVoidAsync("navigator.clipboard.writeText", text);
-            Toast.ShowSuccess("Texto copiado.");
-        }
-        catch (JSException)
+            Title = "Descartar rascunho?",
+            Message = "As sugestões e edições deste rascunho serão removidas deste navegador. O currículo não muda.",
+            ConfirmText = "Descartar",
+            Destructive = true
+        });
+        if (!confirmed)
+            return;
+
+        var candidateId = CurrentUser.GetCandidateId();
+        if (candidateId is null)
+            return;
+
+        if (await Drafts.DeleteAsync(candidateId.Value, Resume.Id, cancellation.Token))
         {
-            Toast.ShowError("Não foi possível copiar. Selecione o texto e copie manualmente.");
+            draft = null;
+            draftPersisted = false;
+            regenerating = false;
+            await OnDraftDiscarded.InvokeAsync();
         }
+        else
+        {
+            Toast.ShowError("Não foi possível remover o rascunho deste navegador. Tente novamente.");
+        }
+    }
+
+    private async Task ReviewDraft()
+    {
+        if (draft is not null)
+            await OnReviewRequested.InvokeAsync(draft);
     }
 
     public void Dispose()

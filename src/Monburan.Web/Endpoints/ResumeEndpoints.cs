@@ -1,7 +1,9 @@
 using Monburan.Core.DTOs.Request;
 using Monburan.Core.Enums;
+using Monburan.Core.Interfaces.Repositories;
 using Monburan.Core.Interfaces.Services;
 using Monburan.Core.UseCases.Resumes;
+using Monburan.Core.ValueObjects;
 using Monburan.Web.Services;
 
 namespace Monburan.Web.Endpoints;
@@ -22,7 +24,7 @@ public static class ResumeEndpoints
             if (candidateId is null)
                 return Results.Problem(statusCode: StatusCodes.Status403Forbidden, title: "Perfil de candidato necessário");
 
-            var result = await useCase.ExecuteAsync(candidateId.Value);
+            var result = await useCase.ExecuteAsync(candidateId.Value, cancellationToken);
             return result.ToHttpResult();
         })
         .WithSummary("Lista currículos do candidato autenticado");
@@ -37,7 +39,7 @@ public static class ResumeEndpoints
             if (candidateId is null)
                 return Results.Problem(statusCode: StatusCodes.Status403Forbidden, title: "Perfil de candidato necessário");
 
-            var result = await useCase.ExecuteAsync(id);
+            var result = await useCase.ExecuteAsync(id, cancellationToken);
             if (result.Status != EResultStatus.Success || result.Data is null)
                 return result.ToHttpResult();
 
@@ -60,7 +62,7 @@ public static class ResumeEndpoints
                 return Results.Problem(statusCode: StatusCodes.Status403Forbidden, title: "Perfil de candidato necessário");
 
             request.CandidateId = candidateId.Value;
-            var result = await useCase.ExecuteAsync(request);
+            var result = await useCase.ExecuteAsync(request, cancellationToken);
             return result.ToHttpResult(StatusCodes.Status201Created);
         })
         .WithSummary("Cria currículo para o candidato autenticado");
@@ -77,7 +79,7 @@ public static class ResumeEndpoints
             if (candidateId is null)
                 return Results.Problem(statusCode: StatusCodes.Status403Forbidden, title: "Perfil de candidato necessário");
 
-            var existing = await getResume.ExecuteAsync(id);
+            var existing = await getResume.ExecuteAsync(id, cancellationToken);
             if (existing.Status != EResultStatus.Success || existing.Data is null)
                 return existing.ToHttpResult();
 
@@ -86,7 +88,7 @@ public static class ResumeEndpoints
 
             request.Id = id;
             request.CandidateId = candidateId.Value;
-            var result = await useCase.ExecuteAsync(request);
+            var result = await useCase.ExecuteAsync(request, cancellationToken);
             return result.ToHttpResult();
         })
         .WithSummary("Atualiza currículo do candidato autenticado");
@@ -102,22 +104,41 @@ public static class ResumeEndpoints
             if (candidateId is null)
                 return Results.Problem(statusCode: StatusCodes.Status403Forbidden, title: "Perfil de candidato necessário");
 
-            var existing = await getResume.ExecuteAsync(id);
+            var existing = await getResume.ExecuteAsync(id, cancellationToken);
             if (existing.Status != EResultStatus.Success || existing.Data is null)
                 return existing.ToHttpResult();
 
             if (existing.Data.CandidateId != candidateId.Value)
                 return Results.Problem(statusCode: StatusCodes.Status403Forbidden, title: "Currículo pertence a outro candidato");
 
-            var result = await useCase.ExecuteAsync(id);
+            var result = await useCase.ExecuteAsync(id, cancellationToken);
             return result.ToHttpResult();
         })
         .WithSummary("Remove currículo do candidato autenticado");
 
-        // O app e o site só oferecem o recurso quando a IA está configurada neste ambiente
-        group.MapGet("/improvements/availability", (IAiTextClient ai) =>
-            Results.Ok(new { enabled = ai.IsConfigured, provider = ai.IsConfigured ? ai.ProviderName : null }))
-        .WithSummary("Informa se as sugestões de melhoria com IA estão ativas e qual provedor recebe o conteúdo");
+        // O app e o site só oferecem o recurso quando a IA está configurada e o candidato tem plano com assistente
+        group.MapGet("/improvements/availability", async (
+            ICurrentUserHelper currentUser,
+            IAiTextClient ai,
+            ISubscriptionRepository subscriptions,
+            CancellationToken cancellationToken) =>
+        {
+            var candidateId = currentUser.GetCandidateId();
+            var entitled = false;
+            if (candidateId is not null)
+            {
+                var active = await subscriptions.GetActiveByCandidateIdAsync(Id.Create(candidateId.Value), cancellationToken);
+                entitled = active.Status == EResultStatus.Success && active.Data?.Plan?.HasAiAssistant == true;
+            }
+
+            return Results.Ok(new
+            {
+                enabled = ai.IsConfigured && entitled,
+                provider = ai.IsConfigured ? ai.ProviderName : null,
+                premium = entitled
+            });
+        })
+        .WithSummary("Informa se as sugestões de melhoria com IA estão ativas para o candidato e qual provedor recebe o conteúdo");
 
         // CandidateId sempre da claim (IDOR-safe); o conteúdo só sai com autorização expressa no corpo
         group.MapPost("/{id:guid}/improvements", async (

@@ -1,18 +1,20 @@
 @implements IDisposable
 @inject IToastService ToastService
 
+@* Mesmo aviso da web: borda esquerda e ícone no tom; o texto diz o que houve (a cor nunca é o único sinal) *@
 <div class="toast-stack" role="region" aria-live="polite" aria-label="Avisos">
     @foreach (var toast in ToastService.Toasts)
     {
-        <div @key="toast.Id" class="toast-card toast-@LevelClass(toast.Level)" role="@(toast.Level == ToastLevel.Error ? "alert" : "status")">
-            <div class="toast-body">
+        <div @key="toast.Id" class="toast-card toast-card--@LevelClass(toast.Level)" role="@(toast.Level == ToastLevel.Error ? "alert" : "status")">
+            <span class="toast-card__icon"><Icon Name="@LevelIcon(toast.Level)" Size="16" /></span>
+            <div class="toast-card__body">
                 @if (!string.IsNullOrWhiteSpace(toast.Title))
                 {
                     <strong>@toast.Title</strong>
                 }
-                <span>@toast.Message</span>
+                <p>@toast.Message</p>
             </div>
-            <button type="button" class="toast-close" aria-label="Fechar aviso" @onclick="() => ToastService.Dismiss(toast.Id)">×</button>
+            <button type="button" class="toast-card__close" aria-label="Fechar aviso" @onclick="() => ToastService.Dismiss(toast.Id)"><Icon Name="x" /></button>
         </div>
     }
 </div>
@@ -25,9 +27,16 @@
 
     private static string LevelClass(ToastLevel level) => level switch
     {
-        ToastLevel.Success => "ok",
-        ToastLevel.Error => "er",
-        ToastLevel.Warning => "warn",
+        ToastLevel.Success => "success",
+        ToastLevel.Error => "error",
+        ToastLevel.Warning => "warning",
+        _ => "info"
+    };
+
+    private static string LevelIcon(ToastLevel level) => level switch
+    {
+        ToastLevel.Success => "check",
+        ToastLevel.Error or ToastLevel.Warning => "alert",
         _ => "info"
     };
 

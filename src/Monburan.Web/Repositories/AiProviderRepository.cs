@@ -16,18 +16,18 @@ public class AiProviderRepository : IAiProviderRepository
         _contextFactory = contextFactory;
     }
 
-    public async Task<RequestResult<AiProvider>> CreateAsync(AiProvider entity)
+    public async Task<RequestResult<AiProvider>> CreateAsync(AiProvider entity, CancellationToken cancellationToken = default)
     {
-        await using var context = await _contextFactory.CreateDbContextAsync();
+        await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);
         context.AiProviders.Add(entity);
-        await context.SaveChangesAsync();
+        await context.SaveChangesAsync(cancellationToken);
         return RequestResult<AiProvider>.Success(entity);
     }
 
-    public async Task<RequestResult<AiProvider>> DeleteAsync(Id id)
+    public async Task<RequestResult<AiProvider>> DeleteAsync(Id id, CancellationToken cancellationToken = default)
     {
-        await using var context = await _contextFactory.CreateDbContextAsync();
-        var provider = await context.AiProviders.FirstOrDefaultAsync(p => p.Id == id && !p.IsDeleted);
+        await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);
+        var provider = await context.AiProviders.FirstOrDefaultAsync(p => p.Id == id && !p.IsDeleted, cancellationToken);
         if (provider is null)
             return RequestResult<AiProvider>.EntityNotFound("AiProvider", id.Value, "Provedor não encontrado.");
 
@@ -36,37 +36,37 @@ public class AiProviderRepository : IAiProviderRepository
         provider.DeletedAt = DateTime.UtcNow;
         provider.IsDefault = false;
         provider.IsEnabled = false;
-        await context.SaveChangesAsync();
+        await context.SaveChangesAsync(cancellationToken);
         return RequestResult<AiProvider>.Success(provider);
     }
 
-    public async Task<RequestResult<IEnumerable<AiProvider>>> GetAllAsync(int page, int size)
+    public async Task<RequestResult<IEnumerable<AiProvider>>> GetAllAsync(int page, int size, CancellationToken cancellationToken = default)
     {
-        await using var context = await _contextFactory.CreateDbContextAsync();
+        await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);
         var providers = await context.AiProviders
             .AsNoTracking()
             .Where(p => !p.IsDeleted)
             .OrderBy(p => p.Name)
             .Skip((page - 1) * size)
             .Take(size)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         return RequestResult<IEnumerable<AiProvider>>.Success(providers);
     }
 
-    public async Task<RequestResult<AiProvider>> GetByIdAsync(Id id)
+    public async Task<RequestResult<AiProvider>> GetByIdAsync(Id id, CancellationToken cancellationToken = default)
     {
-        await using var context = await _contextFactory.CreateDbContextAsync();
-        var provider = await context.AiProviders.AsNoTracking().FirstOrDefaultAsync(p => p.Id == id && !p.IsDeleted);
+        await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);
+        var provider = await context.AiProviders.AsNoTracking().FirstOrDefaultAsync(p => p.Id == id && !p.IsDeleted, cancellationToken);
         return provider is null
             ? RequestResult<AiProvider>.EntityNotFound("AiProvider", id.Value, "Provedor não encontrado.")
             : RequestResult<AiProvider>.Success(provider);
     }
 
-    public async Task<RequestResult<AiProvider>> UpdateAsync(AiProvider entity)
+    public async Task<RequestResult<AiProvider>> UpdateAsync(AiProvider entity, CancellationToken cancellationToken = default)
     {
-        await using var context = await _contextFactory.CreateDbContextAsync();
-        var provider = await context.AiProviders.FirstOrDefaultAsync(p => p.Id == entity.Id && !p.IsDeleted);
+        await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);
+        var provider = await context.AiProviders.FirstOrDefaultAsync(p => p.Id == entity.Id && !p.IsDeleted, cancellationToken);
         if (provider is null)
             return RequestResult<AiProvider>.EntityNotFound("AiProvider", entity.Id.Value, "Provedor não encontrado.");
 
@@ -85,48 +85,48 @@ public class AiProviderRepository : IAiProviderRepository
         provider.UseMaxCompletionTokens = entity.UseMaxCompletionTokens;
         provider.MarkUpdated(entity.UpdatedBy);
 
-        await context.SaveChangesAsync();
+        await context.SaveChangesAsync(cancellationToken);
         return RequestResult<AiProvider>.Success(provider);
     }
 
-    public async Task<RequestResult<IEnumerable<AiProvider>>> ListAsync()
+    public async Task<RequestResult<IEnumerable<AiProvider>>> ListAsync(CancellationToken cancellationToken = default)
     {
-        await using var context = await _contextFactory.CreateDbContextAsync();
+        await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);
         var providers = await context.AiProviders
             .AsNoTracking()
             .Where(p => !p.IsDeleted)
             .OrderByDescending(p => p.IsDefault)
             .ThenBy(p => p.Name)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         return RequestResult<IEnumerable<AiProvider>>.Success(providers);
     }
 
-    public async Task<bool> NameExistsAsync(string name, Id? exceptId = null)
+    public async Task<bool> NameExistsAsync(string name, Id? exceptId = null, CancellationToken cancellationToken = default)
     {
-        await using var context = await _contextFactory.CreateDbContextAsync();
+        await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);
         var wanted = name.Trim().ToLower();
         return await context.AiProviders
             .AsNoTracking()
-            .AnyAsync(p => !p.IsDeleted && p.Name.ToLower() == wanted && (exceptId == null || p.Id != exceptId));
+            .AnyAsync(p => !p.IsDeleted && p.Name.ToLower() == wanted && (exceptId == null || p.Id != exceptId), cancellationToken);
     }
 
-    public async Task<int> CountAsync()
+    public async Task<int> CountAsync(CancellationToken cancellationToken = default)
     {
-        await using var context = await _contextFactory.CreateDbContextAsync();
-        return await context.AiProviders.CountAsync(p => !p.IsDeleted);
+        await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);
+        return await context.AiProviders.CountAsync(p => !p.IsDeleted, cancellationToken);
     }
 
-    public async Task<RequestResult<AiProvider>> SetDefaultAsync(Id id, string updatedBy)
+    public async Task<RequestResult<AiProvider>> SetDefaultAsync(Id id, string updatedBy, CancellationToken cancellationToken = default)
     {
-        await using var context = await _contextFactory.CreateDbContextAsync();
-        var providers = await context.AiProviders.Where(p => !p.IsDeleted).ToListAsync();
+        await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);
+        var providers = await context.AiProviders.Where(p => !p.IsDeleted).ToListAsync(cancellationToken);
         var target = providers.FirstOrDefault(p => p.Id == id);
         if (target is null)
             return RequestResult<AiProvider>.EntityNotFound("AiProvider", id.Value, "Provedor não encontrado.");
 
         // Numa transação: ou troca o padrão por completo ou nada muda (nunca fica sem padrão por uma falha no meio)
-        await using var transaction = context.Database.IsRelational() ? await context.Database.BeginTransactionAsync() : null;
+        await using var transaction = context.Database.IsRelational() ? await context.Database.BeginTransactionAsync(cancellationToken) : null;
 
         // Primeiro tira a marca do padrão atual e confirma, para o índice de "um só padrão" nunca ver dois
         var previous = providers.Where(p => p.IsDefault && p.Id != id).ToList();
@@ -138,18 +138,18 @@ public class AiProviderRepository : IAiProviderRepository
                 provider.MarkUpdated(updatedBy);
             }
 
-            await context.SaveChangesAsync();
+            await context.SaveChangesAsync(cancellationToken);
         }
 
         if (!target.IsDefault)
         {
             target.IsDefault = true;
             target.MarkUpdated(updatedBy);
-            await context.SaveChangesAsync();
+            await context.SaveChangesAsync(cancellationToken);
         }
 
         if (transaction is not null)
-            await transaction.CommitAsync();
+            await transaction.CommitAsync(cancellationToken);
 
         return RequestResult<AiProvider>.Success(target);
     }

@@ -9,6 +9,37 @@ public class ShellInteractionTests : E2ETestBase
     }
 
     [Fact]
+    public async Task AddressCreate_WarnsBeforeLeavingWithUnsavedChanges()
+    {
+        // "Voltar" é navegação completa, então o aviso chega como beforeunload do navegador
+        var browserWarning = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        Page.Dialog += async (_, dialog) =>
+        {
+            if (dialog.Type == "beforeunload")
+                browserWarning.TrySetResult();
+            await dialog.DismissAsync();
+        };
+        await LoginOrRegisterAsync(CandidateEmail, TestPassword);
+        await GotoAsync("/address/create");
+        await WaitForBlazorAsync();
+
+        await Page.Locator("#street").FillAsync("Rua alterada para testar o aviso");
+        await Page.Locator("#street").BlurAsync();
+        Assert.Equal("Rua alterada para testar o aviso", await Page.Locator("#street").InputValueAsync());
+        await Page.GetByTestId("page-back").ClickAsync();
+
+        await browserWarning.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        Assert.EndsWith("/address/create", Page.Url);
+        Assert.Equal("Rua alterada para testar o aviso", await Page.Locator("#street").InputValueAsync());
+
+        // "Cancelar" navega pelo Blazor: o aviso aqui é o diálogo do próprio site
+        await Page.GetByRole(AriaRole.Button, new() { Name = "Cancelar" }).ClickAsync();
+        await Assertions.Expect(Page.GetByTestId("confirm-dialog")).ToBeVisibleAsync();
+        await Page.GetByTestId("confirm-accept").ClickAsync();
+        await Page.WaitForURLAsync(url => url.EndsWith("/address/list", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
     public async Task Anonymous_Plans_ShouldShowPricesWithoutLogin()
     {
         var response = await GotoAsync("/plans");
@@ -29,22 +60,23 @@ public class ShellInteractionTests : E2ETestBase
         await GotoAsync("/");
         await WaitForBlazorAsync();
 
+        // Sem escolha salva o tema segue o sistema; o botão troca e a escolha persiste
         var initial = await Page.EvaluateAsync<string?>(
             "() => document.documentElement.getAttribute('data-theme')");
-        Assert.Equal("dark", initial);
+        var expected = initial == "dark" ? "light" : "dark";
 
         await Page.Locator("[data-action='theme-toggle']").ClickAsync();
         var switched = await Page.EvaluateAsync<string?>(
             "() => document.documentElement.getAttribute('data-theme')");
-        Assert.Equal("light", switched);
+        Assert.Equal(expected, switched);
 
         await Page.ReloadAsync();
         await WaitForBlazorAsync();
         var persisted = await Page.EvaluateAsync<string?>(
             "() => document.documentElement.getAttribute('data-theme')");
-        Assert.Equal("light", persisted);
+        Assert.Equal(expected, persisted);
 
-        // volta ao dark para não vazar estado
+        // volta ao tema inicial para não vazar estado
         await Page.Locator("[data-action='theme-toggle']").ClickAsync();
     }
 
@@ -54,8 +86,11 @@ public class ShellInteractionTests : E2ETestBase
         await GotoAsync("/");
         await WaitForBlazorAsync();
 
+        var initial = await Page.EvaluateAsync<string?>(
+            "() => document.documentElement.getAttribute('data-theme')");
+        var chosen = initial == "dark" ? "light" : "dark";
         await Page.Locator("[data-action='theme-toggle']").ClickAsync();
-        Assert.Equal("light", await Page.EvaluateAsync<string?>(
+        Assert.Equal(chosen, await Page.EvaluateAsync<string?>(
             "() => document.documentElement.getAttribute('data-theme')"));
 
         // Navega por links internos (enhanced navigation / full reload) — o tema deve manter.
@@ -65,41 +100,38 @@ public class ShellInteractionTests : E2ETestBase
             await WaitForBlazorAsync();
             var theme = await Page.EvaluateAsync<string?>(
                 "() => document.documentElement.getAttribute('data-theme')");
-            Assert.True(theme == "light", $"Tema resetou para '{theme}' ao navegar para {path}");
+            Assert.True(theme == chosen, $"Tema resetou para '{theme}' ao navegar para {path}");
         }
 
-        // restaura dark
+        // restaura o tema inicial
         await Page.Locator("[data-action='theme-toggle']").ClickAsync();
     }
 
     [Fact]
     public async Task Sidebar_Pin_ShouldKeepExpanded()
     {
+        // O menu lateral é da área logada: começa expandido, o botão recolhe e a escolha persiste
+        await LoginOrRegisterAsync(CandidateEmail, TestPassword);
         await Page.SetViewportSizeAsync(1280, 800);
         await GotoAsync("/");
         await WaitForBlazorAsync();
 
         var railBefore = await Page.EvaluateAsync<bool>(
             "() => document.documentElement.classList.contains('sidebar-rail')");
-        Assert.True(railBefore, "Sidebar deveria iniciar recolhida");
+        Assert.False(railBefore, "Menu lateral deveria iniciar expandido");
 
-        // O pin só aparece quando a rail expande no hover
-        await Page.Locator("[data-testid='app-sidebar']").HoverAsync();
-        await Page.Locator("[data-action='sidebar-pin']").ClickAsync(new LocatorClickOptions { Force = true });
-
-        var railAfter = await Page.EvaluateAsync<bool>(
-            "() => document.documentElement.classList.contains('sidebar-rail')");
-        Assert.False(railAfter, "Pin deveria expandir a sidebar");
+        await Page.Locator("[data-action='sidebar-pin']").ClickAsync();
+        Assert.True(await Page.EvaluateAsync<bool>(
+            "() => document.documentElement.classList.contains('sidebar-rail')"), "O botão deveria recolher o menu");
+        Assert.Equal("false", await Page.Locator("[data-action='sidebar-pin']").GetAttributeAsync("aria-expanded"));
 
         await Page.ReloadAsync();
         await WaitForBlazorAsync();
-        var persisted = await Page.EvaluateAsync<bool>(
-            "() => document.documentElement.classList.contains('sidebar-rail')");
-        Assert.False(persisted, "Expansão deveria persistir via localStorage");
+        Assert.True(await Page.EvaluateAsync<bool>(
+            "() => document.documentElement.classList.contains('sidebar-rail')"), "A escolha deveria persistir");
 
-        // restaura
-        await Page.EvaluateAsync(
-            "() => { document.documentElement.classList.add('sidebar-rail'); localStorage.setItem('monburan-sidebar','rail'); }");
+        // restaura o menu expandido
+        await Page.Locator("[data-action='sidebar-pin']").ClickAsync();
     }
 
     [Fact]

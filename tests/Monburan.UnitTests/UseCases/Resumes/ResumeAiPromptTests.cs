@@ -116,6 +116,15 @@ public class ResumeAiPromptTests
     }
 
     [Fact]
+    public void SystemPrompt_BansInventedFactsAndFillInPlaceholders()
+    {
+        ResumeAiPrompt.SystemPrompt.Should()
+            .Contain("Não use marcadores de preenchimento")
+            .And.Contain("explicitamente citadas nas descrições")
+            .And.NotContain("marcador entre colchetes");
+    }
+
+    [Fact]
     public void HasContent_NeedsSomethingBesidesTheTitle()
     {
         ResumeAiPrompt.HasContent(new ResumeResponse { Title = "Só título" }).Should().BeFalse();

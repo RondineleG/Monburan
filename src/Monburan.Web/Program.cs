@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.DataProtection.KeyManagement;
 using Microsoft.AspNetCore.DataProtection.Repositories;
 using Microsoft.AspNetCore.Diagnostics;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -71,8 +72,11 @@ builder.Services.AddSwaggerGen(c =>
     });
 });
 
-// Adicionar Health Checks
-builder.Services.AddHealthChecks();
+// Health checks: o check do banco (Postgres) entra no readiness (/health/ready). O /health e o
+// /health/live são liveness puro, sem dependência de banco, para o deploy não ficar esperando
+// um banco fora do ar.
+builder.Services.AddHealthChecks()
+    .AddDbContextCheck<ApplicationDbContext>("banco");
 
 // ProblemDetails (RFC 7807) para toda resposta de erro da API, com títulos pt-BR
 builder.Services.AddProblemDetails(options => options.CustomizeProblemDetails = ApiProblemDetails.Localize);
@@ -102,6 +106,9 @@ builder.Services.AddScoped<AdminAccountService>();
 
 // Feedback de UI: escopo por circuito (página e ToastHost do layout compartilham a instância)
 builder.Services.AddScoped<IToastService, ToastService>();
+builder.Services.AddScoped<ApplicationLookupService>();
+builder.Services.AddScoped<ResumeViewerService>();
+builder.Services.AddScoped<ResumeImprovementDraftService>();
 
 builder.Services.AddAuthentication(options =>
 {
@@ -298,6 +305,9 @@ builder.Services.AddScoped<IBaseRepository<Candidate>, CandidateRepository>();
 builder.Services.AddScoped<ICandidateRepository, CandidateRepository>();
 builder.Services.AddScoped<IBaseRepository<Advertiser>, AdvertiserRepository>();
 builder.Services.AddScoped<IAdvertiserRepository, AdvertiserRepository>();
+// Perfil de candidato/anunciante gravado na mesma unidade de trabalho da conta do Identity:
+// no cadastro, a conta e o perfil entram juntos na transação.
+builder.Services.AddScoped<IAccountProfileRepository, AccountProfileRepository>();
 builder.Services.AddScoped<IBaseRepository<Application>, ApplicationRepository>();
 builder.Services.AddScoped<IApplicationRepository, ApplicationRepository>();
 builder.Services.AddScoped<IApplicationStatusHistoryRepository, ApplicationStatusHistoryRepository>();
@@ -386,6 +396,8 @@ builder.Services.AddScoped<DeleteResumeUseCase>();
 builder.Services.AddScoped<ListResumesByCandidateUseCase>();
 builder.Services.AddScoped<GetResumeByIdUseCase>();
 builder.Services.AddScoped<ImproveResumeUseCase>();
+builder.Services.AddScoped<ImportResumeFromPdfUseCase>();
+builder.Services.AddSingleton<Monburan.Core.Interfaces.Services.IPdfTextExtractor, Monburan.Core.Services.PdfTextExtractor>();
 
 // Provedores de IA (administração)
 builder.Services.AddScoped<ListAiProvidersUseCase>();
@@ -456,14 +468,25 @@ if (app.Environment.IsDevelopment())
 }
 else
 {
-    // API: exceção não tratada vira ProblemDetails (JSON) — antes o app recebia a página
-    // HTML de erro e não conseguia ler a resposta. Site continua na página /Error.
-    app.UseWhen(ctx => ctx.Request.Path.StartsWithSegments("/api"),
-        api => api.UseExceptionHandler());
+    // Site: fora de /api, a página /Error. A API tem tratamento próprio (logo abaixo).
     app.UseWhen(ctx => !ctx.Request.Path.StartsWithSegments("/api"),
         web => web.UseExceptionHandler("/Error", createScopeForErrors: true));
     app.UseHsts();
 }
+
+// API: exceção não tratada vira ProblemDetails (JSON) — antes o app recebia a página
+// HTML de erro e não conseguia ler a resposta. Vale em TODOS os ambientes: em Development a
+// página de exceção do desenvolvedor é o primeiro middleware do pipeline e responderia com o
+// stack trace, fazendo o contrato de erro da API depender do ambiente.
+app.UseWhen(ctx => ctx.Request.Path.StartsWithSegments("/api"),
+    api => api.UseExceptionHandler(new ExceptionHandlerOptions
+    {
+        // Requisição inválida (ex.: query string que não faz binding) continua 400; o resto é
+        // falha do servidor e vira 500.
+        StatusCodeSelector = exception => exception is BadHttpRequestException badRequest
+            ? badRequest.StatusCode
+            : StatusCodes.Status500InternalServerError
+    }));
 
 app.UseHttpsRedirection();
 app.UseRequestLocalization(new RequestLocalizationOptions()
@@ -509,8 +532,26 @@ app.MapAdditionalIdentityEndpoints();
 app.MapApiEndpoints();
 app.MapSeoEndpoints();
 
-// Health Check endpoint
-app.MapHealthChecks("/health");
+// Health Check endpoints
+// /health       → liveness no contrato antigo (texto simples "Healthy"): deploy.sh,
+//                 docker-compose.prod.yml e o nginx dependem desse corpo exato.
+// /health/live  → liveness (o app está vivo), sem depender do banco: o orquestrador não
+//                 reinicia o contêiner porque o Postgres caiu.
+// /health/ready → readiness (o app só entra na rotação quando o banco responde), em JSON.
+app.MapHealthChecks("/health", new HealthCheckOptions
+{
+    Predicate = _ => false,
+    ResponseWriter = HealthCheckResponseWriter.WritePlainText
+});
+app.MapHealthChecks("/health/live", new HealthCheckOptions
+{
+    Predicate = _ => false,
+    ResponseWriter = HealthCheckResponseWriter.WritePlainText
+});
+app.MapHealthChecks("/health/ready", new HealthCheckOptions
+{
+    ResponseWriter = HealthCheckResponseWriter.WriteJson
+});
 
 // Aplicar migrations automaticamente quando APPLY_MIGRATIONS=true (deploy simples em VPS)
 if (app.Configuration.GetValue<bool>("APPLY_MIGRATIONS"))

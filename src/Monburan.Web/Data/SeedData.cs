@@ -13,7 +13,7 @@ public static class SeedData
 
         var tenantId = "default";
 
-        // Seed dos Planos de Assinatura
+        // Seed dos Planos de Assinatura — empresa (mensal e anual) e candidato (Free + Premium com IA)
         var planFree = new SubscriptionPlan
         {
             Id = Id.Create(Guid.Parse("80000000-0000-0000-0000-000000000001")),
@@ -26,6 +26,8 @@ public static class SeedData
             HasHighlight = false,
             HasAnalytics = false,
             MaxResumes = 5,
+            Audience = EPlanAudience.Advertiser,
+            Period = ESubscriptionPeriod.None,
             IsActive = true
         };
 
@@ -41,6 +43,8 @@ public static class SeedData
             HasHighlight = true,
             HasAnalytics = false,
             MaxResumes = 25,
+            Audience = EPlanAudience.Advertiser,
+            Period = ESubscriptionPeriod.Monthly,
             IsActive = true
         };
 
@@ -56,14 +60,100 @@ public static class SeedData
             HasHighlight = true,
             HasAnalytics = true,
             MaxResumes = -1, // Ilimitado
+            Audience = EPlanAudience.Advertiser,
+            Period = ESubscriptionPeriod.Monthly,
             IsActive = true
         };
 
-        // A migration SeedDefaultSubscriptionPlans já cria os planos em bancos migrados —
-        // reaproveita os existentes (por nome) em vez de inserir duplicados
+        var planPremiumAnual = new SubscriptionPlan
+        {
+            Id = Id.Create(Guid.Parse("80000000-0000-0000-0000-000000000004")),
+            TenantId = tenantId,
+            Name = "Premium Anual",
+            Description = "Plano intermediário com recursos essenciais — cobrança anual",
+            Price = 129.00m,
+            MaxJobs = 10,
+            HasBoost = true,
+            HasHighlight = true,
+            HasAnalytics = false,
+            MaxResumes = 25,
+            Audience = EPlanAudience.Advertiser,
+            Period = ESubscriptionPeriod.Annual,
+            IsActive = true
+        };
+
+        var planEnterpriseAnual = new SubscriptionPlan
+        {
+            Id = Id.Create(Guid.Parse("80000000-0000-0000-0000-000000000005")),
+            TenantId = tenantId,
+            Name = "Enterprise Anual",
+            Description = "Plano completo para grandes empresas — cobrança anual",
+            Price = 499.00m,
+            MaxJobs = -1,
+            HasBoost = true,
+            HasHighlight = true,
+            HasAnalytics = true,
+            MaxResumes = -1,
+            Audience = EPlanAudience.Advertiser,
+            Period = ESubscriptionPeriod.Annual,
+            IsActive = true
+        };
+
+        var planCandidatoFree = new SubscriptionPlan
+        {
+            Id = Id.Create(Guid.Parse("80000000-0000-0000-0000-000000000006")),
+            TenantId = tenantId,
+            Name = "Free",
+            Description = "Plano gratuito do candidato",
+            Price = 0,
+            MaxJobs = 0,
+            MaxResumes = 3,
+            HasAiAssistant = false,
+            Audience = EPlanAudience.Candidate,
+            Period = ESubscriptionPeriod.None,
+            IsActive = true
+        };
+
+        var planCandidatoPremium = new SubscriptionPlan
+        {
+            Id = Id.Create(Guid.Parse("80000000-0000-0000-0000-000000000007")),
+            TenantId = tenantId,
+            Name = "Premium",
+            Description = "Assistente de IA para criar e melhorar o currículo",
+            Price = 9.90m,
+            MaxJobs = 0,
+            MaxResumes = -1,
+            HasAiAssistant = true,
+            Audience = EPlanAudience.Candidate,
+            Period = ESubscriptionPeriod.Monthly,
+            IsActive = true
+        };
+
+        var planCandidatoPremiumAnual = new SubscriptionPlan
+        {
+            Id = Id.Create(Guid.Parse("80000000-0000-0000-0000-000000000008")),
+            TenantId = tenantId,
+            Name = "Premium Anual",
+            Description = "Assistente de IA para criar e melhorar o currículo — cobrança anual",
+            Price = 19.90m,
+            MaxJobs = 0,
+            MaxResumes = -1,
+            HasAiAssistant = true,
+            Audience = EPlanAudience.Candidate,
+            Period = ESubscriptionPeriod.Annual,
+            IsActive = true
+        };
+
+        // A migration SeedPlansAndSyncEmailVerified já cria os planos em bancos migrados —
+        // reaproveita os existentes (por nome, audiência e período) em vez de inserir duplicados
         planFree = await GetOrAddPlanAsync(context, planFree);
         planPremium = await GetOrAddPlanAsync(context, planPremium);
         planEnterprise = await GetOrAddPlanAsync(context, planEnterprise);
+        await GetOrAddPlanAsync(context, planPremiumAnual);
+        await GetOrAddPlanAsync(context, planEnterpriseAnual);
+        await GetOrAddPlanAsync(context, planCandidatoFree);
+        await GetOrAddPlanAsync(context, planCandidatoPremium);
+        planCandidatoPremiumAnual = await GetOrAddPlanAsync(context, planCandidatoPremiumAnual);
         await context.SaveChangesAsync();
 
         var tenantConfig = new TenantConfig
@@ -181,7 +271,8 @@ public static class SeedData
             AddressId = addressSP.Id,
             Status = EAccountStatus.Active,
             IsEmailVerified = true,
-            LinkedIn = "https://linkedin.com/in/joaosilva"
+            LinkedIn = "https://linkedin.com/in/joaosilva",
+            ActivePlan = "Premium Anual"
         };
 
         var candidate2 = new Candidate
@@ -195,10 +286,24 @@ public static class SeedData
             AddressId = addressRJ.Id,
             Status = EAccountStatus.Active,
             IsEmailVerified = true,
-            LinkedIn = "https://linkedin.com/in/mariasantos"
+            LinkedIn = "https://linkedin.com/in/mariasantos",
+            ActivePlan = "Free"
         };
 
         context.Candidates.AddRange(candidate1, candidate2);
+        await context.SaveChangesAsync();
+
+        // João fica Premium para o assistente de IA de currículo poder ser exercitado em desenvolvimento
+        context.Subscriptions.Add(new Subscription
+        {
+            Id = Id.Create(Guid.Parse("90000000-0000-0000-0000-000000000002")),
+            TenantId = tenantId,
+            CandidateId = candidate1.Id,
+            PlanId = planCandidatoPremiumAnual.Id,
+            StartDate = DateTime.UtcNow.AddDays(-15),
+            EndDate = DateTime.UtcNow.AddYears(1),
+            Status = ESubscriptionStatus.Active
+        });
         await context.SaveChangesAsync();
 
         var jobs = new List<Job>
@@ -369,7 +474,8 @@ public static class SeedData
 
     private static async Task<SubscriptionPlan> GetOrAddPlanAsync(ApplicationDbContext context, SubscriptionPlan plan)
     {
-        var existing = await context.SubscriptionPlans.FirstOrDefaultAsync(p => p.Name == plan.Name);
+        var existing = await context.SubscriptionPlans.FirstOrDefaultAsync(
+            p => p.Name == plan.Name && p.Audience == plan.Audience && p.Period == plan.Period);
         if (existing is not null)
             return existing;
 

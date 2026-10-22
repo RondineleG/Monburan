@@ -31,13 +31,12 @@
 
 <div class="auth-form-page">
     <div class="auth-form-heading">
-        <span class="auth-kicker">COMECE AGORA</span>
         <h1>Crie sua conta</h1>
         <p>Leva menos de um minuto. Depois, o próximo passo é com você.</p>
     </div>
     <div class="auth-form-grid auth-form-grid--single">
         <section class="auth-form-card">
-        <StatusMessage Message="@Message" />
+        <StatusMessage Message="@Message" IsError="true" />
         @if (identityErrors is not null)
         {
             <ul class="auth-error-list text-danger" data-testid="register-errors">
@@ -53,10 +52,7 @@
         }
         @if (!string.IsNullOrEmpty(successMessage))
         {
-            <div class="alert alert-success alert-dismissible fade show" role="alert">
-                <i class="bi bi-check-circle"></i> @successMessage
-                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-            </div>
+            <div class="alert alert-success" role="status">@successMessage</div>
         }
         <EditForm Model="Input" asp-route-returnUrl="@ReturnUrl" method="post" OnValidSubmit="RegisterUser" FormName="register">
             <DataAnnotationsValidator />
@@ -227,7 +223,7 @@
         var emailResult = await EmailConfirmationUseCase.ExecuteAsync(emailConfirmationRequest);
         if (emailResult.Status == EResultStatus.Success && emailResult.Data)
         {
-            successMessage = "Email de confirmação enviado com sucesso! Verifique sua caixa de entrada.";
+            successMessage = "E-mail de confirmação enviado com sucesso! Verifique sua caixa de entrada.";
             Logger.LogInformation("Email de confirmação enviado para {Email}", Input.Email);
         }
         else if (emailResult.Status == EResultStatus.Success)
@@ -278,7 +274,7 @@
         public string AccountType { get; set; } = string.Empty;
 
         [Required(ErrorMessage = "Informe seu nome ou o nome da empresa.")]
-        [StringLength(100, MinimumLength = 2, ErrorMessage = "Informe um nome com pelo menos 2 caracteres.")]
+        [StringLength(100, MinimumLength = 3, ErrorMessage = "Informe um nome com pelo menos 3 caracteres.")]
         [Display(Name = "Nome")]
         public string Name { get; set; } = string.Empty;
 

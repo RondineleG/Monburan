@@ -18,7 +18,7 @@ public sealed class SendEmailNotificationUseCase : IUseCase<EmailNotificationReq
         _logger = logger;
     }
 
-    public async Task<RequestResult<bool>> ExecuteAsync(EmailNotificationRequest request)
+    public async Task<RequestResult<bool>> ExecuteAsync(EmailNotificationRequest request, CancellationToken cancellationToken = default)
     {
         try
         {

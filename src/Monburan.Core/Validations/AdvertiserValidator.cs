@@ -12,10 +12,12 @@ public class AdvertiserValidator : IEntityValidator<Advertiser>
         RegexOptions.Compiled | RegexOptions.IgnoreCase,
         TimeSpan.FromMilliseconds(250));
 
-    private static readonly Regex UrlRegex = new(
-        @"^https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)$",
-        RegexOptions.Compiled | RegexOptions.IgnoreCase,
-        TimeSpan.FromMilliseconds(250));
+    // URL sem regex: o padrão anterior retrocedia exponencialmente e estourava o timeout em produção
+    private static bool IsValidHttpUrl(string value) =>
+        value.Length <= 2048
+        && Uri.TryCreate(value, UriKind.Absolute, out var uri)
+        && (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps)
+        && uri.Host.Contains('.', StringComparison.Ordinal);
 
     public IValidationResult Validate(Advertiser entity)
     {
@@ -48,7 +50,7 @@ public class AdvertiserValidator : IEntityValidator<Advertiser>
             result.AddError("CNPJ/CPF inválido.", "TaxId");
 
         // Validar website se informado (URL válida)
-        if (!string.IsNullOrEmpty(entity.Website) && !UrlRegex.IsMatch(entity.Website))
+        if (!string.IsNullOrEmpty(entity.Website) && !IsValidHttpUrl(entity.Website))
             result.AddError("Website deve ser uma URL válida.", "Website");
 
         return result;

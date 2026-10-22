@@ -106,8 +106,8 @@ export Smtp__Password="sua-api-key-resend"
 ## 📊 Monitoramento
 
 ### Health Checks
-- **Endpoint**: `/health`
-- **Uso**: Monitoramento de saúde da aplicação (checagem básica de liveness)
+- **Liveness** — `/health` e `/health/live`: o app está no ar. Não dependem do banco, para o deploy e o orquestrador não reiniciarem o contêiner porque o Postgres caiu. `/health` mantém o corpo de texto simples (`Healthy`), de que o `deploy.sh` e o nginx dependem.
+- **Readiness** — `/health/ready`: o app está pronto para receber tráfego. Verifica o Postgres e devolve JSON com o estado de cada checagem (503 quando o banco não responde).
 
 ### Logging Estruturado
 - **Framework**: Serilog
@@ -209,8 +209,6 @@ Monburan/
 │   ├── restore-test.sh         # Restaura o backup em um Postgres descartável e confere os dados
 │   ├── systemd/                # Timer diário do backup
 │   ├── tests/                  # Testes dos scripts acima, em contêineres (CI: infra-scripts.yml)
-│   ├── build-push.sh           # Build + push da imagem no GHCR (na VPS)
-│   ├── docker-bake.hcl         # Alvo buildx bake da imagem
 │   ├── backup.env.example      # Configuração do backup
 │   └── env.example             # Variáveis de produção
 │
@@ -345,11 +343,7 @@ ProblemDetails — nunca redirecionam para login em cookie.
 A app falha no boot sem `Jwt__SigningKey` (`ValidateOnStart`). Em produção:
 `docker-compose.yml` exige `JWT_SIGNING_KEY` no `.env` e `infra/vps/deploy.sh`
 configura a stack Docker (imagem do GHCR) com os segredos no `.env` da VPS
-(chmod 600). Há também um deploy alternativo sem Docker em `deploy/deploy.sh`,
-que gera/reusa `/opt/monburan/.jwt_signing_key` e injeta segredos via
-`/opt/monburan/monburan.env` (`EnvironmentFile=`, chmod 600) — nunca dentro da
-unit systemd (que é legível por qualquer usuário local). Gere com
-`openssl rand -base64 48`. No Azure App Service, provisione o app setting
+(chmod 600). Gere com `openssl rand -base64 48`. No Azure App Service, provisione o app setting
 `Jwt__SigningKey` (os jobs de deploy do CI fazem isso quando
 `AZURE_CREDENTIALS`+`AZURE_RESOURCE_GROUP`+`JWT_SIGNING_KEY` estão configurados —
 sem eles o deploy falha cedo em vez de derrubar a produção).
@@ -531,9 +525,9 @@ docker build -t monburan:latest -f src/Monburan.Web/Dockerfile .
 ### Imagem no GHCR
 
 O workflow `docker-ghcr.yml` publica `ghcr.io/rondineleg/monburan:latest` (e tag
-por SHA) a cada push na `main`. Alternativamente, na própria VPS,
-`infra/vps/build-push.sh` faz build + push via `docker buildx bake`
-(`infra/vps/docker-bake.hcl`).
+por SHA) a cada push na `main` e toda segunda (`rebuild-semanal.yml`, para os
+patches das imagens base) e, em seguida, faz o deploy na VPS (job `deploy-vps`).
+Só a `main` publica.
 
 ### Deploy na VPS (produção)
 

@@ -7,6 +7,7 @@ using Monburan.Core.Enums;
 using Monburan.Core.Interfaces.Repositories.Base;
 using Monburan.Core.Interfaces.UseCases;
 using Monburan.Core.Interfaces.Validations;
+using Monburan.Core.Mappers;
 using Monburan.Core.Requests;
 using Monburan.Core.UseCases.JobAlerts;
 using Monburan.Core.UseCases.Subscriptions;
@@ -36,7 +37,7 @@ public class CreateJobUseCase : IUseCase<CreateJobRequest, JobResponse>
         _logger = logger;
     }
 
-    public async Task<RequestResult<JobResponse>> ExecuteAsync(CreateJobRequest request)
+    public async Task<RequestResult<JobResponse>> ExecuteAsync(CreateJobRequest request, CancellationToken cancellationToken = default)
     {
         var job = new Job
         {
@@ -91,7 +92,7 @@ public class CreateJobUseCase : IUseCase<CreateJobRequest, JobResponse>
         }
 
         // Limite de vagas ativas do plano — a página de planos promete esse limite
-        var limitResult = await _checkJobLimit.ExecuteAsync(new CheckJobLimitRequest(request.AdvertiserId));
+        var limitResult = await _checkJobLimit.ExecuteAsync(new CheckJobLimitRequest(request.AdvertiserId), cancellationToken);
         if (limitResult.Status != EResultStatus.Success)
             return RequestResult<JobResponse>.FromResult(limitResult);
 
@@ -102,14 +103,14 @@ public class CreateJobUseCase : IUseCase<CreateJobRequest, JobResponse>
                 "Encerre uma vaga ou mude de plano para publicar outra.");
         }
 
-        var createJobResult = await _jobRepository.CreateAsync(job);
+        var createJobResult = await _jobRepository.CreateAsync(job, cancellationToken);
         if (createJobResult.Status != EResultStatus.Success)
             return RequestResult<JobResponse>.FromResult(createJobResult);
 
         // Alertas de vaga (não bloqueante: avaliar alertas nunca impede a publicação)
         try
         {
-            var notifyResult = await _notifyAlerts.ExecuteAsync(new NotifyJobAlertsOnJobCreatedRequest(createJobResult.Data!));
+            var notifyResult = await _notifyAlerts.ExecuteAsync(new NotifyJobAlertsOnJobCreatedRequest(createJobResult.Data!), cancellationToken);
             if (notifyResult.Status != EResultStatus.Success)
                 _logger.LogWarning("Vaga {JobId} criada, mas os alertas não foram avaliados: {Detail}",
                     createJobResult.Data!.Id.Value, notifyResult.Message);

@@ -71,4 +71,48 @@ public class ToastServiceTests
 
         toasts.Toasts.Should().BeEmpty();
     }
+
+    [Fact]
+    public async Task Errors_StayUntilClosed_ByDefault()
+    {
+        using var toasts = new ToastService { DefaultDuration = TimeSpan.FromMilliseconds(30) };
+        toasts.ShowError("Não foi possível salvar");
+        toasts.ShowSuccess("Salvo");
+
+        await Task.Delay(300);
+
+        toasts.Toasts.Should().ContainSingle(t => t.Level == ToastLevel.Error);
+    }
+
+    [Fact]
+    public async Task Pause_KeepsTheToast_AndResumeCountsAgain()
+    {
+        using var toasts = new ToastService { DefaultDuration = TimeSpan.FromMilliseconds(80) };
+        toasts.ShowInfo("Aviso");
+        var id = toasts.Toasts.Single().Id;
+
+        toasts.Pause(id);
+        await Task.Delay(250);
+        toasts.Toasts.Should().ContainSingle("pausado não some");
+
+        toasts.Resume(id);
+        var deadline = DateTime.UtcNow.AddSeconds(5);
+        while (toasts.Toasts.Count > 0 && DateTime.UtcNow < deadline)
+            await Task.Delay(20);
+
+        toasts.Toasts.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void Resume_OnAPersistentError_DoesNotStartACountdown()
+    {
+        using var toasts = new ToastService();
+        toasts.ShowError("Falhou");
+        var id = toasts.Toasts.Single().Id;
+
+        toasts.Pause(id);
+        toasts.Resume(id);
+
+        toasts.Toasts.Should().ContainSingle();
+    }
 }

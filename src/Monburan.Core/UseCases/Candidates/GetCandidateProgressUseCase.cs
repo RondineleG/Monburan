@@ -38,31 +38,31 @@ public class GetCandidateProgressUseCase : IUseCase<Guid, CandidateProgressRespo
         _jobAlerts = jobAlerts;
     }
 
-    public async Task<RequestResult<CandidateProgressResponse>> ExecuteAsync(Guid request)
+    public async Task<RequestResult<CandidateProgressResponse>> ExecuteAsync(Guid request, CancellationToken cancellationToken = default)
     {
-        var candidateResult = await _candidates.GetByIdAsync(Id.Create(request));
+        var candidateResult = await _candidates.GetByIdAsync(Id.Create(request), cancellationToken);
         if (candidateResult.Status != EResultStatus.Success || candidateResult.Data is null)
             return RequestResult<CandidateProgressResponse>.EntityNotFound("Candidate", request, "Candidato não encontrado.");
 
         var candidate = candidateResult.Data;
 
-        var resumeCountResult = await _resumes.CountByCandidateAsync(request);
+        var resumeCountResult = await _resumes.CountByCandidateAsync(request, cancellationToken);
         if (resumeCountResult.Status != EResultStatus.Success)
             return RequestResult<CandidateProgressResponse>.FromResult(resumeCountResult);
 
-        var profileResult = await _profiles.GetByCandidateIdAsync(request);
+        var profileResult = await _profiles.GetByCandidateIdAsync(request, cancellationToken);
         if (profileResult.Status != EResultStatus.Success)
             return RequestResult<CandidateProgressResponse>.FromResult(profileResult);
 
-        var countsResult = await _applications.CountByStatusForCandidateAsync(request);
+        var countsResult = await _applications.CountByStatusForCandidateAsync(request, cancellationToken);
         if (countsResult.Status != EResultStatus.Success || countsResult.Data is null)
             return RequestResult<CandidateProgressResponse>.FromResult(countsResult);
 
-        var savedResult = await _savedJobs.CountByCandidateAsync(request);
+        var savedResult = await _savedJobs.CountByCandidateAsync(request, cancellationToken);
         if (savedResult.Status != EResultStatus.Success)
             return RequestResult<CandidateProgressResponse>.FromResult(savedResult);
 
-        var alertsResult = await _jobAlerts.CountActiveByCandidateAsync(request);
+        var alertsResult = await _jobAlerts.CountActiveByCandidateAsync(request, cancellationToken);
         if (alertsResult.Status != EResultStatus.Success)
             return RequestResult<CandidateProgressResponse>.FromResult(alertsResult);
 

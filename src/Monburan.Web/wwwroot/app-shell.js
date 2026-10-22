@@ -18,15 +18,25 @@
             document.cookie = name + '=' + encodeURIComponent(value) + ';path=/;max-age=31536000;samesite=lax';
         } catch (e) { }
     }
+    // Botão de recolher: expandido = menu com rótulos visíveis
+    function syncPin(rail) {
+        var pin = document.querySelector('[data-action="sidebar-pin"]');
+        if (pin) pin.setAttribute('aria-expanded', rail ? 'false' : 'true');
+    }
+    syncPin(document.documentElement.classList.contains('sidebar-rail'));
     function applyStoredUi() {
         // Reaplica tema e rail após enhanced navigation repor os atributos do <html>.
-        var theme = 'dark', rail = true;
+        var theme = null, rail = false;
         try {
-            theme = localStorage.getItem('monburan-theme') || 'dark';
-            rail = localStorage.getItem('monburan-sidebar') !== 'expanded';
+            theme = localStorage.getItem('monburan-theme');
+            rail = localStorage.getItem('monburan-sidebar') === 'rail';
         } catch (e) { }
+        if (theme !== 'dark' && theme !== 'light') {
+            theme = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        }
         document.documentElement.setAttribute('data-theme', theme);
         document.documentElement.classList.toggle('sidebar-rail', rail);
+        syncPin(rail);
         var meta = document.querySelector('meta[name="theme-color"]');
         if (meta) meta.setAttribute('content', theme === 'dark' ? '#0A0806' : '#F2EBD9');
     }
@@ -65,10 +75,20 @@
             if (f16) f16.href = next === 'dark' ? '/favicon-dark-16x16.png' : '/favicon-16x16.png';
             return;
         }
-        var pinBtn = e.target.closest('[data-action="sidebar-pin"]');
+        // Tela de reconexão do circuito (ReconnectScreen): sem script inline por causa do CSP
+        if (e.target.closest('[data-action="reconnect"]')) {
+            if (window.Blazor && typeof Blazor.reconnect === 'function') {
+                Blazor.reconnect().then(function (ok) { if (!ok) location.reload(); }, function () { location.reload(); });
+            } else {
+                location.reload();
+            }
+            return;
+        }
+        if (e.target.closest('[data-action="reload"]')) { location.reload(); return; }
+                var pinBtn = e.target.closest('[data-action="sidebar-pin"]');
         if (pinBtn) {
             var collapsed = document.documentElement.classList.toggle('sidebar-rail');
-            pinBtn.setAttribute('aria-pressed', collapsed ? 'false' : 'true');
+            syncPin(collapsed);
             var sidebarState = collapsed ? 'rail' : 'expanded';
             try { localStorage.setItem('monburan-sidebar', sidebarState); } catch (err) { }
             setUiCookie('monburan-sidebar', sidebarState);
@@ -76,23 +96,54 @@
         }
         var sidebar = document.querySelector('.app-sidebar');
         if (!sidebar) return;
+        var scrimHit = e.target.closest('.sidebar-scrim');
+        if (scrimHit) { setDrawer(false, true); return; }
         if (e.target.closest('[data-testid="mobile-menu-toggle"]')) {
-            sidebar.classList.toggle('app-sidebar--open');
-            syncMenu();
+            setDrawer(!sidebar.classList.contains('app-sidebar--open'), false);
             return;
         }
         if (sidebar.classList.contains('app-sidebar--open') &&
-            (e.target.closest('.sidebar-close') || e.target.closest('.sidebar-scrim') || e.target.closest('.app-sidebar a'))) {
-            sidebar.classList.remove('app-sidebar--open');
-            syncMenu();
+            (e.target.closest('.sidebar-close') || e.target.closest('.app-sidebar a[href]'))) {
+            setDrawer(false, e.target.closest('.sidebar-close') !== null);
         }
     });
+    // Drawer mobile de nível superior: uma função, listeners únicos, foco preso
+    var drawerTrigger = null;
+    function setDrawer(open, restoreFocus) {
+        var sidebar = document.querySelector('.app-sidebar');
+        var main = document.querySelector('.app-main');
+        var toggle = document.querySelector('.menu-toggle');
+        if (window.innerWidth >= 992) open = false;
+        if (open) drawerTrigger = drawerTrigger || toggle;
+        if (sidebar) sidebar.classList.toggle('app-sidebar--open', open);
+        document.body.classList.toggle('drawer-open', open);
+        if (main) main.inert = !!open;
+        if (toggle) toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+        if (open && sidebar) {
+            var first = sidebar.querySelector('.sidebar-close') || sidebar.querySelector('a[href],button:not([disabled])');
+            if (first) first.focus();
+        }
+        if (!open && restoreFocus && drawerTrigger) { drawerTrigger.focus(); drawerTrigger = null; }
+    }
     document.addEventListener('keydown', function (e) {
-        if (e.key === 'Escape') {
-            var sidebar = document.querySelector('.app-sidebar--open');
-            if (sidebar) { sidebar.classList.remove('app-sidebar--open'); syncMenu(); }
-        }
+        var sidebar = document.querySelector('.app-sidebar--open');
+        if (!sidebar) return;
+        if (e.key === 'Escape') { e.preventDefault(); setDrawer(false, true); return; }
+        if (e.key !== 'Tab') return;
+        var items = Array.from(sidebar.querySelectorAll('a[href],button:not([disabled])'))
+            .filter(function (el) { return el.getClientRects().length > 0; });
+        if (!items.length) return;
+        var first = items[0], last = items[items.length - 1];
+        if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+        else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
     });
+    window.addEventListener('resize', function () {
+        if (window.innerWidth >= 992) setDrawer(false);
+    });
+    window.addEventListener('pageshow', function () { setDrawer(false); });
+    if (window.Blazor && window.Blazor.addEventListener) {
+        try { window.Blazor.addEventListener('enhancedload', function () { setDrawer(false); }); } catch (e) { }
+    }
 })();
 
 // Register service worker for PWA

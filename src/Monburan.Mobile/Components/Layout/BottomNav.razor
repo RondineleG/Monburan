@@ -1,30 +1,39 @@
-@inject AuthStateService Auth
-
-<nav class="bottom-nav">
-    <NavLink href="/" Match="NavLinkMatch.All">
-        <span class="nav-icon">⌂</span>
-        <span>Vagas</span>
-    </NavLink>
-    <NavLink href="/applications">
-        <span class="nav-icon">✉</span>
-        <span>Candidaturas</span>
-    </NavLink>
-    <NavLink href="/notifications">
-        <span class="nav-item-wrap">
-            <span class="nav-icon">◈</span>
-            @if (UnreadCount > 0)
-            {
-                <span class="nav-badge">@UnreadCount</span>
-            }
-        </span>
-        <span>Avisos</span>
-    </NavLink>
-    <NavLink href="/profile">
-        <span class="nav-icon">☰</span>
-        <span>Perfil</span>
-    </NavLink>
+@* Barra inferior: 5 destinos, ícone + rótulo visível; o destino atual leva aria-current="page" *@
+<nav class="bottom-nav" aria-label="Navegação principal">
+    @foreach (var item in Items)
+    {
+        var current = item.IsCurrent(CurrentPath);
+        <a href="@item.Href" class="bottom-nav__link@(current ? " active" : string.Empty)" aria-current="@(current ? "page" : null)">
+            <span class="bottom-nav__icon">
+                <Icon Name="@item.Icon" Size="22" />
+                @if (item.Href == "/notifications" && UnreadCount > 0)
+                {
+                    <span class="nav-badge"><span aria-hidden="true">@(UnreadCount > 99 ? "99+" : UnreadCount.ToString())</span><span class="visually-hidden">, @UnreadCount não lidos</span></span>
+                }
+            </span>
+            <span class="bottom-nav__label">@item.Label</span>
+        </a>
+    }
 </nav>
 
 @code {
     [Parameter] public int UnreadCount { get; set; }
+
+    /// <summary>Caminho atual sem query (ex.: "/jobs/abc"), vindo do MainLayout a cada navegação.</summary>
+    [Parameter] public string CurrentPath { get; set; } = "/";
+
+    private sealed record NavItem(string Href, string Label, string Icon, string[] Prefixes)
+    {
+        public bool IsCurrent(string path) =>
+            Prefixes.Any(p => p == "/" ? path == "/" : path == p || path.StartsWith(p + "/", StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static readonly NavItem[] Items =
+    [
+        new("/", "Início", "home", ["/"]),
+        new("/jobs", "Vagas", "search", ["/jobs", "/apply"]),
+        new("/applications", "Candidaturas", "send", ["/applications"]),
+        new("/notifications", "Avisos", "bell", ["/notifications"]),
+        new("/profile", "Perfil", "user", ["/profile", "/resumes", "/career-profile", "/plans"])
+    ];
 }

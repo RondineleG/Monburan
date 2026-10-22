@@ -1,50 +1,330 @@
 @page "/applications"
 @inherits ProtectedPage
 @inject MonburanApiClient Api
+@inject IToastService Toast
+@inject ILogger<MyApplications> Logger
 
-<h1 class="page-title">Minhas candidaturas</h1>
-<p class="page-subtitle">Acompanhe o status das suas candidaturas</p>
+<h1 class="page-title" tabindex="-1">Minhas candidaturas</h1>
+<p class="page-subtitle">Acompanhe suas candidaturas, as vagas que você salvou e seus alertas de oportunidades.</p>
+
+<nav class="tabs" aria-label="Seções de minhas candidaturas">
+    @foreach (var (value, label) in Tabs)
+    {
+        var current = Tab == value;
+        <a class="tab@(current ? " is-active" : string.Empty)" href="@TabUrl(value)" aria-current="@(current ? "page" : null)">
+            @label
+            @if (!_loading && _error is null)
+            {
+                <span class="tab__count">@CountForTab(value)</span>
+            }
+        </a>
+    }
+</nav>
 
 @if (_loading)
 {
-    <LoadingState Message="Carregando candidaturas..." />
+    <LoadingState Message="Carregando suas informações…" />
 }
 else if (_error is not null)
 {
     <ErrorState Message="@_error.Message" IsOffline="@_error.IsNetworkError" OnRetry="LoadAsync" />
 }
-else if (_items.Count == 0)
+else if (Tab == "salvas")
 {
-    <EmptyState Icon="✉" Title="Nenhuma candidatura ainda"
-                Message="Explore as vagas abertas e candidate-se às que combinam com você.">
-        <a class="btn btn-primary" href="/">Ver vagas</a>
-    </EmptyState>
+    @if (_recentlyRemoved is not null)
+    {
+        @* Remover é reversível: em vez de pedir confirmação, oferece desfazer (igual à web) *@
+        <div class="alert alert-info undo-bar" role="status">
+            <span>"@_recentlyRemoved.Title" saiu das suas vagas salvas.</span>
+            <button type="button" class="btn btn-secondary" @onclick="UndoRemoveAsync" disabled="@_undoing" aria-busy="@(_undoing ? "true" : null)">
+                <Icon Name="rotate-ccw" /> Desfazer
+            </button>
+        </div>
+    }
+
+    @if (_saved.Count == 0)
+    {
+        <EmptyState IconName="star" Title="Nenhuma vaga salva"
+                    Message="Ao encontrar uma vaga interessante, toque na estrela para acompanhá-la por aqui.">
+            <a class="btn btn-primary" href="/jobs">Explorar vagas</a>
+        </EmptyState>
+    }
+    else
+    {
+        @foreach (var job in _saved)
+        {
+            var applied = _applications.Any(a => a.JobId == job.Id);
+            <article class="card" @key="job.Id">
+                <a class="card-title-link" href="/jobs/@job.Id"><h2 class="card-title">@job.Title</h2></a>
+                <div class="text-dim">@JoinParts(job.AdvertiserName, Formatters.Location(job.City, job.State))</div>
+                @if (applied)
+                {
+                    <div class="tag-row"><span class="badge badge--info"><Icon Name="send" Size="14" /> Você já se candidatou</span></div>
+                }
+                <div class="card-actions">
+                    @if (applied)
+                    {
+                        <a class="btn btn-secondary" href="/applications">Acompanhar</a>
+                    }
+                    else
+                    {
+                        <a class="btn btn-secondary" href="/jobs/@job.Id">Ver vaga</a>
+                    }
+                    <button type="button" class="btn btn-danger" @onclick="() => RemoveSavedAsync(job)" disabled="@(_removingId == job.Id)"
+                            aria-label="@($"Remover {job.Title} das vagas salvas")">
+                        <Icon Name="trash" /> Remover
+                    </button>
+                </div>
+            </article>
+        }
+    }
+}
+else if (Tab == "alertas")
+{
+    <section class="card" aria-labelledby="alert-form-title">
+        <h2 id="alert-form-title" class="card-title">Criar alerta de vaga</h2>
+        <p class="text-dim">Avisamos você quando uma vaga combinar com o que você procura. Todos os campos são opcionais, menos o nome.</p>
+
+        @if (_alertError is not null)
+        {
+            <div class="alert alert-danger" role="alert">@_alertError</div>
+        }
+
+        <form @onsubmit="CreateAlertAsync" novalidate>
+            <div class="form-field">
+                <label for="alert-name">Nome do alerta</label>
+                <input id="alert-name" class="input" @ref="_alertNameRef" @bind="_alertName" maxlength="100"
+                       aria-invalid="@(_alertNameError is not null ? "true" : null)"
+                       aria-describedby="@(_alertNameError is not null ? "alert-name-error" : null)" />
+                @if (_alertNameError is not null)
+                {
+                    <div id="alert-name-error" class="field-error">@_alertNameError</div>
+                }
+            </div>
+            <div class="form-field">
+                <label for="alert-keywords">Palavras-chave</label>
+                <input id="alert-keywords" class="input" @bind="_alertKeywords" placeholder="Ex.: atendimento, vendas" maxlength="200" />
+            </div>
+            <div class="form-grid">
+                <div class="form-field">
+                    <label for="alert-city">Cidade</label>
+                    <input id="alert-city" class="input" @bind="_alertCity" autocomplete="address-level2" maxlength="100" />
+                </div>
+                <div class="form-field">
+                    <label for="alert-state">UF</label>
+                    <select id="alert-state" class="input" @bind="_alertState">
+                        <option value="">Todas</option>
+                        @foreach (var uf in FormOptions.States)
+                        {
+                            <option value="@uf">@uf</option>
+                        }
+                    </select>
+                </div>
+            </div>
+            <div class="form-field">
+                <label for="alert-mode">Modalidade</label>
+                <select id="alert-mode" class="input" @bind="_alertMode">
+                    <option value="">Qualquer modalidade</option>
+                    @foreach (var (value, label) in FormOptions.Modes)
+                    {
+                        <option value="@value">@label</option>
+                    }
+                </select>
+            </div>
+            <div class="form-field">
+                <label for="alert-category">Categoria</label>
+                <select id="alert-category" class="input" @bind="_alertCategory">
+                    <option value="">Qualquer categoria</option>
+                    @foreach (var category in Monburan.Core.Catalogs.JobCategories.All)
+                    {
+                        <option value="@category">@category</option>
+                    }
+                </select>
+            </div>
+            <div class="form-field">
+                <label for="alert-salary">Salário mínimo (R$)</label>
+                <input id="alert-salary" class="input" type="number" inputmode="numeric" min="0" step="100" @bind="_alertSalary" />
+            </div>
+            <button type="submit" class="btn btn-primary btn-block" disabled="@_savingAlert" aria-busy="@(_savingAlert ? "true" : null)">
+                @(_savingAlert ? "Criando alerta…" : "Criar alerta")
+            </button>
+        </form>
+    </section>
+
+    <h2 class="section-title">Seus alertas</h2>
+    @if (_alerts.Count == 0)
+    {
+        <EmptyState IconName="bell" Compact="true" Title="Nenhum alerta criado"
+                    Message="Crie um alerta e avisamos quando surgir uma vaga com o perfil que você procura." />
+    }
+    else
+    {
+        @foreach (var alert in _alerts)
+        {
+            <article class="card" @key="alert.Id">
+                <div class="list-row">
+                    <h3 class="card-title">@alert.Name</h3>
+                    <span class="badge badge--@(alert.IsActive ? "ok" : "neutral")">@(alert.IsActive ? "Ativo" : "Desativado")</span>
+                </div>
+                <p class="text-dim">@AlertSummary(alert)</p>
+                <div class="card-actions">
+                    <button type="button" class="btn btn-secondary" @onclick="() => ToggleAlertAsync(alert)" disabled="@(_alertBusyId == alert.Id)"
+                            aria-label="@($"{(alert.IsActive ? "Desativar" : "Ativar")} o alerta {alert.Name}")">
+                        @(alert.IsActive ? "Desativar" : "Ativar")
+                    </button>
+                    <button type="button" class="btn btn-danger" @onclick="() => DeleteAlertAsync(alert)" disabled="@(_alertBusyId == alert.Id)"
+                            aria-label="@($"Excluir o alerta {alert.Name}")">
+                        <Icon Name="trash" /> Excluir
+                    </button>
+                </div>
+            </article>
+        }
+    }
 }
 else
 {
-    @foreach (var app in _items)
+    @* Filtros sempre visíveis, mesmo com a lista filtrada a zero *@
+    <div class="chip-group" role="group" aria-label="Filtrar candidaturas por situação">
+        @foreach (var (value, label) in Filters)
+        {
+            var active = _filter == value;
+            <button type="button" class="chip@(active ? " is-active" : string.Empty)" aria-pressed="@(active ? "true" : "false")" @onclick="() => _filter = value">
+                @label <span class="chip__count">@_applications.Count(a => Matches(a.Status, value))</span>
+            </button>
+        }
+    </div>
+
+    var filtered = _applications.Where(a => Matches(a.Status, _filter)).ToList();
+    @if (_applications.Count == 0)
     {
-        <a class="card-link" href="/jobs/@app.JobId">
-            <div class="card">
+        <EmptyState IconName="send" Title="Sua jornada começa com uma candidatura"
+                    Message="Quando você se candidatar, poderá acompanhar aqui as atualizações de cada processo seletivo.">
+            <a class="btn btn-primary" href="/jobs">Explorar vagas</a>
+        </EmptyState>
+    }
+    else if (filtered.Count == 0)
+    {
+        <EmptyState IconName="search" Compact="true" Title="Nenhuma candidatura nesta situação"
+                    Message="Tente outro filtro para ver suas outras candidaturas.">
+            <button type="button" class="btn btn-secondary" @onclick="() => _filter = AllFilter">Limpar filtro</button>
+        </EmptyState>
+    }
+    else
+    {
+        @foreach (var app in filtered)
+        {
+            var expanded = _expanded.Contains(app.Id);
+            <article class="card" @key="app.Id">
                 <div class="list-row">
-                    <h2 class="card-title">@(app.JobTitle ?? "Vaga")</h2>
-                    <span class="badge @Formatters.ApplicationStatusClass(app.Status)">@Formatters.ApplicationStatus(app.Status)</span>
+                    <div>
+                        <a class="card-title-link" href="/jobs/@app.JobId"><h2 class="card-title">@(app.JobTitle ?? "Vaga")</h2></a>
+                        @if (!string.IsNullOrWhiteSpace(app.AdvertiserName))
+                        {
+                            <div class="text-dim">@app.AdvertiserName</div>
+                        }
+                    </div>
+                    <span class="badge badge--@Formatters.ApplicationStatusTone(app.Status)">@Formatters.ApplicationStatus(app.Status)</span>
                 </div>
+                <p class="card-note">@Formatters.ApplicationNextStep(app.Status)</p>
                 <div class="card-meta">
-                    @if (app.AppliedAt.HasValue)
-                    {
-                        <span class="meta-chip">Enviada em @Formatters.MomentDate(app.AppliedAt.Value)</span>
-                    }
+                    <span class="meta-chip"><Icon Name="calendar" Size="16" /> Enviada em @Formatters.MomentDate(app.AppliedAt ?? app.CreatedAt)</span>
                 </div>
-            </div>
-        </a>
+                <button type="button" class="btn btn-ghost disclosure" aria-expanded="@(expanded ? "true" : "false")" aria-controls="@($"timeline-{app.Id}")"
+                        @onclick="() => ToggleTimelineAsync(app)">
+                    @(expanded ? "Ocultar etapas" : "Ver etapas")
+                    <Icon Name="chevron-down" Size="16" Class="@(expanded ? "icon--flip" : null)" />
+                </button>
+                @if (expanded)
+                {
+                    <div id="@($"timeline-{app.Id}")">
+                        @if (!_timelines.TryGetValue(app.Id, out var steps))
+                        {
+                            <p class="text-dim" role="status">Carregando etapas…</p>
+                        }
+                        else if (steps.Count == 0)
+                        {
+                            <p class="text-dim">Ainda não há etapas registradas para esta candidatura.</p>
+                        }
+                        else
+                        {
+                            <ol class="timeline" aria-label="Etapas da candidatura">
+                                @foreach (var step in steps)
+                                {
+                                    <li class="timeline__step">
+                                        <span class="timeline__label">@Formatters.ApplicationStatus(step.Status)</span>
+                                        <time class="timeline__date" datetime="@step.Date.ToString("o")">@Formatters.Moment(step.Date)</time>
+                                        @if (!string.IsNullOrWhiteSpace(step.Note))
+                                        {
+                                            <p class="timeline__note">@step.Note.Trim()</p>
+                                        }
+                                        @if (!string.IsNullOrWhiteSpace(step.Responsible))
+                                        {
+                                            <p class="timeline__by">@step.Responsible.Trim()</p>
+                                        }
+                                    </li>
+                                }
+                            </ol>
+                        }
+                    </div>
+                }
+            </article>
+        }
     }
 }
 
+<ConfirmDialog @ref="_confirm" />
+
 @code {
-    private List<ApplicationResponse> _items = [];
+    private const string AllFilter = "todas";
+
+    private static readonly (string Value, string Label)[] Tabs =
+    [
+        ("candidaturas", "Candidaturas"),
+        ("salvas", "Vagas salvas"),
+        ("alertas", "Alertas")
+    ];
+
+    private static readonly (string Value, string Label)[] Filters =
+    [
+        (AllFilter, "Todas"),
+        ("andamento", "Em andamento"),
+        ("selecionadas", "Selecionadas"),
+        ("encerradas", "Encerradas")
+    ];
+
+    [SupplyParameterFromQuery(Name = "aba")]
+    public string? TabQuery { get; set; }
+
+    private string Tab => TabQuery is "salvas" or "alertas" ? TabQuery : "candidaturas";
+
+    private List<ApplicationResponse> _applications = [];
+    private List<JobResponse> _saved = [];
+    private List<JobAlertResponse> _alerts = [];
+    private readonly HashSet<Guid> _expanded = [];
+    private readonly Dictionary<Guid, List<ApplicationHistoryItemResponse>> _timelines = [];
+    private string _filter = AllFilter;
     private bool _loading = true;
     private ApiException? _error;
+    private ConfirmDialog _confirm = default!;
+
+    private JobResponse? _recentlyRemoved;
+    private int _recentlyRemovedPosition;
+    private Guid? _removingId;
+    private bool _undoing;
+
+    private string _alertName = "";
+    private string? _alertKeywords;
+    private string? _alertCity;
+    private string _alertState = "";
+    private string _alertMode = "";
+    private string _alertCategory = "";
+    private decimal? _alertSalary;
+    private string? _alertNameError;
+    private string? _alertError;
+    private bool _savingAlert;
+    private bool _focusAlertName;
+    private ElementReference _alertNameRef;
+    private Guid? _alertBusyId;
 
     protected override async Task OnInitializedAsync()
     {
@@ -58,7 +338,14 @@ else
         _error = null;
         try
         {
-            _items = await Api.GetMyApplicationsAsync();
+            var applications = Api.GetMyApplicationsAsync();
+            var saved = Api.GetSavedJobsAsync();
+            var alerts = Api.GetJobAlertsAsync();
+            await Task.WhenAll(applications, saved, alerts);
+
+            _applications = applications.Result;
+            _saved = saved.Result.Jobs.ToList();
+            _alerts = alerts.Result;
         }
         catch (ApiException ex)
         {
@@ -68,5 +355,252 @@ else
         {
             _loading = false;
         }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!_focusAlertName)
+            return;
+
+        _focusAlertName = false;
+        try
+        {
+            await _alertNameRef.FocusAsync();
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or JSException)
+        {
+            // Foco é acessório: a mensagem de erro já está na tela
+        }
+    }
+
+    private static string TabUrl(string value) => value == "candidaturas" ? "/applications" : $"/applications?aba={value}";
+
+    private int CountForTab(string value) => value switch
+    {
+        "salvas" => _saved.Count,
+        "alertas" => _alerts.Count,
+        _ => _applications.Count
+    };
+
+    // Mesmo agrupamento da web (ApplicationJourneyRules)
+    private static bool Matches(string? status, string filter) => filter switch
+    {
+        "andamento" => status is "Sent" or "Viewed",
+        "selecionadas" => status == "Selected",
+        "encerradas" => status is "Rejected" or "Archived",
+        _ => true
+    };
+
+    private async Task ToggleTimelineAsync(ApplicationResponse app)
+    {
+        if (!_expanded.Add(app.Id))
+        {
+            _expanded.Remove(app.Id);
+            return;
+        }
+
+        if (_timelines.ContainsKey(app.Id))
+            return;
+
+        try
+        {
+            var history = await Api.GetApplicationHistoryAsync(app.Id);
+            _timelines[app.Id] = history.OrderBy(h => h.Date).ToList();
+        }
+        catch (ApiException ex)
+        {
+            Logger.LogDebug(ex, "Não foi possível carregar as etapas da candidatura");
+            _expanded.Remove(app.Id);
+            Toast.ShowError(ex.IsNetworkError ? ex.Message : "Não foi possível carregar as etapas desta candidatura.");
+        }
+    }
+
+    private async Task RemoveSavedAsync(JobResponse job)
+    {
+        if (_removingId is not null)
+            return;
+
+        _removingId = job.Id;
+        var position = _saved.FindIndex(item => item.Id == job.Id);
+        try
+        {
+            await Api.UnsaveJobAsync(job.Id);
+            _saved.RemoveAll(item => item.Id == job.Id);
+            job.IsSaved = false;
+            _recentlyRemoved = job;
+            _recentlyRemovedPosition = Math.Max(position, 0);
+        }
+        catch (ApiException ex)
+        {
+            Toast.ShowError(ex.IsNetworkError ? ex.Message : "Não foi possível remover a vaga salva. Tente novamente.");
+        }
+        finally
+        {
+            _removingId = null;
+        }
+    }
+
+    // Salva de novo a última vaga removida, no mesmo lugar da lista
+    private async Task UndoRemoveAsync()
+    {
+        if (_recentlyRemoved is null || _undoing)
+            return;
+
+        _undoing = true;
+        try
+        {
+            var job = _recentlyRemoved;
+            await Api.SaveJobAsync(job.Id);
+            job.IsSaved = true;
+            _saved.Insert(Math.Min(_recentlyRemovedPosition, _saved.Count), job);
+            _recentlyRemoved = null;
+        }
+        catch (ApiException ex)
+        {
+            Toast.ShowError(ex.IsNetworkError ? ex.Message : "Não foi possível salvar a vaga de novo. Tente pela página da vaga.");
+        }
+        finally
+        {
+            _undoing = false;
+        }
+    }
+
+    private async Task CreateAlertAsync()
+    {
+        if (_savingAlert)
+            return;
+
+        _alertError = null;
+        _alertNameError = null;
+        if (string.IsNullOrWhiteSpace(_alertName))
+        {
+            _alertNameError = "Dê um nome ao alerta.";
+            _focusAlertName = true;
+            return;
+        }
+
+        if (_alertSalary is < 0)
+        {
+            _alertError = "O salário mínimo não pode ser negativo.";
+            return;
+        }
+
+        _savingAlert = true;
+        try
+        {
+            var created = await Api.CreateJobAlertAsync(new JobAlertRequest
+            {
+                Name = _alertName.Trim(),
+                Keywords = Clean(_alertKeywords),
+                City = Clean(_alertCity),
+                State = Clean(_alertState),
+                Mode = Clean(_alertMode),
+                Category = Clean(_alertCategory),
+                SalaryMin = _alertSalary,
+                IsActive = true
+            });
+
+            _alerts.Insert(0, created);
+            _alertName = "";
+            _alertKeywords = null;
+            _alertCity = null;
+            _alertState = "";
+            _alertMode = "";
+            _alertCategory = "";
+            _alertSalary = null;
+            Toast.ShowSuccess("Avisamos quando surgir uma vaga compatível.", "Alerta criado");
+        }
+        catch (ApiException ex)
+        {
+            // O aviso do formulário (role="alert") já anuncia: sem toast repetindo a mesma mensagem
+            _alertNameError = ex.FieldError("name");
+            if (_alertNameError is not null)
+                _focusAlertName = true;
+            _alertError = ex.Message;
+        }
+        finally
+        {
+            _savingAlert = false;
+        }
+    }
+
+    private async Task ToggleAlertAsync(JobAlertResponse alert)
+    {
+        if (_alertBusyId is not null)
+            return;
+
+        _alertBusyId = alert.Id;
+        try
+        {
+            var updated = await Api.UpdateJobAlertAsync(alert.Id, new JobAlertRequest
+            {
+                Name = alert.Name,
+                Keywords = alert.Keywords,
+                City = alert.City,
+                State = alert.State,
+                Mode = alert.Mode,
+                Category = alert.Category,
+                SalaryMin = alert.SalaryMin,
+                IsActive = !alert.IsActive
+            });
+
+            var index = _alerts.FindIndex(item => item.Id == alert.Id);
+            if (index >= 0)
+                _alerts[index] = updated;
+            Toast.ShowSuccess(updated.IsActive ? "Alerta ativado." : "Alerta desativado.");
+        }
+        catch (ApiException ex)
+        {
+            Toast.ShowError(ex.IsNetworkError ? ex.Message : "Não foi possível atualizar o alerta. Tente novamente.");
+        }
+        finally
+        {
+            _alertBusyId = null;
+        }
+    }
+
+    private async Task DeleteAlertAsync(JobAlertResponse alert)
+    {
+        var confirmed = await _confirm.ShowAsync(new ConfirmOptions
+        {
+            Title = "Excluir alerta?",
+            Message = $"O alerta \"{alert.Name}\" será excluído e você deixará de receber avisos dele.",
+            ConfirmText = "Excluir alerta",
+            Destructive = true
+        });
+        if (!confirmed)
+            return;
+
+        _alertBusyId = alert.Id;
+        try
+        {
+            await Api.DeleteJobAlertAsync(alert.Id);
+            _alerts.RemoveAll(item => item.Id == alert.Id);
+            Toast.ShowSuccess("Alerta excluído.");
+        }
+        catch (ApiException ex)
+        {
+            Toast.ShowError(ex.IsNetworkError ? ex.Message : "Não foi possível excluir o alerta. Tente novamente.");
+        }
+        finally
+        {
+            _alertBusyId = null;
+        }
+    }
+
+    private static string? Clean(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+
+    private static string JoinParts(params string?[] parts) =>
+        string.Join(" · ", parts.Where(p => !string.IsNullOrWhiteSpace(p)));
+
+    private static string AlertSummary(JobAlertResponse alert)
+    {
+        var parts = new List<string>();
+        if (!string.IsNullOrWhiteSpace(alert.Keywords)) parts.Add(alert.Keywords);
+        if (Formatters.Location(alert.City, alert.State) is { } location) parts.Add(location);
+        if (!string.IsNullOrWhiteSpace(alert.Mode)) parts.Add(Formatters.JobType(alert.Mode));
+        if (!string.IsNullOrWhiteSpace(alert.Category)) parts.Add(alert.Category);
+        if (alert.SalaryMin is > 0) parts.Add($"a partir de {Formatters.Money(alert.SalaryMin.Value)}");
+        return parts.Count > 0 ? string.Join(" · ", parts) : "Qualquer vaga";
     }
 }

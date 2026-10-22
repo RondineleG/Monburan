@@ -1,0 +1,23 @@
+name: Rebuild semanal da imagem
+
+# As imagens base (.NET e Postgres) usam tags que recebem patches de segurança, mas a imagem do app só era reconstruída
+# quando algo mudava em src/ ou infra/vps/: um patch do runtime podia ficar semanas fora da produção. Toda segunda este
+# workflow dispara o docker-ghcr.yml na MAIN, que reconstrói a imagem com as bases atualizadas, publica e faz o deploy na
+# VPS. O agendamento roda na branch padrão (dev), mas nada é construído a partir dela: o build e o deploy são os da main.
+on:
+  schedule:
+    - cron: '0 6 * * 1'   # segunda, 03:00 em Brasília
+  workflow_dispatch:
+
+permissions:
+  actions: write   # disparar o docker-ghcr.yml (workflow_dispatch é o único evento que o GITHUB_TOKEN pode disparar)
+
+jobs:
+  disparar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Disparar o build e o deploy da main
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run docker-ghcr.yml --repo "$GITHUB_REPOSITORY" --ref main

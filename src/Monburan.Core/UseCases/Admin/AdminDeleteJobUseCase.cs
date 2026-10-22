@@ -25,7 +25,7 @@ public sealed class AdminDeleteJobUseCase : IUseCase<AdminDeleteJobRequest, bool
         _audit = audit;
     }
 
-    public async Task<RequestResult<bool>> ExecuteAsync(AdminDeleteJobRequest request)
+    public async Task<RequestResult<bool>> ExecuteAsync(AdminDeleteJobRequest request, CancellationToken cancellationToken = default)
     {
         var reason = request.Reason?.Trim();
         if (reason is null || reason.Length < AdminChangeJobStatusUseCase.ReasonMinLength)
@@ -40,12 +40,12 @@ public sealed class AdminDeleteJobUseCase : IUseCase<AdminDeleteJobRequest, bool
                 $"O motivo deve ter no máximo {AdminChangeJobStatusUseCase.ReasonMaxLength} caracteres.", nameof(request.Reason));
         }
 
-        var found = await _jobs.GetByIdAsync(Id.Create(request.JobId));
+        var found = await _jobs.GetByIdAsync(Id.Create(request.JobId), cancellationToken);
         if (found.Status != EResultStatus.Success || found.Data is null)
             return RequestResult<bool>.EntityNotFound("Job", request.JobId, "Vaga não encontrada.");
 
         var job = found.Data;
-        var deleted = await _jobs.DeleteAsync(job.Id);
+        var deleted = await _jobs.DeleteAsync(job.Id, cancellationToken);
         if (deleted.Status != EResultStatus.Success)
             return RequestResult<bool>.FromResult(deleted);
 
@@ -55,10 +55,12 @@ public sealed class AdminDeleteJobUseCase : IUseCase<AdminDeleteJobRequest, bool
             Title = "Sua vaga foi removida pela moderação",
             Message = $"A vaga \"{job.Title}\" foi removida da plataforma. Motivo: {reason}.",
             Type = ENotificationType.System
-        });
+        },
+        cancellationToken);
 
         await _audit.RecordAsync(new AdminAuditRecord(
-            AdminAuditActions.JobDeleted, request.Actor, AdminAuditActions.JobTarget, job.Id.Value.ToString(), job.Title, $"Motivo: {reason}"));
+            AdminAuditActions.JobDeleted, request.Actor, AdminAuditActions.JobTarget, job.Id.Value.ToString(), job.Title, $"Motivo: {reason}"),
+            cancellationToken);
 
         return RequestResult<bool>.Success(true);
     }

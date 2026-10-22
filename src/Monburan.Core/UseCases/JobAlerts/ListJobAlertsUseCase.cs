@@ -16,9 +16,9 @@ public class ListJobAlertsUseCase : IUseCase<Guid, IEnumerable<JobAlertResponse>
         _alerts = alerts;
     }
 
-    public async Task<RequestResult<IEnumerable<JobAlertResponse>>> ExecuteAsync(Guid request)
+    public async Task<RequestResult<IEnumerable<JobAlertResponse>>> ExecuteAsync(Guid request, CancellationToken cancellationToken = default)
     {
-        var result = await _alerts.ListByCandidateAsync(request);
+        var result = await _alerts.ListByCandidateAsync(request, cancellationToken: cancellationToken);
         if (result.Status != EResultStatus.Success || result.Data is null)
             return RequestResult<IEnumerable<JobAlertResponse>>.FromResult(result);
 

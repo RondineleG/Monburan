@@ -1,0 +1,227 @@
+@page "/resumes/{Id:guid}"
+@inherits ProtectedPage
+@inject MonburanApiClient Api
+@inject IToastService Toast
+
+@if (_loading)
+{
+    <h1 class="visually-hidden" tabindex="-1">Currículo</h1>
+    <LoadingState Message="Carregando currículo…" />
+}
+else if (_error is not null)
+{
+    @if (_error.StatusCode is System.Net.HttpStatusCode.NotFound or System.Net.HttpStatusCode.Forbidden)
+    {
+        <EmptyState IconName="search" HeadingLevel="1" Title="Currículo não encontrado" Message="Ele pode ter sido excluído ou você não tem acesso a ele.">
+            <a class="btn btn-primary" href="/resumes">Ir para meus currículos</a>
+        </EmptyState>
+    }
+    else
+    {
+        <h1 class="visually-hidden" tabindex="-1">Currículo</h1>
+        <ErrorState Message="@_error.Message" IsOffline="@_error.IsNetworkError" OnRetry="LoadAsync" />
+    }
+}
+else if (_resume is not null)
+{
+    <div class="detail-hero">
+        <h1 tabindex="-1">@_resume.Title</h1>
+        <div class="tag-row">
+            <span class="badge badge--@(_resume.IsActive ? "ok" : "neutral")">@(_resume.IsActive ? "Ativo" : "Inativo")</span>
+            <span class="text-dim">Atualizado em @Formatters.MomentDate(_resume.UpdatedAt ?? _resume.CreatedAt)</span>
+        </div>
+        <div class="card-meta">
+            @if (_resume.ExperienceHistory?.Count > 0) { <span>@Plural(_resume.ExperienceHistory.Count, "experiência", "experiências")</span> }
+            @if (_resume.EducationHistory?.Count > 0) { <span>@Plural(_resume.EducationHistory.Count, "formação", "formações")</span> }
+            @if (_resume.Languages?.Count > 0) { <span>@Plural(_resume.Languages.Count, "idioma", "idiomas")</span> }
+            @if (_resume.Skills?.Count > 0) { <span>@Plural(_resume.Skills.Count, "habilidade", "habilidades")</span> }
+        </div>
+    </div>
+
+    <div class="action-stack">
+        <a class="btn btn-primary btn-block" href="/resumes/@Id/edit"><Icon Name="edit" /> Editar currículo</a>
+    </div>
+
+    <ResumeAiPanel ResumeId="Id" />
+
+    @if (!string.IsNullOrWhiteSpace(_resume.Summary))
+    {
+        <section class="detail-section">
+            <h2>Resumo profissional</h2>
+            <p class="body-text">@_resume.Summary</p>
+        </section>
+    }
+
+    @if (!string.IsNullOrWhiteSpace(_resume.SourceFileName))
+    {
+        <section class="detail-section">
+            <h2>Arquivo de origem</h2>
+            <p class="body-text"><Icon Name="file" /> @_resume.SourceFileName</p>
+        </section>
+    }
+
+    <section class="detail-section">
+        <h2>Experiência profissional</h2>
+        @if (_resume.ExperienceHistory is { Count: > 0 } experiences)
+        {
+            <ul class="entry-list">
+                @foreach (var exp in experiences)
+                {
+                    <li class="entry">
+                        <strong>@(string.IsNullOrWhiteSpace(exp.Position) ? "Cargo não informado" : exp.Position)</strong>
+                        @if (!string.IsNullOrWhiteSpace(exp.Company)) { <span class="text-dim">@exp.Company</span> }
+                        @if (Formatters.Period(exp.StartDate, exp.EndDate, exp.IsCurrent) is { } period) { <span class="text-dim">@period</span> }
+                        @if (!string.IsNullOrWhiteSpace(exp.Description)) { <p class="body-text">@exp.Description</p> }
+                    </li>
+                }
+            </ul>
+        }
+        else
+        {
+            <p class="text-dim">Nenhuma experiência adicionada.</p>
+        }
+    </section>
+
+    <section class="detail-section">
+        <h2>Formação acadêmica</h2>
+        @if (_resume.EducationHistory is { Count: > 0 } educations)
+        {
+            <ul class="entry-list">
+                @foreach (var edu in educations)
+                {
+                    <li class="entry">
+                        <strong>@(string.IsNullOrWhiteSpace(edu.Course) ? "Curso não informado" : edu.Course)</strong>
+                        @if (!string.IsNullOrWhiteSpace(edu.Institution)) { <span class="text-dim">@edu.Institution</span> }
+                        <span class="text-dim">@JoinParts(Formatters.EducationLevel(edu.Level), Formatters.EducationStatus(edu.Status), Formatters.Period(edu.StartDate, edu.EndDate))</span>
+                    </li>
+                }
+            </ul>
+        }
+        else
+        {
+            <p class="text-dim">Nenhuma formação adicionada.</p>
+        }
+    </section>
+
+    <section class="detail-section">
+        <h2>Idiomas</h2>
+        @if (_resume.Languages is { Count: > 0 } languages)
+        {
+            <div class="tag-row">
+                @foreach (var lang in languages)
+                {
+                    <span class="badge badge--neutral">@lang.Language · @Formatters.LanguageLevel(lang.Level)</span>
+                }
+            </div>
+        }
+        else
+        {
+            <p class="text-dim">Nenhum idioma adicionado.</p>
+        }
+    </section>
+
+    <section class="detail-section">
+        <h2>Habilidades</h2>
+        @if (_resume.Skills is { Count: > 0 } skills)
+        {
+            <ul class="entry-list">
+                @foreach (var skill in skills)
+                {
+                    <li class="entry entry--inline">
+                        <strong>@skill.Skill</strong>
+                        <span class="text-dim">@JoinParts(skill.Level > 0 ? $"nível {skill.Level} de 5" : null, skill.YearsOfExperience > 0 ? Plural(skill.YearsOfExperience, "ano", "anos") : null)</span>
+                    </li>
+                }
+            </ul>
+        }
+        else
+        {
+            <p class="text-dim">Nenhuma habilidade adicionada.</p>
+        }
+    </section>
+
+    <div class="action-stack page-end">
+        <button type="button" class="btn btn-danger btn-block" @onclick="DeleteAsync" disabled="@_deleting" aria-busy="@(_deleting ? "true" : null)">
+            <Icon Name="trash" /> @(_deleting ? "Excluindo…" : "Excluir currículo")
+        </button>
+    </div>
+}
+
+<ConfirmDialog @ref="_confirm" />
+
+@code {
+    [Parameter] public Guid Id { get; set; }
+
+    private ResumeResponse? _resume;
+    private bool _loading = true;
+    private bool _deleting;
+    private ApiException? _error;
+    private ConfirmDialog _confirm = default!;
+    private Guid _loadedId;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        // Outro currículo no mesmo componente (navegação entre ids): recarrega
+        if (_loadedId == Id)
+            return;
+
+        _loadedId = Id;
+        if (await EnsureAuthenticatedAsync())
+            await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        _error = null;
+        try
+        {
+            _resume = await Api.GetResumeAsync(Id);
+        }
+        catch (ApiException ex)
+        {
+            _error = ex;
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task DeleteAsync()
+    {
+        if (_resume is null || _deleting)
+            return;
+
+        var confirmed = await _confirm.ShowAsync(new ConfirmOptions
+        {
+            Title = "Excluir currículo?",
+            Message = $"\"{_resume.Title}\" será removido e não poderá mais ser enviado em candidaturas.",
+            ConfirmText = "Excluir currículo",
+            Destructive = true
+        });
+        if (!confirmed)
+            return;
+
+        _deleting = true;
+        try
+        {
+            await Api.DeleteResumeAsync(Id);
+            Toast.ShowSuccess($"O currículo \"{_resume.Title}\" foi excluído.");
+            Nav.NavigateTo("/resumes", replace: true);
+        }
+        catch (ApiException ex)
+        {
+            Toast.ShowError(ex.Message);
+        }
+        finally
+        {
+            _deleting = false;
+        }
+    }
+
+    private static string Plural(int count, string one, string many) => $"{count} {(count == 1 ? one : many)}";
+
+    private static string JoinParts(params string?[] parts) =>
+        string.Join(" · ", parts.Where(p => !string.IsNullOrWhiteSpace(p)));
+}

@@ -16,7 +16,7 @@ public static class DashboardEndpoints
             if (advertiserId is null)
                 return Results.Problem(statusCode: StatusCodes.Status403Forbidden, title: "Perfil de anunciante necessário");
 
-            var result = await useCase.ExecuteAsync(advertiserId.Value);
+            var result = await useCase.ExecuteAsync(advertiserId.Value, cancellationToken);
             return result.ToHttpResult();
         })
         .RequireAuthorization("ApiBearer")

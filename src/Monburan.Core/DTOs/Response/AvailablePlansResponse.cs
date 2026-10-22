@@ -11,6 +11,9 @@ public class PlanResponse
     public bool HasHighlight { get; set; }
     public bool HasAnalytics { get; set; }
     public int MaxResumes { get; set; }
+    public string Audience { get; set; } = string.Empty;
+    public string Period { get; set; } = string.Empty;
+    public bool HasAiAssistant { get; set; }
 }
 
 public class AvailablePlansResponse

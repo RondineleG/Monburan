@@ -3,11 +3,11 @@
 @inject MonburanApiClient Api
 @inject IToastService Toast
 
-<h1 class="page-title">Candidatar-se</h1>
+<h1 class="page-title" tabindex="-1">Candidatar-se</h1>
 
 @if (_loading)
 {
-    <LoadingState Message="Carregando vaga..." />
+    <LoadingState Message="Carregando vaga…" />
 }
 else if (_loadError is not null)
 {
@@ -23,24 +23,23 @@ else if (_job is not null)
 
     @if (_success)
     {
-        <div class="state-box">
-            <div class="state-icon">✓</div>
-            <div class="state-title">Candidatura enviada!</div>
-            <p>A empresa poderá ver seu perfil e entrar em contato.</p>
-            <a class="btn btn-primary btn-block" href="/applications">Ver minhas candidaturas</a>
+        <div role="status">
+            <EmptyState IconName="check" Title="Candidatura enviada!" Message="A empresa poderá ver seu perfil e entrar em contato.">
+                <a class="btn btn-primary" href="/applications">Ver minhas candidaturas</a>
+            </EmptyState>
         </div>
     }
     else if (_job.Status != "Active")
     {
-        <EmptyState Icon="!" Title="Vaga encerrada" Message="Esta vaga não está mais recebendo candidaturas.">
-            <a class="btn btn-primary" href="/">Ver outras vagas</a>
+        <EmptyState IconName="alert" Title="Vaga encerrada" Message="Esta vaga não está mais recebendo candidaturas.">
+            <a class="btn btn-primary" href="/jobs">Ver outras vagas</a>
         </EmptyState>
     }
     else
     {
         @if (_error is not null)
         {
-            <div class="alert alert-error" role="alert">@_error</div>
+            <div class="alert alert-danger" role="alert">@_error</div>
         }
 
         <form @onsubmit="Submit" novalidate>
@@ -70,15 +69,15 @@ else if (_job is not null)
 
             <div class="form-field">
                 <label for="apply-notes">Mensagem para a empresa (opcional)</label>
-                <textarea id="apply-notes" class="input" maxlength="2000" @bind="_notes" placeholder="Conte brevemente por que você é a pessoa certa..."></textarea>
+                <textarea id="apply-notes" class="input" maxlength="2000" @bind="_notes" placeholder="Conte brevemente por que você é a pessoa certa…"></textarea>
                 @if (_fieldErrors.GetValueOrDefault("notes") is { } notesError)
                 {
                     <div class="field-error">@notesError</div>
                 }
             </div>
 
-            <button type="submit" class="btn btn-primary btn-block" disabled="@_busy">
-                @(_busy ? "Enviando..." : "Confirmar candidatura")
+            <button type="submit" class="btn btn-primary btn-block" disabled="@_busy" aria-busy="@(_busy ? "true" : null)">
+                @(_busy ? "Enviando…" : "Confirmar candidatura")
             </button>
         </form>
     }

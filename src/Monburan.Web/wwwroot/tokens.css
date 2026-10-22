@@ -1,0 +1,222 @@
+/* ============================================================
+   Tokens do design system Monburan: única fonte de cor, tipo, espaço,
+   forma, movimento e camadas. Componentes usam só var(--token), nunca cor fixa
+   (exceção documentada: a folha de CV .cv-sheet, papel neutro impresso).
+   Os pares de contraste usados na interface são verificados por
+   DesignTokenContrastTests (UnitTests): texto >= 4.5:1, bordas de controle e foco >= 3:1.
+   ============================================================ */
+
+/* Ordem das camadas: o que vem depois vence. base.css (elementos e grade), components.css, shell.css e
+   pages.css (componentes e padrões), utilities.css (utilitários). */
+@layer tokens, base, components, utilities;
+
+/* Cinzel hospedada no próprio site (SIL OFL 1.1, fonts/OFL.txt): só o peso 600, só na marca e no título da home */
+@font-face {
+    font-family: "Cinzel";
+    font-style: normal;
+    font-weight: 600;
+    font-display: swap;
+    src: url("/fonts/cinzel-latin.woff2") format("woff2");
+    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+20AC, U+2122, U+2212;
+}
+
+@layer tokens {
+    :root {
+        --dur-xs: 120ms;
+        --dur-sm: 240ms;
+        --ease: cubic-bezier(0.76, 0, 0.24, 1);
+        --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+
+        --r-xs: 4px;
+        --r-sm: 6px;
+        --r-md: 10px;
+        --r-lg: 14px;
+        --r-pill: 999px;
+
+        --s-1: 4px;
+        --s-2: 8px;
+        --s-3: 12px;
+        --s-4: 16px;
+        --s-5: 20px;
+        --s-6: 24px;
+        --s-8: 32px;
+        --s-10: 40px;
+        --s-12: 48px;
+        --s-16: 64px;
+
+        /* Escala tipográfica. 12px só para metadado; texto de leitura a partir de 14px. */
+        --fs-2xs: 0.75rem;
+        --fs-sm: 0.875rem;
+        --fs-md: 1rem;
+        --fs-lg: 1.125rem;
+        --fs-xl: 1.375rem;
+        --fs-2xl: 1.75rem;
+        --fs-3xl: 2.25rem;
+
+        --lh-tight: 1.15;
+        --lh-snug: 1.35;
+        --lh-body: 1.55;
+
+        --fw-regular: 400;
+        --fw-semibold: 600;
+        --fw-bold: 700;
+
+        /* Interface na fonte do sistema; a Cinzel é só identidade (logotipo e título da página inicial). */
+        --f-display: "Cinzel", Georgia, serif;
+        --f-ui: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+
+        /* Alturas de controle: 44px é o alvo de toque; o compacto só vale com ponteiro fino. */
+        --control-h: 2.75rem;
+        --control-h-sm: 2.5rem;
+        --control-h-lg: 3rem;
+
+        /* Contêineres: listas e painéis, formulário em duas colunas, leitura e formulário simples */
+        --container: 77.5rem;
+        --container-md: 68.75rem;
+        --container-narrow: 47.5rem;
+        --gutter: 1rem;
+        --topbar-h: 4rem;
+
+        --sidebar-w: 16rem;
+        --rail-w: 4.5rem;
+
+        /* Camadas de empilhamento, da mais baixa para a mais alta */
+        --z-raised: 1;
+        --z-dropdown: 20;
+        --z-sticky: 40;
+        --z-scrim: 55;
+        --z-sidebar: 70;
+        --z-sticky-cta: 90;
+        --z-drawer: 260;
+        --z-dialog: 270;
+        --z-toast: 300;
+        --z-skip-link: 1000;
+    }
+
+    @media (pointer: coarse) {
+        :root { --control-h-sm: 2.75rem; }
+    }
+
+    @media (min-width: 768px) {
+        :root { --gutter: 1.5rem; }
+    }
+
+    :root,
+    html[data-theme="light"] {
+        color-scheme: light;
+        --bg: oklch(0.975 0.009 85);
+        --bg-2: oklch(0.955 0.012 80);
+        --bg-3: oklch(0.925 0.02 78);
+        --bg-card: oklch(0.995 0.004 85);
+        --bg-input: oklch(0.99 0.004 85);
+        --bg-elev: oklch(0.985 0.006 85);
+        --gold: oklch(0.55 0.108 76);
+        --action-bg: oklch(0.43 0.096 70);
+        --action-fg: oklch(0.99 0.005 85);
+        --gold-l: oklch(0.86 0.079 85);
+        --gold-d: oklch(0.43 0.096 70);
+        --gold-glow: rgb(138 85 0 / 16%);
+        --gold-soft: rgb(138 85 0 / 8%);
+        --gold-border: rgb(138 85 0 / 24%);
+        --tx: oklch(0.25 0.019 70);
+        --tx-2: oklch(0.43 0.019 70);
+        /* Texto secundário com contraste AA (>= 4.5:1) sobre fundo, cartão e superfícies elevadas. */
+        --tx-muted: oklch(0.50 0.019 70);
+        --border: oklch(0.89 0.013 80);
+        --border-2: oklch(0.83 0.03 78);
+        /* Borda de campo de formulário: >= 3:1 sobre o fundo do campo (WCAG 1.4.11). */
+        --border-input: oklch(0.6 0.03 76);
+        --surface: rgb(138 85 0 / 4%);
+        --ok: #2e6830;
+        --ok-bg: rgb(46 104 48 / 9%);
+        --er: #9a1a1a;
+        --er-bg: rgb(154 26 26 / 8%);
+        --er-ink: #fffaf8;
+        --warn: #8a5500;
+        --info: #2d6e94;
+        --info-bg: rgb(45 110 148 / 9%);
+        --info-tx: #285c7a;
+        /* Tons de selo e aviso: neutro, marca e aviso completam ok/er/info */
+        --warn-bg: rgb(138 85 0 / 9%);
+        --neutral-tx: var(--tx-2);
+        --neutral-bg: rgb(80 60 30 / 7%);
+        --brand-tx: var(--gold-d);
+        --brand-bg: var(--gold-soft);
+        /* Cor da marca (maleta e sino): bronze no tema claro */
+        --brand-metal: #8A5500;
+        --shadow-sm: 0 2px 8px rgb(80 40 0 / 6%);
+        --shadow-md: 0 8px 28px rgb(80 40 0 / 10%);
+        --shadow-lg: 0 24px 60px rgb(80 40 0 / 14%), 0 4px 16px rgb(80 40 0 / 6%);
+        --shadow-glow: 0 0 24px rgb(138 85 0 / 16%);
+        --topbar-bg: rgb(242 235 217 / 94%);
+        --scrim-bg: rgb(26 15 0 / 36%);
+        --modal-scrim-bg: rgb(26 15 0 / 42%);
+        --empty-bg: rgb(254 250 243 / 78%);
+        --hero-bg: linear-gradient(145deg, #e8dec8, #f7f0e2 72%);
+        --hero-grid: rgb(138 85 0 / 11%);
+        --hero-glow: rgb(201 168 76 / 18%);
+        --stripe-bg: rgb(138 85 0 / 2.5%);
+        --gold-ink: #fffaf0;
+        --selection-ink: #1a0f00;
+        --logo-bg: #fff;
+        --focus-ring: var(--gold-d);
+    }
+
+    html[data-theme="dark"] {
+        color-scheme: dark;
+        --bg: oklch(0.18 0.013 75);
+        --bg-2: oklch(0.20 0.013 75);
+        --bg-3: oklch(0.26 0.013 75);
+        --bg-card: oklch(0.245 0.013 75);
+        --bg-input: oklch(0.20 0.013 75);
+        --bg-elev: oklch(0.22 0.013 75);
+        --gold: oklch(0.78 0.108 82);
+        --action-bg: oklch(0.78 0.108 82);
+        --action-fg: oklch(0.22 0.026 75);
+        --gold-l: oklch(0.86 0.09 82);
+        --gold-d: oklch(0.80 0.10 82);
+        --gold-glow: rgb(201 168 76 / 28%);
+        --gold-soft: rgb(201 168 76 / 12%);
+        --gold-border: rgb(201 168 76 / 25%);
+        --tx: oklch(0.94 0.013 85);
+        --tx-2: oklch(0.80 0.019 85);
+        --tx-muted: oklch(0.70 0.019 85);
+        --border: oklch(0.34 0.019 75);
+        --border-2: oklch(0.42 0.03 78);
+        --border-input: oklch(0.56 0.03 78);
+        --surface: rgb(255 255 255 / 3%);
+        --ok: #6fbf73;
+        --ok-bg: rgb(111 191 115 / 12%);
+        /* Mais claro que o vermelho anterior (#e06c5c): >= 4.5:1 também sobre o fundo de erro. */
+        --er: #f0958a;
+        --er-bg: rgb(240 149 138 / 12%);
+        --er-ink: #2a0d09;
+        --warn: #c9a84c;
+        --info: #7fb3d5;
+        --info-bg: rgb(127 179 213 / 12%);
+        --info-tx: #7fb3d5;
+        --warn-bg: rgb(201 168 76 / 12%);
+        --neutral-tx: var(--tx-2);
+        --neutral-bg: rgb(255 255 255 / 6%);
+        --brand-tx: var(--gold-d);
+        --brand-bg: var(--gold-soft);
+        /* Cor da marca (maleta e sino): ouro no tema escuro */
+        --brand-metal: #E0B252;
+        --shadow-sm: 0 2px 10px rgb(0 0 0 / 35%);
+        --shadow-md: 0 10px 32px rgb(0 0 0 / 45%);
+        --shadow-lg: 0 28px 70px rgb(0 0 0 / 55%), 0 6px 20px rgb(0 0 0 / 35%);
+        --shadow-glow: 0 0 28px rgb(201 168 76 / 20%);
+        --topbar-bg: rgb(10 8 6 / 88%);
+        --scrim-bg: rgb(0 0 0 / 55%);
+        --modal-scrim-bg: rgb(0 0 0 / 62%);
+        --empty-bg: rgb(255 255 255 / 2%);
+        --hero-bg: linear-gradient(145deg, #1a150b, #0f0c07 72%);
+        --hero-grid: rgb(201 168 76 / 9%);
+        --hero-glow: rgb(201 168 76 / 18%);
+        --stripe-bg: rgb(201 168 76 / 4%);
+        --gold-ink: #221a08;
+        --selection-ink: #221a08;
+        --logo-bg: #f5efe0;
+        --focus-ring: var(--gold-l);
+    }
+}

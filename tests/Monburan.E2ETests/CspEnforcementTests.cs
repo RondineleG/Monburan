@@ -99,6 +99,9 @@ public class CspEnforcementTests : E2ETestBase
         await Page.Locator("[data-action='theme-toggle']").ClickAsync();
         await Assertions.Expect(html).ToHaveAttributeAsync("data-theme", before ?? "dark");
 
+        // O menu lateral é da área logada
+        await LoginAsync(CandidateEmail);
+        await VisitAsync("/jobs");
         await Page.SetViewportSizeAsync(390, 844);
         await Page.GetByTestId("mobile-menu-toggle").ClickAsync();
         await Assertions.Expect(Page.Locator(".app-sidebar")).ToHaveClassAsync(new Regex("app-sidebar--open"));

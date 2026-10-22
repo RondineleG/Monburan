@@ -17,7 +17,7 @@ namespace Monburan.Web.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "10.0.12")
+                .HasAnnotation("ProductVersion", "10.0.13")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -634,7 +634,8 @@ namespace Monburan.Web.Migrations
 
                     b.HasIndex("CandidateId", "JobId")
                         .IsUnique()
-                        .HasDatabaseName("IX_Applications_CandidateId_JobId");
+                        .HasDatabaseName("IX_Applications_CandidateId_JobId")
+                        .HasFilter("\"IsDeleted\" = false");
 
                     b.HasIndex("JobId", "Status")
                         .HasDatabaseName("IX_Applications_JobId_Status");
@@ -725,6 +726,10 @@ namespace Monburan.Web.Migrations
                     b.Property<Guid>("Id")
                         .HasMaxLength(36)
                         .HasColumnType("uuid");
+
+                    b.Property<string>("ActivePlan")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
 
                     b.Property<Guid?>("AddressId")
                         .HasColumnType("uuid");
@@ -1227,6 +1232,14 @@ namespace Monburan.Web.Migrations
                         .HasColumnType("boolean")
                         .HasDefaultValue(false);
 
+                    b.Property<string>("SourceFileName")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("SourceFileUrl")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
                     b.Property<string>("Summary")
                         .HasMaxLength(2000)
                         .HasColumnType("character varying(2000)");
@@ -1405,12 +1418,15 @@ namespace Monburan.Web.Migrations
                         .HasMaxLength(36)
                         .HasColumnType("uuid");
 
-                    b.Property<Guid>("AdvertiserId")
+                    b.Property<Guid?>("AdvertiserId")
                         .HasColumnType("uuid");
 
                     b.Property<string>("CancellationReason")
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)");
+
+                    b.Property<Guid?>("CandidateId")
+                        .HasColumnType("uuid");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -1469,6 +1485,9 @@ namespace Monburan.Web.Migrations
                     b.HasIndex("AdvertiserId")
                         .HasDatabaseName("IX_Subscriptions_AdvertiserId");
 
+                    b.HasIndex("CandidateId")
+                        .HasDatabaseName("IX_Subscriptions_CandidateId");
+
                     b.HasIndex("PlanId")
                         .HasDatabaseName("IX_Subscriptions_PlanId");
 
@@ -1481,7 +1500,10 @@ namespace Monburan.Web.Migrations
                     b.HasIndex("TenantId", "Id")
                         .IsUnique();
 
-                    b.ToTable("Subscriptions", (string)null);
+                    b.ToTable("Subscriptions", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_Subscriptions_Owner", "(\"AdvertiserId\" IS NOT NULL) <> (\"CandidateId\" IS NOT NULL)");
+                        });
                 });
 
             modelBuilder.Entity("Monburan.Core.Entities.SubscriptionPlan", b =>
@@ -1489,6 +1511,13 @@ namespace Monburan.Web.Migrations
                     b.Property<Guid>("Id")
                         .HasMaxLength(36)
                         .HasColumnType("uuid");
+
+                    b.Property<string>("Audience")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasDefaultValue("Advertiser");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -1510,6 +1539,11 @@ namespace Monburan.Web.Migrations
                         .IsRequired()
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)");
+
+                    b.Property<bool>("HasAiAssistant")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
 
                     b.Property<bool>("HasAnalytics")
                         .HasColumnType("boolean");
@@ -1542,6 +1576,13 @@ namespace Monburan.Web.Migrations
                         .IsRequired()
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
+
+                    b.Property<string>("Period")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasDefaultValue("Monthly");
 
                     b.Property<decimal>("Price")
                         .ValueGeneratedOnAdd()
@@ -2313,8 +2354,12 @@ namespace Monburan.Web.Migrations
                     b.HasOne("Monburan.Core.Entities.Advertiser", "Advertiser")
                         .WithMany()
                         .HasForeignKey("AdvertiserId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Monburan.Core.Entities.Candidate", "Candidate")
+                        .WithMany()
+                        .HasForeignKey("CandidateId")
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.HasOne("Monburan.Core.Entities.SubscriptionPlan", "Plan")
                         .WithMany()
@@ -2323,6 +2368,8 @@ namespace Monburan.Web.Migrations
                         .IsRequired();
 
                     b.Navigation("Advertiser");
+
+                    b.Navigation("Candidate");
 
                     b.Navigation("Plan");
                 });

@@ -129,3 +129,112 @@ dotnet test tests/Monburan.UnitTests
 
 Conferir à mão em 1440 px e 390 px, nos temas claro e escuro: `/jobs`, `/jobs?modo=Remote&ordem=salario`,
 `/jobs/{id}` como visitante, candidato e empresa dona, e a barra de candidatura fixa no celular.
+
+---
+
+## Auditoria de UX — etapa de correções (esta revisão)
+
+Escopo **implementado** nesta rodada (não é auditoria completa do site nem do navegador):
+
+- **Candidatura sem adivinhação**: `/jobs/{id}` e `/apply/{id}` consultam a candidatura
+  antes de oferecer ação. Já candidatado vê situação + "Acompanhar candidatura" (desktop e
+  CTA fixo); falha de consulta vira "Verificar candidatura"/erro de tentar de novo — nunca
+  formulário. Vagas salvas mostram "Acompanhar" quando já aplicadas e "Ver oportunidade" nos demais.
+- **Currículo com permissão única**: `ResumeViewerService` autoriza dono ou a empresa que
+  recebeu aquele currículo numa candidatura (consulta exata, sem teto de 200). Detalhes, CV e
+  gaveta do candidato usam o mesmo caminho; sem permissão é sempre "não encontrado".
+- **Sugestões de IA com rascunho no navegador**: resultado vira rascunho criptografado por
+  candidato+currículo; revisão em área de largura total com seleção explícita, edição, prévia
+  do documento e bloqueio de lacunas [X%]; aplicação só grava o selecionado, rechecando dono e
+  conflito de snapshot. Consentimento por nova geração; revisar/aplicar rascunho não regenera.
+- **CV compartilhado**: `ResumeDocument` serve a tela de CV e a prévia; impressão em folha A4
+  isolada, sem elementos do app; removidos nome/link do PDF de origem da interface.
+- **Listas e perfil**: "Minhas vagas" com contagens, filtros sempre visíveis, próximo passo por
+  candidatura e link do currículo enviado; "Minhas vagas" da empresa com busca em memória,
+  título/link e ações diretas; "Candidaturas recebidas" com rótulos de filtro visíveis, contagem
+  e nome como botão para a gaveta; perfil do candidato agrupa contato/currículo/conta e
+  preserva o `AddressId` (regressão corrigida).
+
+Não inspecionado nesta rodada: área administrativa, app móvel, cadastro/login, pagamento e
+páginas públicas fora do fluxo vaga↔candidatura↔currículo.
+
+
+## Evidência de validação (esta rodada)
+
+- Build: `dotnet build src/Monburan.Web/Monburan.Web.csproj --no-restore` → 0 erros/0 avisos
+  (`/tmp/monburan-final-build.log`).
+- Unitários focados (52): `dotnet test tests/Monburan.UnitTests --filter "ResumeImprovement|
+  ApplicationLookup|ResumeViewer|UpdateResumeOwnership|PlaceholderTheory|LookupViewerExceptionSafety"`
+  → 52/52 (`/tmp/monburan-final-unit.log`). Cobre rascunho criptografado real (DataProtection),
+  corrida save/delete serializada, falhas/cancelamento dos serviços novos, placeholders.
+- API (InMemory + repositório real, 4): `dotnet test tests/Monburan.ApiTests --filter
+  "ResumeUxRepositoryTests"` → 4/4 (`/tmp/monburan-final-api.log`). Lookup exato, soft-delete,
+  permissão por anexo exato e regressão acima de 200 candidaturas.
+- Navegador real (Chromium headless, só loopback) via harness `tests/ux-smoke` contra host
+  isolado `MonburanApiFactory` + `UseKestrel`: geração única (`fakeAi.Requests==1`), rascunho
+  restaurado sem nova chamada, revisável com IA desligada, edição salva ao digitar, prévia com
+  seleções, aplicação persiste só o marcado, rascunho removido; recrutador lê só o currículo
+  anexado (leitura/impressão, sem editar/excluir/IDOR); perfil preserva `AddressId` em
+  desfazer e salvar; vaga já candidatada mostra "Acompanhar" (desktop e 390px) e `/apply`
+  bloqueia de cara; CV longo imprime 7 páginas A4 sem nav/chrome nem corte (linhas 001 e 120
+  presentes). Screenshots e `cv.pdf`/`cv-long.pdf` em `/tmp/monburan-ux-host/`.
+
+Escopo não coberto por esta evidência: área administrativa, app móvel, cadastro/login,
+pagamento e páginas públicas fora do fluxo vaga↔candidatura↔currículo; comparação visual
+pixel-a-pixel claro/escuro (capturas existem, sem baseline de referência).
+
+
+## Evidência final (gate de aceite)
+
+- Build: `dotnet build src/Monburan.Web --no-restore` → 0 erros/0 avisos (`/tmp/monburan-phase4-build.log`).
+- Unit: `dotnet test tests/Monburan.UnitTests --no-restore` → **937/937** (`/tmp/monburan-final-unit-all.log`).
+- API: `dotnet test tests/Monburan.ApiTests --filter "FullyQualifiedName~ResumeUxRepositoryTests"` → **4/4** (`/tmp/monburan-final-api2.log`).
+- Browser real (repo `tests/ux-smoke`, asserts lançam exceção): todas as verificações passaram —
+  geração única de IA, restauração de rascunho, revisão com IA desligada, persistência ao digitar
+  (sem blur), edição restaurada, prévia com texto editado, aplicação preservando título, rascunho
+  removido, overflow 390 ok, recrutador lê só o CV anexado (sem editar/excluir/IDOR), `AddressId`
+  preservado no perfil, vaga já candidatada mostra "Acompanhar" (desktop+mobile) e `/apply` bloqueia,
+  CV de 7 páginas sem chrome (`/tmp/ux-smoke-final.log`, host `http://127.0.0.1:36215`, artefatos
+  `/tmp/monburan-ux-smoke-be2533be95dc418084e5d170becfee4e`).
+- Capturas pós-redesign: `/tmp/monburan-visual-after/` (43 entradas no manifest — primeiro paint
+  frio = claro+sidebar expandida, drawer mobile abre/foca/ESC-fecha/restaura-foco/inert,
+  trilho recolhido NÃO expande com hover, `th` visível em desktop, scrollWidth ≤ viewport em
+  320/768/390, 0 erros de JS, h1 real em todas as rotas). Comparações lado a lado (antes era dark
+  apesar do rótulo 'light'): `/tmp/monburan-comparisons/cmp-{dashboard,profile,myjobs,received}.png`.
+- Gate final: host `http://127.0.0.1:41133` (ux-smoke --serve) — todos os 33 checks `True`
+  (`/tmp/ux-smoke-final2.log`); capturas pós-fix `/tmp/monburan-visual-after/` incluem dark real
+  (4 shots, `actualTheme=dark` medido), mobile 390 sem overflow de tabela aninhada
+  (`tableFitsViewport=True`), drawer abre/foca/ESC/inert/scrim verificados, rail sem overlay de
+  hover, `th` visível em desktop, 0 erros JS. Comparações dark-vs-dark em `/tmp/monburan-comparisons/`.
+
+## Rodada 6 — geradores sem consentimento cruzado + sidebar pública (ux-v7)
+
+- **Sidebar fora do anônimo:** `MainLayout.razor` agora ramifica por `isAuthenticated`; páginas públicas
+  renderizam `.public-header` (marca + Vagas/Entrar/Criar conta + tema, 44px, duas linhas ≤680px) e
+  nenhuma `.app-sidebar`/scrim/hambúrguer — nem quando a preferência `rail` está persistida
+  (`.app-shell--public .app-stage { margin-left: 0 !important }`).
+- **Gerador de melhorias sem checkbox:** `ResumeAiPanel` trocou a caixa "Autorizo o processamento
+  externo" por um aviso curto junto ao botão **"Gerar sugestões com IA"** (`aria-describedby`);
+  o clique explícito É a autorização (`AcceptsExternalProcessing = true`, guarda do backend intacta).
+  Regenerar confirma substituição do rascunho e já dispara a geração. "Revisar rascunho" →
+  **"Revisar e aplicar"**.
+- **Importação de PDF idem:** `UploadResume` removeu o checkbox marcado por padrão e o nome do
+  provedor (`@AiTextClient.ProviderName`) da tela; agora são duas ações explícitas —
+  **"Importar com IA"** / **"Importar sem IA"** (`UploadResumeAsync(bool useAi)`). IA indisponível →
+  botão único "Importar currículo" (sempre leitura local).
+- **Prompts menos prolixos:** `ResumeAiPrompt` proíbe marcadores de preenchimento (`[X%]`), habilidades
+  deduzidas (só as citadas nas descrições) e reescritas sem evidência; `ResumeImportPrompt` devolve
+  `summary` vazio em vez de inventar um e proíbe misturar atividades entre empresas.
+- **Bug real corrigido:** `RegexMatchTimeoutException` no regex de URL (`CandidateValidator`/
+  `AdvertiserValidator`) estourava os 250ms e abortava o salvar do perfil — substituído por
+  `Uri.TryCreate` + esquema http/https + host com ponto (sem risco de ReDoS).
+- **Política de privacidade** atualizada: autorização = clique explícito nos botões, por geração.
+- Assets `ux-v7`, service worker `v11-workspace`.
+
+**Verificação (ux-v7):** build 0/0; unit focado 41/41 (`ResumeAiPromptTests`, `ResumeImportTests`,
+`ImproveResumeUseCaseTests`); ux-smoke **36/36** (`/tmp/ux-smoke-anon2.log`) — incl. `ANON_NO_SIDEBAR`,
+`ANON_NO_SCRIM`, `ANON_NO_MENU_BTN`, `ANON_PUBLIC_HEADER`, `ANON_NO_GUTTER_1440`, `ANON_FITS_390`,
+`NO_CONSENT_CHECKBOX`, `GENERATION_READY`, `NO_AUTOMATIC_AI`, `NAME_SAVED` (falhava pelo timeout do
+regex, agora passa). Real `http://localhost:5095` capturado (`/tmp/monburan-anon-5095/`): anônimo
+1440/390/320 e com preferência `rail` → `sidebar=0`, `publicHeader=1`, `scrollWidth=viewport`;
+autenticado mantém `sidebar=1` + menu mobile; `/resumes/upload` com 2 botões e sem nome de provedor.

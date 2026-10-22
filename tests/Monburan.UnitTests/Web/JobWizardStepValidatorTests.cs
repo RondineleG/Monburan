@@ -90,6 +90,25 @@ public class JobWizardStepValidatorTests
         JobWizardStepValidator.Validate(0, new CreateJobRequest()).Should().BeEmpty();
     }
 
+    [Theory]
+    [InlineData(nameof(CreateJobRequest.Title), 1)]
+    [InlineData("type", 1)]
+    [InlineData(nameof(CreateJobRequest.Benefits), 2)]
+    [InlineData(nameof(CreateJobRequest.ExpirationDate), 3)]
+    [InlineData("Campo que o formulário não tem", 4)]
+    public void StepOf_PointsToTheStepThatShowsTheField(string field, int step) =>
+        JobWizardStepValidator.StepOf(field).Should().Be(step);
+
+    [Fact]
+    public void EveryFieldValidatedByAStep_IsMappedToThatStep()
+    {
+        var empty = new CreateJobRequest { Title = "", Type = "x", Description = "", NumberOfOpenings = 0, SalaryMin = 2, SalaryMax = 1 };
+
+        for (var step = 1; step <= 3; step++)
+            foreach (var error in JobWizardStepValidator.Validate(step, empty))
+                JobWizardStepValidator.StepOf(error.Field).Should().Be(step, $"{error.Field} é validado na etapa {step}");
+    }
+
     [Fact]
     public void Validate_KeepsTheContractAndPeriodOptional_ForOldJobs()
     {

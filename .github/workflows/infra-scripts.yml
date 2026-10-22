@@ -5,12 +5,12 @@ name: Scripts da VPS
 # Só dispara quando algo de infra/vps muda.
 on:
   push:
-    branches: [ main, dev ]
+    branches: [ main ]
     paths:
       - 'infra/vps/**'
       - '.github/workflows/infra-scripts.yml'
   pull_request:
-    branches: [ main, dev ]
+    branches: [ main ]
     paths:
       - 'infra/vps/**'
       - '.github/workflows/infra-scripts.yml'

@@ -23,19 +23,19 @@ public sealed class UpdateAdvertiserLogoUseCase : IUseCase<UpdateAdvertiserLogoR
         _advertiserRepository = advertiserRepository;
     }
 
-    public async Task<RequestResult<AdvertiserResponse>> ExecuteAsync(UpdateAdvertiserLogoRequest request)
+    public async Task<RequestResult<AdvertiserResponse>> ExecuteAsync(UpdateAdvertiserLogoRequest request, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(request.LogoUrl))
             return RequestResult<AdvertiserResponse>.WithValidationError("Envie uma imagem para a logo.", nameof(request.LogoUrl));
 
-        var getResult = await _advertiserRepository.GetByIdAsync(Id.Create(request.AdvertiserId));
+        var getResult = await _advertiserRepository.GetByIdAsync(Id.Create(request.AdvertiserId), cancellationToken);
         if (getResult.Status != EResultStatus.Success || getResult.Data is null)
             return RequestResult<AdvertiserResponse>.EntityNotFound("Advertiser", request.AdvertiserId, "Anunciante não encontrado.");
 
         var advertiser = getResult.Data;
         advertiser.LogoUrl = request.LogoUrl;
 
-        var result = await _advertiserRepository.UpdateAsync(advertiser);
+        var result = await _advertiserRepository.UpdateAsync(advertiser, cancellationToken);
         if (result.Status != EResultStatus.Success)
             return RequestResult<AdvertiserResponse>.FromResult(result);
 

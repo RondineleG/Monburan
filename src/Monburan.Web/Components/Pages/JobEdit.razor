@@ -13,38 +13,38 @@
 @inject IToastService Toast
 @inject ILogger<JobEdit> Logger
 
-<PageTitle>Editar Vaga - Monburan</PageTitle>
+<PageTitle>Editar vaga - Monburan</PageTitle>
 
-<div class="container mt-4 page-form-shell">
+<div class="container page-form-shell">
     @if (isLoading)
     {
-        <LoadingState Message="Carregando a vaga..." />
+        <LoadingState Message="Carregando a vaga…" />
     }
     else if (loadFailed)
     {
         <ErrorState Title="Não foi possível carregar a vaga"
                     Message="Tivemos um problema ao abrir esta vaga para edição. Tente novamente em instantes."
-                    OnRetry="LoadAsync" />
+                    OnRetry="LoadAsync"
+                    HeadingLevel="1" />
     }
     else if (!isJobOwner)
     {
-        <section class="auth-message-page">
-            <h1>Vaga não encontrada</h1>
-            <p>Esta vaga não existe ou pertence a outra empresa.</p>
+        <EmptyState Icon="search"
+                    Title="Vaga não encontrada"
+                    Message="Esta vaga não existe ou pertence a outra empresa."
+                    HeadingLevel="1"
+                    TestId="job-edit-not-found">
             <a class="btn btn-primary" href="/my-jobs">Voltar para Minhas vagas</a>
-        </section>
+        </EmptyState>
     }
     else
     {
-        <header class="page-heading">
-            <div class="page-heading__copy">
-                <span class="page-kicker">ÁREA DA EMPRESA</span>
-                <h1>Editar vaga</h1>
-                <p>Atualize as informações da publicação. O que os candidatos já enviaram continua valendo.</p>
-            </div>
-        </header>
+        <PageHeader Title="Editar vaga"
+                    Description="Atualize as informações da publicação. O que os candidatos já enviaram continua valendo."
+                    BackHref="/my-jobs"
+                    BackText="Minhas vagas" />
         <div class="row">
-            <div class="col-lg-8 mx-auto">
+            <div class="col-12">
                 <div class="card page-form-card">
                     <div class="card-body">
                         <JobWizard @ref="wizard"
@@ -186,10 +186,10 @@
         Logger.LogFailure(result, "Atualizar vaga");
         var fieldErrors = ResultMessages.FieldErrors(result);
         var unmatched = wizard.DisplayServerFieldErrors(fieldErrors);
+        // Erros de campo: o assistente mostra a etapa e o campo; mensagem geral só para o que não tem campo
         errorMessage = fieldErrors.Count > 0 && unmatched.Count == 0
-            ? "Revise os campos destacados no formulário."
+            ? string.Empty
             : ResultMessages.ToUserMessage(result, "Não foi possível salvar a vaga. Tente novamente.");
-        Toast.ShowError(errorMessage);
 
         isSubmitting = false;
     }

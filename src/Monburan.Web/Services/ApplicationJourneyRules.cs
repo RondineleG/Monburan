@@ -25,6 +25,17 @@ public static class ApplicationJourneyRules
         _ => true
     };
 
+    /// <summary>Próximo passo amigável por situação, exibido em cada candidatura da lista.</summary>
+    public static string NextStep(string? status) => status switch
+    {
+        "Sent" => "Enviada — aguardando a empresa visualizar.",
+        "Viewed" => "A empresa já visualizou sua candidatura.",
+        "Selected" => "Você foi selecionado(a)! Acompanhe os próximos contatos da empresa.",
+        "Rejected" => "Processo encerrado para esta vaga.",
+        "Archived" => "Candidatura arquivada pela empresa.",
+        _ => "Acompanhe as atualizações por aqui."
+    };
+
     /// <summary>Valor da query string para o filtro de situação (padrão: todas).</summary>
     public static ApplicationJourneyFilter Parse(string? value) => value switch
     {

@@ -19,15 +19,15 @@ public sealed class AdminListJobsUseCase : IUseCase<AdminListJobsRequest, AdminL
         _time = time;
     }
 
-    public async Task<RequestResult<AdminListJobsResponse>> ExecuteAsync(AdminListJobsRequest request)
+    public async Task<RequestResult<AdminListJobsResponse>> ExecuteAsync(AdminListJobsRequest request, CancellationToken cancellationToken = default)
     {
         var page = Math.Max(1, request.Page);
         var size = request.Size is < 1 or > 100 ? 20 : request.Size;
         EJobStatus? status = Enum.TryParse<EJobStatus>(request.Status, true, out var parsed) && Enum.IsDefined(parsed) ? parsed : null;
         var today = _time.GetUtcNow().UtcDateTime.Date;
 
-        var found = await _jobs.AdminSearchAsync(request.SearchTerm, status, request.AdvertiserId, page, size);
-        var counts = await _jobs.CountByStatusAsync();
+        var found = await _jobs.AdminSearchAsync(request.SearchTerm, status, request.AdvertiserId, page, size, cancellationToken);
+        var counts = await _jobs.CountByStatusAsync(cancellationToken);
 
         return RequestResult<AdminListJobsResponse>.Success(new AdminListJobsResponse
         {

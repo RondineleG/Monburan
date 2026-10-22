@@ -49,8 +49,12 @@ public class ApplicationConfiguration : IEntityTypeConfiguration<Application>
         builder.HasIndex(a => a.CreatedAt)
             .HasDatabaseName("IX_Applications_CreatedAt");
 
+        // Só entre candidaturas ativas: a candidatura removida logicamente libera a vaga
+        // para a pessoa se candidatar de novo (é o que a regra de duplicidade do repositório
+        // checa, ignorando as removidas)
         builder.HasIndex(a => new { a.CandidateId, a.JobId })
             .IsUnique()
+            .HasFilter("\"IsDeleted\" = false")
             .HasDatabaseName("IX_Applications_CandidateId_JobId");
     }
 }

@@ -32,7 +32,7 @@ public static class JobEndpoints
             var result = await useCase.ExecuteAsync(BuildRequest(
                 page, size, searchTerm, city, state, isRemote, type, salaryMin, salaryMax,
                 category, sortBy, sortDescending, advertiserId: null, candidateId,
-                contractType, salaryPeriod, publishedWithinDays));
+                contractType, salaryPeriod, publishedWithinDays), cancellationToken);
             if (result.Data is not null)
             {
                 foreach (var job in result.Data.Jobs)
@@ -61,7 +61,7 @@ public static class JobEndpoints
 
             var result = await useCase.ExecuteAsync(BuildRequest(
                 page, size, searchTerm, city, state, isRemote, type, salaryMin, salaryMax,
-                category, sortBy, sortDescending, advertiserId, candidateId: null));
+                category, sortBy, sortDescending, advertiserId, candidateId: null), cancellationToken);
             return result.ToHttpResult();
         })
         .RequireAuthorization("ApiBearer")
@@ -77,7 +77,7 @@ public static class JobEndpoints
             if (candidateId is null)
                 return Results.Problem(statusCode: StatusCodes.Status403Forbidden, title: "Perfil de candidato necessário");
 
-            var result = await useCase.ExecuteAsync(candidateId.Value);
+            var result = await useCase.ExecuteAsync(candidateId.Value, cancellationToken);
             if (result.Data is not null)
             {
                 foreach (var job in result.Data.Jobs)
@@ -99,7 +99,7 @@ public static class JobEndpoints
             if (candidateId is null)
                 return Results.Problem(statusCode: StatusCodes.Status403Forbidden, title: "Perfil de candidato necessário");
 
-            var result = await useCase.ExecuteAsync(candidateId.Value);
+            var result = await useCase.ExecuteAsync(candidateId.Value, cancellationToken);
             if (result.Data is not null)
             {
                 foreach (var job in result.Data.Jobs)
@@ -122,7 +122,7 @@ public static class JobEndpoints
             if (candidateId is null)
                 return Results.Problem(statusCode: StatusCodes.Status403Forbidden, title: "Perfil de candidato necessário");
 
-            var result = await useCase.ExecuteAsync(new SaveJobRequest(candidateId.Value, id));
+            var result = await useCase.ExecuteAsync(new SaveJobRequest(candidateId.Value, id), cancellationToken);
             return result.ToHttpResult(StatusCodes.Status204NoContent);
         })
         .RequireAuthorization("ApiBearer")
@@ -139,7 +139,7 @@ public static class JobEndpoints
             if (candidateId is null)
                 return Results.Problem(statusCode: StatusCodes.Status403Forbidden, title: "Perfil de candidato necessário");
 
-            var result = await useCase.ExecuteAsync(new UnsaveJobRequest(candidateId.Value, id));
+            var result = await useCase.ExecuteAsync(new UnsaveJobRequest(candidateId.Value, id), cancellationToken);
             return result.ToHttpResult(StatusCodes.Status204NoContent);
         })
         .RequireAuthorization("ApiBearer")
@@ -154,7 +154,7 @@ public static class JobEndpoints
             CancellationToken cancellationToken) =>
         {
             var (_, advertiserId) = await ResolveApiIdentityAsync(httpContext, currentUser);
-            var result = await useCase.ExecuteAsync(new RegisterJobViewRequest(id, advertiserId));
+            var result = await useCase.ExecuteAsync(new RegisterJobViewRequest(id, advertiserId), cancellationToken);
             return result.ToHttpResult(StatusCodes.Status204NoContent);
         })
         .AllowAnonymous()
@@ -169,7 +169,7 @@ public static class JobEndpoints
             CancellationToken cancellationToken) =>
         {
             var (candidateId, advertiserId) = await ResolveApiIdentityAsync(httpContext, currentUser);
-            var result = await useCase.ExecuteAsync(id, candidateId);
+            var result = await useCase.ExecuteAsync(id, candidateId, cancellationToken);
 
             // Vaga pausada, oculta ou rejeitada só aparece para a empresa dona (que manda o token); para o resto do mundo
             // é como se não existisse. Sem isso o conteúdo (e o motivo da moderação) vazaria para quem soubesse o id.
@@ -199,7 +199,7 @@ public static class JobEndpoints
                 return Results.Problem(statusCode: StatusCodes.Status403Forbidden, title: "Perfil de anunciante necessário");
 
             request.AdvertiserId = advertiserId.Value;
-            var result = await useCase.ExecuteAsync(request);
+            var result = await useCase.ExecuteAsync(request, cancellationToken);
             return result.ToHttpResult(StatusCodes.Status201Created);
         })
         .RequireAuthorization("ApiBearer")
@@ -218,7 +218,7 @@ public static class JobEndpoints
             if (advertiserId is null)
                 return Results.Problem(statusCode: StatusCodes.Status403Forbidden, title: "Perfil de anunciante necessário");
 
-            var existing = await getJob.ExecuteAsync(id);
+            var existing = await getJob.ExecuteAsync(id, cancellationToken);
             if (existing.Status != Core.Enums.EResultStatus.Success || existing.Data is null)
                 return existing.ToHttpResult();
 
@@ -226,7 +226,7 @@ public static class JobEndpoints
                 return Results.Problem(statusCode: StatusCodes.Status403Forbidden, title: "Vaga pertence a outro anunciante");
 
             request.Id = id;
-            var result = await useCase.ExecuteAsync(request);
+            var result = await useCase.ExecuteAsync(request, cancellationToken);
             return result.ToHttpResult();
         })
         .RequireAuthorization("ApiBearer")
@@ -244,14 +244,14 @@ public static class JobEndpoints
             if (advertiserId is null)
                 return Results.Problem(statusCode: StatusCodes.Status403Forbidden, title: "Perfil de anunciante necessário");
 
-            var existing = await getJob.ExecuteAsync(id);
+            var existing = await getJob.ExecuteAsync(id, cancellationToken);
             if (existing.Status != Core.Enums.EResultStatus.Success || existing.Data is null)
                 return existing.ToHttpResult();
 
             if (existing.Data.AdvertiserId != advertiserId.Value)
                 return Results.Problem(statusCode: StatusCodes.Status403Forbidden, title: "Vaga pertence a outro anunciante");
 
-            var result = await useCase.ExecuteAsync(id);
+            var result = await useCase.ExecuteAsync(id, cancellationToken);
             return result.ToHttpResult();
         })
         .RequireAuthorization("ApiBearer")

@@ -18,12 +18,12 @@ public class ListNotificationsByUserUseCase : IUseCase<string, List<Notification
         _notificationRepository = notificationRepository;
     }
 
-    public async Task<RequestResult<List<NotificationResponse>>> ExecuteAsync(string recipientId)
+    public async Task<RequestResult<List<NotificationResponse>>> ExecuteAsync(string recipientId, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(recipientId))
             return RequestResult<List<NotificationResponse>>.WithValidationError("ID do destinatário é obrigatório.", "RecipientId");
 
-        var result = await _notificationRepository.ListByRecipientAsync(recipientId, MaxNotifications);
+        var result = await _notificationRepository.ListByRecipientAsync(recipientId, MaxNotifications, cancellationToken);
         if (result.Status != EResultStatus.Success)
             return RequestResult<List<NotificationResponse>>.FromResult(result);
 

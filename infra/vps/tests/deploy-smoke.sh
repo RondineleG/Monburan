@@ -118,7 +118,7 @@ cat >/stubs/docker <<'STUB'
 echo "docker $*" >> /tmp/docker-calls.log
 if [ "$1 $2" = "compose version" ]; then echo "Docker Compose version v2.test"; exit 0; fi
 # Download da imagem que falha (token do GHCR vencido, registro fora do ar)
-if [ "$1 $2 $3" = "compose pull app" ] && [ -e /tmp/docker-pull-fail ]; then echo "pull: falha simulada" >&2; exit 1; fi
+if [ "$1 $2" = "compose pull" ] && [ -e /tmp/docker-pull-fail ]; then echo "pull: falha simulada" >&2; exit 1; fi
 if [ "$1 $2" = "compose up" ]; then touch /tmp/docker-has-app; exit 0; fi
 # A imagem baixada; com /tmp/docker-stale o contêiner ficou na anterior
 if [ "$1 $2" = "image inspect" ]; then
@@ -207,7 +207,7 @@ expect "hosts permitidos restritos ao domínio" grep -q '^ALLOWED_HOSTS=monburan
 expect "ADMIN_EMAILS definido" grep -q '^ADMIN_EMAILS=adm@example.com$' "$DIR/.env"
 expect "os segredos gerados não aparecem na saída" bash -c "! grep -qF \"\$(awk -F= '/^DB_PASSWORD=/ { print \$2 }' '$DIR/.env')\" $OUT"
 expect "criou o docker-compose.yml" test -f "$DIR/docker-compose.yml"
-expect "baixou a imagem e subiu a stack" bash -c "grep -q 'compose pull app' $DOCKER_CALLS && grep -q 'compose up -d --remove-orphans' $DOCKER_CALLS"
+expect "baixou as imagens (app e Postgres) e subiu a stack" bash -c "grep -qx 'docker compose pull' $DOCKER_CALLS && grep -q 'compose up -d --remove-orphans' $DOCKER_CALLS"
 expect "pediu o certificado ao certbot com o e-mail" grep -q 'certbot --nginx -d monburan.com.br -d www.monburan.com.br --non-interactive --agree-tos -m teste@example.com' "$CERTBOT_CALLS"
 expect "o nginx.conf completo entrou no lugar do provisório" cmp -s "$DIR/nginx.conf" "$SITE"
 expect "o site está habilitado" test -L /etc/nginx/sites-enabled/monburan.com.br
