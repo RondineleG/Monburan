@@ -168,7 +168,10 @@ public class ApplicationRepositoryPostgresTests : IClassFixture<PostgresDatabase
             ModeratorId = "admin-1",
             ModerationDate = DateTime.UtcNow
         };
-        var moderated = await jobs.UpdateModerationAsync(Id.Create(jobId), moderation);
+        var current = (await jobs.GetByIdAsync(Id.Create(jobId))).Data!;
+        current.Moderation = moderation;
+        current.Status = Core.Enums.EJobStatus.Rejected;
+        var moderated = await jobs.UpdateModerationAsync(current);
         moderated.Status.Should().Be(Core.Enums.EResultStatus.Success);
 
         // A empresa edita a vaga com uma cópia antiga (lida antes da moderação)

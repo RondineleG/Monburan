@@ -58,8 +58,9 @@ public interface IJobRepository : IBaseRepository<Job>
     Task<RequestResult<bool>> IncrementApplicationsAsync(Guid jobId, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Grava a moderação da vaga (aprovada, rejeitada ou escondida). Fica fora da atualização
-    /// geral da vaga: uma edição da empresa não pode sobrescrever o que a administração gravou.
+    /// Grava a moderação, o status e a validade da vaga numa única gravação, para a mudança feita
+    /// pela administração não ficar pela metade. Fica fora da atualização geral da vaga: uma edição
+    /// da empresa não pode sobrescrever o que a administração gravou.
     /// </summary>
-    Task<RequestResult<Job>> UpdateModerationAsync(Id jobId, ModerationInfo moderation, CancellationToken cancellationToken = default);
+    Task<RequestResult<Job>> UpdateModerationAsync(Job job, CancellationToken cancellationToken = default);
 }
