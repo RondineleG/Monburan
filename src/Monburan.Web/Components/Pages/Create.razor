@@ -17,7 +17,8 @@
                 BackHref="/address/list" BackText="Voltar a endereços" />
     <div class="card page-form-card">
         <div class="card-body">
-            <EditForm Model="form" OnValidSubmit="HandleValidSubmit">
+            <EditForm Model="form" OnValidSubmit="HandleValidSubmit" Context="editContext">
+                <UnsavedChangesGuard HasChanges="() => editContext.IsModified() && !isSubmitting" />
                 <DataAnnotationsValidator />
                 <p class="form-required-note">Campos com * são obrigatórios.</p>
                 <AddressFormFields Model="form" />

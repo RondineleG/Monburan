@@ -9,6 +9,43 @@ public class ShellInteractionTests : E2ETestBase
     }
 
     [Fact]
+    public async Task AddressCreate_WarnsBeforeLeavingWithUnsavedChanges()
+    {
+        var browserWarning = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        Page.Dialog += async (_, dialog) =>
+        {
+            if (dialog.Type == "beforeunload")
+                browserWarning.TrySetResult();
+            await dialog.DismissAsync();
+        };
+        await LoginOrRegisterAsync(CandidateEmail, TestPassword);
+        await GotoAsync("/address/create");
+        await WaitForBlazorAsync();
+
+        await Page.Locator("#street").FillAsync("Rua alterada para testar o aviso");
+        await Page.Locator("#street").BlurAsync();
+        Assert.Equal("Rua alterada para testar o aviso", await Page.Locator("#street").InputValueAsync());
+        await Page.GetByTestId("page-back").ClickAsync();
+
+        if (await Page.GetByTestId("confirm-dialog").CountAsync() > 0)
+        {
+            await Assertions.Expect(Page.GetByTestId("confirm-dialog")).ToBeVisibleAsync();
+            await Page.GetByTestId("confirm-cancel").ClickAsync();
+        }
+        else
+        {
+            await browserWarning.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            Assert.EndsWith("/address/create", Page.Url);
+        }
+
+        Assert.Equal("Rua alterada para testar o aviso", await Page.Locator("#street").InputValueAsync());
+
+        await Page.GetByRole(AriaRole.Button, new() { Name = "Cancelar" }).ClickAsync();
+        await Page.GetByTestId("confirm-accept").ClickAsync();
+        await Page.WaitForURLAsync(url => url.EndsWith("/address/list", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
     public async Task Anonymous_Plans_ShouldShowPricesWithoutLogin()
     {
         var response = await GotoAsync("/plans");

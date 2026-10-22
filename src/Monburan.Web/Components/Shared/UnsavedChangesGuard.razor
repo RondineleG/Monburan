@@ -1,4 +1,5 @@
 @inject NavigationManager Navigation
+@implements IDisposable
 
 @* Protege formulários longos: sair com alterações pede confirmação dentro do site e o aviso nativo do
    navegador ao fechar ou recarregar a aba. Uso: <UnsavedChangesGuard HasChanges="() => editContext.IsModified()" /> *@
@@ -8,6 +9,21 @@
 @code {
     private ConfirmDialog dialog = default!;
     private bool leaving;
+    private EditContext? subscribedContext;
+
+    [CascadingParameter]
+    private EditContext? CurrentEditContext { get; set; }
+
+    protected override void OnParametersSet()
+    {
+        if (ReferenceEquals(subscribedContext, CurrentEditContext))
+            return;
+
+        Unsubscribe();
+        subscribedContext = CurrentEditContext;
+        if (subscribedContext is not null)
+            subscribedContext.OnFieldChanged += OnFieldChanged;
+    }
 
     /// <summary>
     /// Há alterações não salvas? Avaliado na hora da navegação (não na última renderização): quem acabou
@@ -39,4 +55,20 @@
         leaving = true;
         Navigation.NavigateTo(target);
     }
+
+    private void OnFieldChanged(object? sender, FieldChangedEventArgs e)
+    {
+        _ = InvokeAsync(StateHasChanged);
+    }
+
+    private void Unsubscribe()
+    {
+        if (subscribedContext is null)
+            return;
+
+        subscribedContext.OnFieldChanged -= OnFieldChanged;
+        subscribedContext = null;
+    }
+
+    public void Dispose() => Unsubscribe();
 }

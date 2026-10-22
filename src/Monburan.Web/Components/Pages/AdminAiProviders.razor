@@ -161,7 +161,8 @@
                 <div class="card-body">
                     <h2 id="ai-form-title">@(form.Id is null ? "Novo provedor" : "Editar provedor")</h2>
 
-                    <EditForm Model="form" OnValidSubmit="SaveAsync">
+                <EditForm Model="form" OnValidSubmit="SaveAsync" Context="editContext">
+                        <UnsavedChangesGuard HasChanges="() => editContext.IsModified() && !isSaving" />
                         <DataAnnotationsValidator />
                         <ServerValidationErrors @ref="serverErrors" FieldMap="@FieldMap" />
                         <p class="form-required-note">Campos com * são obrigatórios.</p>
@@ -170,7 +171,7 @@
                         {
                             <div class="mb-3">
                                 <label class="form-label" for="ai-form-preset">Começar de um modelo</label>
-                                <select id="ai-form-preset" class="form-select" @onchange="OnPresetChanged" data-testid="ai-form-preset">
+                                <select id="ai-form-preset" class="form-select" @onchange="e => OnPresetChanged(e, editContext)" data-testid="ai-form-preset">
                                     <option value="">Escolha um modelo pronto (ou preencha à mão)</option>
                                     @foreach (var preset in AiProviderPresets.All)
                                     {
@@ -368,13 +369,14 @@
 
     private void CloseForm() => form = null;
 
-    private void OnPresetChanged(ChangeEventArgs args)
+    private void OnPresetChanged(ChangeEventArgs args, EditContext editContext)
     {
         if (form is null)
             return;
 
         var preset = AiProviderPresets.Find(args.Value?.ToString());
         form.PresetKey = preset?.Key;
+        editContext.NotifyFieldChanged(new FieldIdentifier(form, nameof(ProviderForm.PresetKey)));
         if (preset is null)
             return;
 
