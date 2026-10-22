@@ -1,10 +1,24 @@
 name: CI/CD Pipeline
 
+# Validação proporcial à criticidade do evento:
+#   - PR para dev  → build + testes (unit, integração/Testcontainers, API) + security scan; SEM E2E.
+#   - Push na dev  → mesma validação rápida (segunda camada após o merge do PR); SEM E2E.
+#   - PR para main → validação completa, com a suíte E2E (Playwright) além do resto.
+#   - Push na main → build + testes + scan; o E2E já foi validado no PR dev→main.
+# Nenhum evento deste workflow publica em produção a partir da dev ou de PRs: o deploy de
+# produção continua restrito a push na main (Azure Web App aqui; VPS via imagem do GHCR no
+# docker-ghcr.yml, que só roda na main).
+#
+# Checks obrigatórios (Settings > Rules > Rulesets):
+#   dev  — build-and-test, security-scan (e2e NÃO é obrigatório na dev)
+#   main — build-and-test, e2e, security-scan, origem-do-pr (main-only-from-dev.yml),
+#          Analyze (csharp), Analyze (javascript-typescript), Analyze (actions) (codeql.yml)
+# Detalhes em .github/workflows/README.md.
 on:
   push:
-    branches: [ main ]
+    branches: [ main, dev ]
   pull_request:
-    branches: [ main ]
+    branches: [ dev, main ]
   workflow_dispatch:
 
 permissions:
@@ -25,6 +39,7 @@ env:
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
 
     steps:
     - name: Checkout code
@@ -34,6 +49,16 @@ jobs:
       uses: actions/setup-dotnet@v6
       with:
         dotnet-version: ${{ env.DOTNET_VERSION }}
+
+    # Cache do cache global do NuGet (~/.nuget/packages). A chave muda só quando os csproj ou o
+    # NuGet.config mudam; o restore deixa de baixar pacotes já conhecidos entre execuções.
+    - name: Cache NuGet packages
+      uses: actions/cache@v4
+      with:
+        path: ~/.nuget/packages
+        key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj', 'NuGet.config') }}
+        restore-keys: |
+          nuget-${{ runner.os }}-
 
     - name: Install MAUI Android workload
       run: dotnet workload install maui-android --version 10.0.402
@@ -46,11 +71,16 @@ jobs:
 
     # Monburan.E2ETests precisa do app no ar com Postgres e navegador: roda no job "e2e".
     # Roda os três projetos mesmo se um falhar, para o log mostrar tudo de uma vez.
+    # Cada projeto grava seu TRX em tests/Monburan.<projeto>/TestResults (arquivo nomeado por projeto).
+    # Monburan.IntegrationTests usa Testcontainers (Postgres 16 real por classe de teste): o runner
+    # ubuntu-latest já traz o Docker Engine instalado, então nenhum serviço/contêiner extra é necessário
+    # aqui — o docker daemon do host basta para o Testcontainers subir seus contêineres.
     - name: Run tests (unit, integration e API)
       run: |
         rc=0
         for project in UnitTests IntegrationTests ApiTests; do
           dotnet test "tests/Monburan.$project" --configuration Release --no-build --verbosity normal \
+            --logger "trx;LogFileName=Monburan.$project.trx" \
             --collect:"XPlat Code Coverage" --settings tests/coverlet.runsettings || rc=1
         done
         exit $rc
@@ -68,6 +98,17 @@ jobs:
         path: coverage-report
       continue-on-error: true
 
+    # Resultados brutos dos testes (TRX): falha no step não impede o upload, então o diagnóstico
+    # de cada teste reprovado fica disponível no run.
+    - name: Upload test results (TRX)
+      if: always()
+      uses: actions/upload-artifact@v7
+      with:
+        name: test-results-trx
+        path: tests/**/TestResults/*.trx
+        retention-days: 7
+        if-no-files-found: ignore
+
     - name: Publish application
       run: dotnet publish src/Monburan.Web/Monburan.Web.csproj --configuration Release --output ./publish --no-build
 
@@ -80,9 +121,14 @@ jobs:
 
   # Suíte Playwright (55 testes): sobe o app em Development (seed) contra um Postgres de serviço.
   # Independente dos demais jobs — falha aqui aparece no PR, mas não trava build, scan ou APK.
+  # Só roda em PR para a MAIN (promoção dev→main, único caminho de entrada na produção) e em
+  # dispatch manual. PRs para a dev e pushes dispensam o E2E: a suíte completa valeria o mesmo
+  # código mais tarde no PR dev→main, e cada execução custa ~15 min de runner.
+  # Nome do job preservado ("e2e") para não quebrar status checks já referenciados em rulesets.
   e2e:
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.base.ref == 'main')
     services:
       postgres:
         image: postgres:16-alpine
@@ -108,6 +154,14 @@ jobs:
       uses: actions/setup-dotnet@v6
       with:
         dotnet-version: ${{ env.DOTNET_VERSION }}
+
+    - name: Cache NuGet packages
+      uses: actions/cache@v4
+      with:
+        path: ~/.nuget/packages
+        key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj', 'NuGet.config') }}
+        restore-keys: |
+          nuget-${{ runner.os }}-
 
     - name: Build app and E2E tests
       run: |
@@ -140,24 +194,28 @@ jobs:
     - name: Run E2E tests
       run: |
         for attempt in 1 2; do
-          if dotnet test tests/Monburan.E2ETests/Monburan.E2ETests.csproj --configuration Release --no-build --verbosity normal; then
+          if dotnet test tests/Monburan.E2ETests/Monburan.E2ETests.csproj --configuration Release --no-build --verbosity normal \
+              --logger "trx;LogFileName=Monburan.E2ETests.trx"; then
             exit 0
           fi
           echo "::warning::E2E falhou na tentativa $attempt"
         done
         exit 1
 
-    - name: Upload app log
+    - name: Upload app log and test results
       if: always()
       uses: actions/upload-artifact@v7
       with:
         name: e2e-app-log
-        path: app.log
+        path: |
+          app.log
+          tests/Monburan.E2ETests/TestResults/*.trx
         retention-days: 7
         if-no-files-found: ignore
 
   security-scan:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
 
     steps:
     - name: Checkout code
@@ -167,6 +225,15 @@ jobs:
       uses: actions/setup-dotnet@v6
       with:
         dotnet-version: ${{ env.DOTNET_VERSION }}
+
+    # Mesmo cache do build-and-test: o restore do scan de vulnerabilidades reusa os pacotes já baixados
+    - name: Cache NuGet packages
+      uses: actions/cache@v4
+      with:
+        path: ~/.nuget/packages
+        key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj', 'NuGet.config') }}
+        restore-keys: |
+          nuget-${{ runner.os }}-
 
     # Formatos de token/chave de alta confiança. A checagem anterior procurava a palavra "password"
     # no histórico, que existe em qualquer app com login — por isso sempre reprovava.
