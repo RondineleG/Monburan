@@ -72,7 +72,12 @@
         if (RemoteError is not null)
         {
             // O texto do provedor é técnico (e vem da URL): fica no log, a pessoa lê um recado simples
-            Logger.LogWarning("Erro retornado pelo provedor externo: {RemoteError}", RemoteError);
+            var sanitizedRemoteError = RemoteError
+                .Replace("\r", string.Empty)
+                .Replace("\n", string.Empty)
+                .Replace("\u2028", string.Empty)
+                .Replace("\u2029", string.Empty);
+            Logger.LogWarning("Erro retornado pelo provedor externo: {RemoteError}", sanitizedRemoteError);
             RedirectManager.RedirectToWithStatus("Account/Login", "Erro: não foi possível entrar com o serviço externo. Tente novamente.", HttpContext);
         }
 
