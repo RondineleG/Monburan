@@ -28,7 +28,7 @@ Capturas do site em produção, nos dois temas (o site segue a preferência do u
 |---|---|---|
 | ![Planos](docs/prints/04-planos-claro.png) | ![Candidaturas](docs/prints/08-candidato-minhas-candidaturas-claro.png) | ![Currículos](docs/prints/09-candidato-curriculos-claro.png) |
 
-| Início (celular) | Busca (celular) |
+| Início (site em largura de celular) | Busca (site em largura de celular) |
 |---|---|
 | ![Início celular](docs/prints/06-inicio-celular-claro.png) | ![Busca celular](docs/prints/07-busca-celular-claro.png) |
 
@@ -42,7 +42,7 @@ Capturas do site em produção, nos dois temas (o site segue a preferência do u
 |---|---|---|
 | ![Planos](docs/prints/04-planos-escuro.png) | ![Candidaturas](docs/prints/08-candidato-minhas-candidaturas-escuro.png) | ![Currículos](docs/prints/09-candidato-curriculos-escuro.png) |
 
-| Início (celular) | Busca (celular) |
+| Início (site em largura de celular) | Busca (site em largura de celular) |
 |---|---|
 | ![Início celular](docs/prints/06-inicio-celular-escuro.png) | ![Busca celular](docs/prints/07-busca-celular-escuro.png) |
 
