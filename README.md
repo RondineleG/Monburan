@@ -103,7 +103,7 @@ export Smtp__Password="sua-api-key-resend"
 ## 📊 Monitoramento
 
 ### Health Checks
-- **Liveness** — `/health` e `/health/live`: o app está no ar. Não dependem do banco, para o deploy e o orquestrador não reiniciarem o contêiner porque o Postgres caiu. `/health` mantém o corpo de texto simples (`Healthy`), de que o `deploy.sh` e o nginx dependem.
+- **Liveness** — `/health` e `/health/live`: o app está no ar. Não dependem do banco, para o deploy e o orquestrador não reiniciarem o contêiner porque o Postgres caiu. `/health` mantém o corpo de texto simples (`Healthy`), de que o `deploy.sh` depende.
 - **Readiness** — `/health/ready`: o app está pronto para receber tráfego. Verifica o Postgres e devolve JSON com o estado de cada checagem (503 quando o banco não responde).
 
 ### Logging Estruturado
@@ -116,7 +116,7 @@ export Smtp__Password="sua-api-key-resend"
 - **Plataforma**: GitHub Actions
 - **Workflows**:
   - `ci-cd.yml` → build + testes (unit, integração e API, com coverage), E2E (Playwright + Postgres de serviço, só em PR para a `main`), scan de segredos e de pacotes NuGet vulneráveis; deploy de produção no Azure (`main`) só quando o Azure está configurado
-  - `docker-ghcr.yml` → build e push da imagem Docker para `ghcr.io/rondineleg/monburan` a cada push na `main`; em seguida, o job `deploy-vps` envia `infra/vps` e roda o `deploy.sh` na VPS (backup, rollback e espera do `/health`)
+  - `docker-ghcr.yml` → build e push da imagem Docker para `ghcr.io/rondineleg/monburan` a cada push na `main` que altere `src/**`, `infra/vps/**` ou o próprio workflow; em seguida, o job `deploy-vps` envia `infra/vps` e roda o `deploy.sh` na VPS (backup, rollback e espera do `/health`)
   - `android-release.yml` → APK release assinado a partir da `main`; publica a release `v<versão>` quando a versão do csproj é nova
   - `ios-build.yml` → em macOS: build do app para o simulador (com print) e `.ipa` sem assinatura anexado à release; sem conta Apple Developer não há TestFlight nem App Store
 - **Features**: Build, testes, security scan, health checks, artefatos (app + APK)
@@ -191,7 +191,7 @@ Monburan/
 │
 ├── tests/
 │   ├── Monburan.UnitTests/       # Testes unitários (xUnit + NSubstitute)
-│   ├── Monburan.IntegrationTests/# Testes de repositórios (EF InMemory)
+│   ├── Monburan.IntegrationTests/# Testes de repositórios (EF InMemory e PostgreSQL via Testcontainers)
 │   ├── Monburan.ApiTests/        # Testes da API REST (WebApplicationFactory)
 │   └── Monburan.E2ETests/        # Testes E2E (Playwright)
 │
@@ -210,7 +210,7 @@ Monburan/
 │   └── env.example             # Variáveis de produção
 │
 ├── .github/                    # Workflows do GitHub Actions (ver .github/workflows/README.md)
-├── docs/                       # Documentação: segurança, CI/CD, IA, Docker
+├── docs/                       # Documentação: segurança, CI/CD, IA e relatórios (DOCKER.md fica na raiz)
 ├── Monburan.sln                # Solução (inclui o app MAUI, que exige o workload Android)
 ├── docker-compose.yml          # Orquestração Docker (produção local)
 ├── docker-compose.dev.yml      # Orquestração Docker (desenvolvimento)
@@ -390,8 +390,8 @@ APPLY_MIGRATIONS=true dotnet run --project src/Monburan.Web
 # 2. Emulador OU device físico (USB): expor a API local ao app
 adb reverse tcp:5095 tcp:5095   # app usa http://127.0.0.1:5095 em Debug — funciona
                                 # em emulador e em device físico com depuração USB.
-                                # Nota: o network_security_config de Debug só libera
-                                # cleartext para 127.0.0.1/localhost/10.0.2.2, então
+                                # Nota: o network_security_config libera cleartext só
+                                # para 127.0.0.1, localhost e 10.0.2.2, então
                                 # http://<IP-da-LAN>:5095 NÃO funciona no device físico
                                 # — use adb reverse (ou ajuste MobileApiConfig + config).
 
@@ -556,7 +556,7 @@ docker build -t monburan:latest -f src/Monburan.Web/Dockerfile .
 ### Imagem no GHCR
 
 O workflow `docker-ghcr.yml` publica `ghcr.io/rondineleg/monburan:latest` (e tag
-por SHA) a cada push na `main` e toda segunda (`rebuild-semanal.yml`, para os
+por SHA) a cada push na `main` que altere `src/**`, `infra/vps/**` ou o workflow, e toda segunda (`rebuild-semanal.yml`, para os
 patches das imagens base) e, em seguida, faz o deploy na VPS (job `deploy-vps`).
 Só a `main` publica.
 
@@ -586,10 +586,9 @@ Contribuições são bem-vindas! Siga os passos abaixo:
 5. Abra um **Pull Request**
 
 ### Padrões de Código
-- Siga as convenções do arquivo `.editorconfig`
+- Siga as convenções de C# do projeto (nullable habilitado, `sealed` em serviços)
 - Use `nullable enable` em todos os arquivos
 - Prefira `sealed` em classes de serviço
-- Use `IDateTimeProvider` ao invés de `DateTime.Now`
 - Logging via `ILogger<T>`, nunca `Console.Write`
 
 ---
