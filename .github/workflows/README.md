@@ -31,10 +31,11 @@ Publicação e deploy conforme workflows existentes
 
 | Workflow | push main | push dev | PR para dev | PR para main | Outros |
 |---|---|---|---|---|---|
-| `ci-cd.yml` | build+testes+scan (deploy Azure se configurado), sem E2E | build+testes+scan, **sem E2E** | build+testes+scan, **sem E2E** | build+testes+scan+**E2E** | `workflow_dispatch` (com E2E) |
+| `ci-cd.yml` | build+testes+scan (deploy Azure de produção, se configurado), sem E2E | build+testes+scan, **sem E2E** | build+testes+scan, **sem E2E** | build+testes+scan+**E2E** | `workflow_dispatch` (com E2E) |
 | `main-only-from-dev.yml` | — | — | — | reprova PR que não venha da dev | — |
 | `codeql.yml` | sim | sim | sim | sim | agenda semanal |
-| `docker-ghcr.yml` | build imagem GHCR + **deploy VPS** | não | não | não | `workflow_dispatch`, rebuild semanal |
+| `docker-ghcr.yml` | build imagem GHCR + **deploy VPS** (só com mudança em `src/**`, `infra/vps/**` ou no próprio arquivo) | não | não | não | `workflow_dispatch`, disparo pelo `rebuild-semanal` |
+| `rebuild-semanal.yml` | não | não | não | não | cron semanal (segunda 03:00 BRT); dispara o `docker-ghcr.yml` por `workflow_dispatch` |
 | `android-release.yml` / `ios-build.yml` | sim (paths de mobile) | não | não | sim (paths de mobile) | `workflow_dispatch` |
 | `infra-scripts.yml` | sim (paths de infra/vps) | não | não | sim (paths de infra/vps) | `workflow_dispatch` |
 
@@ -65,9 +66,7 @@ de integração sem validação.
 - O deploy na VPS (`docker-ghcr.yml` → `deploy-vps`) só roda na main, com `environment: prod`
   e concorrência serializada (`group: deploy-vps`, sem cancelamento). Esse workflow permanece
   intacto.
-- `GITHUB_TOKEN` com permissão mínima: `contents: read` no nível do workflow em todos os
-  workflows de validação; escrita apenas onde é imprescindível (`docker-ghcr.yml` publica
-  pacote, `android-release.yml` cria release, `codeql.yml` grava alertas).
+- `GITHUB_TOKEN` com permissão mínima: `contents: read` nos workflows de validação. Escrita só onde é necessária: `docker-ghcr.yml` (pacote, por job), `android-release.yml` (release), `ios-build.yml` (job `ipa`, anexa o .ipa à release), `codeql.yml` (alertas) e `rebuild-semanal.yml` (`actions: write`, para disparar o `docker-ghcr.yml`).
 - Segredos passam por `env` e nunca são interpolados diretamente em scripts do shell; o
   `security-scan` procura formatos de chave/token versionados e reprova o PR.
 
