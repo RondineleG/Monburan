@@ -23,16 +23,16 @@ public class SetDefaultAiProviderUseCase : IUseCase<AiProviderActionRequest, AiP
         _secrets = secrets;
     }
 
-    public async Task<RequestResult<AiProviderResponse>> ExecuteAsync(AiProviderActionRequest request)
+    public async Task<RequestResult<AiProviderResponse>> ExecuteAsync(AiProviderActionRequest request, CancellationToken cancellationToken = default)
     {
-        var found = await _repository.GetByIdAsync(Id.Create(request.Id));
+        var found = await _repository.GetByIdAsync(Id.Create(request.Id), cancellationToken);
         if (found.Status != EResultStatus.Success || found.Data is null)
             return RequestResult<AiProviderResponse>.EntityNotFound("AiProvider", request.Id, "Provedor não encontrado.");
 
         if (!found.Data.IsEnabled)
             return RequestResult<AiProviderResponse>.WithDomainError("Ative o provedor antes de torná-lo o padrão.");
 
-        var saved = await _repository.SetDefaultAsync(found.Data.Id, request.UpdatedBy);
+        var saved = await _repository.SetDefaultAsync(found.Data.Id, request.UpdatedBy, cancellationToken);
         if (saved.Status != EResultStatus.Success || saved.Data is null)
             return RequestResult<AiProviderResponse>.FromResult(saved);
 

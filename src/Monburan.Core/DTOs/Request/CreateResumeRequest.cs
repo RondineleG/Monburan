@@ -8,6 +8,8 @@ public class CreateResumeRequest
     public string Title { get; set; } = string.Empty;
     public string? Summary { get; set; }
     public bool IsActive { get; set; }
+    public string? SourceFileName { get; set; }
+    public string? SourceFileUrl { get; set; }
     public List<EducationRequest>? EducationHistory { get; set; }
     public List<ExperienceRequest>? ExperienceHistory { get; set; }
     public List<LanguageRequest>? Languages { get; set; }

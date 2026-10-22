@@ -2,30 +2,33 @@
 @using Monburan.Web.Models
 
 @inject SignInManager<ApplicationUser> SignInManager
+@inject NavigationManager NavigationManager
 
-<ul class="nav nav-pills flex-column">
+<nav aria-label="Seções de conta e segurança">
+<ul class="nav">
     <li class="nav-item">
-        <NavLink class="nav-link" href="Account/Manage" Match="NavLinkMatch.All">Perfil</NavLink>
+        <NavLink class="nav-link" href="Account/Manage" Match="NavLinkMatch.All" aria-current="@Current("Account/Manage", exact: true)">Perfil</NavLink>
     </li>
     <li class="nav-item">
-        <NavLink class="nav-link" href="Account/Manage/Email">E-mail</NavLink>
+        <NavLink class="nav-link" href="Account/Manage/Email" aria-current="@Current("Account/Manage/Email")">E-mail</NavLink>
     </li>
     <li class="nav-item">
-        <NavLink class="nav-link" href="Account/Manage/ChangePassword">Senha</NavLink>
+        <NavLink class="nav-link" href="Account/Manage/ChangePassword" aria-current="@Current("Account/Manage/ChangePassword")">Senha</NavLink>
     </li>
     @if (hasExternalLogins)
     {
         <li class="nav-item">
-            <NavLink class="nav-link" href="Account/Manage/ExternalLogins">Contas conectadas</NavLink>
+            <NavLink class="nav-link" href="Account/Manage/ExternalLogins" aria-current="@Current("Account/Manage/ExternalLogins")">Contas conectadas</NavLink>
         </li>
     }
     <li class="nav-item">
-        <NavLink class="nav-link" href="Account/Manage/TwoFactorAuthentication">Autenticação em duas etapas</NavLink>
+        <NavLink class="nav-link" href="Account/Manage/TwoFactorAuthentication" aria-current="@Current("Account/Manage/TwoFactorAuthentication")">Verificação em duas etapas</NavLink>
     </li>
     <li class="nav-item">
-        <NavLink class="nav-link" href="Account/Manage/PersonalData">Dados pessoais</NavLink>
+        <NavLink class="nav-link" href="Account/Manage/PersonalData" aria-current="@Current("Account/Manage/PersonalData")">Dados pessoais</NavLink>
     </li>
 </ul>
+</nav>
 
 @code {
     private bool hasExternalLogins;
@@ -33,5 +36,21 @@
     protected override async Task OnInitializedAsync()
     {
         hasExternalLogins = (await SignInManager.GetExternalAuthenticationSchemesAsync()).Any();
+    }
+
+    // Mesmo critério de correspondência do NavLink (classe "active"), exposto para leitores de tela.
+    private string? Current(string href, bool exact = false)
+    {
+        var path = NavigationManager.ToBaseRelativePath(NavigationManager.Uri);
+        var cut = path.IndexOfAny(['?', '#']);
+        if (cut >= 0)
+            path = path[..cut];
+        path = path.TrimEnd('/');
+
+        var matches = exact
+            ? string.Equals(path, href, StringComparison.OrdinalIgnoreCase)
+            : string.Equals(path, href, StringComparison.OrdinalIgnoreCase)
+              || path.StartsWith(href + "/", StringComparison.OrdinalIgnoreCase);
+        return matches ? "page" : null;
     }
 }

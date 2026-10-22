@@ -9,12 +9,12 @@
 @inject IdentityRedirectManager RedirectManager
 @inject ILogger<Disable2fa> Logger
 
-<PageTitle>Desativar autenticação em duas etapas</PageTitle>
+<PageTitle>Desativar verificação em duas etapas - Monburan</PageTitle>
 
+<h2>Desativar verificação em duas etapas</h2>
 <StatusMessage />
-<h3>Desativar autenticação em duas etapas</h3>
 
-<div class="alert alert-warning" role="alert">
+<div class="alert alert-warning">
     <p>
         <strong>Esta ação apenas desativa a verificação em duas etapas.</strong>
     </p>
@@ -27,7 +27,7 @@
 <div>
     <form @formname="disable-2fa" @onsubmit="OnSubmitAsync" method="post">
         <AntiforgeryToken />
-        <button class="btn btn-danger" type="submit">Desativar verificação em duas etapas</button>
+        <button class="btn btn-outline-danger" type="submit">Desativar verificação em duas etapas</button>
     </form>
 </div>
 
@@ -43,7 +43,11 @@
 
         if (HttpMethods.IsGet(HttpContext.Request.Method) && !await UserManager.GetTwoFactorEnabledAsync(user))
         {
-            throw new InvalidOperationException("Cannot disable 2FA for user as it's not currently enabled.");
+            // Acesso direto pela URL sem 2FA ativa: volta para a tela de 2FA em vez de dar erro 500
+            RedirectManager.RedirectToWithStatus(
+                "Account/Manage/TwoFactorAuthentication",
+                "A verificação em duas etapas já está desativada.",
+                HttpContext);
         }
     }
 
@@ -52,7 +56,11 @@
         var disable2faResult = await UserManager.SetTwoFactorEnabledAsync(user, false);
         if (!disable2faResult.Succeeded)
         {
-            throw new InvalidOperationException("Unexpected error occurred disabling 2FA.");
+            Logger.LogError("Falha ao desativar a 2FA: {Errors}", string.Join(", ", disable2faResult.Errors.Select(e => e.Code)));
+            RedirectManager.RedirectToWithStatus(
+                "Account/Manage/TwoFactorAuthentication",
+                "Erro: não foi possível desativar a verificação em duas etapas. Tente novamente.",
+                HttpContext);
         }
 
         await SignInManager.RefreshSignInAsync(user); // a sessão deixa de trazer a claim de 2FA

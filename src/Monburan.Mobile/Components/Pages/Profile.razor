@@ -3,12 +3,12 @@
 @inject MonburanApiClient Api
 @inject IToastService Toast
 
-<h1 class="page-title">Perfil</h1>
-<p class="page-subtitle">Seus dados de candidato</p>
+<h1 class="page-title" tabindex="-1">Perfil</h1>
+<p class="page-subtitle">Seus dados, currículos e preferências</p>
 
 @if (_loading)
 {
-    <LoadingState Message="Carregando perfil..." />
+    <LoadingState Message="Carregando perfil…" />
 }
 else if (_loadError is not null)
 {
@@ -24,16 +24,57 @@ else if (_candidate is not null)
             </div>
             @if (_candidate.IsEmailVerified)
             {
-                <span class="badge ok">E-mail verificado</span>
+                <span class="badge badge--ok"><Icon Name="check" Size="14" /> E-mail verificado</span>
             }
         </div>
         <div class="card-meta">
-            <span class="meta-chip">@_candidate.ResumesCount currículo(s)</span>
-            <span class="meta-chip">@_candidate.ApplicationsCount candidatura(s)</span>
+            @if (_resumesCount is int resumes)
+            {
+                <span class="meta-chip"><Icon Name="file" Size="16" /> @resumes @(resumes == 1 ? "currículo" : "currículos")</span>
+            }
+            @if (_applicationsCount is int applications)
+            {
+                <span class="meta-chip"><Icon Name="send" Size="16" /> @applications @(applications == 1 ? "candidatura" : "candidaturas")</span>
+            }
         </div>
     </div>
 
-    <h2 class="section-label">Editar dados</h2>
+    <nav aria-label="Sua conta">
+        <ul class="link-list link-list--card">
+            <li>
+                <a class="link-list__item" href="/career-profile">
+                    <Icon Name="briefcase" />
+                    <span class="link-list__text">
+                        <strong>Perfil de carreira</strong>
+                        <small>Cargo, cidade e modalidade que você procura</small>
+                    </span>
+                    <Icon Name="chevron-right" />
+                </a>
+            </li>
+            <li>
+                <a class="link-list__item" href="/resumes">
+                    <Icon Name="file" />
+                    <span class="link-list__text">
+                        <strong>Meus currículos</strong>
+                        <small>Crie, edite ou envie em PDF</small>
+                    </span>
+                    <Icon Name="chevron-right" />
+                </a>
+            </li>
+            <li>
+                <a class="link-list__item" href="/plans">
+                    <Icon Name="star" />
+                    <span class="link-list__text">
+                        <strong>Plano</strong>
+                        <small>Seu plano e os planos disponíveis</small>
+                    </span>
+                    <Icon Name="chevron-right" />
+                </a>
+            </li>
+        </ul>
+    </nav>
+
+    <h2 class="section-title">Dados pessoais</h2>
     <form class="card" @onsubmit="SaveAsync" novalidate>
         <div class="form-field">
             <label for="profile-name">Nome</label>
@@ -60,12 +101,17 @@ else if (_candidate is not null)
             }
         </div>
         <button type="submit" class="btn btn-primary btn-block" disabled="@_busy">
-            @(_busy ? "Salvando..." : "Salvar")
+            @(_busy ? "Salvando…" : "Salvar")
         </button>
     </form>
+}
 
-    <a class="btn btn-block" href="/resumes" style="margin-bottom: var(--s-3)">Meus currículos</a>
-    <button class="btn btn-ghost btn-block" @onclick="LogoutAsync">Sair da conta</button>
+@if (!_loading)
+{
+    @* Fora do bloco do perfil: sair continua possível mesmo quando o carregamento falha *@
+    <div class="action-stack page-end">
+        <button type="button" class="btn btn-secondary btn-block" @onclick="LogoutAsync"><Icon Name="log-out" /> Sair da conta</button>
+    </div>
 }
 
 @code {
@@ -77,11 +123,31 @@ else if (_candidate is not null)
     private bool _loading = true;
     private bool _busy;
     private ApiException? _loadError;
+    // Contagens vêm do progresso e da lista de currículos: os campos de contagem de candidates/me chegam zerados
+    private int? _resumesCount;
+    private int? _applicationsCount;
 
     protected override async Task OnInitializedAsync()
     {
         if (await EnsureAuthenticatedAsync())
             await LoadAsync();
+    }
+
+    // Contagem é complemento: se falhar, o perfil continua na tela sem os números
+    private async Task LoadCountsAsync()
+    {
+        try
+        {
+            var resumes = Api.GetMyResumesAsync();
+            var progress = Api.GetMyProgressAsync();
+            _resumesCount = (await resumes).Count;
+            _applicationsCount = (await progress).Applications.Total;
+        }
+        catch (ApiException)
+        {
+            _resumesCount = null;
+            _applicationsCount = null;
+        }
     }
 
     private async Task LoadAsync()
@@ -94,6 +160,7 @@ else if (_candidate is not null)
             _name = _candidate.Name;
             _phone = _candidate.Phone;
             _linkedIn = _candidate.LinkedIn;
+            await LoadCountsAsync();
         }
         catch (ApiException ex)
         {

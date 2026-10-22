@@ -29,13 +29,13 @@ internal sealed class FakeJobRepository : IJobRepository
         return job;
     }
 
-    public Task<RequestResult<Job>> CreateAsync(Job entity)
+    public Task<RequestResult<Job>> CreateAsync(Job entity, CancellationToken cancellationToken = default)
     {
         _jobs.Add(entity);
         return Task.FromResult(RequestResult<Job>.Success(entity));
     }
 
-    public Task<RequestResult<Job>> DeleteAsync(Id id)
+    public Task<RequestResult<Job>> DeleteAsync(Id id, CancellationToken cancellationToken = default)
     {
         var job = _jobs.FirstOrDefault(item => item.Id == id && !item.IsDeleted);
         if (job is null)
@@ -45,10 +45,10 @@ internal sealed class FakeJobRepository : IJobRepository
         return Task.FromResult(RequestResult<Job>.Success(job));
     }
 
-    public Task<RequestResult<IEnumerable<Job>>> GetAllAsync(int page, int size) =>
+    public Task<RequestResult<IEnumerable<Job>>> GetAllAsync(int page, int size, CancellationToken cancellationToken = default) =>
         Task.FromResult(RequestResult<IEnumerable<Job>>.Success(_jobs.Where(job => !job.IsDeleted).ToList()));
 
-    public Task<RequestResult<Job>> GetByIdAsync(Id id)
+    public Task<RequestResult<Job>> GetByIdAsync(Id id, CancellationToken cancellationToken = default)
     {
         var job = _jobs.FirstOrDefault(item => item.Id == id && !item.IsDeleted);
         return Task.FromResult(job is null
@@ -56,7 +56,7 @@ internal sealed class FakeJobRepository : IJobRepository
             : RequestResult<Job>.Success(job));
     }
 
-    public Task<RequestResult<Job>> UpdateAsync(Job entity)
+    public Task<RequestResult<Job>> UpdateAsync(Job entity, CancellationToken cancellationToken = default)
     {
         UpdateCalls++;
         return Task.FromResult(RequestResult<Job>.Success(entity));
@@ -66,14 +66,19 @@ internal sealed class FakeJobRepository : IJobRepository
         string? searchTerm = null, string? city = null, string? state = null, bool? isRemote = null, decimal? salaryMin = null,
         decimal? salaryMax = null, string? category = null, Guid? advertiserId = null, int page = 1, int size = 10,
         string? type = null, string? sortBy = null, bool? sortDescending = null, EContractType? contractType = null,
-        ESalaryPeriod? salaryPeriod = null, int? publishedWithinDays = null) =>
+        ESalaryPeriod? salaryPeriod = null, int? publishedWithinDays = null,
+        CancellationToken cancellationToken = default) =>
         throw new NotSupportedException();
 
-    public Task<PagedResponse<Job>> GetAllPagedAsync(int page, int size) => throw new NotSupportedException();
+    public Task<RequestResult<PagedResponse<Job>>> SearchPublicByAdvertiserAsync(
+        Guid advertiserId, int page, int size, CancellationToken cancellationToken = default) =>
+        throw new NotSupportedException();
 
-    public Task<int> CountActiveByAdvertiserAsync(Guid advertiserId) => throw new NotSupportedException();
+    public Task<PagedResponse<Job>> GetAllPagedAsync(int page, int size, CancellationToken cancellationToken = default) => throw new NotSupportedException();
 
-    public Task<PagedResponse<Job>> AdminSearchAsync(string? searchTerm, EJobStatus? status, Guid? advertiserId, int page, int size)
+    public Task<int> CountActiveByAdvertiserAsync(Guid advertiserId, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+
+    public Task<PagedResponse<Job>> AdminSearchAsync(string? searchTerm, EJobStatus? status, Guid? advertiserId, int page, int size, CancellationToken cancellationToken = default)
     {
         var query = _jobs.Where(job => !job.IsDeleted);
         if (status.HasValue)
@@ -94,15 +99,15 @@ internal sealed class FakeJobRepository : IJobRepository
         });
     }
 
-    public Task<IReadOnlyDictionary<EJobStatus, int>> CountByStatusAsync() =>
+    public Task<IReadOnlyDictionary<EJobStatus, int>> CountByStatusAsync(CancellationToken cancellationToken = default) =>
         Task.FromResult<IReadOnlyDictionary<EJobStatus, int>>(
             _jobs.Where(job => !job.IsDeleted).GroupBy(job => job.Status).ToDictionary(group => group.Key, group => group.Count()));
 
-    public Task<RequestResult<IEnumerable<Job>>> ListActiveForRecommendationsAsync() =>
+    public Task<RequestResult<IEnumerable<Job>>> ListActiveForRecommendationsAsync(CancellationToken cancellationToken = default) =>
         Task.FromResult(RequestResult<IEnumerable<Job>>.Success(
             _jobs.Where(job => !job.IsDeleted && job.Status == EJobStatus.Active).ToList()));
 
-    public Task<RequestResult<bool>> IncrementViewsAsync(Guid jobId)
+    public Task<RequestResult<bool>> IncrementViewsAsync(Guid jobId, CancellationToken cancellationToken = default)
     {
         var job = _jobs.FirstOrDefault(item => item.Id.Value == jobId);
         if (job is null)
@@ -110,6 +115,30 @@ internal sealed class FakeJobRepository : IJobRepository
 
         job.Counters.Views++;
         return Task.FromResult(RequestResult<bool>.Success(true));
+    }
+
+    public Task<RequestResult<bool>> IncrementApplicationsAsync(Guid jobId, CancellationToken cancellationToken = default)
+    {
+        var job = _jobs.FirstOrDefault(item => item.Id.Value == jobId);
+        if (job is null)
+            return Task.FromResult(RequestResult<bool>.Success(false));
+
+        job.Counters.Applications++;
+        return Task.FromResult(RequestResult<bool>.Success(true));
+    }
+
+    public Task<RequestResult<Job>> UpdateModerationAsync(Id jobId, ModerationInfo moderation, CancellationToken cancellationToken = default)
+    {
+        var job = _jobs.FirstOrDefault(item => item.Id == jobId && !item.IsDeleted);
+        if (job is null)
+            return Task.FromResult(RequestResult<Job>.EntityNotFound("Job", jobId.Value, "Vaga não encontrada."));
+
+        job.Moderation ??= new ModerationInfo();
+        job.Moderation.Status = moderation.Status;
+        job.Moderation.Reason = moderation.Reason;
+        job.Moderation.ModeratorId = moderation.ModeratorId;
+        job.Moderation.ModerationDate = moderation.ModerationDate;
+        return Task.FromResult(RequestResult<Job>.Success(job));
     }
 }
 
@@ -123,13 +152,13 @@ internal sealed class FakeAdvertiserRepository : IBaseRepository<Advertiser>
         return advertiser;
     }
 
-    public Task<RequestResult<Advertiser>> CreateAsync(Advertiser entity) => throw new NotSupportedException();
+    public Task<RequestResult<Advertiser>> CreateAsync(Advertiser entity, CancellationToken cancellationToken = default) => throw new NotSupportedException();
 
-    public Task<RequestResult<Advertiser>> DeleteAsync(Id id) => throw new NotSupportedException();
+    public Task<RequestResult<Advertiser>> DeleteAsync(Id id, CancellationToken cancellationToken = default) => throw new NotSupportedException();
 
-    public Task<RequestResult<IEnumerable<Advertiser>>> GetAllAsync(int page, int size) => throw new NotSupportedException();
+    public Task<RequestResult<IEnumerable<Advertiser>>> GetAllAsync(int page, int size, CancellationToken cancellationToken = default) => throw new NotSupportedException();
 
-    public Task<RequestResult<Advertiser>> GetByIdAsync(Id id)
+    public Task<RequestResult<Advertiser>> GetByIdAsync(Id id, CancellationToken cancellationToken = default)
     {
         var found = _advertisers.FirstOrDefault(item => item.Id == id);
         return Task.FromResult(found is null
@@ -137,7 +166,7 @@ internal sealed class FakeAdvertiserRepository : IBaseRepository<Advertiser>
             : RequestResult<Advertiser>.Success(found));
     }
 
-    public Task<RequestResult<Advertiser>> UpdateAsync(Advertiser entity) => throw new NotSupportedException();
+    public Task<RequestResult<Advertiser>> UpdateAsync(Advertiser entity, CancellationToken cancellationToken = default) => throw new NotSupportedException();
 }
 
 internal sealed class FakeNotificationRepository : IBaseRepository<Notification>
@@ -146,7 +175,7 @@ internal sealed class FakeNotificationRepository : IBaseRepository<Notification>
 
     public bool Fail { get; set; }
 
-    public Task<RequestResult<Notification>> CreateAsync(Notification entity)
+    public Task<RequestResult<Notification>> CreateAsync(Notification entity, CancellationToken cancellationToken = default)
     {
         if (Fail)
             return Task.FromResult(RequestResult<Notification>.WithError("banco fora do ar"));
@@ -155,13 +184,13 @@ internal sealed class FakeNotificationRepository : IBaseRepository<Notification>
         return Task.FromResult(RequestResult<Notification>.Success(entity));
     }
 
-    public Task<RequestResult<Notification>> DeleteAsync(Id id) => throw new NotSupportedException();
+    public Task<RequestResult<Notification>> DeleteAsync(Id id, CancellationToken cancellationToken = default) => throw new NotSupportedException();
 
-    public Task<RequestResult<IEnumerable<Notification>>> GetAllAsync(int page, int size) => throw new NotSupportedException();
+    public Task<RequestResult<IEnumerable<Notification>>> GetAllAsync(int page, int size, CancellationToken cancellationToken = default) => throw new NotSupportedException();
 
-    public Task<RequestResult<Notification>> GetByIdAsync(Id id) => throw new NotSupportedException();
+    public Task<RequestResult<Notification>> GetByIdAsync(Id id, CancellationToken cancellationToken = default) => throw new NotSupportedException();
 
-    public Task<RequestResult<Notification>> UpdateAsync(Notification entity) => throw new NotSupportedException();
+    public Task<RequestResult<Notification>> UpdateAsync(Notification entity, CancellationToken cancellationToken = default) => throw new NotSupportedException();
 }
 
 internal sealed class FakeAuditLog : IAdminAuditLog

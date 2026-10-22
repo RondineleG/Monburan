@@ -24,13 +24,13 @@ public class CreateJobAlertUseCase : IUseCase<CreateJobAlertCommand, JobAlertRes
         _alerts = alerts;
     }
 
-    public async Task<RequestResult<JobAlertResponse>> ExecuteAsync(CreateJobAlertCommand request)
+    public async Task<RequestResult<JobAlertResponse>> ExecuteAsync(CreateJobAlertCommand request, CancellationToken cancellationToken = default)
     {
         var errors = JobAlertInputValidation.Validate(request.Alert);
         if (errors.Count != 0)
             return RequestResult<JobAlertResponse>.WithValidations(errors);
 
-        var count = await _alerts.CountByCandidateAsync(request.CandidateId);
+        var count = await _alerts.CountByCandidateAsync(request.CandidateId, cancellationToken);
         if (count.Status != EResultStatus.Success)
             return RequestResult<JobAlertResponse>.FromResult(count);
 
@@ -56,7 +56,7 @@ public class CreateJobAlertUseCase : IUseCase<CreateJobAlertCommand, JobAlertRes
             TenantId = "default"
         };
 
-        var result = await _alerts.CreateAsync(alert);
+        var result = await _alerts.CreateAsync(alert, cancellationToken);
         if (result.Status != EResultStatus.Success)
             return RequestResult<JobAlertResponse>.FromResult(result);
 

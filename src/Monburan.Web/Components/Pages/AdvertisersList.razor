@@ -7,47 +7,45 @@
 @using Monburan.Core.UseCases.Advertisers
 @inject ListAdvertisersUseCase ListAdvertisersUseCase
 @inject DeleteAdvertiserUseCase DeleteAdvertiserUseCase
+@inject NavigationManager Navigation
 @inject IToastService Toast
 @inject ILogger<AdvertisersList> Logger
 
-<PageTitle>Gerenciar Empresas - Monburan</PageTitle>
+<PageTitle>Empresas - Administração - Monburan</PageTitle>
 
-<div class="container mt-4 admin-list-page">
-    <header class="page-heading">
-        <div class="page-heading__copy">
-            <span class="page-kicker">ADMINISTRAÇÃO</span>
-            <h1>Empresas</h1>
-            <p>Consulte empresas cadastradas, situação da conta e vagas publicadas.</p>
+@* Mesmo desenho de CandidatesList: mantenha as duas telas iguais.
+   Os filtros e a página ficam no endereço (?busca=&situacao=&pagina=): Voltar e recarregar reproduzem a lista. *@
+<div class="container admin-list-page">
+    <PageHeader Title="Empresas" Description="Consulte empresas cadastradas, situação da conta e vagas publicadas." />
+
+    <div class="admin-filters" role="search" aria-label="Filtrar empresas">
+        <div>
+            <label class="form-label" for="advertiser-search">Buscar</label>
+            <input id="advertiser-search" type="text" class="form-control" @bind="searchTerm" @bind:event="oninput" @onkeydown="OnSearchKeyDown"
+                   placeholder="Nome, e-mail, CNPJ ou CPF" enterkeyhint="search" autocomplete="off" data-testid="advertisers-search" />
         </div>
-    </header>
-
-    <div class="card mb-4">
-        <div class="card-body">
-            <div class="row g-3">
-                <div class="col-md-6">
-                    <label class="form-label" for="advertiser-search">Buscar</label>
-                    <input id="advertiser-search" type="text" class="form-control" @bind="searchTerm" @onkeydown="OnSearchKeyDown" placeholder="Nome, e-mail ou CNPJ/CPF..." />
-                </div>
-                <div class="col-md-3">
-                    <label class="form-label" for="status-filter">Situação</label>
-                    @* Valores de EAdvertiserStatus — opções inexistentes eram ignoradas pelo filtro *@
-                    <select id="status-filter" class="form-select" @bind="statusFilter">
-                        <option value="">Todas</option>
-                        <option value="Active">Ativa</option>
-                        <option value="Incomplete">Cadastro incompleto</option>
-                        <option value="Blocked">Bloqueada</option>
-                    </select>
-                </div>
-                <div class="col-md-3 d-flex align-items-end">
-                    <button class="btn btn-primary w-100" @onclick="() => LoadAsync(1)" disabled="@isLoading">Aplicar filtros <span aria-hidden="true">↗</span></button>
-                </div>
-            </div>
+        <div>
+            <label class="form-label" for="status-filter">Situação</label>
+            @* Valores de EAdvertiserStatus — opções inexistentes eram ignoradas pelo filtro *@
+            <select id="status-filter" class="form-select" @bind="statusFilter" @bind:after="ApplyFiltersAsync" data-testid="advertisers-status">
+                <option value="">Todas</option>
+                <option value="Active">Ativa</option>
+                <option value="Incomplete">Cadastro incompleto</option>
+                <option value="Blocked">Bloqueada</option>
+            </select>
+        </div>
+        <div class="d-flex flex-wrap gap-2">
+            <button type="button" class="btn btn-outline-secondary" @onclick="ApplyFiltersAsync" disabled="@isLoading" data-testid="advertisers-apply">Buscar</button>
+            @if (IsFiltered)
+            {
+                <button type="button" class="btn btn-outline-secondary" @onclick="ClearFiltersAsync" data-testid="advertisers-clear">Limpar filtros</button>
+            }
         </div>
     </div>
 
-    @if (isLoading)
+    @if (isLoading && listResponse is null)
     {
-        <LoadingState Message="Carregando empresas..." />
+        <LoadingState Message="Carregando empresas…" />
     }
     else if (loadFailed)
     {
@@ -57,55 +55,58 @@
     }
     else if (listResponse is null || !listResponse.Items.Any())
     {
-        <EmptyState Icon="▦" Title="Nenhuma empresa encontrada" Message="Ajuste a busca ou os filtros." />
+        if (IsFiltered)
+        {
+            <EmptyState Icon="search" Title="Nenhum resultado para estes filtros" Message="Tente outra busca ou mude a situação." TestId="advertisers-empty">
+                <button type="button" class="btn btn-outline-secondary" @onclick="ClearFiltersAsync">Limpar filtros</button>
+            </EmptyState>
+        }
+        else
+        {
+            <EmptyState Icon="building" Title="Nenhuma empresa cadastrada" Message="As empresas aparecem aqui assim que criam a conta." TestId="advertisers-empty" />
+        }
     }
     else
     {
-        <div class="card">
+        <div class="card" aria-busy="@(isLoading ? "true" : null)">
             <div class="card-body p-0">
                 <div class="table-responsive">
-                    <table class="table table-hover table-striped mb-0">
+                    <table class="table table-striped table-cards mb-0" data-testid="advertisers-table">
+                        <caption class="visually-hidden">Empresas cadastradas</caption>
                         <thead>
                             <tr>
-                                <th>Nome</th>
-                                <th>E-mail</th>
-                                <th>CNPJ/CPF</th>
-                                <th>Situação</th>
-                                <th>Cidade/UF</th>
-                                <th>Vagas</th>
-                                <th>Cadastro</th>
-                                <th class="text-center">Ações</th>
+                                <th scope="col">Nome</th>
+                                <th scope="col">E-mail</th>
+                                <th scope="col">CNPJ/CPF</th>
+                                <th scope="col">Situação</th>
+                                <th scope="col">Cidade/UF</th>
+                                <th scope="col" class="text-center">Vagas</th>
+                                <th scope="col">Cadastro</th>
+                                <th scope="col">Ações</th>
                             </tr>
                         </thead>
                         <tbody>
                             @foreach (var advertiser in listResponse.Items)
                             {
-                                <tr>
-                                    <td>
+                                <tr data-testid="advertiser-row">
+                                    <td data-label="Nome">
                                         @if (!string.IsNullOrEmpty(advertiser.LogoUrl))
                                         {
                                             <img src="@advertiser.LogoUrl" alt="" class="rounded-circle me-2" width="30" height="30" />
                                         }
-                                        @advertiser.Name
+                                        <strong>@advertiser.Name</strong>
                                     </td>
-                                    <td>@advertiser.Email</td>
-                                    <td>@FormatTaxId(advertiser.TaxId)</td>
-                                    <td><span class="badge @StatusBadge(advertiser.Status)">@StatusLabel(advertiser.Status)</span></td>
-                                    <td>
-                                        @if (!string.IsNullOrEmpty(advertiser.City))
-                                        {
-                                            @advertiser.City@(string.IsNullOrEmpty(advertiser.State) ? "" : $" / {advertiser.State}")
-                                        }
-                                        else
-                                        {
-                                            <span class="text-muted">—</span>
-                                        }
-                                    </td>
-                                    <td class="text-center">@advertiser.JobsCount</td>
-                                    <td>@UiLabels.FormatMomentDate(advertiser.CreatedAt)</td>
-                                    <td class="text-center">
-                                        <button class="btn btn-sm btn-outline-danger" @onclick="() => DeleteAsync(advertiser)" disabled="@(deletingId == advertiser.Id)" title="Excluir empresa">
-                                            @(deletingId == advertiser.Id ? "Excluindo..." : "Excluir")
+                                    <td data-label="E-mail">@advertiser.Email</td>
+                                    <td data-label="CNPJ/CPF">@FormatTaxId(advertiser.TaxId)</td>
+                                    <td data-label="Situação"><StatusBadge Text="@StatusLabel(advertiser.Status)" Tone="@StatusToneFor(advertiser.Status)" /></td>
+                                    <td data-label="Cidade/UF">@Place(advertiser.City, advertiser.State)</td>
+                                    <td data-label="Vagas" class="text-center">@advertiser.JobsCount</td>
+                                    <td data-label="Cadastro">@UiLabels.FormatMomentDate(advertiser.CreatedAt)</td>
+                                    <td data-label="Ações">
+                                        <button type="button" class="btn btn-sm btn-outline-danger" @onclick="() => DeleteAsync(advertiser)"
+                                                disabled="@(deletingId == advertiser.Id)" aria-busy="@(deletingId == advertiser.Id ? "true" : null)"
+                                                aria-label="Excluir a empresa @advertiser.Name">
+                                            @(deletingId == advertiser.Id ? "Excluindo…" : "Excluir")
                                         </button>
                                     </td>
                                 </tr>
@@ -116,72 +117,78 @@
             </div>
         </div>
 
-        @if (listResponse.TotalPages > 1)
-        {
-            <nav class="mt-4" aria-label="Paginação de empresas">
-                <ul class="pagination justify-content-center">
-                    @if (listResponse.HasPreviousPage)
-                    {
-                        <li class="page-item">
-                            <button class="page-link" @onclick="() => LoadAsync(listResponse.Page - 1)">Anterior</button>
-                        </li>
-                    }
-
-                    @{
-                        var startPage = Math.Max(1, listResponse.Page - 2);
-                        var endPage = Math.Min(listResponse.TotalPages, startPage + 4);
-                        startPage = Math.Max(1, endPage - 4);
-                    }
-                    @for (int i = startPage; i <= endPage; i++)
-                    {
-                        var pageNum = i;
-                        <li class="page-item @(pageNum == listResponse.Page ? "active" : "")">
-                            <button class="page-link" @onclick="() => LoadAsync(pageNum)">@pageNum</button>
-                        </li>
-                    }
-
-                    @if (listResponse.HasNextPage)
-                    {
-                        <li class="page-item">
-                            <button class="page-link" @onclick="() => LoadAsync(listResponse.Page + 1)">Próximo</button>
-                        </li>
-                    }
-                </ul>
-            </nav>
-        }
-
-        <div class="text-muted text-center mt-3">
-            Mostrando @listResponse.Items.Count() de @listResponse.TotalCount empresas
-        </div>
+        <Pager Page="listResponse.Page" TotalPages="listResponse.TotalPages" OnPageChanged="GoToPageAsync"
+               Total="listResponse.TotalCount" PageSize="PageSize" ItemName="@(listResponse.TotalCount == 1 ? "empresa" : "empresas")"
+               AriaLabel="Paginação de empresas" />
     }
 </div>
 
 <ConfirmDialog @ref="confirmDialog" />
 
 @code {
+    private const int PageSize = 20;
+
+    private static readonly string[] StatusValues = ["Active", "Incomplete", "Blocked"];
+
+    [SupplyParameterFromQuery(Name = "busca")]
+    private string? SearchQuery { get; set; }
+
+    [SupplyParameterFromQuery(Name = "situacao")]
+    private string? StatusQuery { get; set; }
+
+    [SupplyParameterFromQuery(Name = "pagina")]
+    private int? PageQuery { get; set; }
+
     private string searchTerm = string.Empty;
     private string statusFilter = string.Empty;
     private ListAdvertisersResponse? listResponse;
     private bool isLoading = true;
     private bool loadFailed;
     private int currentPage = 1;
+    private int loadVersion;
     private Guid? deletingId;
     private ConfirmDialog confirmDialog = default!;
 
-    protected override Task OnInitializedAsync() => LoadAsync(1);
+    // Filtros que já estão no endereço: quando o endereço muda por fora (Voltar/Avançar), a lista recarrega
+    private string? appliedQuery;
+
+    private bool IsFiltered => !string.IsNullOrWhiteSpace(searchTerm) || statusFilter.Length > 0;
+
+    private string StateKey => $"{searchTerm}\n{statusFilter}\n{currentPage}";
+
+    protected override async Task OnParametersSetAsync()
+    {
+        var search = (SearchQuery ?? string.Empty).Trim();
+        var status = StatusQuery is not null && StatusValues.Contains(StatusQuery) ? StatusQuery : string.Empty;
+        var page = Math.Max(1, PageQuery ?? 1);
+
+        var key = $"{search}\n{status}\n{page}";
+        if (key == appliedQuery)
+            return;
+
+        appliedQuery = key;
+        searchTerm = search;
+        statusFilter = status;
+        await LoadAsync(page);
+    }
 
     private async Task LoadAsync(int page)
     {
+        // Filtros trocados em sequência: só a última busca vale
+        var version = ++loadVersion;
         isLoading = true;
         loadFailed = false;
 
         var result = await ListAdvertisersUseCase.ExecuteAsync(new ListAdvertisersRequest
         {
             Page = page,
-            Size = 20,
+            Size = PageSize,
             SearchTerm = searchTerm,
             Status = statusFilter
         });
+
+        if (version != loadVersion)
+            return;
 
         if (result.Status == EResultStatus.Success)
         {
@@ -200,7 +207,39 @@
     private async Task OnSearchKeyDown(KeyboardEventArgs e)
     {
         if (e.Key == "Enter")
-            await LoadAsync(1);
+            await ApplyFiltersAsync();
+    }
+
+    private Task ApplyFiltersAsync() => GoToPageAsync(1);
+
+    private Task ClearFiltersAsync()
+    {
+        searchTerm = string.Empty;
+        statusFilter = string.Empty;
+        return GoToPageAsync(1);
+    }
+
+    private async Task GoToPageAsync(int page)
+    {
+        searchTerm = searchTerm.Trim();
+        currentPage = page;
+        SyncUrl();
+        await LoadAsync(page);
+    }
+
+    // Leva os filtros para o endereço (entrada nova no histórico); a recarga é feita aqui mesmo
+    private void SyncUrl()
+    {
+        appliedQuery = StateKey;
+        var uri = Navigation.GetUriWithQueryParameters(new Dictionary<string, object?>
+        {
+            ["busca"] = searchTerm.Length > 0 ? searchTerm : null,
+            ["situacao"] = statusFilter.Length > 0 ? statusFilter : null,
+            ["pagina"] = currentPage > 1 ? currentPage : null
+        });
+
+        if (uri != Navigation.Uri)
+            Navigation.NavigateTo(uri, replace: false);
     }
 
     private async Task DeleteAsync(AdvertiserResponse advertiser)
@@ -208,7 +247,7 @@
         var confirmed = await confirmDialog.ShowAsync(new ConfirmOptions
         {
             Title = "Excluir empresa?",
-            Message = $"O perfil de {advertiser.Name} ({advertiser.Email}) será desativado e deixará de aparecer na plataforma.",
+            Message = $"O perfil de {advertiser.Name} ({advertiser.Email}) será excluído e deixará de aparecer na plataforma.",
             ConfirmText = "Excluir empresa",
             Destructive = true
         });
@@ -234,17 +273,19 @@
     private static string StatusLabel(string status) =>
         Enum.TryParse<EAdvertiserStatus>(status, out var parsed) ? UiLabels.AccountStatus(parsed) : "Indefinida";
 
-    private static string StatusBadge(string status) => status switch
+    private static StatusTone StatusToneFor(string status) =>
+        Enum.TryParse<EAdvertiserStatus>(status, out var parsed) ? UiLabels.AccountStatusTone(parsed) : StatusTone.Neutral;
+
+    private static string Place(string? city, string? state)
     {
-        "Active" => "bg-success",
-        "Incomplete" => "bg-warning",
-        "Blocked" => "bg-danger",
-        _ => "bg-secondary"
-    };
+        if (string.IsNullOrWhiteSpace(city))
+            return "Não informada";
+        return string.IsNullOrWhiteSpace(state) ? city : $"{city} / {state}";
+    }
 
     private static string FormatTaxId(string? taxId)
     {
-        if (string.IsNullOrEmpty(taxId)) return "—";
+        if (string.IsNullOrEmpty(taxId)) return "Não informado";
 
         // CPF: 123.456.789-00
         if (taxId.Length == 11)

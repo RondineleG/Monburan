@@ -14,6 +14,7 @@
 @inject ListApplicationHistoryUseCase ListApplicationHistoryUseCase
 @inject ListSavedJobsUseCase ListSavedJobsUseCase
 @inject UnsaveJobUseCase UnsaveJobUseCase
+@inject SaveJobUseCase SaveJobUseCase
 @inject ListJobAlertsUseCase ListJobAlertsUseCase
 @inject CreateJobAlertUseCase CreateJobAlertUseCase
 @inject UpdateJobAlertUseCase UpdateJobAlertUseCase
@@ -23,30 +24,28 @@
 @inject IToastService Toast
 @inject ILogger<MyApplications> Logger
 
-<PageTitle>Minhas vagas - Monburan</PageTitle>
+<PageTitle>Minhas candidaturas - Monburan</PageTitle>
 
 <div class="container my-applications-page">
-    <header class="page-heading">
-        <div class="page-heading__copy">
-            <span class="page-kicker">MINHA CARREIRA</span>
-            <h1>Minhas vagas</h1>
-            <p>Acompanhe suas candidaturas, as vagas que você salvou e seus alertas de oportunidades.</p>
-        </div>
-    </header>
+    <PageHeader Title="Minhas candidaturas" Description="Acompanhe suas candidaturas, as vagas que você salvou e seus alertas de oportunidades.">
+        <Actions>
+            <a class="btn btn-outline-secondary" href="/jobs">Explorar vagas</a>
+        </Actions>
+    </PageHeader>
 
-    <nav class="journey-tabs" aria-label="Seções de Minhas vagas">
+    <nav class="journey-tabs" aria-label="Seções de Minhas candidaturas">
         <a class="journey-tab@(Tab == "candidaturas" ? " journey-tab--active" : string.Empty)"
            href="/my-applications?aba=candidaturas"
            aria-current="@(Tab == "candidaturas" ? "page" : null)"
-           data-testid="tab-candidaturas">Candidaturas</a>
+           data-testid="tab-candidaturas">Candidaturas @if (!applicationsLoadFailed) { <span class="journey-tab__count">@applications.Count</span> }</a>
         <a class="journey-tab@(Tab == "salvas" ? " journey-tab--active" : string.Empty)"
            href="/my-applications?aba=salvas"
            aria-current="@(Tab == "salvas" ? "page" : null)"
-           data-testid="tab-salvas">Vagas salvas</a>
+           data-testid="tab-salvas">Vagas salvas @if (!savedJobsLoadFailed) { <span class="journey-tab__count">@savedJobs.Count</span> }</a>
         <a class="journey-tab@(Tab == "alertas" ? " journey-tab--active" : string.Empty)"
            href="/my-applications?aba=alertas"
            aria-current="@(Tab == "alertas" ? "page" : null)"
-           data-testid="tab-alertas">Alertas</a>
+           data-testid="tab-alertas">Alertas @if (!alertsLoadFailed) { <span class="journey-tab__count">@alerts.Count</span> }</a>
     </nav>
 
     @if (isLoading)
@@ -61,18 +60,36 @@
     }
     else if (!isCandidate)
     {
-        <EmptyState Icon="!" Title="Área exclusiva para candidatos" Message="Entre com uma conta de candidato para acompanhar candidaturas.">
-            <a href="/dashboard" class="btn btn-primary">Voltar ao início</a>
-        </EmptyState>
+        <AccessRestricted Reason="Minhas candidaturas é exclusiva para contas de candidato." />
     }
-    else if (loadFailed)
+    else if (Tab == "candidaturas" && applicationsLoadFailed)
     {
-        <ErrorState Title="Não foi possível carregar suas informações"
-                    Message="Tivemos um problema ao buscar seus dados. Tente novamente em instantes."
+        <ErrorState Title="Não foi possível carregar suas candidaturas"
+                    Message="Tivemos um problema ao buscar suas candidaturas. Tente novamente em instantes."
+                    OnRetry="LoadAsync" />
+    }
+    else if (Tab == "salvas" && savedJobsLoadFailed)
+    {
+        <ErrorState Title="Não foi possível carregar suas vagas salvas"
+                    Message="Tivemos um problema ao buscar suas vagas salvas. Tente novamente em instantes."
+                    OnRetry="LoadAsync" />
+    }
+    else if (Tab == "alertas" && alertsLoadFailed)
+    {
+        <ErrorState Title="Não foi possível carregar seus alertas"
+                    Message="Tivemos um problema ao buscar seus alertas. Tente novamente em instantes."
                     OnRetry="LoadAsync" />
     }
     else if (Tab == "salvas")
     {
+        @if (recentlyRemoved is not null)
+        {
+            @* Remover é reversível: em vez de pedir confirmação, oferece desfazer *@
+            <div class="alert alert-info undo-bar" role="status" data-testid="saved-job-undo-bar">
+                <span>"@recentlyRemoved.Title" saiu das suas vagas salvas.</span>
+                <button type="button" class="btn btn-link" @onclick="UndoRemoveAsync" disabled="@isUndoing" data-testid="saved-job-undo">Desfazer</button>
+            </div>
+        }
         @if (savedJobs.Count > 0)
         {
             <ul class="saved-jobs-list" data-testid="saved-jobs-list">
@@ -84,8 +101,16 @@
                             <p class="text-muted mb-0">@job.AdvertiserName · @JobDisplay.Location(job)</p>
                         </div>
                         <div class="saved-jobs-list__actions">
-                            <a class="btn btn-primary btn-sm" href="/apply/@job.Id">Candidatar-se</a>
-                            <button type="button" class="btn btn-outline-danger btn-sm" @onclick="() => RemoveSavedAsync(job)" data-testid="saved-job-remove">
+                            @if (applications.Any(app => app.JobId == job.Id))
+                            {
+                                <a class="btn btn-outline-secondary btn-sm" href="/my-applications?aba=candidaturas" data-testid="saved-job-track">Acompanhar</a>
+                            }
+                            else
+                            {
+                                <a class="btn btn-outline-secondary btn-sm" href="/jobs/@job.Id" data-testid="saved-job-view">Ver oportunidade</a>
+                            }
+                            <button type="button" class="btn btn-outline-danger btn-sm" @onclick="() => RemoveSavedAsync(job)" data-testid="saved-job-remove"
+                                    aria-label="Remover @job.Title das vagas salvas">
                                 Remover
                             </button>
                         </div>
@@ -95,8 +120,7 @@
         }
         else
         {
-            <EmptyState Icon="☆"
-                        Kicker="GUARDE OPORTUNIDADES"
+            <EmptyState Icon="star"
                         Title="Nenhuma vaga salva"
                         Message="Ao encontrar uma vaga interessante, toque em Salvar para acompanhá-la por aqui."
                         TestId="saved-jobs-empty">
@@ -111,7 +135,7 @@
                 <article class="card">
                     <div class="card-body">
                         <h2 class="h5">Criar alerta de vaga</h2>
-                        <p class="text-muted">Avisamos você quando uma vaga combinar com o que você procura.</p>
+                        <p class="text-muted">Avisamos você quando uma vaga combinar com o que você procura. Todos os campos são opcionais, menos o nome.</p>
 
                         @if (!string.IsNullOrEmpty(alertError))
                         {
@@ -119,6 +143,7 @@
                         }
 
                         <EditForm Model="alertModel" OnValidSubmit="CreateAlertAsync" novalidate>
+                            <DataAnnotationsValidator />
                             <div class="mb-3">
                                 <label class="form-label" for="alert-name">Nome do alerta</label>
                                 <InputText id="alert-name" class="form-control" @bind-Value="alertModel.Name" data-testid="alert-name" />
@@ -131,11 +156,11 @@
                             <div class="row g-2">
                                 <div class="col-8">
                                     <label class="form-label" for="alert-city">Cidade</label>
-                                    <InputText id="alert-city" class="form-control" @bind-Value="alertModel.City" data-testid="alert-city" />
+                                    <InputText id="alert-city" class="form-control" @bind-Value="alertModel.City" autocomplete="address-level2" data-testid="alert-city" />
                                 </div>
                                 <div class="col-4">
                                     <label class="form-label" for="alert-state">UF</label>
-                                    <InputText id="alert-state" class="form-control" @bind-Value="alertModel.State" maxlength="2" data-testid="alert-state" />
+                                    <InputText id="alert-state" class="form-control" @bind-Value="alertModel.State" maxlength="2" autocomplete="address-level1" autocapitalize="characters" data-testid="alert-state" />
                                 </div>
                             </div>
                             <div class="mb-3 mt-3">
@@ -159,14 +184,18 @@
                             </div>
                             <div class="mb-3">
                                 <label class="form-label" for="alert-salary">Salário mínimo (R$)</label>
-                                <InputNumber id="alert-salary" class="form-control" @bind-Value="alertModel.SalaryMin" data-testid="alert-salary" />
+                                <InputNumber id="alert-salary" class="form-control" @bind-Value="alertModel.SalaryMin" inputmode="numeric" min="0" data-testid="alert-salary" />
                             </div>
-                            <button type="submit" class="btn btn-primary" disabled="@isSavingAlert" data-testid="alert-submit">
+                            <button type="submit" class="btn btn-primary" disabled="@isSavingAlert" aria-busy="@(isSavingAlert ? "true" : null)" data-testid="alert-submit">
                                 @if (isSavingAlert)
                                 {
-                                    <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                                    <span class="spinner-border spinner-border-sm" aria-hidden="true"></span>
+                                    <span>Criando alerta…</span>
                                 }
-                                Criar alerta
+                                else
+                                {
+                                    <span>Criar alerta</span>
+                                }
                             </button>
                         </EditForm>
                     </div>
@@ -184,24 +213,23 @@
                                     <p class="text-muted mb-0">@AlertSummary(alert)</p>
                                 </div>
                                 <div class="alerts-list__actions">
-                                    <button type="button" class="btn btn-outline-primary btn-sm" @onclick="() => ToggleAlertAsync(alert)" data-testid="alert-toggle">
+                                    <button type="button" class="btn btn-outline-secondary btn-sm" @onclick="() => ToggleAlertAsync(alert)" data-testid="alert-toggle"
+                                            aria-label="@(alert.IsActive ? "Desativar" : "Ativar") o alerta @alert.Name">
                                         @(alert.IsActive ? "Desativar" : "Ativar")
                                     </button>
-                                    <button type="button" class="btn btn-outline-danger btn-sm" @onclick="() => DeleteAlertAsync(alert)" data-testid="alert-delete">
+                                    <button type="button" class="btn btn-outline-danger btn-sm" @onclick="() => DeleteAlertAsync(alert)" data-testid="alert-delete"
+                                            aria-label="Excluir o alerta @alert.Name">
                                         Excluir
                                     </button>
                                 </div>
-                                <span class="badge @(alert.IsActive ? "bg-success" : "bg-secondary")">
-                                    @(alert.IsActive ? "Ativo" : "Desativado")
-                                </span>
+                                <StatusBadge Text="@(alert.IsActive ? "Ativo" : "Desativado")" Tone="@(alert.IsActive ? StatusTone.Ok : StatusTone.Neutral)" />
                             </li>
                         }
                     </ul>
                 }
                 else
                 {
-                    <EmptyState Icon="◌"
-                                Kicker="AVISOS SOBRE VAGAS"
+                    <EmptyState Icon="send"
                                 Title="Nenhum alerta criado"
                                 Message="Crie um alerta e avisamos quando surgir uma vaga com o perfil que você procura."
                                 TestId="alerts-empty" />
@@ -209,18 +237,22 @@
             </div>
         </div>
     }
-    else if (filteredApplications.Count > 0)
+    else
     {
+        @* Filtros sempre visíveis na aba de candidaturas, mesmo com a lista vazia ou filtrada a zero *@
         <nav class="journey-filters" aria-label="Filtrar candidaturas por situação">
             @foreach (var filter in Filters)
             {
-                <a class="journey-filter@(Situation == ApplicationJourneyRules.Parse(filter.Value) ? " journey-filter--active" : string.Empty)"
+                var filterValue = ApplicationJourneyRules.Parse(filter.Value);
+                <a class="journey-filter@(Situation == filterValue ? " journey-filter--active" : string.Empty)"
                    href="@FilterUrl(filter.Value)"
-                   aria-current="@(Situation == ApplicationJourneyRules.Parse(filter.Value) ? "true" : null)"
-                   data-testid="application-filter-@filter.Value">@filter.Label</a>
+                   aria-current="@(Situation == filterValue ? "true" : null)"
+                   data-testid="application-filter-@filter.Value">@filter.Label <span class="journey-tab__count">@CountFor(filterValue)</span></a>
             }
         </nav>
 
+        @if (filteredApplications.Count > 0)
+        {
         <ul class="applications-list">
             @foreach (var app in filteredApplications)
             {
@@ -234,17 +266,22 @@
                             }
                         </div>
                         <div class="applications-list__meta">
-                            <span class="badge @UiLabels.ApplicationStatusBadge(app.Status)">@UiLabels.ApplicationStatus(app.Status)</span>
+                            <StatusBadge Kind="StatusKind.Application" Value="@app.Status" />
                             <span class="applications-list__date">@UiLabels.FormatMoment(app.AppliedAt ?? app.CreatedAt)</span>
                         </div>
                     </div>
+                    <p class="applications-list__next">@ApplicationJourneyRules.NextStep(app.Status)</p>
+                    @if (app.ResumeId.HasValue)
+                    {
+                        <a class="applications-list__resume small" href="/resumes/@app.ResumeId" data-testid="application-resume-link">Ver currículo enviado</a>
+                    }
                     <button type="button"
                             class="btn btn-link applications-list__toggle"
                             aria-expanded="@expandedIds.Contains(app.Id)"
                             data-testid="application-expand"
                             @onclick="() => ToggleTimelineAsync(app)">
                         @(expandedIds.Contains(app.Id) ? "Ocultar etapas" : "Ver etapas")
-                        <span aria-hidden="true">@(expandedIds.Contains(app.Id) ? "▴" : "▾")</span>
+                        <Icon Name="chevron-down" Size="16" Class="@(expandedIds.Contains(app.Id) ? "icon--flip" : null)" />
                     </button>
                     @if (expandedIds.Contains(app.Id))
                     {
@@ -253,23 +290,25 @@
                 </li>
             }
         </ul>
-    }
-    else if (applications.Count > 0)
-    {
-        <EmptyState Icon="⌕"
-                    Title="Nenhuma candidatura nesta situação"
-                    Message="Tente outro filtro para ver suas outras candidaturas."
-                    TestId="applications-filtered-empty" />
-    }
-    else
-    {
-        <EmptyState Icon="↗"
-                    Kicker="SUA PRÓXIMA OPORTUNIDADE"
-                    Title="Sua jornada começa com uma candidatura"
-                    Message="Quando você se candidatar, poderá acompanhar aqui as atualizações de cada processo seletivo."
-                    TestId="applications-empty">
-            <a href="/jobs" class="btn btn-primary">Explorar vagas <span aria-hidden="true">↗</span></a>
-        </EmptyState>
+        }
+        else if (applications.Count > 0)
+        {
+            <EmptyState Icon="search"
+                        Title="Nenhuma candidatura nesta situação"
+                        Message="Tente outro filtro para ver suas outras candidaturas."
+                        TestId="applications-filtered-empty">
+                <a class="btn btn-outline-secondary" href="/my-applications?aba=candidaturas">Limpar filtros</a>
+            </EmptyState>
+        }
+        else
+        {
+            <EmptyState Icon="bell"
+                        Title="Sua jornada começa com uma candidatura"
+                        Message="Quando você se candidatar, poderá acompanhar aqui as atualizações de cada processo seletivo."
+                        TestId="applications-empty">
+                <a href="/jobs" class="btn btn-primary">Explorar vagas</a>
+            </EmptyState>
+        }
     }
 </div>
 
@@ -312,9 +351,14 @@
     private ConfirmDialog confirmDialog = default!;
     private string alertError = string.Empty;
     private bool isSavingAlert;
+    private JobResponse? recentlyRemoved;
+    private int recentlyRemovedPosition;
+    private bool isUndoing;
     private bool isLoading = true;
     private bool isCandidate;
-    private bool loadFailed;
+    private bool applicationsLoadFailed;
+    private bool savedJobsLoadFailed;
+    private bool alertsLoadFailed;
     private bool prefillDone;
 
     private string Tab => TabQuery is "salvas" or "alertas" ? TabQuery : "candidaturas";
@@ -346,35 +390,44 @@
 
     private async Task LoadAsync()
     {
-        loadFailed = false;
         var candidateId = CurrentUserHelper.GetCandidateId()!.Value;
 
-        var applicationsResult = await ListApplicationsByCandidateUseCase.ExecuteAsync(candidateId);
+        var applicationsResult = await ListApplicationsByCandidateUseCase.ExecuteAsync(new Core.DTOs.Request.ListApplicationsByCandidateRequest
+        {
+            CandidateId = candidateId
+        });
         var savedResult = await ListSavedJobsUseCase.ExecuteAsync(candidateId);
         var alertsResult = await ListJobAlertsUseCase.ExecuteAsync(candidateId);
 
-        if (applicationsResult.Status == EResultStatus.Success
-            && savedResult.Status == EResultStatus.Success
-            && alertsResult.Status == EResultStatus.Success)
-        {
-            applications = applicationsResult.Data?.ToList() ?? [];
-            savedJobs = savedResult.Data?.Jobs.ToList() ?? [];
-            alerts = alertsResult.Data?.ToList() ?? [];
-            ApplyFilter();
-        }
-        else
-        {
+        applicationsLoadFailed = applicationsResult.Status != EResultStatus.Success || applicationsResult.Data is null;
+        savedJobsLoadFailed = savedResult.Status != EResultStatus.Success || savedResult.Data is null;
+        alertsLoadFailed = alertsResult.Status != EResultStatus.Success || alertsResult.Data is null;
+
+        if (applicationsLoadFailed)
             Logger.LogFailure(applicationsResult, "Listar candidaturas do candidato");
+        else
+            applications = applicationsResult.Data!.ToList();
+
+        if (savedJobsLoadFailed)
             Logger.LogFailure(savedResult, "Listar vagas salvas do candidato");
+        else
+            savedJobs = savedResult.Data!.Jobs.ToList();
+
+        if (alertsLoadFailed)
             Logger.LogFailure(alertsResult, "Listar alertas do candidato");
-            loadFailed = true;
-        }
+        else
+            alerts = alertsResult.Data!.ToList();
+
+        ApplyFilter();
     }
 
     private void ApplyFilter() =>
         filteredApplications = applications
             .Where(app => ApplicationJourneyRules.Matches(app.Status, Situation))
             .ToList();
+
+    private int CountFor(ApplicationJourneyFilter filter) =>
+        applications.Count(app => ApplicationJourneyRules.Matches(app.Status, filter));
 
     private string FilterUrl(string value) =>
         value == "todas" ? "/my-applications?aba=candidaturas" : $"/my-applications?aba=candidaturas&situacao={value}";
@@ -406,16 +459,46 @@
 
     private async Task RemoveSavedAsync(JobResponse job)
     {
+        var position = savedJobs.FindIndex(item => item.Id == job.Id);
         var result = await UnsaveJobUseCase.ExecuteAsync(
             new UnsaveJobRequest(CurrentUserHelper.GetCandidateId()!.Value, job.Id));
         if (result.Status == EResultStatus.Success)
         {
             savedJobs.RemoveAll(item => item.Id == job.Id);
-            Toast.ShowSuccess("Vaga removida das suas vagas salvas.", "Vaga removida");
+            recentlyRemoved = job;
+            recentlyRemovedPosition = Math.Max(position, 0);
         }
         else
         {
             Toast.ShowError("Não foi possível remover a vaga salva. Tente novamente.");
+        }
+    }
+
+    // Salva de novo a última vaga removida, no mesmo lugar da lista
+    private async Task UndoRemoveAsync()
+    {
+        if (recentlyRemoved is null || isUndoing)
+            return;
+
+        isUndoing = true;
+        try
+        {
+            var job = recentlyRemoved;
+            var result = await SaveJobUseCase.ExecuteAsync(new SaveJobRequest(CurrentUserHelper.GetCandidateId()!.Value, job.Id));
+            if (result.Status == EResultStatus.Success)
+            {
+                savedJobs.Insert(Math.Min(recentlyRemovedPosition, savedJobs.Count), job);
+                recentlyRemoved = null;
+            }
+            else
+            {
+                Logger.LogFailure(result, "Desfazer remoção de vaga salva");
+                Toast.ShowError("Não foi possível salvar a vaga de novo. Tente pela página da vaga.");
+            }
+        }
+        finally
+        {
+            isUndoing = false;
         }
     }
 
@@ -439,8 +522,8 @@
         else
         {
             Logger.LogFailure(result, "Criar alerta de vaga");
+            // O alerta do formulário (role="alert") já anuncia: sem toast repetindo a mesma mensagem
             alertError = ResultMessages.ToUserMessage(result, "Não foi possível criar o alerta. Revise os campos e tente novamente.");
-            Toast.ShowError(alertError);
         }
 
         isSavingAlert = false;

@@ -5,6 +5,7 @@ using Monburan.Core.Enums;
 using Monburan.Core.Interfaces.Repositories.Base;
 using Monburan.Core.Interfaces.UseCases;
 using Monburan.Core.Interfaces.Validations;
+using Monburan.Core.Mappers;
 using Monburan.Core.Requests;
 using Monburan.Core.ValueObjects;
 
@@ -21,9 +22,9 @@ public class UpdateJobUseCase : IUseCase<UpdateJobRequest, JobResponse>
         _jobValidator = jobValidator;
     }
 
-    public async Task<RequestResult<JobResponse>> ExecuteAsync(UpdateJobRequest request)
+    public async Task<RequestResult<JobResponse>> ExecuteAsync(UpdateJobRequest request, CancellationToken cancellationToken = default)
     {
-        var existingJobResult = await _jobRepository.GetByIdAsync(Id.Create(request.Id));
+        var existingJobResult = await _jobRepository.GetByIdAsync(Id.Create(request.Id), cancellationToken);
         if (existingJobResult.Status != EResultStatus.Success)
             return RequestResult<JobResponse>.EntityNotFound("Job", request.Id, "Vaga não encontrada.");
 
@@ -72,11 +73,14 @@ public class UpdateJobUseCase : IUseCase<UpdateJobRequest, JobResponse>
             return updateValidationResult;
         }
 
-        var updateResult = await _jobRepository.UpdateAsync(existingJob);
+        var updateResult = await _jobRepository.UpdateAsync(existingJob, cancellationToken);
         if (updateResult.Status != EResultStatus.Success)
             return RequestResult<JobResponse>.FromResult(updateResult);
 
-        return RequestResult<JobResponse>.Success(JobResponseMapper.ToResponse(updateResult.Data!));
+        // A resposta sai da vaga carregada e editada, e não do objeto devolvido pela gravação: o
+        // repositório pode devolver uma instância nova, sem as navegações carregadas, e a empresa
+        // desapareceria só na edição — a divergência que o detalhe e a listagem não têm.
+        return RequestResult<JobResponse>.Success(JobResponseMapper.ToResponse(existingJob));
     }
 }
 

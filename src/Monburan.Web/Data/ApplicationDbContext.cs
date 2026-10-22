@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 
 using Monburan.Core.Converters;
 using Monburan.Core.Entities;
+using Monburan.Core.Entities.Base;
 using Monburan.Core.Enums;
 using Monburan.Core.ValueObjects;
 using Monburan.Web.Data.Extensions;
@@ -85,6 +86,42 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
                     property.SetValueComparer(new IdValueComparer());
                 }
             }
+        }
+    }
+
+    public override int SaveChanges()
+    {
+        StampUpdatedAt();
+        return base.SaveChanges();
+    }
+
+    public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+    {
+        StampUpdatedAt();
+        return await base.SaveChangesAsync(cancellationToken);
+    }
+
+    /// <summary>
+    /// Carimba a data da última alteração de todo registro alterado. Sem isto, a coluna
+    /// <c>UpdatedAt</c> ficava sempre NULL (só o provedor de IA a gravava) e qualquer
+    /// ordenação ou auditoria por "atualizado recentemente" lia um valor morto.
+    /// </summary>
+    private void StampUpdatedAt()
+    {
+        var now = DateTime.UtcNow;
+
+        foreach (var entry in ChangeTracker.Entries<BaseEntity>())
+        {
+            if (entry.State != EntityState.Modified)
+                continue;
+
+            var createdAt = entry.Property(nameof(BaseEntity.CreatedAt)).CurrentValue as DateTime?;
+            // A data de alteração precisa ser posterior à de criação
+            var updatedAt = now;
+            if (createdAt.HasValue && updatedAt <= createdAt.Value)
+                updatedAt = createdAt.Value.AddTicks(1);
+
+            entry.Property(nameof(BaseEntity.UpdatedAt)).CurrentValue = updatedAt;
         }
     }
 }

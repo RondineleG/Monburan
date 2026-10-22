@@ -12,66 +12,59 @@
 @inject IToastService Toast
 @inject ILogger<Notifications> Logger
 
-<PageTitle>Central de Notificações - Monburan</PageTitle>
+<PageTitle>Notificações - Monburan</PageTitle>
 
-<div class="container mt-4 notifications-page">
-    <header class="page-heading">
-        <div class="page-heading__copy">
-            <span class="page-kicker">ATUALIZAÇÕES</span>
-            <h1>Notificações</h1>
-            <p>Acompanhe as atualizações das suas vagas e candidaturas.</p>
-        </div>
-    </header>
+<div class="container notifications-page">
+    <PageHeader Title="Notificações" Description="Acompanhe as atualizações das suas vagas e candidaturas." />
 
     @if (recipientId is null)
     {
-        <EmptyState Icon="◌" Title="Sem notificações para esta conta" Message="As notificações chegam para perfis de candidato e de empresa.">
+        <EmptyState Icon="bell" Title="Sem notificações para esta conta" Message="As notificações chegam para perfis de candidato e de empresa.">
             <a class="btn btn-primary" href="/dashboard">Voltar ao início</a>
         </EmptyState>
     }
     else
     {
-        <section class="row g-3 mb-4 notification-metrics" aria-label="Resumo das notificações">
-            <div class="col-md-4">
+        @if (hasLoaded)
+        {
+            <section class="notification-metrics" aria-label="Resumo das notificações recentes">
                 <article class="card notification-metric">
                     <div class="card-body">
-                        <span class="notification-metric__label">Total</span>
+                        <span class="notification-metric__label">Recentes</span>
                         <strong class="notification-metric__value">@totalNotifications</strong>
                     </div>
                 </article>
-            </div>
-            <div class="col-md-4">
                 <article class="card notification-metric">
                     <div class="card-body">
                         <span class="notification-metric__label">Não lidas</span>
                         <strong class="notification-metric__value">@unreadCount</strong>
                     </div>
                 </article>
-            </div>
-            <div class="col-md-4">
                 <article class="card notification-metric">
                     <div class="card-body">
                         <span class="notification-metric__label">Lidas</span>
                         <strong class="notification-metric__value">@readCount</strong>
                     </div>
                 </article>
-            </div>
-        </section>
+            </section>
+        }
 
         <section class="notifications-toolbar">
-            <h2>Atualizações recentes</h2>
+            <h2 tabindex="-1" @ref="updatesHeading">Atualizações recentes</h2>
             <div class="notifications-toolbar__actions">
-                <button class="btn btn-outline-primary" @onclick="MarkAllAsReadAsync" disabled="@(unreadCount == 0 || isMarkingAll)">
-                    @(isMarkingAll ? "Marcando..." : "Marcar todas como lidas")
+                <button type="button" class="btn btn-outline-secondary" @onclick="MarkAllAsReadAsync" disabled="@(unreadCount == 0 || isBusy)" aria-busy="@(isMarkingAll ? "true" : null)">
+                    @(isMarkingAll ? "Marcando…" : "Marcar todas como lidas")
                 </button>
-                <button class="btn btn-secondary" @onclick="LoadNotificationsAsync" disabled="@isLoading">Atualizar</button>
+                <button type="button" class="btn btn-outline-secondary" @onclick="LoadNotificationsAsync" disabled="@isBusy" aria-busy="@(isLoading ? "true" : null)">@(isLoading ? "Atualizando…" : "Recarregar")</button>
             </div>
         </section>
 
-        @if (isLoading)
+        <p class="visually-hidden" role="status" aria-atomic="true">@statusMessage</p>
+
+        @if (isLoading && !hasLoaded)
         {
             <div class="skeleton-stack" role="status" aria-live="polite" data-testid="loading-state">
-                <span class="visually-hidden">Carregando notificações...</span>
+                <span class="visually-hidden">Carregando notificações…</span>
                 <div class="skeleton-grid">
                     <SkeletonBlock Height="5.5rem" Radius="var(--r-md)" />
                     <SkeletonBlock Height="5.5rem" Radius="var(--r-md)" />
@@ -83,55 +76,70 @@
                 <SkeletonBlock Height="3.8rem" />
             </div>
         }
-        else if (loadFailed)
+        else if (loadFailed && !hasLoaded)
         {
             <ErrorState Title="Não foi possível carregar as notificações"
                         Message="Tivemos um problema ao buscar suas atualizações. Tente novamente em instantes."
                         OnRetry="LoadNotificationsAsync" />
         }
-        else if (notifications.Count > 0)
+        else
         {
-            <div class="list-group">
-                @foreach (var notification in notifications)
+            @if (loadFailed)
+            {
+                <div class="alert alert-warning" role="alert" data-testid="notifications-refresh-error">
+                    Não foi possível atualizar as notificações. A lista anterior foi mantida. Use Recarregar para tentar novamente.
+                </div>
+            }
+            @if (notifications.Count >= ListNotificationsByUserUseCase.MaxNotifications)
+            {
+                <p class="form-text">Mostrando as @ListNotificationsByUserUseCase.MaxNotifications notificações mais recentes.</p>
+            }
+            <div aria-busy="@(isLoading ? "true" : "false")" data-testid="notifications-results">
+                @if (notifications.Count > 0)
                 {
-                    <div class="list-group-item @(notification.IsRead ? "" : "list-group-item-info")" data-testid="notification-item">
-                        <div class="d-flex w-100 justify-content-between align-items-start">
-                            <div class="flex-grow-1">
-                                <div class="d-flex align-items-center mb-1">
+                    <ul class="list-group list-unstyled" aria-label="Notificações">
+                        @foreach (var notification in notifications)
+                        {
+                        <li @key="notification.Id" class="list-group-item notification-item @(notification.IsRead ? "" : "list-group-item-info")" data-testid="notification-item">
+                            <div class="notification-item__content">
+                                <div class="notification-item__heading">
                                     @if (!notification.IsRead)
                                     {
-                                        <span class="badge bg-primary me-2">Nova</span>
+                                        <StatusBadge Text="Nova" Tone="StatusTone.Brand" />
                                     }
-                                    <h5 class="mb-1">
-                                        <span aria-hidden="true">@GetNotificationIcon(notification.Type)</span> @notification.Title
-                                    </h5>
+                                    <h3 class="h6 mb-1">
+                                        <Icon Name="@GetNotificationIcon(notification.Type)" Size="16" /> @notification.Title
+                                    </h3>
                                 </div>
                                 <p class="mb-1">@notification.Message</p>
-                                <small class="text-muted">
-                                    @FormatDate(notification.CreatedAt)
+                                <small class="text-muted notification-item__dates">
+                                    <time datetime="@notification.CreatedAt.ToString("O")" title="@UiLabels.FormatMoment(notification.CreatedAt)">@FormatDate(notification.CreatedAt)</time>
                                     @if (notification.IsRead && notification.ReadAt.HasValue)
                                     {
-                                        <span class="ms-3">Lida @FormatDate(notification.ReadAt.Value)</span>
+                                        <span>Lida <time datetime="@notification.ReadAt.Value.ToString("O")" title="@UiLabels.FormatMoment(notification.ReadAt.Value)">@FormatDate(notification.ReadAt.Value)</time></span>
                                     }
                                 </small>
                             </div>
                             @if (!notification.IsRead)
                             {
-                                <button class="btn btn-sm btn-outline-primary ms-2" @onclick="() => MarkAsReadAsync(notification)" disabled="@(markingId == notification.Id)">
-                                    Marcar como lida
+                                <button type="button" class="btn btn-sm btn-outline-secondary notification-item__action" @onclick="() => MarkAsReadAsync(notification)" disabled="@isBusy"
+                                        aria-busy="@(markingId == notification.Id ? "true" : null)"
+                                        aria-label="Marcar como lida: @notification.Title">
+                                    @(markingId == notification.Id ? "Marcando…" : "Marcar como lida")
                                 </button>
                             }
-                        </div>
-                    </div>
+                        </li>
+                        }
+                    </ul>
+                }
+                else
+                {
+                    <EmptyState Icon="bell"
+                                Title="Nenhuma notificação por enquanto"
+                                Message="Avisamos aqui quando houver novidades sobre suas vagas e candidaturas."
+                                TestId="notifications-empty" />
                 }
             </div>
-        }
-        else
-        {
-            <EmptyState Icon="◌"
-                        Title="Nenhuma notificação por enquanto"
-                        Message="Avisamos aqui quando houver novidades sobre suas vagas e candidaturas."
-                        TestId="notifications-empty" />
         }
     }
 </div>
@@ -140,13 +148,27 @@
     private List<NotificationResponse> notifications = [];
     private bool isLoading = true;
     private bool loadFailed;
+    private bool hasLoaded;
     private bool isMarkingAll;
     private Guid? markingId;
     private string? recipientId;
+    private string statusMessage = string.Empty;
+    private ElementReference updatesHeading;
+    private bool focusUpdates;
+    private bool isBusy => isLoading || isMarkingAll || markingId.HasValue;
 
     private int totalNotifications => notifications.Count;
     private int unreadCount => notifications.Count(n => !n.IsRead);
     private int readCount => notifications.Count(n => n.IsRead);
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (focusUpdates)
+        {
+            focusUpdates = false;
+            await updatesHeading.FocusAsync(preventScroll: true);
+        }
+    }
 
     protected override async Task OnInitializedAsync()
     {
@@ -158,88 +180,124 @@
             _ => null
         };
 
+        isLoading = false;
         if (recipientId is not null)
             await LoadNotificationsAsync();
-
-        isLoading = false;
     }
 
     private async Task LoadNotificationsAsync()
     {
-        if (recipientId is null)
+        if (recipientId is null || isBusy)
             return;
 
         isLoading = true;
         loadFailed = false;
-
-        var result = await ListNotificationsUseCase.ExecuteAsync(recipientId);
-        if (result.Status == EResultStatus.Success)
+        statusMessage = string.Empty;
+        try
         {
-            notifications = result.Data ?? [];
+            var result = await ListNotificationsUseCase.ExecuteAsync(recipientId);
+            if (result.Status == EResultStatus.Success)
+            {
+                notifications = result.Data ?? [];
+                hasLoaded = true;
+                statusMessage = $"Notificações atualizadas. {unreadCount} não lidas.";
+            }
+            else
+            {
+                Logger.LogFailure(result, "Listar notificações");
+                loadFailed = true;
+            }
         }
-        else
+        catch (Exception ex)
         {
-            Logger.LogFailure(result, "Listar notificações");
+            Logger.LogError(ex, "Falha ao carregar notificações");
             loadFailed = true;
         }
-
-        isLoading = false;
+        finally
+        {
+            isLoading = false;
+        }
     }
 
     private async Task MarkAsReadAsync(NotificationResponse notification)
     {
+        if (isBusy || notification.IsRead)
+            return;
+
         // A lista só contém notificações do próprio usuário — o id vem dela
         markingId = notification.Id;
-        var result = await MarkNotificationAsReadUseCase.ExecuteAsync(notification.Id);
-        markingId = null;
-
-        if (result.Status == EResultStatus.Success)
+        try
         {
-            notification.IsRead = true;
-            notification.ReadAt = DateTime.UtcNow;
+            var result = await MarkNotificationAsReadUseCase.ExecuteAsync(notification.Id);
+            if (result.Status == EResultStatus.Success)
+            {
+                notification.IsRead = true;
+                notification.ReadAt = DateTime.UtcNow;
+                statusMessage = $"Notificação marcada como lida. {unreadCount} não lidas.";
+                focusUpdates = true;
+            }
+            else
+            {
+                Logger.LogFailure(result, "Marcar notificação como lida");
+                Toast.ShowError(ResultMessages.ToUserMessage(result, "Não foi possível marcar a notificação como lida."));
+            }
         }
-        else
+        catch (Exception ex)
         {
-            Logger.LogFailure(result, "Marcar notificação como lida");
-            Toast.ShowError(ResultMessages.ToUserMessage(result, "Não foi possível marcar a notificação como lida."));
+            Logger.LogError(ex, "Falha ao marcar notificação como lida");
+            Toast.ShowError("Não foi possível marcar a notificação como lida. Tente novamente.");
+        }
+        finally
+        {
+            markingId = null;
         }
     }
 
     private async Task MarkAllAsReadAsync()
     {
-        if (recipientId is null || isMarkingAll)
+        if (recipientId is null || isBusy || unreadCount == 0)
             return;
 
         isMarkingAll = true;
-        var result = await MarkAllNotificationsAsReadUseCase.ExecuteAsync(recipientId);
-        isMarkingAll = false;
-
-        if (result.Status == EResultStatus.Success)
+        try
         {
-            var now = DateTime.UtcNow;
-            foreach (var notification in notifications.Where(n => !n.IsRead))
+            var result = await MarkAllNotificationsAsReadUseCase.ExecuteAsync(recipientId);
+            if (result.Status == EResultStatus.Success)
             {
-                notification.IsRead = true;
-                notification.ReadAt = now;
-            }
+                var now = DateTime.UtcNow;
+                foreach (var notification in notifications.Where(n => !n.IsRead))
+                {
+                    notification.IsRead = true;
+                    notification.ReadAt = now;
+                }
 
-            Toast.ShowSuccess("Todas as notificações foram marcadas como lidas.");
+                Toast.ShowSuccess("Todas as notificações foram marcadas como lidas.");
+            }
+            else
+            {
+                Logger.LogFailure(result, "Marcar todas as notificações como lidas");
+                Toast.ShowError(ResultMessages.ToUserMessage(result, "Não foi possível marcar as notificações como lidas."));
+            }
         }
-        else
+        catch (Exception ex)
         {
-            Logger.LogFailure(result, "Marcar todas as notificações como lidas");
-            Toast.ShowError(ResultMessages.ToUserMessage(result, "Não foi possível marcar as notificações como lidas."));
+            Logger.LogError(ex, "Falha ao marcar todas as notificações como lidas");
+            Toast.ShowError("Não foi possível marcar as notificações como lidas. Tente novamente.");
+        }
+        finally
+        {
+            isMarkingAll = false;
         }
     }
 
     private static string GetNotificationIcon(ENotificationType type) => type switch
     {
-        ENotificationType.System => "◇",
-        ENotificationType.NewJob => "▣",
-        ENotificationType.ApplicationStatus => "↗",
-        ENotificationType.JobExpired => "!",
-        ENotificationType.Promotional => "✦",
-        _ => "◌"
+        ENotificationType.System => "info",
+        ENotificationType.NewJob => "briefcase",
+        ENotificationType.ApplicationStatus => "send",
+        ENotificationType.JobExpired => "clock",
+        ENotificationType.Promotional => "sparkles",
+        _ => "bell"
     };
 
     private static string FormatDate(DateTime date)

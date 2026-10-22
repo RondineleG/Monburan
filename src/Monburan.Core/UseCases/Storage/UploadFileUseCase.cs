@@ -38,16 +38,22 @@ public class UploadFileUseCase : IUseCase<UploadFileRequest, UploadFileResponse>
         _storageProvider = storageProvider;
     }
 
-    public async Task<RequestResult<UploadFileResponse>> ExecuteAsync(UploadFileRequest request)
+    public async Task<RequestResult<UploadFileResponse>> ExecuteAsync(UploadFileRequest request, CancellationToken cancellationToken = default)
     {
+        // Streams sem seek (ex.: upload do Blazor, que entrega IBrowserFile.OpenReadStream) são
+        // bufferizados ANTES de validar: medir o tamanho e ler o cabeçalho exigem seek, e a
+        // validação já precisa do tamanho. A cópia é limitada ao maior tamanho aceito, para
+        // um arquivo grande demais ser recusado sem carregar tudo na memória.
+        await using var buffered = await EnsureSeekableAsync(request);
+        if (buffered is not null && buffered.Length > GetMaxSize(request.FileType))
+            return RequestResult<UploadFileResponse>.WithValidationError(
+                $"Tamanho do arquivo excede o limite de {GetMaxSize(request.FileType) / (1024 * 1024)}MB.",
+                nameof(request.FileStream));
+
         // Validar request
         var validationResult = ValidateRequest(request);
         if (validationResult.Status != EResultStatus.Success)
             return ToValidationFailure(validationResult);
-
-        // Streams sem seek (ex.: upload do Blazor) são bufferizados para ler o cabeçalho
-        // e depois gravar o arquivo inteiro — o tamanho já foi limitado acima.
-        await using var buffered = await EnsureSeekableAsync(request);
 
         var signatureResult = await ValidateSignatureAsync(request);
         if (signatureResult.Status != EResultStatus.Success)
@@ -90,13 +96,29 @@ public class UploadFileUseCase : IUseCase<UploadFileRequest, UploadFileResponse>
         return errorResult;
     }
 
+    /// <summary>
+    /// Devolve um stream com seek quando o original não tem (o upload do Blazor entrega um
+    /// stream de leitura sem seek, e medir o tamanho ou ler o cabeçalho exigem seek).
+    /// A cópia para no maior tamanho aceito + 1 byte: um arquivo grande demais é recusado
+    /// sem antes carregar o arquivo inteiro na memória.
+    /// </summary>
     private static async Task<MemoryStream?> EnsureSeekableAsync(UploadFileRequest request)
     {
         if (request.FileStream.CanSeek)
             return null;
 
+        var limit = GetMaxSize(request.FileType) + 1;
         var buffer = new MemoryStream();
-        await request.FileStream.CopyToAsync(buffer);
+        var chunk = new byte[81920];
+        long total = 0;
+        int read;
+
+        while (total <= limit && (read = await request.FileStream.ReadAsync(chunk)) > 0)
+        {
+            total += read;
+            await buffer.WriteAsync(chunk.AsMemory(0, read));
+        }
+
         buffer.Position = 0;
         request.FileStream = buffer;
         return buffer;

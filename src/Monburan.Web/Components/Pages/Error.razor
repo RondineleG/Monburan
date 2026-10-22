@@ -4,8 +4,7 @@
 <PageTitle>Ocorreu um erro - Monburan</PageTitle>
 
 <section class="auth-message-page error-page">
-    <span class="empty-state__icon" aria-hidden="true">!</span>
-    <span class="page-kicker">MONBURAN</span>
+    <span class="empty-state__icon" aria-hidden="true"><Icon Name="alert" Size="24" /></span>
     <h1>Não foi possível concluir esta ação</h1>
     <p>Ocorreu um problema inesperado. Tente novamente ou volte para a página inicial.</p>
     @if (ShowRequestId)
@@ -14,7 +13,7 @@
     }
     <div class="d-flex gap-2 flex-wrap">
         <a class="btn btn-primary" href="/">Voltar ao início</a>
-        <a class="btn btn-outline-primary" href="/jobs">Ver oportunidades</a>
+        <a class="btn btn-outline-secondary" href="/jobs">Ver oportunidades</a>
     </div>
 </section>
 

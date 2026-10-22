@@ -30,9 +30,16 @@ public static class JobDisplay
         };
     }
 
-    /// <summary>Cidade e UF; sem endereço, vaga remota vira "Brasil" e as demais "Local a combinar".</summary>
-    public static string Location(JobResponse job)
+    /// <summary>
+    /// Cidade e UF; sem endereço, vaga remota vira "Brasil" e as demais "Local a combinar".
+    /// A vaga pode não estar carregada (a página abre antes do carregamento): nesse caso,
+    /// devolve o texto de "local a combinar".
+    /// </summary>
+    public static string Location(JobResponse? job)
     {
+        if (job is null)
+            return "Local a combinar";
+
         var city = job.City?.Trim();
         var state = job.State?.Trim();
 
@@ -103,11 +110,13 @@ public static class JobDisplay
     }
 
     /// <summary>Etiquetas da vaga (campo separado por vírgulas), sem repetição.</summary>
-    public static IReadOnlyList<string> Tags(string? tags, int max = int.MaxValue) =>
+    /// <param name="exclude">Valor que já aparece em outro selo (a categoria da vaga) e não deve se repetir como tag.</param>
+    public static IReadOnlyList<string> Tags(string? tags, int max = int.MaxValue, string? exclude = null) =>
         string.IsNullOrWhiteSpace(tags)
             ? []
             : tags.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
                 .Distinct(StringComparer.OrdinalIgnoreCase)
+                .Where(tag => !string.Equals(tag, exclude?.Trim(), StringComparison.OrdinalIgnoreCase))
                 .Take(max)
                 .ToList();
 

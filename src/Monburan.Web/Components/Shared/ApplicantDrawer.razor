@@ -5,6 +5,7 @@
 @using Monburan.Web.Services
 @inject ListApplicationHistoryUseCase ListApplicationHistoryUseCase
 @inject UpdateApplicationStatusUseCase UpdateApplicationStatusUseCase
+@inject ResumeViewerService ResumeViewer
 @inject ICurrentUserHelper CurrentUserHelper
 @inject IToastService Toast
 @inject IJSRuntime JS
@@ -24,12 +25,9 @@
              @onkeydown="OnKeyDownAsync"
              data-testid="applicant-drawer">
         <header class="applicant-drawer__header">
-            <div>
-                <span class="page-kicker">CANDIDATO</span>
-                <h2 id="applicant-drawer-title" class="h4">@Application.CandidateName</h2>
-            </div>
-            <button type="button" class="applicant-drawer__close" @onclick="CloseAsync" aria-label="Fechar" data-testid="applicant-drawer-close">
-                <span aria-hidden="true">×</span>
+            <h2 id="applicant-drawer-title" class="h4">@Application.CandidateName</h2>
+            <button type="button" class="applicant-drawer__close" @onclick="CloseAsync" aria-label="Fechar o perfil de @Application.CandidateName" data-testid="applicant-drawer-close">
+                <Icon Name="x" Size="16" />
             </button>
         </header>
 
@@ -41,16 +39,79 @@
             <dt>Vaga</dt>
             <dd>@Application.JobTitle</dd>
             <dt>Situação</dt>
-            <dd><span class="badge @UiLabels.ApplicationStatusBadge(Application.Status)">@UiLabels.ApplicationStatus(Application.Status)</span></dd>
+            <dd><StatusBadge Kind="StatusKind.Application" Value="@Application.Status" /></dd>
         </dl>
 
         @if (Application.ResumeId.HasValue)
         {
-            <p><a href="@($"/resumes/{Application.ResumeId}")" data-testid="applicant-resume">Ver currículo enviado</a></p>
+            <section aria-label="Currículo enviado" data-testid="applicant-resume-section">
+                <h3 class="h6">Currículo enviado</h3>
+                @if (resumeLoading)
+                {
+                    <LoadingState Compact="true" Message="Carregando currículo…" />
+                }
+                else if (attachedResume is not null)
+                {
+                    <p class="mb-2"><strong>@attachedResume.Resume.Title</strong></p>
+                    @if (!string.IsNullOrWhiteSpace(attachedResume.Resume.Summary))
+                    {
+                        <p class="small resume-pre">@attachedResume.Resume.Summary</p>
+                    }
+                    @if (attachedResume.Resume.ExperienceHistory is { Count: > 0 })
+                    {
+                        <details class="applicant-resume__details">
+                            <summary>Experiências (@attachedResume.Resume.ExperienceHistory.Count)</summary>
+                            <ul class="small mt-1">
+                                @foreach (var exp in attachedResume.Resume.ExperienceHistory)
+                                {
+                                    <li><strong>@exp.Position</strong> — @exp.Company</li>
+                                }
+                            </ul>
+                        </details>
+                    }
+                    @if (attachedResume.Resume.EducationHistory is { Count: > 0 })
+                    {
+                        <details class="applicant-resume__details">
+                            <summary>Formação (@attachedResume.Resume.EducationHistory.Count)</summary>
+                            <ul class="small mt-1">
+                                @foreach (var edu in attachedResume.Resume.EducationHistory)
+                                {
+                                    <li>@edu.Course — @edu.Institution</li>
+                                }
+                            </ul>
+                        </details>
+                    }
+                    @if (attachedResume.Resume.Skills is { Count: > 0 })
+                    {
+                        <details class="applicant-resume__details">
+                            <summary>Habilidades (@attachedResume.Resume.Skills.Count)</summary>
+                            <p class="small mt-1">@string.Join(" · ", attachedResume.Resume.Skills.Select(s => s.Skill))</p>
+                        </details>
+                    }
+                    @if (SafeLinkedIn is not null)
+                    {
+                        <p class="small mb-2"><a href="@SafeLinkedIn" target="_blank" rel="noopener noreferrer">LinkedIn do candidato</a></p>
+                    }
+                    <div class="d-flex flex-wrap gap-2 mt-2">
+                        <a class="btn btn-outline-secondary btn-sm" href="@($"/resumes/{Application.ResumeId}")" data-testid="applicant-resume">Ver currículo completo</a>
+                        <a class="btn btn-outline-secondary btn-sm" href="@($"/resumes/{Application.ResumeId}/cv")" data-testid="applicant-resume-cv">Visualizar CV</a>
+                    </div>
+                }
+                else if (resumeLoadFailed)
+                {
+                    <ErrorState Title="Não foi possível carregar o currículo" HeadingLevel="4"
+                                Message="Tente novamente sem sair desta candidatura."
+                                OnRetry="LoadResumeAsync" />
+                }
+                else
+                {
+                    <p class="text-muted">Não foi possível carregar o currículo enviado.</p>
+                }
+            </section>
         }
         else
         {
-            <p class="text-muted">Sem currículo anexado.</p>
+            <p class="text-muted">O candidato não enviou currículo nesta candidatura.</p>
         }
 
         @if (!string.IsNullOrWhiteSpace(Application.Notes))
@@ -68,42 +129,22 @@
                 <textarea id="applicant-note" class="form-control" rows="2" @bind="statusNote" data-testid="applicant-note"></textarea>
             </div>
             <div class="d-flex flex-wrap gap-2">
-                <button type="button" class="btn btn-outline-primary btn-sm" @onclick="() => ChangeStatusAsync(EApplicationStatus.Viewed)" disabled="@isUpdating" data-testid="application-viewed">Visualizar</button>
-                <button type="button" class="btn btn-success btn-sm" @onclick="() => ChangeStatusAsync(EApplicationStatus.Selected)" disabled="@isUpdating" data-testid="application-select">Selecionar</button>
-                <button type="button" class="btn btn-danger btn-sm" @onclick="() => ChangeStatusAsync(EApplicationStatus.Rejected)" disabled="@isUpdating" data-testid="application-reject">Rejeitar</button>
-                <button type="button" class="btn btn-outline-secondary btn-sm" @onclick="() => ChangeStatusAsync(EApplicationStatus.Archived)" disabled="@isUpdating" data-testid="application-archive">Arquivar</button>
+                <button type="button" class="btn btn-outline-secondary btn-sm" @onclick="() => ChangeStatusAsync(EApplicationStatus.Viewed)" disabled="@isUpdating" aria-busy="@(isUpdating ? "true" : null)" data-testid="application-viewed">Marcar como visualizada</button>
+                <button type="button" class="btn btn-primary btn-sm" @onclick="() => ChangeStatusAsync(EApplicationStatus.Selected)" disabled="@isUpdating" aria-busy="@(isUpdating ? "true" : null)" data-testid="application-select">Selecionar</button>
+                <button type="button" class="btn btn-outline-danger btn-sm" @onclick="() => ConfirmAndChangeAsync(EApplicationStatus.Rejected)" disabled="@isUpdating" data-testid="application-reject">Não selecionar</button>
+                <button type="button" class="btn btn-outline-secondary btn-sm" @onclick="() => ConfirmAndChangeAsync(EApplicationStatus.Archived)" disabled="@isUpdating" data-testid="application-archive">Arquivar</button>
             </div>
         </section>
 
-        <section aria-label="Etapas da candidatura" class="mt-3">
+        <section aria-label="Etapas da candidatura" class="mt-3" data-testid="applicant-timeline">
             <h3 class="h6">Etapas</h3>
-            @if (timeline.Count > 0)
-            {
-                <ol class="application-timeline">
-                    @foreach (var step in timeline)
-                    {
-                        <li class="application-timeline__step">
-                            <span class="application-timeline__label">@UiLabels.ApplicationStatus(step.Status)</span>
-                            <time class="application-timeline__date" datetime="@step.Date.ToString("o")">@UiLabels.FormatMoment(step.Date)</time>
-                            @if (!string.IsNullOrWhiteSpace(step.Note))
-                            {
-                                <p class="application-timeline__note">@step.Note</p>
-                            }
-                            @if (!string.IsNullOrWhiteSpace(step.Responsible))
-                            {
-                                <p class="application-timeline__by">@step.Responsible</p>
-                            }
-                        </li>
-                    }
-                </ol>
-            }
-            else
-            {
-                <p class="text-muted" data-testid="applicant-timeline-empty">Ainda não há etapas registradas.</p>
-            }
+            <ApplicationTimeline Steps="timeline" />
         </section>
     </section>
 }
+
+@* Fora da gaveta: o diálogo modal não pode ficar dentro do contêiner que prende o Tab *@
+<ConfirmDialog @ref="confirmDialog" />
 
 @code {
     /// <summary>Candidatura aberta; nulo mantém a gaveta fechada.</summary>
@@ -117,10 +158,23 @@
     public EventCallback<ApplicationResponse> OnStatusChanged { get; set; }
 
     private ElementReference drawerElement;
-    private List<(string Status, DateTime Date, string? Note, string? Responsible)> timeline = [];
+    private ConfirmDialog confirmDialog = default!;
+    private IReadOnlyList<ApplicationTimelineStep> timeline = [];
+    private ResumeViewerResponse? attachedResume;
+    private bool resumeLoading;
+    private bool resumeLoadFailed;
+    private Guid? loadedResumeFor;
     private string statusNote = string.Empty;
     private bool isUpdating;
     private bool trapInstalled;
+
+    // LinkedIn só vira link quando é URL absoluta http(s) — texto solto nunca vira href
+    private string? SafeLinkedIn =>
+        attachedResume?.LinkedIn is { } url
+        && Uri.TryCreate(url, UriKind.Absolute, out var uri)
+        && uri.Scheme is "https" or "http"
+            ? uri.ToString()
+            : null;
 
     protected override async Task OnParametersSetAsync()
     {
@@ -128,7 +182,37 @@
         {
             statusNote = string.Empty;
             await LoadTimelineAsync();
+            // Cada candidatura aberta recarrega o currículo anexado (não reusa o da anterior)
+            if (loadedResumeFor != Application.Id)
+            {
+                loadedResumeFor = Application.Id;
+                attachedResume = null;
+                await LoadResumeAsync();
+            }
         }
+        else
+        {
+            loadedResumeFor = null;
+            attachedResume = null;
+        }
+    }
+
+    private async Task LoadResumeAsync()
+    {
+        if (Application?.ResumeId is not { } resumeId)
+            return;
+
+        resumeLoading = true;
+        resumeLoadFailed = false;
+        var result = await ResumeViewer.GetAsync(resumeId);
+        if (result.Status == EResultStatus.Success && result.Data is not null)
+            attachedResume = result.Data;
+        else if (result.Status is not EResultStatus.EntityNotFound)
+        {
+            resumeLoadFailed = true;
+            Logger.LogFailure(result, "Carregar currículo anexado à candidatura");
+        }
+        resumeLoading = false;
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -156,16 +240,34 @@
             new ListApplicationHistoryRequest(Application!.Id, null, advertiserId));
         if (result.Status == EResultStatus.Success)
         {
-            timeline = (result.Data ?? [])
-                .OrderBy(item => item.Date)
-                .Select(item => (item.Status, item.Date, item.Note, item.Responsible))
-                .ToList();
+            // Mesma linha do tempo que o candidato vê em Minhas candidaturas
+            timeline = ApplicationTimelineBuilder.Build(result.Data ?? []);
         }
         else
         {
             Logger.LogFailure(result, "Carregar etapas da candidatura");
             timeline = [];
         }
+    }
+
+    // Não selecionar e arquivar tiram a candidatura do fluxo ativo: pedem confirmação com o nome da pessoa
+    private async Task ConfirmAndChangeAsync(EApplicationStatus newStatus)
+    {
+        if (Application is null || isUpdating)
+            return;
+
+        var rejecting = newStatus == EApplicationStatus.Rejected;
+        var confirmed = await confirmDialog.ShowAsync(new ConfirmOptions
+        {
+            Title = rejecting ? "Marcar como não selecionada?" : "Arquivar candidatura?",
+            Message = rejecting
+                ? $"A candidatura de {Application.CandidateName} para \"{Application.JobTitle}\" ficará como não selecionada, e a pessoa verá essa situação."
+                : $"A candidatura de {Application.CandidateName} sai das candidaturas em andamento desta vaga.",
+            ConfirmText = rejecting ? "Não selecionar" : "Arquivar",
+            Destructive = rejecting
+        });
+        if (confirmed)
+            await ChangeStatusAsync(newStatus);
     }
 
     private async Task ChangeStatusAsync(EApplicationStatus newStatus)

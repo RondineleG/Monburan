@@ -1,6 +1,7 @@
 @page "/"
 @page "/dashboard"
 @rendermode InteractiveServer
+@using Monburan.Core.Catalogs
 @using Monburan.Core.DTOs.Request
 @using Monburan.Core.DTOs.Response
 @using Monburan.Core.Enums
@@ -13,58 +14,136 @@
 @inject GetCandidateProgressUseCase GetCandidateProgressUseCase
 @inject ListRecommendedJobsUseCase ListRecommendedJobsUseCase
 @inject ICurrentUserHelper CurrentUserHelper
-@inject NavigationManager Navigation
 @inject ILogger<Dashboard> Logger
 
-<PageTitle>Dashboard - Monburan | Plataforma de Recrutamento</PageTitle>
+<PageTitle>@(isAnonymous ? "Monburan - Vagas de emprego e recrutamento" : "Início - Monburan")</PageTitle>
 
 <HeadContent>
-    <meta name="description" content="Dashboard Monburan - Acompanhe suas vagas, candidaturas e estatísticas em tempo real." />
-    <meta property="og:title" content="Monburan - Dashboard" />
+    <meta name="description" content="Monburan - Encontre vagas de emprego, acompanhe suas candidaturas ou publique vagas e organize os candidatos." />
+    <meta property="og:title" content="Monburan - Vagas de emprego e recrutamento" />
     <meta property="og:description" content="Plataforma gratuita de recrutamento e seleção" />
     <meta property="og:type" content="website" />
 </HeadContent>
 
-<div class="container-fluid mt-4 dashboard-page">
+<div class="container dashboard-page">
     @if (isAnonymous)
     {
-        <section class="landing-hero">
-            <span class="page-kicker">MONBURAN · TALENTOS QUE FICAM</span>
-            <h1>O trabalho certo muda tudo.</h1>
-            <p>Uma forma mais humana de encontrar oportunidades, contratar melhor e construir o próximo capítulo.</p>
-            <div class="landing-hero__actions">
-                <a class="btn btn-primary btn-lg" href="/Account/Register">Criar conta gratuita</a>
-                <a class="btn btn-outline-primary btn-lg" href="/jobs">Explorar vagas</a>
-            </div>
+        <section class="landing-hero" aria-labelledby="landing-title">
+            <h1 id="landing-title" tabindex="-1">O trabalho certo muda tudo.</h1>
+            <p>Encontre vagas por cargo e cidade, candidate-se de graça e acompanhe cada etapa em um só lugar.</p>
+            @* Busca primeiro: o mesmo formulário GET da lista de vagas *@
+            <form class="jobs-search landing-search" method="get" action="/jobs" role="search" aria-label="Buscar vagas" data-clean-query data-testid="landing-search">
+                <div class="jobs-search__bar">
+                    <label class="search-field">
+                        <Icon Name="search" Size="20" />
+                        <span class="visually-hidden">Cargo, habilidade ou palavra-chave</span>
+                        <input name="q" type="search" maxlength="100" autocomplete="off" enterkeyhint="search" placeholder="Cargo, habilidade ou palavra-chave" />
+                    </label>
+                    <label class="search-field">
+                        <Icon Name="map-pin" Size="20" />
+                        <span class="visually-hidden">Cidade ou estado</span>
+                        <input name="local" type="text" maxlength="80" autocomplete="address-level2" enterkeyhint="search" placeholder="Cidade ou estado" />
+                    </label>
+                    <button type="submit" class="btn btn-cta jobs-search__submit">Buscar vagas</button>
+                </div>
+            </form>
             <ul class="landing-hero__proof">
-                <li><span aria-hidden="true">✓</span> Perfil em um só lugar</li>
-                <li><span aria-hidden="true">⌕</span> Busca sem complicação</li>
-                <li><span aria-hidden="true">◈</span> Ambiente seguro e gratuito</li>
+                <li><Icon Name="check" Size="16" />Vagas abertas a todos, sem login para ler</li>
+                <li><Icon Name="check" Size="16" />Candidatura gratuita</li>
+                <li><Icon Name="check" Size="16" />Acompanhamento de cada etapa</li>
+            </ul>
+        </section>
+
+        @* A página inicial apresenta o portal; a busca completa, com filtros e todas as vagas, fica em /jobs *@
+        <section class="landing-section" aria-labelledby="how-title">
+            <h2 id="how-title">Como funciona</h2>
+            <div class="landing-paths">
+                <article class="landing-path">
+                    <h3><Icon Name="user" Size="20" />Para quem procura trabalho</h3>
+                    <ol class="landing-steps">
+                        <li><strong>Encontre</strong> vagas por cargo, cidade, modalidade e área.</li>
+                        <li><strong>Candidate-se</strong> em poucos passos, com ou sem currículo anexado.</li>
+                        <li><strong>Acompanhe</strong> cada etapa do processo em Minhas candidaturas.</li>
+                    </ol>
+                    <a class="btn btn-primary" href="/Account/Register">Criar conta gratuita</a>
+                </article>
+                <article class="landing-path">
+                    <h3><Icon Name="building" Size="20" />Para empresas</h3>
+                    <ol class="landing-steps">
+                        <li><strong>Publique</strong> a vaga com um passo a passo guiado.</li>
+                        <li><strong>Receba</strong> as candidaturas organizadas por vaga e situação.</li>
+                        <li><strong>Selecione</strong> com o perfil e o currículo de cada pessoa à mão.</li>
+                    </ol>
+                    <a class="btn btn-outline-secondary" href="/Account/Register?AccountType=advertiser">Cadastrar minha empresa</a>
+                </article>
+            </div>
+        </section>
+
+        <section class="landing-section" aria-labelledby="areas-title">
+            <h2 id="areas-title">Explore por área</h2>
+            <ul class="area-links">
+                @foreach (var category in JobCategories.All.Where(c => c != "Outras áreas"))
+                {
+                    <li><a class="area-link" href="@($"/jobs?area={Uri.EscapeDataString(category)}")">@category</a></li>
+                }
             </ul>
         </section>
     }
+    else if (isAdminOnly)
+    {
+        @* Administrador sem perfil de candidato ou empresa: visão própria, sem o convite "Criar conta / Entrar" *@
+        <PageHeader Title="Visão geral" Description="Modere contas e vagas, acompanhe a auditoria e configure os provedores de IA.">
+            <Actions>
+                <a class="btn btn-primary" href="/admin/jobs" data-testid="dashboard-primary">Moderar vagas</a>
+            </Actions>
+        </PageHeader>
+        <nav class="admin-overview" aria-label="Áreas de administração">
+            <a class="admin-overview__item" href="/admin/accounts">
+                <strong>Contas</strong>
+                <span>Ative, inative e desbloqueie contas de candidatos, empresas e administradores.</span>
+            </a>
+            <a class="admin-overview__item" href="/admin/jobs">
+                <strong>Vagas</strong>
+                <span>Revise, oculte ou reprove vagas de todas as empresas.</span>
+            </a>
+            <a class="admin-overview__item" href="/admin/audit">
+                <strong>Auditoria</strong>
+                <span>Veja quem fez cada ação de administração e quando.</span>
+            </a>
+            <a class="admin-overview__item" href="/admin/ai-providers">
+                <strong>Provedores de IA</strong>
+                <span>Cadastre, teste e escolha o provedor usado nas sugestões de currículo.</span>
+            </a>
+        </nav>
+    }
+    else if (isAdvertiser)
+    {
+        @* A ação "Publicar vaga" fica na barra superior em todas as telas da empresa *@
+        <PageHeader Title="Visão geral" Description="Acompanhe suas vagas e as candidaturas recebidas em um só lugar.">
+            <Actions>
+                <a class="btn btn-outline-secondary" href="/received-applications" data-testid="dashboard-primary">Ver candidaturas recebidas</a>
+            </Actions>
+        </PageHeader>
+    }
     else
     {
-        <header class="page-heading">
-            <div class="page-heading__copy">
-                <span class="page-kicker">@(isAdvertiser ? "SEU ESPAÇO MONBURAN" : "SUA JORNADA")</span>
-                <h1>@(isAdvertiser ? "Visão geral" : "Continue sua jornada")</h1>
-                <p>@(isAdvertiser ? "Acompanhe suas vagas e candidaturas em um só lugar." : "Acompanhe suas candidaturas e descubra a próxima oportunidade.")</p>
-            </div>
-        </header>
+        <PageHeader Title="Continue sua jornada" Description="Acompanhe suas candidaturas e descubra a próxima oportunidade.">
+            <Actions>
+                <a class="btn btn-primary" href="/jobs" data-testid="dashboard-primary">Explorar vagas</a>
+            </Actions>
+        </PageHeader>
     }
 
     @if (isLoading)
     {
-        <div class="skeleton-stack" role="status" aria-live="polite" data-testid="loading-state">
-            <span class="visually-hidden">Carregando seus indicadores...</span>
+        <div class="skeleton-stack" role="status" data-testid="loading-state">
+            <span class="visually-hidden">Carregando…</span>
             <div class="skeleton-grid">
                 <SkeletonBlock Height="6.5rem" Radius="var(--r-md)" />
                 <SkeletonBlock Height="6.5rem" Radius="var(--r-md)" />
                 <SkeletonBlock Height="6.5rem" Radius="var(--r-md)" />
                 <SkeletonBlock Height="6.5rem" Radius="var(--r-md)" />
             </div>
-            <SkeletonBlock Height="12rem" Radius="var(--r-md)" />
             <SkeletonBlock Height="12rem" Radius="var(--r-md)" />
         </div>
     }
@@ -74,379 +153,189 @@
                     Message="Tivemos um problema ao buscar seus indicadores. Tente novamente em instantes."
                     OnRetry="LoadAsync" />
     }
-    else if (isAdvertiser)
+    else if (isAdvertiser && analytics is not null)
     {
-        <section class="dashboard-section" aria-label="Indicadores de recrutamento">
-            <div class="row g-3 dashboard-metrics">
-                <div class="col-md-3">
-                    <article class="card dashboard-metric">
-                        <div class="card-body">
-                            <span class="dashboard-metric__icon" aria-hidden="true">▣</span>
-                            <span class="dashboard-metric__label">Total de vagas</span>
-                            <strong class="dashboard-metric__value">@analytics?.TotalJobs</strong>
-                        </div>
-                    </article>
-                </div>
-                <div class="col-md-3">
-                    <article class="card dashboard-metric">
-                        <div class="card-body">
-                            <span class="dashboard-metric__icon" aria-hidden="true">✓</span>
-                            <span class="dashboard-metric__label">Vagas ativas</span>
-                            <strong class="dashboard-metric__value">@analytics?.ActiveJobs</strong>
-                        </div>
-                    </article>
-                </div>
-                <div class="col-md-3">
-                    <article class="card dashboard-metric">
-                        <div class="card-body">
-                            <span class="dashboard-metric__icon" aria-hidden="true">◉</span>
-                            <span class="dashboard-metric__label">Candidatos</span>
-                            <strong class="dashboard-metric__value">@analytics?.TotalCandidates</strong>
-                        </div>
-                    </article>
-                </div>
-                <div class="col-md-3">
-                    <article class="card dashboard-metric">
-                        <div class="card-body">
-                            <span class="dashboard-metric__icon" aria-hidden="true">↗</span>
-                            <span class="dashboard-metric__label">Candidaturas</span>
-                            <strong class="dashboard-metric__value">@analytics?.TotalApplications</strong>
-                        </div>
-                    </article>
-                </div>
+        <section class="mb-4" aria-labelledby="metrics-title">
+            <h2 id="metrics-title" class="visually-hidden">Indicadores de recrutamento</h2>
+            <div class="dashboard-summary dashboard-summary--four">
+                <a class="dashboard-summary__cell" href="/my-jobs">
+                    <strong>@analytics.TotalJobs</strong>
+                    <span>Total de vagas</span>
+                </a>
+                <a class="dashboard-summary__cell" href="/my-jobs">
+                    <strong>@analytics.ActiveJobs</strong>
+                    <span>Vagas ativas</span>
+                </a>
+                <a class="dashboard-summary__cell" href="/received-applications">
+                    <strong>@analytics.TotalCandidates</strong>
+                    <span>Candidatos</span>
+                </a>
+                <a class="dashboard-summary__cell" href="/received-applications">
+                    <strong>@analytics.TotalApplications</strong>
+                    <span>Candidaturas</span>
+                </a>
             </div>
         </section>
 
-        <!-- Gráfico de Vagas por Status -->
-        @if (analytics?.JobsByStatus != null && analytics.JobsByStatus.Any())
-        {
-            <div class="row mb-4">
-                <div class="col">
-                    <div class="card">
-                        <div class="card-body">
-                            <h2 class="card-title">Vagas por situação</h2>
-                            <div class="mt-3">
-                                @foreach (var status in analytics.JobsByStatus)
-                                {
-                                    var percentage = analytics.TotalJobs > 0 ? (status.Value * 100 / analytics.TotalJobs) : 0;
-                                    var bgColor = status.Key switch
-                                    {
-                                        "Active" => "bg-success",
-                                        "Expired" => "bg-danger",
-                                        "Paused" => "bg-warning",
-                                        "Hidden" => "bg-secondary",
-                                        "Rejected" => "bg-dark",
-                                        _ => "bg-primary"
-                                    };
-
-                                    <div class="mb-2">
-                                        <div class="d-flex justify-content-between">
-                                            <span>@GetStatusLabel(status.Key)</span>
-                                            <span>@status.Value (@percentage%)</span>
-                                        </div>
-                                        <div class="progress" style="height: 20px;">
-                                            <div class="progress-bar @bgColor" role="progressbar" style="width: @percentage%" aria-valuenow="@percentage" aria-valuemin="0" aria-valuemax="100"></div>
-                                        </div>
-                                    </div>
-                                }
+        <div class="dashboard-breakdowns">
+            @if (analytics.JobsByStatus is { Count: > 0 })
+            {
+                <section class="card" aria-labelledby="jobs-by-status">
+                    <div class="card-body">
+                        <h2 id="jobs-by-status" class="card-title">Vagas por situação</h2>
+                        @foreach (var status in analytics.JobsByStatus)
+                        {
+                            var percentage = analytics.TotalJobs > 0 ? (status.Value * 100 / analytics.TotalJobs) : 0;
+                            <div class="breakdown-row">
+                                <div class="breakdown-row__label">
+                                    <span>@UiLabels.JobStatusPlural(status.Key)</span>
+                                    <span>@status.Value (@percentage%)</span>
+                                </div>
+                                @* A proporção já está no texto: a barra é só visual *@
+                                <div class="progress" aria-hidden="true">
+                                    <div class="progress-bar @ToneBar(UiLabels.JobStatusTone(status.Key))" style="width: @percentage%"></div>
+                                </div>
                             </div>
-                        </div>
+                        }
                     </div>
-                </div>
-            </div>
-        }
+                </section>
+            }
 
-        <!-- Gráfico de Candidaturas por Status -->
-        @if (analytics?.ApplicationsByStatus != null && analytics.ApplicationsByStatus.Any())
-        {
-            <div class="row mb-4">
-                <div class="col">
-                    <div class="card">
-                        <div class="card-body">
-                            <h2 class="card-title">Candidaturas por situação</h2>
-                            <div class="mt-3">
-                                @foreach (var status in analytics.ApplicationsByStatus)
-                                {
-                                    var percentage = analytics.TotalApplications > 0 ? (status.Value * 100 / analytics.TotalApplications) : 0;
-                                    var bgColor = status.Key switch
-                                    {
-                                        "Sent" => "bg-primary",
-                                        "Viewed" => "bg-info",
-                                        "Selected" => "bg-success",
-                                        "Rejected" => "bg-danger",
-                                        _ => "bg-secondary"
-                                    };
-
-                                    <div class="mb-2">
-                                        <div class="d-flex justify-content-between">
-                                            <span>@GetStatusLabel(status.Key)</span>
-                                            <span>@status.Value (@percentage%)</span>
-                                        </div>
-                                        <div class="progress" style="height: 20px;">
-                                            <div class="progress-bar @bgColor" role="progressbar" style="width: @percentage%" aria-valuenow="@percentage" aria-valuemin="0" aria-valuemax="100"></div>
-                                        </div>
-                                    </div>
-                                }
+            @if (analytics.ApplicationsByStatus is { Count: > 0 })
+            {
+                <section class="card" aria-labelledby="applications-by-status">
+                    <div class="card-body">
+                        <h2 id="applications-by-status" class="card-title">Candidaturas por situação</h2>
+                        @foreach (var status in analytics.ApplicationsByStatus)
+                        {
+                            var percentage = analytics.TotalApplications > 0 ? (status.Value * 100 / analytics.TotalApplications) : 0;
+                            <div class="breakdown-row">
+                                <div class="breakdown-row__label">
+                                    <span>@UiLabels.ApplicationStatusPlural(status.Key)</span>
+                                    <span>@status.Value (@percentage%)</span>
+                                </div>
+                                <div class="progress" aria-hidden="true">
+                                    <div class="progress-bar @ToneBar(UiLabels.ApplicationStatusTone(status.Key))" style="width: @percentage%"></div>
+                                </div>
                             </div>
-                        </div>
+                        }
                     </div>
-                </div>
-            </div>
-        }
+                </section>
+            }
+        </div>
     }
 
     @if (isCandidate && progress is not null)
     {
-        <section class="page-section dashboard-progress" aria-labelledby="progress-title">
+        <section class="dashboard-progress mb-4" aria-labelledby="progress-title">
             <div class="page-section__heading">
-                <div>
-                    <span class="page-kicker">SEU PROGRESSO</span>
-                    <h2 id="progress-title">Continue de onde parou</h2>
-                </div>
+                <h2 id="progress-title">Continue de onde parou</h2>
                 <p class="dashboard-progress__label" data-testid="candidate-progress-label">@CandidateProgressText.Completeness(progress.CompletenessPercent)</p>
             </div>
 
             <div class="progress dashboard-progress__bar" role="progressbar"
                  aria-valuenow="@progress.CompletenessPercent" aria-valuemin="0" aria-valuemax="100"
-                 aria-label="Completude do perfil">
+                 aria-label="Perfil completo">
                 <div class="progress-bar" style="width: @(progress.CompletenessPercent)%"></div>
             </div>
 
-            <div class="row g-3">
-                <div class="col-lg-6">
-                    <article class="card h-100">
-                        <div class="card-body">
-                            <h3 class="h5">Próximos passos</h3>
-                            @if (nextSteps.Count > 0)
-                            {
-                                <ul class="next-steps" data-testid="candidate-next-steps">
-                                    @foreach (var step in nextSteps)
-                                    {
-                                        <li><a href="@step.ActionUrl">@step.Label <span aria-hidden="true">→</span></a></li>
-                                    }
-                                </ul>
-                            }
-                            else
-                            {
-                                <p class="text-muted mb-0">Tudo certo por aqui: seu perfil está completo.</p>
-                            }
-                        </div>
-                    </article>
-                </div>
-                <div class="col-lg-6">
-                    <div class="row g-3 h-100">
-                        <div class="col-6">
-                            <article class="card dashboard-metric h-100">
-                                <div class="card-body">
-                                    <span class="dashboard-metric__label">Candidaturas</span>
-                                    <strong class="dashboard-metric__value">@progress.Applications.Total</strong>
-                                    <small class="dashboard-metric__hint">@InProgressApplications em andamento</small>
-                                </div>
-                            </article>
-                        </div>
-                        <div class="col-6">
-                            <article class="card dashboard-metric h-100">
-                                <div class="card-body">
-                                    <span class="dashboard-metric__label">Selecionadas</span>
-                                    <strong class="dashboard-metric__value">@progress.Applications.Selected</strong>
-                                </div>
-                            </article>
-                        </div>
-                        <div class="col-6">
-                            <a class="card dashboard-metric dashboard-metric--link h-100" href="/my-applications?aba=salvas">
-                                <div class="card-body">
-                                    <span class="dashboard-metric__label">Vagas salvas</span>
-                                    <strong class="dashboard-metric__value">@progress.SavedJobs</strong>
-                                    <small class="dashboard-metric__hint">Ver salvas <span aria-hidden="true">→</span></small>
-                                </div>
-                            </a>
-                        </div>
-                        <div class="col-6">
-                            <a class="card dashboard-metric dashboard-metric--link h-100" href="/my-applications?aba=alertas">
-                                <div class="card-body">
-                                    <span class="dashboard-metric__label">Alertas ativos</span>
-                                    <strong class="dashboard-metric__value">@progress.ActiveAlerts</strong>
-                                    <small class="dashboard-metric__hint">Ver alertas <span aria-hidden="true">→</span></small>
-                                </div>
-                            </a>
-                        </div>
+            <div class="dashboard-candidate">
+                <article class="card">
+                    <div class="card-body">
+                        <h3>Próximos passos</h3>
+                        @if (nextSteps.Count > 0)
+                        {
+                            <ul class="next-steps" data-testid="candidate-next-steps">
+                                @foreach (var step in nextSteps)
+                                {
+                                    <li><a href="@step.ActionUrl">@step.Label<Icon Name="arrow-right" Size="16" /></a></li>
+                                }
+                            </ul>
+                        }
+                        else
+                        {
+                            <p class="text-muted mb-0">Tudo certo por aqui: seu perfil está completo.</p>
+                        }
                     </div>
-                </div>
+                </article>
+                <nav class="dashboard-summary" aria-label="Resumo das suas candidaturas">
+                    <a class="dashboard-summary__cell" href="/my-applications?aba=candidaturas">
+                        <strong>@progress.Applications.Total</strong>
+                        <span>Candidaturas</span>
+                        <small>@InProgressApplications em andamento</small>
+                    </a>
+                    <a class="dashboard-summary__cell" href="/my-applications?aba=candidaturas">
+                        <strong>@progress.Applications.Selected</strong>
+                        <span>Selecionadas</span>
+                    </a>
+                    <a class="dashboard-summary__cell" href="/my-applications?aba=salvas">
+                        <strong>@progress.SavedJobs</strong>
+                        <span>Vagas salvas</span>
+                    </a>
+                    <a class="dashboard-summary__cell" href="/my-applications?aba=alertas">
+                        <strong>@progress.ActiveAlerts</strong>
+                        <span>Alertas ativos</span>
+                    </a>
+                </nav>
             </div>
         </section>
     }
 
-    <section class="page-section dashboard-actions">
-        <div class="page-section__heading">
-            <div>
-                <span class="page-kicker">@(isAnonymous ? "COMECE POR AQUI" : "PRÓXIMOS PASSOS")</span>
-                <h2>Acessos rápidos</h2>
-            </div>
-        </div>        @if (isAdvertiser)
-        {
-            <div class="row g-3">
-                <div class="col-md-4">
-                    <article class="card dashboard-action-card">
-                        <div class="card-body">
-                            <span class="dashboard-action-card__icon" aria-hidden="true">▣</span>
-                            <h3>Minhas vagas</h3>
-                            <p>Revise suas publicações e acompanhe o interesse.</p>
-                            <button class="btn btn-outline-primary" @onclick="NavigateToMyJobs">Acompanhar vagas <span aria-hidden="true">→</span></button>
-                        </div>
-                    </article>
-                </div>
-                <div class="col-md-4">
-                    <article class="card dashboard-action-card dashboard-action-card--featured">
-                        <div class="card-body">
-                            <span class="dashboard-action-card__icon" aria-hidden="true">＋</span>
-                            <h3>Publique uma vaga</h3>
-                            <p>Conte o que você procura e encontre novas pessoas.</p>
-                            <button class="btn btn-primary" @onclick="NavigateToCreateJob">Criar vaga <span aria-hidden="true">↗</span></button>
-                        </div>
-                    </article>
-                </div>
-                <div class="col-md-4">
-                    <article class="card dashboard-action-card">
-                        <div class="card-body">
-                            <span class="dashboard-action-card__icon" aria-hidden="true">◎</span>
-                            <h3>Candidaturas recebidas</h3>
-                            <p>Conheça os profissionais interessados nas suas vagas.</p>
-                            <button class="btn btn-outline-primary" @onclick="NavigateToApplications">Ver candidatos <span aria-hidden="true">→</span></button>
-                        </div>
-                    </article>
-                </div>
-            </div>
-        }
-        else if (isCandidate)
-        {
-            <div class="row g-3">
-                <div class="col-md-4">
-                    <article class="card dashboard-action-card dashboard-action-card--featured">
-                        <div class="card-body">
-                            <span class="dashboard-action-card__icon" aria-hidden="true">⌕</span>
-                            <h3>Explorar vagas</h3>
-                            <p>Encontre oportunidades que combinam com o seu momento.</p>
-                            <button class="btn btn-primary" @onclick="NavigateToJobs">Ver vagas <span aria-hidden="true">→</span></button>
-                        </div>
-                    </article>
-                </div>
-                <div class="col-md-4">
-                    <article class="card dashboard-action-card">
-                        <div class="card-body">
-                            <span class="dashboard-action-card__icon" aria-hidden="true">↗</span>
-                            <h3>Minhas candidaturas</h3>
-                            <p>Acompanhe o retorno das vagas em que você se candidatou.</p>
-                            <button class="btn btn-outline-primary" @onclick="NavigateToMyApplications">Acompanhar <span aria-hidden="true">→</span></button>
-                        </div>
-                    </article>
-                </div>
-                <div class="col-md-4">
-                    <article class="card dashboard-action-card">
-                        <div class="card-body">
-                            <span class="dashboard-action-card__icon" aria-hidden="true">▤</span>
-                            <h3>Meus currículos</h3>
-                            <p>Mantenha seu currículo pronto para se candidatar rápido.</p>
-                            <button class="btn btn-outline-primary" @onclick="NavigateToResumes">Organizar <span aria-hidden="true">→</span></button>
-                        </div>
-                    </article>
-                </div>
-            </div>
-        }
-        else
-        {
-            <div class="row g-3">
-                <div class="col-md-4">
-                    <article class="card dashboard-action-card dashboard-action-card--featured">
-                        <div class="card-body">
-                            <span class="dashboard-action-card__icon" aria-hidden="true">⌕</span>
-                            <h3>Buscar vagas</h3>
-                            <p>Veja as oportunidades abertas agora, sem precisar de conta.</p>
-                            <a class="btn btn-primary" href="/jobs">Explorar vagas <span aria-hidden="true">→</span></a>
-                        </div>
-                    </article>
-                </div>
-                <div class="col-md-4">
-                    <article class="card dashboard-action-card">
-                        <div class="card-body">
-                            <span class="dashboard-action-card__icon" aria-hidden="true">✦</span>
-                            <h3>Candidatos</h3>
-                            <p>Crie seu perfil gratuito e candidate-se em poucos passos.</p>
-                            <a class="btn btn-outline-primary" href="/Account/Register?AccountType=candidate">Criar conta de candidato <span aria-hidden="true">→</span></a>
-                        </div>
-                    </article>
-                </div>
-                <div class="col-md-4">
-                    <article class="card dashboard-action-card">
-                        <div class="card-body">
-                            <span class="dashboard-action-card__icon" aria-hidden="true">▣</span>
-                            <h3>Empresas</h3>
-                            <p>Publique vagas e receba candidaturas organizadas.</p>
-                            <a class="btn btn-outline-primary" href="/Account/Register?AccountType=advertiser">Criar conta de empresa <span aria-hidden="true">→</span></a>
-                        </div>
-                    </article>
-                </div>
-            </div>
-        }
-    </section>
-
-    <!-- Vagas recomendadas para o candidato; sem recomendações, as recentes como fallback -->
-    <div class="row">
-        <div class="col">
-            <div class="d-flex justify-content-between align-items-center mb-3">
-                <h2>@JobsHeading</h2>
-                <a class="btn btn-outline-primary" href="/jobs">
-                    Ver todas as vagas <span aria-hidden="true">→</span>
-                </a>
-            </div>
-        </div>
-    </div>
-
     @if (isCandidate && !hasCareerProfile && !isLoading && !loadFailed)
     {
-        <aside class="promo-strip" aria-label="Perfil de carreira">
-            <span class="promo-strip__tag">Recomendações</span>
+        <aside class="promo-strip mb-4" aria-label="Perfil de carreira">
             <div class="promo-strip__body">
-                <p class="promo-strip__title">Conte o que você procura</p>
-                <p class="promo-strip__text">Preencha o perfil de carreira para receber vagas que combinam com você.</p>
+                <p class="promo-strip__title">Receba vagas que combinam com você</p>
+                <p class="promo-strip__text">Conte o cargo, a cidade e a modalidade que procura no perfil de carreira.</p>
             </div>
-            <a class="btn btn-outline-primary" href="/career-profile">Completar perfil de carreira</a>
+            <a class="btn btn-outline-secondary" href="/career-profile">Completar perfil de carreira</a>
         </aside>
     }
 
-    @if (displayJobs.Count > 0)
+    @if (!isLoading && !loadFailed)
     {
-        <div class="row g-3">
-            @foreach (var job in displayJobs.Take(6))
+        <section class="page-section" aria-labelledby="jobs-title">
+            <div class="page-section__heading">
+                <h2 id="jobs-title">@JobsHeading</h2>
+                @if (displayJobs.Count > 0)
+                {
+                    <a class="btn btn-ghost" href="/jobs">@(openJobsTotal > 0 ? $"Ver as {openJobsTotal} vagas" : "Ver todas as vagas")<Icon Name="arrow-right" Size="16" /></a>
+                }
+            </div>
+
+            @if (displayJobs.Count > 0)
             {
-                <div class="col-md-6 col-lg-4">
-                    <JobCard Job="job" ShowSave="isCandidate" CanSave="isCandidate" SaveReturnUrl="/" />
-                </div>
+                <ul class="jobs-grid">
+                    @foreach (var job in displayJobs.Take(isAnonymous ? 3 : 6))
+                    {
+                        <li><JobCard Job="job" ShowSave="isCandidate" CanSave="isCandidate" SaveReturnUrl="/" /></li>
+                    }
+                </ul>
             }
-        </div>
-    }
-    else if (!isLoading && !loadFailed)
-    {
-        <EmptyState Icon="▣"
-                    Title="@(isAdvertiser ? "Você ainda não publicou vagas" : "Nenhuma vaga disponível no momento")"
-                    Message="@(isAdvertiser ? "Publique sua primeira vaga para começar a receber candidaturas." : "Novas oportunidades são publicadas todos os dias. Volte em breve.")"
-                    TestId="dashboard-jobs-empty">
-            @if (isAdvertiser)
+            else
             {
-                <a class="btn btn-primary" href="/jobs/create">Publicar vaga</a>
+                <EmptyState Icon="briefcase"
+                            Title="@(isAdvertiser ? "Você ainda não publicou vagas" : "Nenhuma vaga disponível no momento")"
+                            Message="@(isAdvertiser ? "Publique sua primeira vaga para começar a receber candidaturas." : "Novas oportunidades são publicadas todos os dias. Volte em breve.")"
+                            TestId="dashboard-jobs-empty">
+                    @if (isAdvertiser)
+                    {
+                        <a class="btn btn-primary" href="/jobs/create">Publicar vaga</a>
+                    }
+                </EmptyState>
             }
-        </EmptyState>
+        </section>
     }
 
     @if (isAdvertiser && !isLoading)
     {
         @* Só anuncia o que os planos entregam de fato: mais vagas ativas simultâneas *@
         <aside class="promo-strip" aria-label="Planos">
-            <span class="promo-strip__tag">Planos</span>
             <div class="promo-strip__body">
                 <p class="promo-strip__title">Precisa de mais vagas abertas?</p>
                 <p class="promo-strip__text">Os planos ampliam quantas vagas você mantém ativas ao mesmo tempo.</p>
             </div>
-            <a class="btn btn-outline-primary" href="/plans">Conhecer planos <span aria-hidden="true">↗</span></a>
+            <a class="btn btn-outline-secondary" href="/plans">Conhecer planos</a>
         </aside>
     }
 </div>
@@ -459,17 +348,19 @@
     private IReadOnlyList<CandidateProgressChecklistItem> nextSteps = [];
     private bool hasCareerProfile;
     private bool isLoading = true;
+    private int openJobsTotal;
     private bool loadFailed;
     private bool isAuthenticated;
     private bool isAdvertiser;
     private bool isCandidate;
     private bool isAnonymous => !isAuthenticated;
+    private bool isAdminOnly;
 
     private List<JobResponse> displayJobs => isCandidate && recommendedJobs.Count > 0 ? recommendedJobs : recentJobs;
 
     private string JobsHeading => isCandidate
         ? (recommendedJobs.Count > 0 ? "Recomendadas para você" : "Vagas recentes")
-        : (isAnonymous ? "Vagas em destaque" : "Vagas recentes");
+        : "Vagas recentes";
 
     private int InProgressApplications =>
         (progress?.Applications.Sent ?? 0) + (progress?.Applications.Viewed ?? 0);
@@ -480,6 +371,7 @@
         var advertiserId = CurrentUserHelper.GetAdvertiserId();
         isAdvertiser = advertiserId.HasValue;
         isCandidate = CurrentUserHelper.GetCandidateId().HasValue;
+        isAdminOnly = isAuthenticated && !isAdvertiser && !isCandidate && CurrentUserHelper.IsAdmin();
 
         await LoadAsync();
     }
@@ -534,6 +426,7 @@
             if (jobsResult.Status == EResultStatus.Success && jobsResult.Data is not null)
             {
                 recentJobs = jobsResult.Data.Jobs.ToList();
+                openJobsTotal = jobsResult.Data.TotalCount;
             }
             else
             {
@@ -545,46 +438,6 @@
         isLoading = false;
     }
 
-    private void NavigateToJobs()
-    {
-        Navigation.NavigateTo("/jobs");
-    }
-
-    private void NavigateToCreateJob()
-    {
-        Navigation.NavigateTo("/jobs/create");
-    }
-
-    private void NavigateToMyJobs()
-    {
-        Navigation.NavigateTo("/my-jobs");
-    }
-
-    private void NavigateToApplications()
-    {
-        Navigation.NavigateTo("/received-applications");
-    }
-
-    private void NavigateToMyApplications()
-    {
-        Navigation.NavigateTo("/my-applications");
-    }
-
-    private void NavigateToResumes()
-    {
-        Navigation.NavigateTo("/resumes");
-    }
-
-    private static string GetStatusLabel(string status) => status switch
-    {
-        "Active" => "Ativas",
-        "Expired" => "Expiradas",
-        "Paused" => "Pausadas",
-        "Hidden" => "Ocultas",
-        "Rejected" => "Rejeitadas",
-        "Sent" => "Enviadas",
-        "Viewed" => "Visualizadas",
-        "Selected" => "Selecionadas",
-        _ => status
-    };
+    // Barra de proporção no tom da situação (o número e a porcentagem estão no texto ao lado)
+    private static string ToneBar(StatusTone tone) => "progress-bar--" + UiLabels.ToneClass(tone)["badge--".Length..];
 }

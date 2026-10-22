@@ -45,6 +45,7 @@ public class ApplicationUserClaimsPrincipalFactory(UserManager<ApplicationUser> 
             {
                 identity.AddClaim(new Claim(ClaimsExtensions.CandidateIdClaimType, candidate.Id.Value.ToString()));
                 identity.AddClaim(new Claim(ClaimsExtensions.UserTypeClaimType, "candidate"));
+                AddDisplayName(identity, candidate.Name);
             }
 
             var advertiser = await applicationDbContext.Advertisers
@@ -56,10 +57,18 @@ public class ApplicationUserClaimsPrincipalFactory(UserManager<ApplicationUser> 
             {
                 identity.AddClaim(new Claim(ClaimsExtensions.AdvertiserIdClaimType, advertiser.Id.Value.ToString()));
                 identity.AddClaim(new Claim(ClaimsExtensions.UserTypeClaimType, "advertiser"));
+                AddDisplayName(identity, advertiser.Name);
             }
         }
 
         return identity;
+    }
+
+    // Nome de exibição (só para a interface: iniciais e identidade no menu); o primeiro perfil encontrado vale
+    private static void AddDisplayName(ClaimsIdentity identity, string name)
+    {
+        if (!string.IsNullOrWhiteSpace(name) && !identity.HasClaim(c => c.Type == ClaimsExtensions.DisplayNameClaimType))
+            identity.AddClaim(new Claim(ClaimsExtensions.DisplayNameClaimType, name.Trim()));
     }
 
     /// <summary>

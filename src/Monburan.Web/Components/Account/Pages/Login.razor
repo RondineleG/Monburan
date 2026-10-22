@@ -14,29 +14,29 @@
 
 <div class="auth-form-page">
     <div class="auth-form-heading">
-        <span class="auth-kicker">ENTRAR NA MONBURAN</span>
         <h1>Boas-vindas de volta</h1>
         <p>Entre para acompanhar suas candidaturas e descobrir novas oportunidades.</p>
     </div>
     <div class="auth-form-grid auth-form-grid--single">
         <section class="auth-form-card">
-            <StatusMessage Message="@errorMessage" />
+            @* Erro local é sempre erro; recado vindo de redirecionamento (ex.: conta excluída) usa o prefixo *@
+            <StatusMessage Message="@errorMessage" IsError="@(errorMessage is null ? (bool?)null : true)" />
             <EditForm Model="Input" method="post" OnValidSubmit="LoginUser" FormName="login">
                 <DataAnnotationsValidator />
                 <div class="form-floating mb-3">
-                    <InputText id="email" @bind-Value="Input.Email" class="form-control" autocomplete="username" aria-required="true" placeholder=" " data-testid="login-email" />
+                    <InputText id="email" @bind-Value="Input.Email" class="form-control" autocomplete="username" aria-required="true" aria-describedby="login-email-error" placeholder=" " data-testid="login-email" />
                     <label for="email" class="form-label">E-mail</label>
-                    <ValidationMessage For="() => Input.Email" class="text-danger" />
+                    <div id="login-email-error"><ValidationMessage For="() => Input.Email" class="text-danger" /></div>
                 </div>
                 <div class="form-floating mb-3">
-                    <InputText id="password" type="password" @bind-Value="Input.Password" class="form-control" autocomplete="current-password" aria-required="true" placeholder=" " data-testid="login-password" />
+                    <InputText id="password" type="password" @bind-Value="Input.Password" class="form-control" autocomplete="current-password" aria-required="true" aria-describedby="login-password-error" placeholder=" " data-testid="login-password" />
                     <label for="password" class="form-label">Senha</label>
-                    <ValidationMessage For="() => Input.Password" class="text-danger" />
+                    <div id="login-password-error"><ValidationMessage For="() => Input.Password" class="text-danger" /></div>
                 </div>
-                <div class="checkbox mb-3">
-                    <label class="form-label">
-                        <InputCheckbox @bind-Value="Input.RememberMe" class="darker-border-checkbox form-check-input" />
-                        Lembrar de mim
+                <div class="mb-3">
+                    <label class="form-check">
+                        <InputCheckbox @bind-Value="Input.RememberMe" class="form-check-input" />
+                        <span class="form-check-label">Lembrar de mim</span>
                     </label>
                 </div>
                 <div>

@@ -35,13 +35,13 @@ public class NotifyJobAlertsOnJobCreatedUseCase : IUseCase<NotifyJobAlertsOnJobC
         _logger = logger;
     }
 
-    public async Task<RequestResult<int>> ExecuteAsync(NotifyJobAlertsOnJobCreatedRequest request)
+    public async Task<RequestResult<int>> ExecuteAsync(NotifyJobAlertsOnJobCreatedRequest request, CancellationToken cancellationToken = default)
     {
         var job = request.Job;
         if (job.Status != EJobStatus.Active || job.ExpirationDate < DateTime.UtcNow)
             return RequestResult<int>.Success(0);
 
-        var alertsResult = await _alerts.ListActiveAsync();
+        var alertsResult = await _alerts.ListActiveAsync(cancellationToken);
         if (alertsResult.Status != EResultStatus.Success || alertsResult.Data is null)
             return RequestResult<int>.FromResult(alertsResult);
 
@@ -60,7 +60,8 @@ public class NotifyJobAlertsOnJobCreatedUseCase : IUseCase<NotifyJobAlertsOnJobC
                     Message = $"Nova vaga para o seu alerta: {alert.Name}",
                     RecipientId = alert.CandidateId.Value.ToString(),
                     Type = ENotificationType.NewJob
-                });
+                },
+                cancellationToken);
                 if (notificationResult.Status != EResultStatus.Success)
                 {
                     _logger.LogWarning("Alerta {AlertId} casou com a vaga {JobId}, mas a notificação falhou: {Detail}",
@@ -69,7 +70,7 @@ public class NotifyJobAlertsOnJobCreatedUseCase : IUseCase<NotifyJobAlertsOnJobC
                 }
 
                 alert.LastMatchedAt = DateTime.UtcNow;
-                var updateResult = await _alerts.UpdateAsync(alert);
+                var updateResult = await _alerts.UpdateAsync(alert, cancellationToken);
                 if (updateResult.Status != EResultStatus.Success)
                 {
                     _logger.LogWarning("Alerta {AlertId} notificado, mas o LastMatchedAt não foi atualizado: {Detail}",

@@ -1,5 +1,6 @@
 @page "/jobs"
 @using System.Globalization
+@using Monburan.Core.Catalogs
 @using Monburan.Core.Enums
 @inject SearchJobsUseCase SearchJobsUseCase
 @inject ICurrentUserHelper CurrentUserHelper
@@ -25,21 +26,9 @@
     }
 </HeadContent>
 
-<div class="container jobs-page">
-    <header class="jobs-header">
-        <div>
-            <span class="page-kicker">OPORTUNIDADES ABERTAS</span>
-            <h1 class="jobs-header__title">Encontre sua próxima vaga</h1>
-        </div>
-        @if (isAdvertiser)
-        {
-            <a class="btn btn-outline-primary" href="/jobs/create">Publicar uma vaga <span aria-hidden="true">↗</span></a>
-        }
-        else if (!isAuthenticated)
-        {
-            <a class="btn btn-outline-primary" href="/Account/Register?AccountType=advertiser">Sou recrutador <span aria-hidden="true">↗</span></a>
-        }
-    </header>
+<div class="jobs-page">
+    @* A empresa publica pela barra superior; o visitante encontra "Para empresas" no rodapé e no fim da lista *@
+    <PageHeader Title="Encontre sua próxima vaga" />
 
     <form id="jobs-search-form" class="jobs-search" method="get" action="/jobs" role="search"
           aria-label="Buscar vagas" data-enhance data-clean-query data-scroll-results data-testid="jobs-search-form">
@@ -75,6 +64,18 @@
                 }
             </fieldset>
 
+            <label class="chip-select@(area.Length > 0 ? " is-active" : string.Empty)">
+                <span class="visually-hidden">Área</span>
+                <select name="area" data-autosubmit data-default="" data-testid="filter-area">
+                    <option value="">Todas as áreas</option>
+                    @foreach (var category in JobCategories.All)
+                    {
+                        <option value="@category" selected="@(area == category)">@category</option>
+                    }
+                </select>
+                <Icon Name="chevron-down" Size="14" />
+            </label>
+
             <label class="chip-select@(salaryFloor.Length > 0 ? " is-active" : string.Empty)">
                 <span class="visually-hidden">Salário mínimo</span>
                 <select name="salario" data-autosubmit data-default="" data-testid="filter-salary">
@@ -100,19 +101,17 @@
 
     @if (loadFailed)
     {
-        <section class="empty-state error-state" role="alert" data-testid="error-state">
-            <span class="empty-state__icon error-state__icon" aria-hidden="true">!</span>
-            <h2>Não foi possível carregar as vagas</h2>
-            <p>Tivemos um problema ao buscar as oportunidades. Tente novamente em instantes.</p>
-            <a class="btn btn-primary" href="@Navigation.Uri" data-enhance-nav="false" data-testid="error-retry">Tentar novamente</a>
-        </section>
+        <ErrorState Title="Não foi possível carregar as vagas"
+                    Message="Tivemos um problema ao buscar as oportunidades. Tente novamente em instantes."
+                    RetryHref="@Navigation.Uri" />
     }
     else
     {
         <section id="jobs-results" class="jobs-results" aria-labelledby="jobs-results-title"
                  data-testid="jobs-results" data-sort="@sortKey" data-mode="@jobType" data-page="@(page)">
             <div class="jobs-results__bar">
-                <div>
+                @* Região viva: a contagem nova é anunciada quando a busca ou o filtro mudam a lista *@
+                <div aria-live="polite" aria-atomic="true">
                     <h2 id="jobs-results-title" class="jobs-results__title" data-testid="jobs-count">@CountText</h2>
                     @if (ContextText is not null)
                     {
@@ -130,7 +129,7 @@
                 </label>
                 @if (isCandidate)
                 {
-                    <a class="btn btn-outline-primary btn-sm" href="@AlertUrl" data-testid="create-job-alert">
+                    <a class="btn btn-outline-secondary btn-sm" href="@AlertUrl" data-testid="create-job-alert">
                         <Icon Name="bell" Size="14" />Criar alerta com esta busca
                     </a>
                 }
@@ -138,61 +137,43 @@
 
             @if (!results.Jobs.Any())
             {
-                <EmptyState Icon="⌕"
-                            Title="Nenhuma vaga encontrada"
-                            Message="Tente outras palavras-chave, remova algum filtro ou volte mais tarde — novas vagas são publicadas todos os dias."
+                <EmptyState Icon="search"
+                            Title="@(isFiltered ? "Nenhuma vaga para esta busca" : "Nenhuma vaga aberta no momento")"
+                            Message="@(isFiltered ? "Tente outras palavras-chave ou remova algum filtro." : "Novas vagas são publicadas todos os dias. Volte em breve.")"
                             TestId="jobs-empty">
                     @if (isFiltered)
                     {
-                        <a class="btn btn-outline-primary" href="/jobs" data-enhance-nav="false">Limpar filtros</a>
+                        <a class="btn btn-outline-secondary" href="/jobs" data-enhance-nav="false">Limpar filtros</a>
                     }
                 </EmptyState>
             }
             else
             {
-                <div class="jobs-grid" data-testid="jobs-grid">
+                <ul class="jobs-grid" data-testid="jobs-grid">
                     @foreach (var job in results.Jobs)
                     {
-                        <JobCard @key="job.Id" Job="job" IsOwner="@(advertiserId.HasValue && job.AdvertiserId == advertiserId.Value)"
-                                 ShowSave="@(!isAdvertiser)" CanSave="isCandidate" SaveReturnUrl="@Navigation.Uri" />
+                        <li @key="job.Id">
+                            <JobCard Job="job" IsOwner="@(advertiserId.HasValue && job.AdvertiserId == advertiserId.Value)"
+                                     ShowSave="@(isCandidate || !isAuthenticated)" CanSave="isCandidate" SaveReturnUrl="@Navigation.Uri" />
+                        </li>
                     }
-                </div>
+                </ul>
 
-                @if (results.TotalPages > 1)
-                {
-                    <nav class="jobs-pagination" aria-label="Paginação das vagas">
-                        <ul class="pagination justify-content-center">
-                            @if (results.HasPreviousPage)
-                            {
-                                <li class="page-item"><a class="page-link" href="@PageUrl(page - 1)" rel="prev" data-scroll-results>Anterior</a></li>
-                            }
-                            @foreach (var number in VisiblePages())
-                            {
-                                <li class="page-item @(number == page ? "active" : string.Empty)">
-                                    <a class="page-link" href="@PageUrl(number)" aria-current="@(number == page ? "page" : null)" data-scroll-results>@number</a>
-                                </li>
-                            }
-                            @if (results.HasNextPage)
-                            {
-                                <li class="page-item"><a class="page-link" href="@PageUrl(page + 1)" rel="next" data-scroll-results>Próxima</a></li>
-                            }
-                        </ul>
-                    </nav>
-                }
-
-                <p class="jobs-footnote">Mostrando @RangeStart–@RangeEnd de @results.TotalCount.ToString("N0", PtBr) @(results.TotalCount == 1 ? "vaga" : "vagas")</p>
+                <Pager Page="page" TotalPages="results.TotalPages" HrefFor="PageUrl"
+                       Total="results.TotalCount" PageSize="PageSize" ItemName="@(results.TotalCount == 1 ? "vaga" : "vagas")"
+                       AriaLabel="Páginas de vagas" />
             }
         </section>
 
-        @if (!isCandidate)
+        @* Convite para empresas só para quem ainda não tem conta: a empresa logada já publica pelo topo *@
+        @if (!isAuthenticated)
         {
             <aside class="promo-strip" aria-label="Para empresas">
-                <span class="promo-strip__tag">Para empresas</span>
                 <div class="promo-strip__body">
                     <p class="promo-strip__title">Sua empresa contratando por aqui</p>
                     <p class="promo-strip__text">Publique vagas gratuitamente e receba candidaturas organizadas em um só lugar.</p>
                 </div>
-                <a class="btn btn-outline-primary" href="/plans">Ver planos <span aria-hidden="true">↗</span></a>
+                <a class="btn btn-outline-secondary" href="/Account/Register?AccountType=advertiser">Cadastrar minha empresa</a>
             </aside>
         }
     }
@@ -222,6 +203,9 @@
     [SupplyParameterFromQuery(Name = "modo")]
     private string? QueryMode { get; set; }
 
+    [SupplyParameterFromQuery(Name = "area")]
+    private string? QueryArea { get; set; }
+
     [SupplyParameterFromQuery(Name = "salario")]
     private string? QuerySalary { get; set; }
 
@@ -238,6 +222,7 @@
     private string searchTerm = string.Empty;
     private string locationText = string.Empty;
     private string jobType = string.Empty;
+    private string area = string.Empty;
     private string salaryFloor = string.Empty;
     private string sortKey = DefaultSort;
     private int page = 1;
@@ -245,12 +230,11 @@
     private ListJobsResponse results = new();
     private bool loadFailed;
     private bool isAuthenticated;
-    private bool isAdvertiser;
     private bool isCandidate;
     private Guid? advertiserId;
 
     private bool isFiltered =>
-        searchTerm.Length > 0 || locationText.Length > 0 || jobType.Length > 0 || salaryFloor.Length > 0;
+        searchTerm.Length > 0 || locationText.Length > 0 || jobType.Length > 0 || area.Length > 0 || salaryFloor.Length > 0;
 
     // Leva a busca atual para o formulário de alerta da área do candidato
     private string AlertUrl
@@ -267,7 +251,7 @@
 
     private string TitleText => searchTerm.Length > 0
         ? $"Vagas de {searchTerm} - Monburan"
-        : "Vagas de emprego - Monburan";
+        : area.Length > 0 ? $"Vagas em {area} - Monburan" : "Vagas de emprego - Monburan";
 
     private string CountText => results.TotalCount switch
     {
@@ -275,10 +259,6 @@
         1 => "1 vaga encontrada",
         var total => $"{total.ToString("N0", PtBr)} vagas encontradas"
     };
-
-    private int RangeStart => (page - 1) * PageSize + 1;
-
-    private int RangeEnd => RangeStart + results.Jobs.Count() - 1;
 
     private string? ContextText
     {
@@ -296,6 +276,8 @@
 
             if (jobType.Length > 0)
                 parts.Add(UiLabels.JobType(jobType));
+            if (area.Length > 0)
+                parts.Add(area);
             if (decimal.TryParse(salaryFloor, NumberStyles.Number, CultureInfo.InvariantCulture, out var floor))
                 parts.Add($"A partir de R$ {JobDisplay.Money(floor)}");
 
@@ -313,7 +295,6 @@
 
         isAuthenticated = CurrentUserHelper.IsAuthenticated();
         advertiserId = CurrentUserHelper.GetAdvertiserId();
-        isAdvertiser = advertiserId.HasValue;
         isCandidate = CurrentUserHelper.GetCandidateId().HasValue;
 
         ReadFilters();
@@ -339,6 +320,8 @@
         searchTerm = (QueryTerm ?? string.Empty).Trim();
         locationText = (QueryLocation ?? string.Empty).Trim();
         jobType = QueryMode is "OnSite" or "Remote" or "Hybrid" ? QueryMode : string.Empty;
+        // Só áreas do catálogo: um valor livre na URL não vira filtro
+        area = JobCategories.All.FirstOrDefault(c => string.Equals(c, QueryArea?.Trim(), StringComparison.OrdinalIgnoreCase)) ?? string.Empty;
         salaryFloor = decimal.TryParse(QuerySalary, NumberStyles.Number, CultureInfo.InvariantCulture, out var floor) && floor > 0
             ? floor.ToString(CultureInfo.InvariantCulture)
             : string.Empty;
@@ -371,6 +354,7 @@
             City = city,
             State = state,
             Type = jobType.Length == 0 ? null : jobType,
+            Category = area.Length == 0 ? null : area,
             SalaryMin = decimal.TryParse(salaryFloor, NumberStyles.Number, CultureInfo.InvariantCulture, out var floor) ? floor : null,
             SortBy = sortBy,
             SortDescending = descending
@@ -390,6 +374,7 @@
         Add("q", searchTerm);
         Add("local", locationText);
         Add("modo", jobType);
+        Add("area", area);
         Add("salario", salaryFloor);
         if (sortKey != DefaultSort)
             Add("ordem", sortKey);
@@ -397,14 +382,5 @@
             Add("pagina", target.ToString(CultureInfo.InvariantCulture));
 
         return "/jobs" + (parts.Count > 0 ? "?" + string.Join('&', parts) : string.Empty);
-    }
-
-    private IEnumerable<int> VisiblePages()
-    {
-        // Até 5 páginas ao redor da atual
-        var total = results.TotalPages;
-        var first = Math.Max(1, Math.Min(page - 2, total - 4));
-        var last = Math.Min(total, first + 4);
-        return Enumerable.Range(first, last - first + 1);
     }
 }

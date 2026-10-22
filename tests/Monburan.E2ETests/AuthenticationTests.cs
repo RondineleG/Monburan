@@ -33,7 +33,7 @@ public class AuthenticationTests : E2ETestBase
         await GotoAsync("/dashboard");
         await WaitForBlazorAsync();
         Assert.True(await Page.GetByTestId("nav-my-jobs").IsVisibleAsync());
-        Assert.Contains("SEU ESPAÇO MONBURAN", await Page.Locator("body").InnerTextAsync());
+        Assert.Contains("Ver candidaturas recebidas", await Page.Locator("body").InnerTextAsync());
     }
 
     [Fact]
@@ -41,6 +41,10 @@ public class AuthenticationTests : E2ETestBase
     {
         await GotoAsync("/Account/Login");
         await Page.GetByTestId("login-submit").ClickAsync();
+
+        // A validação é renderizada pelo circuito Blazor depois do clique: sem esperar a
+        // mensagem aparecer, a leitura do corpo pegava a página ainda sem a mensagem.
+        await Page.GetByText("Informe seu e-mail.").WaitForAsync();
 
         var body = await Page.Locator("body").InnerTextAsync();
         Assert.Contains("Informe seu e-mail.", body);
@@ -54,6 +58,10 @@ public class AuthenticationTests : E2ETestBase
     {
         await GotoAsync("/Account/Register");
         await Page.GetByTestId("register-submit").ClickAsync();
+
+        // A validação é renderizada pelo circuito Blazor depois do clique: sem esperar a
+        // mensagem aparecer, a leitura do corpo pegava a página ainda sem a mensagem.
+        await Page.GetByText("Informe seu e-mail.").WaitForAsync();
 
         var body = await Page.Locator("body").InnerTextAsync();
         Assert.Contains("Já tem uma conta?", body);

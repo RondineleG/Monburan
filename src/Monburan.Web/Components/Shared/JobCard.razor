@@ -26,7 +26,7 @@
         </div>
         @if (isNew)
         {
-            <span class="job-flag">Nova</span>
+            <span class="job-flag status-badge badge--ok">Nova</span>
         }
     </div>
 
@@ -118,6 +118,6 @@
         isNew = JobDisplay.IsNew(Job.CreatedAt);
         salary = JobDisplay.Salary(Job);
         closing = JobDisplay.ClosingNotice(Job.ExpirationDate);
-        tags = JobDisplay.Tags(Job.Tags, 3);
+        tags = JobDisplay.Tags(Job.Tags, 3, exclude: Job.Category);
     }
 }

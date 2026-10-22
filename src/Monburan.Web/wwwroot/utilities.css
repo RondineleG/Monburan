@@ -1,0 +1,61 @@
+/* ============================================================
+   Utilitários (nomes do Bootstrap, que não é carregado). Camada utilities: vencem componentes
+   sem precisar de !important. Só os que a marcação usa; prefira o componente ao utilitário.
+   ============================================================ */
+@layer utilities {
+    .d-flex { display: flex; }
+    .d-grid { display: grid; }
+    .d-block { display: block; }
+    .d-inline-block { display: inline-block; }
+    .flex-column { flex-direction: column; }
+    .flex-wrap { flex-wrap: wrap; }
+    .flex-grow-1 { flex-grow: 1; }
+    .align-items-center { align-items: center; }
+    .align-items-start { align-items: flex-start; }
+    .align-items-end { align-items: flex-end; }
+    .justify-content-between { justify-content: space-between; }
+    .justify-content-center { justify-content: center; }
+    .justify-content-end { justify-content: flex-end; }
+    .gap-2 { gap: var(--s-2); }
+    .w-100 { width: 100%; }
+    .h-100 { height: 100%; }
+
+    .mt-1 { margin-top: var(--s-1); }
+    .mt-2 { margin-top: var(--s-2); }
+    .mt-3 { margin-top: var(--s-4); }
+    .mt-4 { margin-top: var(--s-6); }
+    .mb-0 { margin-bottom: 0; }
+    .mb-1 { margin-bottom: var(--s-1); }
+    .mb-2 { margin-bottom: var(--s-2); }
+    .mb-3 { margin-bottom: var(--s-4); }
+    .mb-4 { margin-bottom: var(--s-6); }
+    .mb-5 { margin-bottom: var(--s-12); }
+    .my-4 { margin-block: var(--s-6); }
+    .me-2 { margin-right: var(--s-2); }
+    .ms-2 { margin-left: var(--s-2); }
+    .ms-3 { margin-left: var(--s-4); }
+    .mx-auto { margin-inline: auto; }
+    .p-0 { padding: 0; }
+    .p-5 { padding: clamp(var(--s-5), 4vw, var(--s-12)); }
+
+    .text-center { text-align: center; }
+    .text-nowrap { white-space: nowrap; }
+    .small { font-size: var(--fs-sm); }
+    .fs-5 { font-size: var(--fs-xl); }
+    .fw-semibold { font-weight: var(--fw-semibold); }
+    .text-muted { color: var(--tx-2); }
+    .text-danger { color: var(--er); }
+    .text-success { color: var(--ok); }
+    .text-info { color: var(--info-tx); }
+    .text-primary { color: var(--gold-d); }
+
+    .h3 { font-size: var(--fs-xl); font-weight: var(--fw-bold); line-height: var(--lh-snug); }
+    .h4 { font-size: var(--fs-lg); font-weight: var(--fw-bold); line-height: var(--lh-snug); }
+    .h5 { font-size: var(--fs-lg); font-weight: var(--fw-semibold); line-height: var(--lh-snug); }
+    .h6 { font-size: var(--fs-md); font-weight: var(--fw-semibold); line-height: var(--lh-snug); }
+
+    .rounded-circle { border-radius: 50%; }
+    .img-thumbnail { padding: var(--s-1); border: 1px solid var(--border); border-radius: var(--r-sm); background: var(--bg-card); }
+    .bg-transparent { background: transparent; }
+    .shadow-sm { box-shadow: var(--shadow-sm); }
+}

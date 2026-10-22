@@ -13,10 +13,15 @@ public class Subscription : BaseEntity
         InitializeNewEntity();
     }
 
-    [Required]
-    public Id AdvertiserId { get; set; } = Id.Empty;
+    /// <summary>Dono empresa da assinatura. Exatamente um de <c>AdvertiserId</c>/<c>CandidateId</c> é preenchido.</summary>
+    public Id? AdvertiserId { get; set; }
 
     public virtual Advertiser? Advertiser { get; set; }
+
+    /// <summary>Dono candidato da assinatura (planos com <see cref="EPlanAudience.Candidate"/>).</summary>
+    public Id? CandidateId { get; set; }
+
+    public virtual Candidate? Candidate { get; set; }
 
     [Required]
     public Id PlanId { get; set; } = Id.Empty;

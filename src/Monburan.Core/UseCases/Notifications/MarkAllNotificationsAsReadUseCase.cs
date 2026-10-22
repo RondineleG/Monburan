@@ -16,11 +16,11 @@ public class MarkAllNotificationsAsReadUseCase : IUseCase<string, int>
         _notificationRepository = notificationRepository;
     }
 
-    public Task<RequestResult<int>> ExecuteAsync(string recipientId)
+    public Task<RequestResult<int>> ExecuteAsync(string recipientId, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(recipientId))
             return Task.FromResult(RequestResult<int>.WithValidationError("ID do destinatário é obrigatório.", "RecipientId"));
 
-        return _notificationRepository.MarkAllAsReadAsync(recipientId);
+        return _notificationRepository.MarkAllAsReadAsync(recipientId, cancellationToken);
     }
 }

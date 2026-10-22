@@ -29,14 +29,14 @@ internal sealed class FakeAiProviderRepository : IAiProviderRepository
         return provider;
     }
 
-    public Task<RequestResult<AiProvider>> CreateAsync(AiProvider entity)
+    public Task<RequestResult<AiProvider>> CreateAsync(AiProvider entity, CancellationToken cancellationToken = default)
     {
         CreateCalls++;
         _items.Add(entity);
         return Task.FromResult(RequestResult<AiProvider>.Success(entity));
     }
 
-    public Task<RequestResult<AiProvider>> DeleteAsync(Id id)
+    public Task<RequestResult<AiProvider>> DeleteAsync(Id id, CancellationToken cancellationToken = default)
     {
         var provider = Find(id);
         if (provider is null)
@@ -48,10 +48,10 @@ internal sealed class FakeAiProviderRepository : IAiProviderRepository
         return Task.FromResult(RequestResult<AiProvider>.Success(provider));
     }
 
-    public Task<RequestResult<IEnumerable<AiProvider>>> GetAllAsync(int page, int size) =>
+    public Task<RequestResult<IEnumerable<AiProvider>>> GetAllAsync(int page, int size, CancellationToken cancellationToken = default) =>
         Task.FromResult(RequestResult<IEnumerable<AiProvider>>.Success(Items));
 
-    public Task<RequestResult<AiProvider>> GetByIdAsync(Id id)
+    public Task<RequestResult<AiProvider>> GetByIdAsync(Id id, CancellationToken cancellationToken = default)
     {
         var provider = Find(id);
         return Task.FromResult(provider is null
@@ -59,7 +59,7 @@ internal sealed class FakeAiProviderRepository : IAiProviderRepository
             : RequestResult<AiProvider>.Success(provider));
     }
 
-    public Task<RequestResult<AiProvider>> UpdateAsync(AiProvider entity)
+    public Task<RequestResult<AiProvider>> UpdateAsync(AiProvider entity, CancellationToken cancellationToken = default)
     {
         UpdateCalls++;
         var provider = Find(entity.Id);
@@ -68,18 +68,18 @@ internal sealed class FakeAiProviderRepository : IAiProviderRepository
             : RequestResult<AiProvider>.Success(provider));
     }
 
-    public Task<RequestResult<IEnumerable<AiProvider>>> ListAsync() =>
+    public Task<RequestResult<IEnumerable<AiProvider>>> ListAsync(CancellationToken cancellationToken = default) =>
         Task.FromResult(RequestResult<IEnumerable<AiProvider>>.Success(
             Items.OrderByDescending(provider => provider.IsDefault).ThenBy(provider => provider.Name).ToList()));
 
-    public Task<bool> NameExistsAsync(string name, Id? exceptId = null) =>
+    public Task<bool> NameExistsAsync(string name, Id? exceptId = null, CancellationToken cancellationToken = default) =>
         Task.FromResult(Items.Any(provider =>
             string.Equals(provider.Name, name.Trim(), StringComparison.OrdinalIgnoreCase)
             && (exceptId is null || provider.Id != exceptId)));
 
-    public Task<int> CountAsync() => Task.FromResult(Items.Count);
+    public Task<int> CountAsync(CancellationToken cancellationToken = default) => Task.FromResult(Items.Count);
 
-    public Task<RequestResult<AiProvider>> SetDefaultAsync(Id id, string updatedBy)
+    public Task<RequestResult<AiProvider>> SetDefaultAsync(Id id, string updatedBy, CancellationToken cancellationToken = default)
     {
         SetDefaultCalls++;
         LastSetDefaultBy = updatedBy;

@@ -108,7 +108,7 @@ public class AdvertiserFlowTests : E2ETestBase
         await WaitForBlazorAsync();
 
         var body = await Page.Locator("body").InnerTextAsync();
-        Assert.Contains("SEU ESPAÇO MONBURAN", body, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Ver candidaturas recebidas", body, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("Total de vagas", body, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("SUA JORNADA", body, StringComparison.OrdinalIgnoreCase);
     }

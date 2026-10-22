@@ -9,38 +9,23 @@
 @using Monburan.Core.ValueObjects
 @using Monburan.Web.Services
 @inject ListResumesByCandidateUseCase ListResumesByCandidateUseCase
-@inject CreateResumeUseCase CreateResumeUseCase
-@inject IBaseRepository<Candidate> CandidateRepository
 @inject ICurrentUserHelper CurrentUserHelper
 @inject ILogger<ResumeList> Logger
 
-<PageTitle>Meus Currículos - Monburan</PageTitle>
+<PageTitle>Meus currículos - Monburan</PageTitle>
 
-<div class="container mt-4 resumes-page">
-    <header class="page-heading">
-        <div class="page-heading__copy">
-            <span class="page-kicker">MINHA CARREIRA</span>
-            <h1>Meus currículos</h1>
-            <p>Mantenha seu perfil profissional atualizado para cada oportunidade.</p>
-        </div>
-        <div class="d-flex gap-2">
-            <a class="btn btn-secondary" href="/resumes/upload"><i class="bi bi-upload"></i> Importar PDF</a>
-            <button class="btn btn-primary" @onclick="CreateResume">Novo currículo <span aria-hidden="true">↗</span></button>
-        </div>
-    </header>
-
-    @if (baseResumeGenerated)
-    {
-        <div class="alert alert-success alert-dismissible fade show" role="status">
-            Criamos um <strong>currículo base</strong> com os dados do seu perfil. Complete-o com experiências e habilidades para se destacar.
-            <button type="button" class="btn-close" aria-label="Fechar" @onclick="() => baseResumeGenerated = false"></button>
-        </div>
-    }
+<div class="container resumes-page">
+    <PageHeader Title="Meus currículos" Description="Mantenha seu perfil profissional atualizado para cada oportunidade.">
+        <Actions>
+            <a class="btn btn-primary" href="/resumes/wizard" data-testid="resume-new"><Icon Name="plus" Size="16" />Novo currículo</a>
+            <a class="btn btn-outline-secondary" href="/resumes/upload" data-testid="resume-import"><Icon Name="upload" Size="16" />Importar PDF</a>
+        </Actions>
+    </PageHeader>
 
     @if (isLoading)
     {
         <div class="skeleton-stack" role="status" aria-live="polite" data-testid="loading-state">
-            <span class="visually-hidden">Carregando currículos...</span>
+            <span class="visually-hidden">Carregando currículos…</span>
             <SkeletonCard />
             <SkeletonCard />
         </div>
@@ -53,44 +38,42 @@
     }
     else if (resumes?.Any() == true)
     {
-        <div class="row g-3">
+        <div class="resume-list" data-testid="resume-list">
             @foreach (var resume in resumes)
             {
-                <div class="col-md-6 col-lg-4">
-                    <div class="card h-100 @(resume.IsActive ? "border-success" : "")">
-                        <div class="card-body">
-                            @if (resume.IsActive)
-                            {
-                                <span class="badge bg-success mb-2">Ativo</span>
-                            }
-                            <h5 class="card-title">@resume.Title</h5>
-                            @if (!string.IsNullOrEmpty(resume.Summary))
-                            {
-                                <p class="card-text text-muted small">
-                                    @(resume.Summary.Length > 100 ? resume.Summary.Substring(0, 100) + "..." : resume.Summary)
-                                </p>
-                            }
-                            <p class="card-text small text-muted">
-                                Criado em: @UiLabels.FormatMomentDate(resume.CreatedAt)
-                            </p>
-                        </div>
-                        <div class="card-footer bg-transparent">
-                            <button class="btn btn-outline-primary btn-sm w-100" @onclick="() => ViewResume(resume.Id)">
-                                <i class="bi bi-eye"></i> Ver Currículo
-                            </button>
-                        </div>
+                <article class="resume-row">
+                    <span class="resume-row__icon" aria-hidden="true"><Icon Name="file" Size="20" /></span>
+                    <div class="resume-row__body">
+                        <h2 class="resume-row__title"><a href="@($"/resumes/{resume.Id}")">@resume.Title</a>
+                            <StatusBadge Text="@(resume.IsActive ? "Ativo" : "Inativo")" Tone="@(resume.IsActive ? StatusTone.Ok : StatusTone.Neutral)" />
+                        </h2>
+                        @if (!string.IsNullOrEmpty(resume.Summary))
+                        {
+                            <p class="resume-row__summary">@resume.Summary</p>
+                        }
+                        <p class="resume-row__meta">
+                            @CountLabel(resume.ExperienceHistory?.Count ?? 0, "experiência", "experiências") · @CountLabel(resume.EducationHistory?.Count ?? 0, "formação", "formações") · @CountLabel(resume.Skills?.Count ?? 0, "habilidade", "habilidades")
+                            · atualizado @UiLabels.FormatMomentDate(resume.UpdatedAt ?? resume.CreatedAt)
+                        </p>
                     </div>
-                </div>
+                    <div class="resume-row__actions">
+                        @* Nome acessível com o título: vários "Editar" iguais na lista não dizem qual currículo *@
+                        <a class="btn btn-outline-secondary btn-sm" href="/resumes/@resume.Id/edit" aria-label="@($"Editar o currículo {resume.Title}")">Editar</a>
+                        <a class="btn btn-outline-secondary btn-sm" href="/resumes/@resume.Id/cv" aria-label="@($"Ver CV do currículo {resume.Title}")">Ver CV</a>
+                        <a class="btn btn-outline-secondary btn-sm" href="/resumes/@resume.Id?melhorar=true" aria-label="@($"Melhorar o currículo {resume.Title}")">Melhorar</a>
+                    </div>
+                </article>
             }
         </div>
     }
     else
     {
-        <EmptyState Icon="▤"
+        <EmptyState Icon="file"
                     Title="Nenhum currículo criado"
                     Message="Crie seu primeiro currículo para se candidatar às vagas com mais chances."
                     TestId="resumes-empty">
-            <button class="btn btn-primary" @onclick="CreateResume">Criar meu primeiro currículo</button>
+            <a class="btn btn-primary" href="/resumes/wizard">Novo currículo</a>
+            <a class="btn btn-outline-secondary" href="/resumes/upload">Importar PDF</a>
         </EmptyState>
     }
 </div>
@@ -99,7 +82,6 @@
     private List<ResumeResponse>? resumes;
     private bool isLoading = true;
     private bool loadFailed;
-    private bool baseResumeGenerated;
 
     protected override Task OnInitializedAsync() => LoadAsync();
 
@@ -127,66 +109,10 @@
 
         resumes = result.Data?.ToList();
 
-        if (resumes is null || resumes.Count == 0)
-        {
-            await GenerateBaseResumeAsync(candidateId.Value);
-        }
-
+        // Sem currículo criado em leitura: criar/importar é sempre ação explícita da pessoa
         isLoading = false;
     }
 
-    private async Task GenerateBaseResumeAsync(Guid candidateId)
-    {
-        var candidateResult = await CandidateRepository.GetByIdAsync(Id.Create(candidateId));
-        if (candidateResult.Status != EResultStatus.Success || candidateResult.Data is null)
-            return;
-
-        var c = candidateResult.Data;
-        var location = c.Address is not null
-            ? string.Join(" - ", new[] { c.Address.City, c.Address.State }.Where(s => !string.IsNullOrWhiteSpace(s)))
-            : null;
-
-        var summaryParts = new List<string>
-        {
-            $"{c.Name}",
-            $"E-mail: {c.Email}"
-        };
-        if (!string.IsNullOrWhiteSpace(c.Phone)) summaryParts.Add($"Telefone: {c.Phone}");
-        if (!string.IsNullOrWhiteSpace(location)) summaryParts.Add($"Localização: {location}");
-        if (!string.IsNullOrWhiteSpace(c.LinkedIn)) summaryParts.Add($"LinkedIn: {c.LinkedIn}");
-
-        var createResult = await CreateResumeUseCase.ExecuteAsync(new CreateResumeRequest
-        {
-            CandidateId = candidateId,
-            Title = $"Currículo de {c.Name}",
-            Summary = string.Join("\n", summaryParts) + "\n\nResumo profissional:\n(Descreva aqui seus objetivos e principais qualificações)",
-            IsActive = true
-        });
-
-        if (createResult.Status != EResultStatus.Success)
-        {
-            // Sem currículo base a tela mostra o estado vazio com o botão de criar
-            Logger.LogFailure(createResult, "Gerar currículo base");
-        }
-        else
-        {
-            baseResumeGenerated = true;
-            var reload = await ListResumesByCandidateUseCase.ExecuteAsync(candidateId);
-            if (reload.Status == EResultStatus.Success)
-                resumes = reload.Data?.ToList();
-        }
-    }
-
-    private void CreateResume()
-    {
-        Navigation.NavigateTo("/resumes/new");
-    }
-
-    private void ViewResume(Guid resumeId)
-    {
-        Navigation.NavigateTo($"/resumes/{resumeId}");
-    }
-
-    [Inject]
-    private NavigationManager Navigation { get; set; } = default!;
+    private static string CountLabel(int count, string singular, string plural) =>
+        $"{count} {(count == 1 ? singular : plural)}";
 }

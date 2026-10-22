@@ -14,7 +14,7 @@
 @inject IdentityRedirectManager RedirectManager
 @inject ILogger<EnableAuthenticator> Logger
 
-<PageTitle>Configurar aplicativo autenticador</PageTitle>
+<PageTitle>Configurar aplicativo autenticador - Monburan</PageTitle>
 
 @if (recoveryCodes is not null)
 {
@@ -22,8 +22,8 @@
 }
 else
 {
-    <StatusMessage Message="@message" />
-    <h3>Configurar aplicativo autenticador</h3>
+    <h2>Configurar aplicativo autenticador</h2>
+    <StatusMessage Message="@message" IsError="@isError" />
     <div>
         <p>Para usar um aplicativo autenticador, siga os passos:</p>
         <ol class="list">
@@ -53,9 +53,9 @@ else
                     <div class="col-md-6">
                         <EditForm Model="Input" FormName="send-code" OnValidSubmit="OnValidSubmitAsync" method="post">
                             <DataAnnotationsValidator />
-                            <div class="form-floating mb-3">
-                                <InputText id="code" @bind-Value="Input.Code" class="form-control" autocomplete="off" placeholder="Digite o código" />
-                                <label for="code" class="control-label form-label">Código de verificação</label>
+                            <div class="mb-3">
+                                <label for="code" class="form-label">Código de verificação</label>
+                                <InputText id="code" @bind-Value="Input.Code" class="form-control" autocomplete="one-time-code" inputmode="numeric" placeholder="000000" />
                                 <ValidationMessage For="() => Input.Code" class="text-danger" />
                             </div>
                             <button type="submit" class="w-100 btn btn-lg btn-primary">Verificar</button>
@@ -72,6 +72,7 @@ else
     private const string AuthenticatorUriFormat = "otpauth://totp/{0}:{1}?secret={2}&issuer={0}&digits=6";
 
     private string? message;
+    private bool isError;
     private ApplicationUser user = default!;
     private string? sharedKey;
     private string? authenticatorUri;
@@ -107,6 +108,7 @@ else
         if (!is2faTokenValid)
         {
             message = "Erro: código de verificação inválido.";
+            isError = true;
             return;
         }
 
@@ -133,7 +135,13 @@ else
         var unformattedKey = await UserManager.GetAuthenticatorKeyAsync(user);
         if (string.IsNullOrEmpty(unformattedKey))
         {
-            await UserManager.ResetAuthenticatorKeyAsync(user);
+            var resetResult = await UserManager.ResetAuthenticatorKeyAsync(user);
+            if (resetResult.Succeeded)
+            {
+                // Gerar a chave troca o security stamp: sem renovar o cookie, o validador
+                // derrubaria a sessão no meio da configuração
+                await SignInManager.RefreshSignInAsync(user);
+            }
             unformattedKey = await UserManager.GetAuthenticatorKeyAsync(user);
         }
 

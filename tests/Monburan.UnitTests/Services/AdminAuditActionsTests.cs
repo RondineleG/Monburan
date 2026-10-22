@@ -20,7 +20,7 @@ public class AdminAuditActionsTests
     {
         AdminAuditActions.All.Should().BeEquivalentTo(
             "account.deactivated", "account.activated", "account.unlocked", "account.email_confirmed", "account.sessions_revoked",
-            "account.two_factor_reset", "account.admin_granted", "account.admin_revoked", "job.status_changed", "job.deleted",
+            "account.two_factor_reset", "account.admin_granted", "account.admin_revoked", "account.plan_changed", "job.status_changed", "job.deleted",
             "ai_provider.saved", "ai_provider.default_changed", "ai_provider.deleted");
     }
 

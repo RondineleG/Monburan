@@ -37,6 +37,11 @@ public sealed class CurrentUserHelper : ICurrentUserHelper
         return User?.GetUserType() ?? string.Empty;
     }
 
+    public string GetDisplayName()
+    {
+        return User?.Identity?.Name ?? string.Empty;
+    }
+
     public bool IsAuthenticated()
     {
         return User?.Identity?.IsAuthenticated ?? false;

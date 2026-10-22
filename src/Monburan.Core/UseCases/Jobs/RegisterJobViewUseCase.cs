@@ -18,15 +18,15 @@ public class RegisterJobViewUseCase : IUseCase<RegisterJobViewRequest, bool>
         _jobs = jobs;
     }
 
-    public async Task<RequestResult<bool>> ExecuteAsync(RegisterJobViewRequest request)
+    public async Task<RequestResult<bool>> ExecuteAsync(RegisterJobViewRequest request, CancellationToken cancellationToken = default)
     {
-        var jobResult = await _jobs.GetByIdAsync(Id.Create(request.JobId));
+        var jobResult = await _jobs.GetByIdAsync(Id.Create(request.JobId), cancellationToken);
         if (jobResult.Status != EResultStatus.Success || jobResult.Data is null)
             return RequestResult<bool>.EntityNotFound("Job", request.JobId, "Vaga não encontrada.");
 
         if (request.ViewerId.HasValue && jobResult.Data.AdvertiserId.Value == request.ViewerId.Value)
             return RequestResult<bool>.Success(true);
 
-        return await _jobs.IncrementViewsAsync(request.JobId);
+        return await _jobs.IncrementViewsAsync(request.JobId, cancellationToken);
     }
 }

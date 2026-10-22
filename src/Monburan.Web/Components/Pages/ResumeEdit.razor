@@ -13,17 +13,13 @@
 @inject IToastService Toast
 @inject ILogger<ResumeEdit> Logger
 
-<PageTitle>Editar Currículo - Monburan</PageTitle>
+<PageTitle>Editar currículo - Monburan</PageTitle>
 
-<div class="container mt-4 page-form-shell resume-edit-page">
-    <header class="page-heading">
-        <div class="page-heading__copy">
-            <span class="page-kicker">MINHA CARREIRA</span>
-            <h1>Editar currículo</h1>
-            <p>Melhore seu currículo: complete as seções e mantenha as informações atualizadas.</p>
-        </div>
-        <button class="btn btn-secondary" @onclick="Cancel">Cancelar</button>
-    </header>
+<UnsavedChangesGuard HasChanges="HasUnsavedChanges" />
+
+<div class="container page-form-shell resume-edit-page">
+    <PageHeader Title="Editar currículo" Description="Melhore seu currículo: complete as seções e mantenha as informações atualizadas."
+                BackHref="@($"/resumes/{ResumeId}")" BackText="Voltar ao currículo" />
     <div class="row">
         <div class="col-lg-9 mx-auto">
 
@@ -36,7 +32,7 @@
 
             @if (isLoading)
             {
-                <LoadingState Message="Carregando currículo..." />
+                <LoadingState Message="Carregando currículo…" />
             }
             else if (loadFailed)
             {
@@ -46,7 +42,7 @@
             }
             else if (!isOwner)
             {
-                <EmptyState Icon="!" Title="Currículo não disponível" Message="Ele não existe mais ou pertence a outra pessoa.">
+                <EmptyState Icon="alert" Title="Currículo não disponível" Message="Ele não existe mais ou pertence a outra pessoa.">
                     <a class="btn btn-primary" href="/resumes">Voltar para meus currículos</a>
                 </EmptyState>
             }
@@ -58,32 +54,32 @@
                         <DataAnnotationsValidator />
                         <ServerValidationErrors @ref="serverErrors" />
 
-                        <h5 class="mb-3"><i class="bi bi-info-circle"></i> Informações Básicas</h5>
+                        <p class="form-required-note">Campos com * são obrigatórios.</p>
+
+                        <h2 class="form-section-title">Informações básicas</h2>
 
                         <div class="mb-3">
-                            <label class="form-label" for="model.Title">Título do Currículo *</label>
+                            <label class="form-label" for="model.Title">Título do currículo *</label>
                             <InputText class="form-control" @bind-Value="model.Title" id="model.Title" data-testid="resume-title-input" />
-                            <ValidationMessage class="text-danger" For="@(() => model.Title)" />
+                            <ValidationMessage For="@(() => model.Title)" />
                         </div>
 
                         <div class="mb-3">
-                            <label class="form-label" for="model.Summary">Resumo Profissional</label>
-                            <InputTextArea class="form-control" @bind-Value="model.Summary" id="model.Summary" rows="5" data-testid="resume-summary-input" />
-                            <ValidationMessage class="text-danger" For="@(() => model.Summary)" />
-                            <div class="form-text">Máximo 2000 caracteres</div>
+                            <label class="form-label" for="model.Summary">Resumo profissional</label>
+                            <div class="form-text" id="model-summary-hint">Máximo de 2000 caracteres.</div>
+                            <InputTextArea class="form-control" @bind-Value="model.Summary" id="model.Summary" rows="5" aria-describedby="model-summary-hint" data-testid="resume-summary-input" />
+                            <ValidationMessage For="@(() => model.Summary)" />
                         </div>
 
-                        <div class="mb-3 form-check">
+                        <label class="form-check mb-3" for="model.IsActive">
                             <InputCheckbox class="form-check-input" @bind-Value="model.IsActive" id="model.IsActive" />
-                            <label class="form-check-label" for="model.IsActive">Definir como currículo ativo</label>
-                        </div>
+                            <span class="form-check-label">Definir como currículo ativo</span>
+                        </label>
 
-                        <hr class="my-4" />
-
-                        <div class="resume-section">
-                            <div class="resume-section__head">
-                                <h5><i class="bi bi-briefcase"></i> Experiência Profissional</h5>
-                                <button type="button" class="btn btn-outline-primary btn-sm" @onclick="AddExperience">+ Adicionar</button>
+                        <section class="resume-section" aria-labelledby="resume-edit-experiences">
+                            <div class="resume-section__head form-section-title">
+                                <h2 class="h5" id="resume-edit-experiences">Experiência profissional</h2>
+                                <button type="button" class="btn btn-outline-secondary btn-sm" @onclick="AddExperience"><Icon Name="plus" Size="16" />Adicionar experiência</button>
                             </div>
                             @for (var i = 0; i < experiences.Count; i++)
                             {
@@ -92,28 +88,31 @@
                                 <div class="resume-item">
                                     <div class="row g-2">
                                         <div class="col-md-6">
-                                            <input class="form-control" placeholder="Cargo" aria-label="Cargo" @bind="exp.Position" />
+                                            <label class="form-label" for="@($"exp-position-{index}")">Cargo</label>
+                                            <input id="@($"exp-position-{index}")" class="form-control" aria-label="@($"Cargo da experiência {index + 1}")" @bind="exp.Position" />
                                         </div>
                                         <div class="col-md-6">
-                                            <input class="form-control" placeholder="Empresa" aria-label="Empresa" @bind="exp.Company" />
+                                            <label class="form-label" for="@($"exp-company-{index}")">Empresa</label>
+                                            <input id="@($"exp-company-{index}")" class="form-control" autocomplete="organization" aria-label="@($"Empresa da experiência {index + 1}")" @bind="exp.Company" />
                                         </div>
                                         <div class="col-12">
-                                            <textarea class="form-control" rows="2" placeholder="Descrição das atividades" aria-label="Descrição das atividades" @bind="exp.Description"></textarea>
+                                            <label class="form-label" for="@($"exp-description-{index}")">Descrição das atividades</label>
+                                            <textarea id="@($"exp-description-{index}")" class="form-control" rows="2" aria-label="@($"Descrição das atividades da experiência {index + 1}")" @bind="exp.Description"></textarea>
                                         </div>
                                         <div class="col-md-4">
-                                            <label class="form-label small" for="@($"exp-start-{index}")">Início</label>
+                                            <label class="form-label" for="@($"exp-start-{index}")">Início</label>
                                             <input id="@($"exp-start-{index}")" type="date" class="form-control" @bind="exp.StartDate" />
                                         </div>
                                         <div class="col-md-4">
-                                            <label class="form-label small" for="@($"exp-end-{index}")">Fim</label>
+                                            <label class="form-label" for="@($"exp-end-{index}")">Fim</label>
                                             <input id="@($"exp-end-{index}")" type="date" class="form-control" @bind="exp.EndDate" />
                                         </div>
                                         <div class="col-md-4 d-flex align-items-end justify-content-between">
-                                            <div class="form-check">
+                                            <label class="form-check" for="@($"exp-current-{index}")">
                                                 <input type="checkbox" class="form-check-input" @bind="exp.IsCurrent" id="@($"exp-current-{index}")" />
-                                                <label class="form-check-label" for="@($"exp-current-{index}")">Atual</label>
-                                            </div>
-                                            <button type="button" class="btn btn-outline-danger btn-sm" @onclick="() => experiences.RemoveAt(index)">Remover</button>
+                                                <span class="form-check-label">Emprego atual</span>
+                                            </label>
+                                            <button type="button" class="btn btn-outline-danger btn-sm" aria-label="@($"Remover experiência {index + 1}")" @onclick="() => experiences.RemoveAt(index)">Remover</button>
                                         </div>
                                     </div>
                                 </div>
@@ -122,14 +121,12 @@
                             {
                                 <p class="text-muted small mb-0">Nenhuma experiência adicionada.</p>
                             }
-                        </div>
+                        </section>
 
-                        <hr class="my-4" />
-
-                        <div class="resume-section">
-                            <div class="resume-section__head">
-                                <h5><i class="bi bi-mortarboard"></i> Formação Acadêmica</h5>
-                                <button type="button" class="btn btn-outline-primary btn-sm" @onclick="AddEducation">+ Adicionar</button>
+                        <section class="resume-section" aria-labelledby="resume-edit-educations">
+                            <div class="resume-section__head form-section-title">
+                                <h2 class="h5" id="resume-edit-educations">Formação acadêmica</h2>
+                                <button type="button" class="btn btn-outline-secondary btn-sm" @onclick="AddEducation"><Icon Name="plus" Size="16" />Adicionar formação</button>
                             </div>
                             @for (var i = 0; i < educations.Count; i++)
                             {
@@ -138,29 +135,33 @@
                                 <div class="resume-item">
                                     <div class="row g-2">
                                         <div class="col-md-6">
-                                            <input class="form-control" placeholder="Curso" aria-label="Curso" @bind="edu.Course" />
+                                            <label class="form-label" for="@($"edu-course-{index}")">Curso</label>
+                                            <input id="@($"edu-course-{index}")" class="form-control" aria-label="@($"Curso da formação {index + 1}")" @bind="edu.Course" />
                                         </div>
                                         <div class="col-md-6">
-                                            <input class="form-control" placeholder="Instituição" aria-label="Instituição" @bind="edu.Institution" />
+                                            <label class="form-label" for="@($"edu-institution-{index}")">Instituição</label>
+                                            <input id="@($"edu-institution-{index}")" class="form-control" aria-label="@($"Instituição da formação {index + 1}")" @bind="edu.Institution" />
                                         </div>
                                         <div class="col-md-4">
-                                            <select class="form-select" aria-label="Nível de formação" @bind="edu.Level">
+                                            <label class="form-label" for="@($"edu-level-{index}")">Nível</label>
+                                            <select id="@($"edu-level-{index}")" class="form-select" aria-label="@($"Nível da formação {index + 1}")" @bind="edu.Level">
                                                 @foreach (var level in Enum.GetValues<EEducationLevel>())
                                                 {
-                                                    <option value="@level">@level</option>
+                                                    <option value="@level">@UiLabels.EducationLevel(level.ToString())</option>
                                                 }
                                             </select>
                                         </div>
                                         <div class="col-md-4">
-                                            <select class="form-select" aria-label="Situação do curso" @bind="edu.Status">
+                                            <label class="form-label" for="@($"edu-status-{index}")">Situação</label>
+                                            <select id="@($"edu-status-{index}")" class="form-select" aria-label="@($"Situação da formação {index + 1}")" @bind="edu.Status">
                                                 @foreach (var st in Enum.GetValues<EEducationStatus>())
                                                 {
-                                                    <option value="@st">@st</option>
+                                                    <option value="@st">@UiLabels.EducationStatus(st.ToString())</option>
                                                 }
                                             </select>
                                         </div>
                                         <div class="col-md-4 d-flex align-items-end justify-content-end">
-                                            <button type="button" class="btn btn-outline-danger btn-sm" @onclick="() => educations.RemoveAt(index)">Remover</button>
+                                            <button type="button" class="btn btn-outline-danger btn-sm" aria-label="@($"Remover formação {index + 1}")" @onclick="() => educations.RemoveAt(index)">Remover</button>
                                         </div>
                                     </div>
                                 </div>
@@ -169,14 +170,12 @@
                             {
                                 <p class="text-muted small mb-0">Nenhuma formação adicionada.</p>
                             }
-                        </div>
+                        </section>
 
-                        <hr class="my-4" />
-
-                        <div class="resume-section">
-                            <div class="resume-section__head">
-                                <h5><i class="bi bi-translate"></i> Idiomas</h5>
-                                <button type="button" class="btn btn-outline-primary btn-sm" @onclick="AddLanguage">+ Adicionar</button>
+                        <section class="resume-section" aria-labelledby="resume-edit-languages">
+                            <div class="resume-section__head form-section-title">
+                                <h2 class="h5" id="resume-edit-languages">Idiomas</h2>
+                                <button type="button" class="btn btn-outline-secondary btn-sm" @onclick="AddLanguage"><Icon Name="plus" Size="16" />Adicionar idioma</button>
                             </div>
                             @for (var i = 0; i < languages.Count; i++)
                             {
@@ -185,18 +184,20 @@
                                 <div class="resume-item">
                                     <div class="row g-2 align-items-end">
                                         <div class="col-md-6">
-                                            <input class="form-control" placeholder="Idioma" aria-label="Idioma" @bind="lang.Language" />
+                                            <label class="form-label" for="@($"lang-name-{index}")">Idioma</label>
+                                            <input id="@($"lang-name-{index}")" class="form-control" aria-label="@($"Idioma {index + 1}")" @bind="lang.Language" />
                                         </div>
                                         <div class="col-md-4">
-                                            <select class="form-select" aria-label="Nível do idioma" @bind="lang.Level">
+                                            <label class="form-label" for="@($"lang-level-{index}")">Nível</label>
+                                            <select id="@($"lang-level-{index}")" class="form-select" aria-label="@($"Nível do idioma {index + 1}")" @bind="lang.Level">
                                                 @foreach (var level in Enum.GetValues<ELanguageLevel>())
                                                 {
-                                                    <option value="@level">@level</option>
+                                                    <option value="@level">@UiLabels.LanguageLevel(level.ToString())</option>
                                                 }
                                             </select>
                                         </div>
                                         <div class="col-md-2 d-flex justify-content-end">
-                                            <button type="button" class="btn btn-outline-danger btn-sm" @onclick="() => languages.RemoveAt(index)">Remover</button>
+                                            <button type="button" class="btn btn-outline-danger btn-sm" aria-label="@($"Remover idioma {index + 1}")" @onclick="() => languages.RemoveAt(index)">Remover</button>
                                         </div>
                                     </div>
                                 </div>
@@ -205,14 +206,12 @@
                             {
                                 <p class="text-muted small mb-0">Nenhum idioma adicionado.</p>
                             }
-                        </div>
+                        </section>
 
-                        <hr class="my-4" />
-
-                        <div class="resume-section">
-                            <div class="resume-section__head">
-                                <h5><i class="bi bi-star"></i> Habilidades</h5>
-                                <button type="button" class="btn btn-outline-primary btn-sm" @onclick="AddSkill">+ Adicionar</button>
+                        <section class="resume-section" aria-labelledby="resume-edit-skills">
+                            <div class="resume-section__head form-section-title">
+                                <h2 class="h5" id="resume-edit-skills">Habilidades</h2>
+                                <button type="button" class="btn btn-outline-secondary btn-sm" @onclick="AddSkill"><Icon Name="plus" Size="16" />Adicionar habilidade</button>
                             </div>
                             @for (var i = 0; i < skills.Count; i++)
                             {
@@ -220,19 +219,20 @@
                                 var skill = skills[index];
                                 <div class="resume-item">
                                     <div class="row g-2 align-items-end">
-                                        <div class="col-md-6">
-                                            <input class="form-control" placeholder="Habilidade" aria-label="Habilidade" @bind="skill.Skill" />
+                                        <div class="col-md-5">
+                                            <label class="form-label" for="@($"skill-name-{index}")">Habilidade</label>
+                                            <input id="@($"skill-name-{index}")" class="form-control" aria-label="@($"Habilidade {index + 1}")" @bind="skill.Skill" />
                                         </div>
                                         <div class="col-md-3">
-                                            <label class="form-label small" for="@($"skill-level-{index}")">Nível (1-5)</label>
-                                            <input id="@($"skill-level-{index}")" type="number" class="form-control" min="1" max="5" @bind="skill.Level" />
+                                            <label class="form-label" for="@($"skill-level-{index}")">Nível (1 a 5)</label>
+                                            <input id="@($"skill-level-{index}")" type="number" inputmode="numeric" class="form-control" min="1" max="5" @bind="skill.Level" />
                                         </div>
                                         <div class="col-md-2">
-                                            <label class="form-label small" for="@($"skill-years-{index}")">Anos</label>
-                                            <input id="@($"skill-years-{index}")" type="number" class="form-control" min="0" @bind="skill.YearsOfExperience" />
+                                            <label class="form-label" for="@($"skill-years-{index}")">Anos</label>
+                                            <input id="@($"skill-years-{index}")" type="number" inputmode="numeric" class="form-control" min="0" @bind="skill.YearsOfExperience" />
                                         </div>
-                                        <div class="col-md-1 d-flex justify-content-end">
-                                            <button type="button" class="btn btn-outline-danger btn-sm" @onclick="() => skills.RemoveAt(index)">Remover</button>
+                                        <div class="col-md-2 d-flex justify-content-end">
+                                            <button type="button" class="btn btn-outline-danger btn-sm" aria-label="@($"Remover habilidade {index + 1}")" @onclick="() => skills.RemoveAt(index)">Remover</button>
                                         </div>
                                     </div>
                                 </div>
@@ -241,18 +241,21 @@
                             {
                                 <p class="text-muted small mb-0">Nenhuma habilidade adicionada.</p>
                             }
-                        </div>
+                        </section>
 
-                        <hr class="my-4" />
-
-                        <div class="d-grid gap-2">
-                            <button type="submit" class="btn btn-success btn-lg" disabled="@isSubmitting" data-testid="resume-edit-submit">
+                        <div class="form-actions">
+                            <button type="submit" class="btn btn-primary" disabled="@isSubmitting" aria-busy="@(isSubmitting ? "true" : null)" data-testid="resume-edit-submit">
                                 @if (isSubmitting)
                                 {
-                                    <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                                    <span class="spinner-border spinner-border-sm" aria-hidden="true"></span>
+                                    <span>Salvando…</span>
                                 }
-                                <i class="bi bi-check-circle"></i> Salvar currículo
+                                else
+                                {
+                                    <span>Salvar alterações</span>
+                                }
                             </button>
+                            <a class="btn btn-outline-secondary" href="@($"/resumes/{ResumeId}")">Cancelar</a>
                         </div>
                     </EditForm>
                 </div>
@@ -273,6 +276,8 @@
     private List<SkillRequest> skills = [];
     private string errorMessage = string.Empty;
     private bool isSubmitting;
+    private bool saved;
+    private string? initialSnapshot;
     private bool isLoading = true;
     private bool isOwner;
     private bool loadFailed;
@@ -352,7 +357,17 @@
         }).ToList() ?? [];
 
         isLoading = false;
+        initialSnapshot = Snapshot();
     }
+
+    // As listas usam @bind direto, fora do EditContext: compara um retrato do estado na hora da navegação
+    private bool HasUnsavedChanges() =>
+        !saved && !isSubmitting && initialSnapshot is not null && Snapshot() != initialSnapshot;
+
+    private string Snapshot() => System.Text.Json.JsonSerializer.Serialize(new
+    {
+        model.Title, model.Summary, model.IsActive, experiences, educations, languages, skills
+    });
 
     private void AddExperience() => experiences.Add(new ExperienceRequest());
     private void AddEducation() => educations.Add(new EducationRequest());
@@ -377,6 +392,7 @@
         if (result.Status == EResultStatus.Success)
         {
             Toast.ShowSuccess("Suas alterações foram salvas.", "Currículo atualizado");
+            saved = true;
             Navigation.NavigateTo($"/resumes/{ResumeId}");
             return;
         }
@@ -390,10 +406,5 @@
         Toast.ShowError(errorMessage);
 
         isSubmitting = false;
-    }
-
-    private void Cancel()
-    {
-        Navigation.NavigateTo($"/resumes/{ResumeId}");
     }
 }

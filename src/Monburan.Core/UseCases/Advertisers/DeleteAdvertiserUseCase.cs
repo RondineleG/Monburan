@@ -16,9 +16,9 @@ public sealed class DeleteAdvertiserUseCase : IUseCase<Guid, bool>
         _advertiserRepository = advertiserRepository;
     }
 
-    public async Task<RequestResult<bool>> ExecuteAsync(Guid request)
+    public async Task<RequestResult<bool>> ExecuteAsync(Guid request, CancellationToken cancellationToken = default)
     {
-        var result = await _advertiserRepository.DeleteAsync(Id.Create(request));
+        var result = await _advertiserRepository.DeleteAsync(Id.Create(request), cancellationToken);
         if (result.Status != EResultStatus.Success)
             return RequestResult<bool>.FromResult(result);
 

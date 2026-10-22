@@ -13,9 +13,17 @@
     @if (!IsAuthPage)
     {
         <header class="app-header">
-            <a class="app-brand" href="/">Monburan</a>
-            <button class="theme-toggle" @onclick="ToggleTheme" aria-label="Alternar tema">
-                @(_isDark ? "☀" : "☾")
+            @if (ShowBack)
+            {
+                @* O iOS não tem botão voltar do sistema: telas internas (vaga, candidatura) precisam de um *@
+                <button type="button" class="icon-button app-back" @onclick="GoBackAsync" aria-label="Voltar"><Icon Name="chevron-left" Size="22" /></button>
+            }
+            <a class="app-brand" href="/" aria-label="Monburan, início">
+                <BrandMark />
+                <span class="app-brand__name">Monburan</span>
+            </a>
+            <button type="button" class="icon-button theme-toggle" @onclick="ToggleTheme" aria-label="Tema escuro" aria-pressed="@(_isDark ? "true" : "false")">
+                <Icon Name="@(_isDark ? "moon" : "sun")" Size="20" />
             </button>
         </header>
     }
@@ -26,7 +34,7 @@
 
     @if (!IsAuthPage)
     {
-        <BottomNav UnreadCount="_unread" />
+        <BottomNav UnreadCount="_unread" CurrentPath="@CurrentPath" />
     }
 
     <ToastHost />
@@ -39,6 +47,23 @@
     private DateTime _lastUnreadFetch = DateTime.MinValue;
     private bool _isDark = true;
 
+    // Destinos da barra inferior não têm "voltar"; as demais telas (detalhe, candidatura, currículos, perfil de carreira, plano) têm
+    private bool ShowBack => CurrentPath is not ("/" or "/jobs" or "/applications" or "/notifications" or "/profile");
+
+    private string CurrentPath => "/" + Nav.ToBaseRelativePath(Nav.Uri).Split('?', '#')[0].Trim('/');
+
+    private async Task GoBackAsync()
+    {
+        try
+        {
+            await JS.InvokeVoidAsync("history.back");
+        }
+        catch (JSException)
+        {
+            Nav.NavigateTo("/");
+        }
+    }
+
     private bool IsAuthPage =>
         Nav.Uri.Contains("/login", StringComparison.OrdinalIgnoreCase) ||
         Nav.Uri.Contains("/register", StringComparison.OrdinalIgnoreCase) ||
@@ -46,7 +71,7 @@
 
     protected override async Task OnInitializedAsync()
     {
-        // Aplica tema salvo (padrão: dark, igual ao web)
+        // Aplica o tema salvo (padrão do app: escuro)
         var saved = await JS.InvokeAsync<string>("monburan.getTheme");
         _isDark = saved != "light";
         ApplyTheme();

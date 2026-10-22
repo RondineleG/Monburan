@@ -127,6 +127,14 @@ public class JobDisplayTests
     }
 
     [Fact]
+    public void Tags_DoNotRepeatTheCategory_ShownInItsOwnBadge()
+    {
+        JobDisplay.Tags("Gestão, Projetos, gestão , Scrum", exclude: "Gestão").Should().Equal("Projetos", "Scrum");
+        JobDisplay.Tags("Marketing, SEO", 3, exclude: " marketing").Should().Equal("SEO");
+        JobDisplay.Tags("Marketing, SEO", exclude: null).Should().Equal("Marketing", "SEO");
+    }
+
+    [Fact]
     public void Excerpt_CollapsesWhitespace_AndCutsAtAWordBoundary()
     {
         JobDisplay.Excerpt("Linha um\n\nlinha   dois", 100).Should().Be("Linha um linha dois");

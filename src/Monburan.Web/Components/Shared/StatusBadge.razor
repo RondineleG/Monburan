@@ -1,0 +1,37 @@
+@* Selo de situação: o texto vai sempre junto da cor (cor nunca é o único sinal).
+   Situações conhecidas: Kind + Value (rótulo e tom vêm do UiLabels). Outros casos: Text + Tone. *@
+<span class="status-badge @UiLabels.ToneClass(ResolvedTone)" data-testid="@TestId">@ResolvedText</span>
+
+@code {
+    [Parameter]
+    public StatusKind Kind { get; set; }
+
+    /// <summary>Valor da situação como vem do DTO (ex.: "Active", "Rejected").</summary>
+    [Parameter]
+    public string? Value { get; set; }
+
+    [Parameter]
+    public string? Text { get; set; }
+
+    [Parameter]
+    public StatusTone Tone { get; set; }
+
+    [Parameter]
+    public string? TestId { get; set; }
+
+    private string ResolvedText => Kind switch
+    {
+        StatusKind.Application => UiLabels.ApplicationStatus(Value),
+        StatusKind.Job => UiLabels.JobStatus(Value),
+        StatusKind.Subscription => UiLabels.SubscriptionStatus(Value),
+        _ => Text ?? string.Empty
+    };
+
+    private StatusTone ResolvedTone => Kind switch
+    {
+        StatusKind.Application => UiLabels.ApplicationStatusTone(Value),
+        StatusKind.Job => UiLabels.JobStatusTone(Value),
+        StatusKind.Subscription => UiLabels.SubscriptionStatusTone(Value),
+        _ => Tone
+    };
+}

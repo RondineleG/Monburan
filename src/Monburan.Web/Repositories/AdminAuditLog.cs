@@ -70,11 +70,25 @@ public sealed class AdminAuditLog : IAdminAuditLog
 
         if (!string.IsNullOrWhiteSpace(filter.SearchTerm))
         {
-            var term = filter.SearchTerm.Trim().ToLower();
-            query = query.Where(entry =>
-                entry.ActorEmail.ToLower().Contains(term)
-                || entry.TargetLabel.ToLower().Contains(term)
-                || (entry.Details != null && entry.Details.ToLower().Contains(term)));
+            var term = filter.SearchTerm.Trim();
+            // No Postgres a busca usa ILike, que aproveita o índice de trigramas; no InMemory
+            // (testes de API) cai para ToLower().Contains, que o provider sabe traduzir.
+            if (TextSearch.SupportsILike(context))
+            {
+                var pattern = TextSearch.Pattern(term);
+                query = query.Where(entry =>
+                    EF.Functions.ILike(entry.ActorEmail, pattern)
+                    || EF.Functions.ILike(entry.TargetLabel, pattern)
+                    || (entry.Details != null && EF.Functions.ILike(entry.Details, pattern)));
+            }
+            else
+            {
+                var lowered = term.ToLower();
+                query = query.Where(entry =>
+                    entry.ActorEmail.ToLower().Contains(lowered)
+                    || entry.TargetLabel.ToLower().Contains(lowered)
+                    || (entry.Details != null && entry.Details.ToLower().Contains(lowered)));
+            }
         }
 
         var total = await query.CountAsync(cancellationToken);

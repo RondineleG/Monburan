@@ -16,9 +16,9 @@ public sealed class DeleteCandidateUseCase : IUseCase<Guid, bool>
         _candidateRepository = candidateRepository;
     }
 
-    public async Task<RequestResult<bool>> ExecuteAsync(Guid request)
+    public async Task<RequestResult<bool>> ExecuteAsync(Guid request, CancellationToken cancellationToken = default)
     {
-        var result = await _candidateRepository.DeleteAsync(Id.Create(request));
+        var result = await _candidateRepository.DeleteAsync(Id.Create(request), cancellationToken);
         if (result.Status != EResultStatus.Success)
             return RequestResult<bool>.FromResult(result);
 

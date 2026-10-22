@@ -14,42 +14,39 @@
 <PageTitle>Editar endereço - Monburan</PageTitle>
 
 <div class="container page-form-shell address-form-page">
-    <header class="page-heading">
-        <div class="page-heading__copy">
-            <span class="page-kicker">CONFIGURAÇÕES</span>
-            <h1>Editar endereço</h1>
-            <p>Atualize os dados do endereço vinculado ao perfil.</p>
-        </div>
-    </header>
-
     @if (isLoading)
     {
-        <LoadingState Message="Carregando endereço..." />
+        <LoadingState Message="Carregando endereço…" />
     }
     else if (address == null)
     {
-        <section class="empty-state">
-            <span class="empty-state__icon" aria-hidden="true">!</span>
-            <h2>Endereço não encontrado</h2>
-            <p>O endereço solicitado não existe ou já foi removido.</p>
+        <EmptyState Icon="search" Title="Endereço não encontrado" HeadingLevel="1" Message="O endereço solicitado não existe ou já foi removido.">
             <a class="btn btn-primary" href="/address/list">Voltar para a lista</a>
-        </section>
+        </EmptyState>
     }
     else
     {
+        <PageHeader Title="Editar endereço" Description="Atualize os dados do endereço vinculado ao perfil."
+                    BackHref="/address/list" BackText="Voltar a endereços" />
         <div class="card page-form-card">
             <div class="card-body">
-                <EditForm Model="form" OnValidSubmit="HandleValidSubmit">
+                <EditForm Model="form" OnValidSubmit="HandleValidSubmit" Context="editContext">
+                    <UnsavedChangesGuard HasChanges="() => editContext.IsModified() && !isSubmitting" />
                     <DataAnnotationsValidator />
+                    <p class="form-required-note">Campos com * são obrigatórios.</p>
                     <AddressFormFields Model="form" />
 
-                    <div class="d-flex gap-2 mt-4">
-                        <button type="submit" class="btn btn-primary" disabled="@isSubmitting" data-testid="address-save">
+                    <div class="form-actions">
+                        <button type="submit" class="btn btn-primary" disabled="@isSubmitting" aria-busy="@(isSubmitting ? "true" : null)" data-testid="address-save">
                             @if (isSubmitting)
                             {
-                                <span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>
+                                <span class="spinner-border spinner-border-sm" aria-hidden="true"></span>
+                                <span>Salvando…</span>
                             }
-                            Salvar alterações
+                            else
+                            {
+                                <span>Salvar alterações</span>
+                            }
                         </button>
                         <button type="button" class="btn btn-outline-secondary" @onclick="Cancel" disabled="@isSubmitting">Cancelar</button>
                     </div>

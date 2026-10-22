@@ -1,4 +1,5 @@
 using Monburan.Core.DTOs.Request;
+using Monburan.Core.Interfaces.Repositories;
 using Monburan.Core.UseCases.Applications;
 using Monburan.Core.UseCases.Jobs;
 using Monburan.Web.Services;
@@ -24,12 +25,13 @@ public static class ApplicationEndpoints
                 return Results.Problem(statusCode: StatusCodes.Status403Forbidden, title: "Perfil de candidato necessário");
 
             request.CandidateId = candidateId.Value;
-            var result = await useCase.ExecuteAsync(request);
+            var result = await useCase.ExecuteAsync(request, cancellationToken);
             return result.ToHttpResult(StatusCodes.Status201Created);
         })
         .WithSummary("Candidata o usuário autenticado a uma vaga");
 
         group.MapGet("/mine", async (
+            int? page, int? size,
             ICurrentUserHelper currentUser,
             ListApplicationsByCandidateUseCase useCase,
             CancellationToken cancellationToken) =>
@@ -38,7 +40,12 @@ public static class ApplicationEndpoints
             if (candidateId is null)
                 return Results.Problem(statusCode: StatusCodes.Status403Forbidden, title: "Perfil de candidato necessário");
 
-            var result = await useCase.ExecuteAsync(candidateId.Value);
+            var result = await useCase.ExecuteAsync(new ListApplicationsByCandidateRequest
+            {
+                CandidateId = candidateId.Value,
+                Page = page is > 0 ? page.Value : 1,
+                Size = size is > 0 ? Math.Min(size.Value, IApplicationRepository.MaxListSize) : 0
+            }, cancellationToken);
             return result.ToHttpResult();
         })
         .WithSummary("Lista candidaturas do candidato autenticado");
@@ -50,7 +57,7 @@ public static class ApplicationEndpoints
             CancellationToken cancellationToken) =>
         {
             var result = await useCase.ExecuteAsync(new ListApplicationHistoryRequest(
-                id, currentUser.GetCandidateId(), currentUser.GetAdvertiserId()));
+                id, currentUser.GetCandidateId(), currentUser.GetAdvertiserId()), cancellationToken);
             return result.ToHttpResult();
         })
         .WithSummary("Histórico de etapas da candidatura (candidato dono ou anunciante dono da vaga)");
@@ -69,7 +76,7 @@ public static class ApplicationEndpoints
 
             request.ApplicationId = id;
             request.AdvertiserId = advertiserId.Value;
-            var result = await useCase.ExecuteAsync(request);
+            var result = await useCase.ExecuteAsync(request, cancellationToken);
             return result.ToHttpResult();
         })
         .WithSummary("Atualiza status de uma candidatura (anunciante dono da vaga)");
@@ -86,7 +93,7 @@ public static class ApplicationEndpoints
             if (advertiserId is null)
                 return Results.Problem(statusCode: StatusCodes.Status403Forbidden, title: "Perfil de anunciante necessário");
 
-            var job = await getJob.ExecuteAsync(jobId);
+            var job = await getJob.ExecuteAsync(jobId, cancellationToken);
             if (job.Status != Core.Enums.EResultStatus.Success || job.Data is null)
                 return job.ToHttpResult();
 
@@ -97,7 +104,7 @@ public static class ApplicationEndpoints
             {
                 AdvertiserId = advertiserId.Value,
                 JobId = jobId
-            });
+            }, cancellationToken);
             return result.ToHttpResult();
         })
         .RequireAuthorization("ApiBearer")

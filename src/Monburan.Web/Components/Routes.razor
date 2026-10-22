@@ -7,23 +7,16 @@
                 @if (context.User.Identity?.IsAuthenticated == true && NeedsTwoFactorSetup(context.User))
                 {
                     @* Administrador sem 2FA: explica e leva à configuração, em vez de um "acesso negado" sem saída *@
+                    <PageTitle>Verificação em duas etapas - Monburan</PageTitle>
                     <section class="auth-message-page" data-testid="admin-2fa-required">
-                        <span class="page-kicker">SEGURANÇA DA CONTA</span>
-                        <h1>Ative a verificação em duas etapas</h1>
+                        <h1 tabindex="-1">Ative a verificação em duas etapas</h1>
                         <p>As áreas de administração exigem a verificação em duas etapas na sua conta.</p>
                         <a class="btn btn-primary" href="/Account/Manage/TwoFactorAuthentication?adminRequired=true">Configurar agora</a>
                     </section>
                 }
                 else if (context.User.Identity?.IsAuthenticated == true)
                 {
-                    @* Logado, mas sem o perfil exigido (ex.: candidato em página de empresa) —
-                       mandar para o login de novo criaria um ciclo sem explicação *@
-                    <section class="auth-message-page">
-                        <span class="page-kicker">ACESSO</span>
-                        <h1>Esta área é restrita</h1>
-                        <p>Sua conta não tem permissão para abrir esta página. Algumas áreas são exclusivas para candidatos e outras para empresas.</p>
-                        <a class="btn btn-primary" href="/">Voltar ao início</a>
-                    </section>
+                    <AccessRestricted />
                 }
                 else
                 {
@@ -34,12 +27,9 @@
         <FocusOnNavigate RouteData="routeData" Selector="h1" />
     </Found>
     <NotFound>
+        @* Mesmo conteúdo da página /404 (que o servidor reexecuta para endereços inexistentes) *@
         <LayoutView Layout="typeof(Layout.MainLayout)">
-            <div class="container mt-5 text-center">
-                <h1>Página não encontrada</h1>
-                <p class="text-muted">A página solicitada não existe ou foi removida.</p>
-                <a class="btn btn-primary" href="/">Voltar ao início</a>
-            </div>
+            <Monburan.Web.Components.Pages.NotFound />
         </LayoutView>
     </NotFound>
 </Router>

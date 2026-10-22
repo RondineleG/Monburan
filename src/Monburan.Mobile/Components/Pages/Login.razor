@@ -4,17 +4,16 @@
 @inject NavigationManager Nav
 
 <div class="auth-hero">
-    <div class="brand-mark">✦ Monburan</div>
-    <p class="auth-tagline">talentos que ficam</p>
+    <div class="brand-mark"><BrandMark /><span>Monburan</span></div>
     <p>Encontre a sua próxima oportunidade</p>
 </div>
 
-<h1 class="page-title">Entrar</h1>
+<h1 class="page-title" tabindex="-1">Entrar</h1>
 <p class="page-subtitle">Acesse sua conta de candidato</p>
 
 @if (_error is not null)
 {
-    <div class="alert alert-error" role="alert">@_error</div>
+    <div class="alert alert-danger" role="alert">@_error</div>
 }
 
 @* <form> permite enviar pelo "Ir" do teclado do celular *@
@@ -30,17 +29,21 @@
     </div>
 
     <button type="submit" class="btn btn-primary btn-block" disabled="@_busy">
-        @(_busy ? "Entrando..." : "Entrar")
+        @(_busy ? "Entrando…" : "Entrar")
     </button>
 </form>
 
 <div class="auth-links">
     <p><a href="/forgot-password">Esqueci a senha</a></p>
     <p>Não tem conta? <a href="/register">Criar conta</a></p>
-    <p><a href="/">Ver vagas sem entrar</a></p>
+    <p><a href="/jobs">Ver vagas sem entrar</a></p>
 </div>
 
 @code {
+    /// <summary>Página que pediu o login (ProtectedPage); só caminhos internos são aceitos.</summary>
+    [SupplyParameterFromQuery(Name = "returnUrl")]
+    public string? ReturnUrl { get; set; }
+
     private string _email = "";
     private string _password = "";
     private string? _error;
@@ -50,7 +53,7 @@
     {
         await Auth.InitializeAsync();
         if (Auth.IsAuthenticated)
-            Nav.NavigateTo("/");
+            Nav.NavigateTo(SafeReturnUrl, replace: true);
     }
 
     private async Task DoLogin()
@@ -71,7 +74,7 @@
         {
             var tokens = await AuthApi.LoginAsync(_email.Trim(), _password);
             await Auth.SignInAsync(tokens);
-            Nav.NavigateTo("/");
+            Nav.NavigateTo(SafeReturnUrl, replace: true);
         }
         catch (ApiException ex)
         {
@@ -86,4 +89,10 @@
             _busy = false;
         }
     }
+
+    // Endereço externo ("//site", "https:") nunca: evita redirecionamento aberto
+    private string SafeReturnUrl =>
+        ReturnUrl is { Length: > 1 } url && url.StartsWith('/') && !url.StartsWith("//") && !url.Contains(':') && !url.StartsWith("/login", StringComparison.OrdinalIgnoreCase)
+            ? url
+            : "/";
 }

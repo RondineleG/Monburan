@@ -45,7 +45,7 @@ public static class SeoEndpoints
                 new(PublicUrls.Absolute(configuration, baseUri, "/jobs"), null)
             };
 
-            var activeJobs = await jobs.ListActiveForRecommendationsAsync();
+            var activeJobs = await jobs.ListActiveForRecommendationsAsync(cancellationToken);
             if (activeJobs.Data is not null)
             {
                 urls.AddRange(activeJobs.Data.Select(job => new SitemapUrl(

@@ -25,12 +25,13 @@ public class PublicPagesTests : E2ETestBase
         await GotoAsync("/");
         await WaitForBlazorAsync();
 
+        // Visitante: busca primeiro, cabeçalho público, sem menu lateral nem indicadores de recrutamento
         var body = await Page.Locator("body").InnerTextAsync();
-        Assert.Contains("Explorar vagas", body, StringComparison.OrdinalIgnoreCase);
-        Assert.DoesNotContain("SEU ESPAÇO MONBURAN", body, StringComparison.OrdinalIgnoreCase);
+        Assert.True(await Page.GetByTestId("landing-search").IsVisibleAsync(), "A página inicial do visitante começa pela busca");
+        Assert.Contains("Buscar vagas", body, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("Total de vagas", body, StringComparison.OrdinalIgnoreCase);
-        Assert.Equal(1, await Page.Locator(".app-sidebar .sidebar-link").CountAsync());
-        Assert.Equal(0, await Page.GetByTestId("nav-plans").CountAsync());
+        Assert.Equal(0, await Page.Locator(".app-sidebar").CountAsync());
+        Assert.Equal(1, await Page.Locator(".public-header").CountAsync());
     }
 
     [Fact]
@@ -127,6 +128,8 @@ public class PublicPagesTests : E2ETestBase
     [Fact]
     public async Task MobileNavigation_ShouldOpenAndClose()
     {
+        // O menu lateral (e o botão que o abre no celular) é da área logada; o visitante usa o cabeçalho público
+        await LoginOrRegisterAsync(CandidateEmail, TestPassword);
         await Page.SetViewportSizeAsync(390, 844);
         await GotoAsync("/jobs");
         await WaitForBlazorAsync();
@@ -213,13 +216,19 @@ public class PublicPagesTests : E2ETestBase
             new PageWaitForFunctionOptions { Timeout = 45000 });
         await WaitForBlazorAsync();
 
-        // O formulário abre na etapa 1 (revisão); a etapa 2 traz o envio da candidatura
-        await Page.GetByTestId("application-continue").ClickAsync();
-        await Page.GetByTestId("application-submit").WaitForAsync(new LocatorWaitForOptions
+        // O formulário abre na etapa 1 (revisão); a etapa 2 traz o envio da candidatura. Se outro teste já se
+        // candidatou à mesma vaga, a página mostra "Você já se candidatou" — também é a página de candidatura certa.
+        var reviewOrDone = Page.Locator("[data-testid='application-continue'], [data-testid='application-already']");
+        await reviewOrDone.First.WaitForAsync(new LocatorWaitForOptions { State = WaitForSelectorState.Visible, Timeout = 30000 });
+        if (await Page.GetByTestId("application-continue").CountAsync() > 0)
         {
-            State = WaitForSelectorState.Visible,
-            Timeout = 30000
-        });
+            await Page.GetByTestId("application-continue").ClickAsync();
+            await Page.GetByTestId("application-submit").WaitForAsync(new LocatorWaitForOptions
+            {
+                State = WaitForSelectorState.Visible,
+                Timeout = 30000
+            });
+        }
     }
 
     [Fact]

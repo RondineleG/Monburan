@@ -1,10 +1,13 @@
-<div class="state-box">
-    <div class="state-icon">@(IsOffline ? "📡" : "⚠")</div>
-    <div class="state-title">@(IsOffline ? "Sem conexão" : "Algo deu errado")</div>
+@* Estado de erro (mesmo componente da web): explica o que houve e oferece "Tentar novamente". *@
+<div class="empty-state error-state" role="alert">
+    <div class="empty-state__icon"><Icon Name="alert" Size="24" /></div>
+    <h2>@(IsOffline ? "Sem conexão" : "Algo deu errado")</h2>
     <p>@Message</p>
     @if (OnRetry.HasDelegate)
     {
-        <button class="btn btn-primary" @onclick="OnRetry">Tentar novamente</button>
+        <div class="empty-state__actions">
+            <button type="button" class="btn btn-primary" @onclick="OnRetry"><Icon Name="rotate-ccw" /> Tentar novamente</button>
+        </div>
     }
 </div>
 

@@ -25,15 +25,15 @@
 
 @* Administração dos provedores de IA. O banco guarda endereço, modelo, protocolo e o NOME da variável de ambiente da chave;
    a chave em si fica no ambiente do servidor e nunca aparece aqui nem é gravada. *@
-<div class="container mt-4 admin-ai-page">
-    <header class="page-heading">
-        <div class="page-heading__copy">
-            <span class="page-kicker">ADMINISTRAÇÃO</span>
-            <h1>Provedores de IA</h1>
-            <p>Cadastre os serviços de IA que o Monburan pode usar, escolha o padrão e diga em qual variável de ambiente está a chave de cada um.</p>
-        </div>
-        <button type="button" class="btn btn-primary" @onclick="NewProvider" disabled="@(form is not null)" data-testid="ai-provider-new">Adicionar provedor <span aria-hidden="true">+</span></button>
-    </header>
+<div class="container admin-ai-page">
+    <PageHeader Title="Provedores de IA"
+                Description="Cadastre os serviços de IA que o Monburan pode usar, escolha o padrão e diga em qual variável de ambiente está a chave de cada um.">
+        <Actions>
+            <button type="button" class="btn btn-primary" @onclick="NewProvider" disabled="@(form is not null)" data-testid="ai-provider-new">
+                <Icon Name="plus" Size="16" />Adicionar provedor
+            </button>
+        </Actions>
+    </PageHeader>
 
     <aside class="alert alert-info ai-admin-note" role="note">
         <strong>Como a chave é guardada:</strong> aqui você salva só o <em>nome</em> da variável (por exemplo <code>@AiProviderRules.EnvVarPrefix</code>OPENROUTER).
@@ -43,7 +43,7 @@
 
     @if (isLoading)
     {
-        <LoadingState Message="Carregando provedores..." />
+        <LoadingState Message="Carregando provedores…" />
     }
     else if (loadFailed)
     {
@@ -75,7 +75,7 @@
 
         @if (providers.Count == 0)
         {
-            <EmptyState Icon="✦" Title="Nenhum provedor cadastrado" Message="Adicione um provedor para ligar as sugestões de IA." TestId="ai-empty" />
+            <EmptyState Icon="sparkles" Title="Nenhum provedor cadastrado" Message="Adicione um provedor para ligar as sugestões de IA." TestId="ai-empty" />
         }
         else
         {
@@ -116,19 +116,24 @@
                             </dl>
 
                             <div class="ai-provider__actions">
-                                <button type="button" class="btn btn-outline-primary btn-sm" @onclick="() => TestAsync(provider)" disabled="@(IsBusy(provider.Id))" data-testid="ai-provider-test">
-                                    @(testing.Contains(provider.Id) ? "Testando..." : "Testar")
+                                <button type="button" class="btn btn-outline-secondary btn-sm" @onclick="() => TestAsync(provider)" disabled="@(IsBusy(provider.Id))"
+                                        aria-busy="@(testing.Contains(provider.Id) ? "true" : null)" aria-label="Testar o provedor @provider.Name" data-testid="ai-provider-test">
+                                    @(testing.Contains(provider.Id) ? "Testando…" : "Testar")
                                 </button>
-                                <button type="button" class="btn btn-outline-primary btn-sm" @onclick="() => EditProvider(provider)" disabled="@(form is not null || IsBusy(provider.Id))" data-testid="ai-provider-edit">Editar</button>
+                                <button type="button" class="btn btn-outline-secondary btn-sm" @onclick="() => EditProvider(provider)" disabled="@(form is not null || IsBusy(provider.Id))"
+                                        aria-label="Editar o provedor @provider.Name" data-testid="ai-provider-edit">Editar</button>
                                 @if (!provider.IsDefault && provider.IsEnabled)
                                 {
-                                    <button type="button" class="btn btn-outline-primary btn-sm" @onclick="() => MakeDefaultAsync(provider)" disabled="@(IsBusy(provider.Id))" data-testid="ai-provider-default">Tornar padrão</button>
+                                    <button type="button" class="btn btn-outline-secondary btn-sm" @onclick="() => MakeDefaultAsync(provider)" disabled="@(IsBusy(provider.Id))"
+                                            aria-label="Tornar o provedor @provider.Name o padrão" data-testid="ai-provider-default">Tornar padrão</button>
                                 }
                                 @if (!provider.IsDefault)
                                 {
-                                    <button type="button" class="btn btn-outline-primary btn-sm" @onclick="() => ToggleEnabledAsync(provider)" disabled="@(IsBusy(provider.Id))" data-testid="ai-provider-toggle">@(provider.IsEnabled ? "Desativar" : "Ativar")</button>
+                                    <button type="button" class="btn btn-outline-secondary btn-sm" @onclick="() => ToggleEnabledAsync(provider)" disabled="@(IsBusy(provider.Id))"
+                                            aria-label="@ToggleLabel(provider)" data-testid="ai-provider-toggle">@(provider.IsEnabled ? "Desativar" : "Ativar")</button>
                                 }
-                                <button type="button" class="btn btn-outline-danger btn-sm" @onclick="() => DeleteAsync(provider)" disabled="@(IsBusy(provider.Id))" data-testid="ai-provider-delete">Excluir</button>
+                                <button type="button" class="btn btn-outline-danger btn-sm" @onclick="() => DeleteAsync(provider)" disabled="@(IsBusy(provider.Id))"
+                                        aria-label="Excluir o provedor @provider.Name" data-testid="ai-provider-delete">Excluir</button>
                             </div>
 
                             @if (testResults.TryGetValue(provider.Id, out var test))
@@ -156,15 +161,17 @@
                 <div class="card-body">
                     <h2 id="ai-form-title">@(form.Id is null ? "Novo provedor" : "Editar provedor")</h2>
 
-                    <EditForm Model="form" OnValidSubmit="SaveAsync">
+                <EditForm Model="form" OnValidSubmit="SaveAsync" Context="editContext">
+                        <UnsavedChangesGuard HasChanges="() => editContext.IsModified() && !isSaving" />
                         <DataAnnotationsValidator />
                         <ServerValidationErrors @ref="serverErrors" FieldMap="@FieldMap" />
+                        <p class="form-required-note">Campos com * são obrigatórios.</p>
 
                         @if (form.Id is null)
                         {
                             <div class="mb-3">
                                 <label class="form-label" for="ai-form-preset">Começar de um modelo</label>
-                                <select id="ai-form-preset" class="form-select" @onchange="OnPresetChanged" data-testid="ai-form-preset">
+                                <select id="ai-form-preset" class="form-select" @onchange="e => OnPresetChanged(e, editContext)" data-testid="ai-form-preset">
                                     <option value="">Escolha um modelo pronto (ou preencha à mão)</option>
                                     @foreach (var preset in AiProviderPresets.All)
                                     {
@@ -215,14 +222,14 @@
                             </div>
 
                             <div class="col-md-12">
-                                <div class="form-check">
+                                <label class="form-check">
                                     <InputCheckbox @bind-Value="form.IsEnabled" class="form-check-input" id="ai-form-enabled" data-testid="ai-form-enabled" />
-                                    <label class="form-check-label" for="ai-form-enabled">Ativo</label>
-                                </div>
-                                <div class="form-check">
+                                    <span class="form-check-label">Ativo</span>
+                                </label>
+                                <label class="form-check">
                                     <InputCheckbox @bind-Value="form.MakeDefault" class="form-check-input" id="ai-form-default" data-testid="ai-form-default" />
-                                    <label class="form-check-label" for="ai-form-default">Usar como padrão dos recursos de IA</label>
-                                </div>
+                                    <span class="form-check-label">Usar como padrão dos recursos de IA</span>
+                                </label>
                                 <ValidationMessage For="@(() => form.IsEnabled)" />
                                 <ValidationMessage For="@(() => form.MakeDefault)" />
                             </div>
@@ -248,28 +255,28 @@
                                     <ValidationMessage For="@(() => form.Temperature)" />
                                 </div>
                                 <div class="col-md-12">
-                                    <div class="form-check">
+                                    <label class="form-check">
                                         <InputCheckbox @bind-Value="form.SendTemperature" class="form-check-input" id="ai-form-sendtemp" />
-                                        <label class="form-check-label" for="ai-form-sendtemp">Enviar a temperatura (desmarque se o modelo a recusar)</label>
-                                    </div>
+                                        <span class="form-check-label">Enviar a temperatura (desmarque se o modelo a recusar)</span>
+                                    </label>
                                     @if (form.Protocol == EAiProtocol.OpenAiCompatible)
                                     {
-                                        <div class="form-check">
+                                        <label class="form-check">
                                             <InputCheckbox @bind-Value="form.UseJsonResponseFormat" class="form-check-input" id="ai-form-json" />
-                                            <label class="form-check-label" for="ai-form-json">Pedir resposta em JSON (<code>response_format</code>; desmarque se o servidor recusar)</label>
-                                        </div>
-                                        <div class="form-check">
+                                            <span class="form-check-label">Pedir resposta em JSON (<code>response_format</code>; desmarque se o servidor recusar)</span>
+                                        </label>
+                                        <label class="form-check">
                                             <InputCheckbox @bind-Value="form.UseMaxCompletionTokens" class="form-check-input" id="ai-form-maxcompletion" />
-                                            <label class="form-check-label" for="ai-form-maxcompletion">Usar <code>max_completion_tokens</code> no lugar de <code>max_tokens</code> (modelos novos da OpenAI)</label>
-                                        </div>
+                                            <span class="form-check-label">Usar <code>max_completion_tokens</code> no lugar de <code>max_tokens</code> (modelos novos da OpenAI)</span>
+                                        </label>
                                     }
                                 </div>
                             </div>
                         </details>
 
-                        <div class="ai-form__actions">
-                            <button type="submit" class="btn btn-primary" disabled="@isSaving" data-testid="ai-form-save">@(isSaving ? "Salvando..." : "Salvar provedor")</button>
-                            <button type="button" class="btn btn-secondary" @onclick="CloseForm" disabled="@isSaving" data-testid="ai-form-cancel">Cancelar</button>
+                        <div class="form-actions">
+                            <button type="submit" class="btn btn-primary" disabled="@isSaving" aria-busy="@(isSaving ? "true" : null)" data-testid="ai-form-save">@(isSaving ? "Salvando…" : (form.Id is null ? "Salvar provedor" : "Salvar alterações"))</button>
+                            <button type="button" class="btn btn-outline-secondary" @onclick="CloseForm" disabled="@isSaving" data-testid="ai-form-cancel">Cancelar</button>
                         </div>
                     </EditForm>
                 </div>
@@ -322,24 +329,36 @@
         isLoading = true;
         loadFailed = false;
 
-        var result = await ListUseCase.ExecuteAsync();
-        if (result.Status == EResultStatus.Success && result.Data is not null)
+        try
         {
-            providers = result.Data.ToList();
+            var result = await ListUseCase.ExecuteAsync(cancellation.Token);
+            if (result.Status == EResultStatus.Success && result.Data is not null)
+            {
+                providers = result.Data.ToList();
+            }
+            else
+            {
+                Logger.LogFailure(result, "Listar provedores de IA");
+                loadFailed = true;
+            }
         }
-        else
+        catch (OperationCanceledException)
         {
-            Logger.LogFailure(result, "Listar provedores de IA");
-            loadFailed = true;
+            // A pessoa saiu da página: nada a mostrar
         }
-
-        isLoading = false;
+        finally
+        {
+            isLoading = false;
+        }
     }
 
     private bool IsBusy(Guid id) => busyId == id || testing.Contains(id);
 
     private static string ProtocolLabel(EAiProtocol protocol) =>
         protocol == EAiProtocol.Anthropic ? "Anthropic" : "OpenAI-compatível";
+
+    private static string ToggleLabel(AiProviderResponse provider) =>
+        $"{(provider.IsEnabled ? "Desativar" : "Ativar")} o provedor {provider.Name}";
 
     private static string HostOf(string baseUrl) =>
         Uri.TryCreate(baseUrl, UriKind.Absolute, out var uri) ? uri.Host : baseUrl;
@@ -350,13 +369,14 @@
 
     private void CloseForm() => form = null;
 
-    private void OnPresetChanged(ChangeEventArgs args)
+    private void OnPresetChanged(ChangeEventArgs args, EditContext editContext)
     {
         if (form is null)
             return;
 
         var preset = AiProviderPresets.Find(args.Value?.ToString());
         form.PresetKey = preset?.Key;
+        editContext.NotifyFieldChanged(new FieldIdentifier(form, nameof(ProviderForm.PresetKey)));
         if (preset is null)
             return;
 
@@ -377,14 +397,14 @@
         isSaving = true;
         try
         {
-            var result = await SaveUseCase.ExecuteAsync(form.ToRequest(admin));
+            var result = await SaveUseCase.ExecuteAsync(form.ToRequest(admin), cancellation.Token);
             if (result.Status == EResultStatus.Success && result.Data is not null)
             {
                 Logger.LogInformation("IA: provedor {Provider} salvo por {Admin}", result.Data.Name, admin);
                 await AuditLog.RecordAsync(new AdminAuditRecord(
                     AdminAuditActions.AiProviderSaved, actor, AdminAuditActions.AiProviderTarget, result.Data.Id.ToString(), result.Data.Name,
                     $"{ProtocolLabel(result.Data.Protocol)}, modelo {result.Data.Model}, variável {result.Data.ApiKeyEnvVar}"
-                    + (result.Data.IsDefault ? ", padrão" : string.Empty) + (result.Data.IsEnabled ? string.Empty : ", desativado")));
+                    + (result.Data.IsDefault ? ", padrão" : string.Empty) + (result.Data.IsEnabled ? string.Empty : ", desativado")), cancellation.Token);
                 Toast.ShowSuccess($"Provedor “{result.Data.Name}” salvo.");
                 form = null;
                 await LoadAsync();
@@ -399,6 +419,10 @@
                 foreach (var message in unmatched)
                     Toast.ShowError(message);
         }
+        catch (OperationCanceledException)
+        {
+            // A pessoa saiu da página: nada a mostrar
+        }
         finally
         {
             isSaving = false;
@@ -410,13 +434,13 @@
         busyId = provider.Id;
         try
         {
-            var result = await SetDefaultUseCase.ExecuteAsync(new AiProviderActionRequest { Id = provider.Id, UpdatedBy = admin });
+            var result = await SetDefaultUseCase.ExecuteAsync(new AiProviderActionRequest { Id = provider.Id, UpdatedBy = admin }, cancellation.Token);
             if (result.Status == EResultStatus.Success)
             {
                 Logger.LogInformation("IA: provedor {Provider} virou o padrão por {Admin}", provider.Name, admin);
                 await AuditLog.RecordAsync(new AdminAuditRecord(
                     AdminAuditActions.AiProviderDefaultChanged, actor, AdminAuditActions.AiProviderTarget, provider.Id.ToString(), provider.Name,
-                    "passou a ser o provedor padrão"));
+                    "passou a ser o provedor padrão"), cancellation.Token);
                 Toast.ShowSuccess($"“{provider.Name}” agora é o provedor padrão.");
                 await LoadAsync();
             }
@@ -424,6 +448,10 @@
             {
                 Toast.ShowError(ResultMessages.ToUserMessage(result, "Não foi possível mudar o provedor padrão."));
             }
+        }
+        catch (OperationCanceledException)
+        {
+            // A pessoa saiu da página: nada a mostrar
         }
         finally
         {
@@ -440,19 +468,23 @@
             request.IsEnabled = !provider.IsEnabled;
             request.MakeDefault = false;
 
-            var result = await SaveUseCase.ExecuteAsync(request);
+            var result = await SaveUseCase.ExecuteAsync(request, cancellation.Token);
             if (result.Status == EResultStatus.Success)
             {
                 Logger.LogInformation("IA: provedor {Provider} {Action} por {Admin}", provider.Name, request.IsEnabled ? "ativado" : "desativado", admin);
                 await AuditLog.RecordAsync(new AdminAuditRecord(
                     AdminAuditActions.AiProviderSaved, actor, AdminAuditActions.AiProviderTarget, provider.Id.ToString(), provider.Name,
-                    request.IsEnabled ? "ativado" : "desativado"));
+                    request.IsEnabled ? "ativado" : "desativado"), cancellation.Token);
                 await LoadAsync();
             }
             else
             {
                 Toast.ShowError(ResultMessages.ToUserMessage(result, "Não foi possível alterar o provedor."));
             }
+        }
+        catch (OperationCanceledException)
+        {
+            // A pessoa saiu da página: nada a mostrar
         }
         finally
         {
@@ -475,12 +507,12 @@
         busyId = provider.Id;
         try
         {
-            var result = await DeleteUseCase.ExecuteAsync(new AiProviderActionRequest { Id = provider.Id, UpdatedBy = admin });
+            var result = await DeleteUseCase.ExecuteAsync(new AiProviderActionRequest { Id = provider.Id, UpdatedBy = admin }, cancellation.Token);
             if (result.Status == EResultStatus.Success)
             {
                 Logger.LogInformation("IA: provedor {Provider} excluído por {Admin}", provider.Name, admin);
                 await AuditLog.RecordAsync(new AdminAuditRecord(
-                    AdminAuditActions.AiProviderDeleted, actor, AdminAuditActions.AiProviderTarget, provider.Id.ToString(), provider.Name));
+                    AdminAuditActions.AiProviderDeleted, actor, AdminAuditActions.AiProviderTarget, provider.Id.ToString(), provider.Name), cancellation.Token);
                 testResults.Remove(provider.Id);
                 Toast.ShowSuccess($"Provedor “{provider.Name}” excluído.");
                 await LoadAsync();
@@ -489,6 +521,10 @@
             {
                 Toast.ShowError(ResultMessages.ToUserMessage(result, "Não foi possível excluir o provedor."));
             }
+        }
+        catch (OperationCanceledException)
+        {
+            // A pessoa saiu da página: nada a mostrar
         }
         finally
         {

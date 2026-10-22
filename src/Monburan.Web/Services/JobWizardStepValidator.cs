@@ -10,6 +10,37 @@ public static class JobWizardStepValidator
 {
     public const int StepCount = 4;
 
+    // Etapa em que cada campo aparece: erro vindo do servidor (ou de validação no envio) leva a pessoa até ele
+    private static readonly Dictionary<string, int> FieldSteps = new(StringComparer.OrdinalIgnoreCase)
+    {
+        [nameof(CreateJobRequest.Title)] = 1,
+        [nameof(CreateJobRequest.Category)] = 1,
+        [nameof(CreateJobRequest.ContractType)] = 1,
+        [nameof(CreateJobRequest.Type)] = 1,
+        [nameof(CreateJobRequest.City)] = 1,
+        [nameof(CreateJobRequest.State)] = 1,
+        [nameof(CreateJobRequest.Tags)] = 1,
+        [nameof(CreateJobRequest.Description)] = 2,
+        [nameof(CreateJobRequest.Responsibilities)] = 2,
+        [nameof(CreateJobRequest.Requirements)] = 2,
+        [nameof(CreateJobRequest.Benefits)] = 2,
+        [nameof(CreateJobRequest.SalaryMin)] = 3,
+        [nameof(CreateJobRequest.SalaryMax)] = 3,
+        [nameof(CreateJobRequest.SalaryPeriod)] = 3,
+        [nameof(CreateJobRequest.SalaryDisplay)] = 3,
+        [nameof(CreateJobRequest.SalaryCurrency)] = 3,
+        [nameof(CreateJobRequest.NumberOfOpenings)] = 3,
+        [nameof(CreateJobRequest.ExpirationDate)] = 3,
+        [nameof(CreateJobRequest.ApplicationInstructions)] = 3,
+        [nameof(CreateJobRequest.Observations)] = 3
+    };
+
+    /// <summary>Campos do formulário que pertencem a alguma etapa.</summary>
+    public static IReadOnlyCollection<string> Fields => FieldSteps.Keys;
+
+    /// <summary>Etapa do campo; campo desconhecido fica na revisão final, onde a mensagem geral aparece.</summary>
+    public static int StepOf(string field) => FieldSteps.TryGetValue(field, out var step) ? step : StepCount;
+
     /// <summary>Valida só os campos da etapa atual; etapas fora de 1–4 não têm erro.</summary>
     public static IReadOnlyList<JobWizardStepError> Validate(int step, CreateJobRequest model) => step switch
     {

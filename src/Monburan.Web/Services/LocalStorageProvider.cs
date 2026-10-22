@@ -1,7 +1,5 @@
 using Microsoft.AspNetCore.Hosting;
 
-using System.Security.Cryptography;
-
 namespace Monburan.Web.Services;
 
 /// <summary>
@@ -12,6 +10,9 @@ public sealed class LocalStorageProvider : Core.Interfaces.Storage.IStorageProvi
 {
     private readonly string _uploadsPath;
     private readonly string _baseUrl;
+
+    // Prefixo das URLs de upload ("/uploads/..."): o caminho do arquivo vem depois dele
+    private const string UploadsPrefix = "uploads/";
 
     // Extensão é derivada do content-type validado, nunca do filename do cliente —
     // impede que um "evil.html" enviado como image/png vire arquivo executável no site.
@@ -26,7 +27,9 @@ public sealed class LocalStorageProvider : Core.Interfaces.Storage.IStorageProvi
 
     public LocalStorageProvider(IWebHostEnvironment environment)
     {
-        _uploadsPath = Path.Combine(environment.WebRootPath, "uploads");
+        // Caminho canônico da raiz de uploads: toda URL resolvida é conferida
+        // contra ele para impedir que o arquivo fique fora da pasta (path traversal).
+        _uploadsPath = Path.GetFullPath(Path.Combine(environment.WebRootPath, "uploads"));
         _baseUrl = "/uploads";
 
         // Garantir que a pasta de uploads existe
@@ -65,16 +68,8 @@ public sealed class LocalStorageProvider : Core.Interfaces.Storage.IStorageProvi
 
     public Task<bool> DeleteAsync(string fileUrl)
     {
-        if (string.IsNullOrWhiteSpace(fileUrl))
+        if (!TryResolveUploadPath(fileUrl, out var filePath))
             return Task.FromResult(false);
-
-        // Converter URL relativa para caminho físico
-        // Ex: /uploads/2024/01/abc123.jpg -> uploads/2024/01/abc123.jpg
-        var relativePath = fileUrl.TrimStart('/');
-        if (!relativePath.StartsWith("uploads", StringComparison.OrdinalIgnoreCase))
-            return Task.FromResult(false);
-
-        var filePath = Path.Combine(_uploadsPath, relativePath["uploads/".Length..]);
 
         if (!File.Exists(filePath))
             return Task.FromResult(false);
@@ -99,16 +94,57 @@ public sealed class LocalStorageProvider : Core.Interfaces.Storage.IStorageProvi
         if (string.IsNullOrWhiteSpace(fileUrl))
             throw new ArgumentException("URL do arquivo é obrigatória.", nameof(fileUrl));
 
-        var relativePath = fileUrl.TrimStart('/');
-        if (!relativePath.StartsWith("uploads", StringComparison.OrdinalIgnoreCase))
+        if (!TryResolveUploadPath(fileUrl, out var filePath))
             throw new ArgumentException("URL inválida. Deve ser uma URL de upload.", nameof(fileUrl));
 
-        var filePath = Path.Combine(_uploadsPath, relativePath["uploads/".Length..]);
-
         if (!File.Exists(filePath))
-            throw new FileNotFoundException($"Arquivo não encontrado: {fileUrl}");
+            // Só o nome do arquivo: o caminho completo revelaria a estrutura do servidor
+            throw new FileNotFoundException($"Arquivo não encontrado: {Path.GetFileName(filePath)}");
 
         var stream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read);
         return Task.FromResult<Stream>(stream);
+    }
+
+    /// <summary>
+    /// Converte a URL de upload em caminho físico, garantindo que o resultado
+    /// continue dentro da pasta de uploads.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="Path.Combine"/> sozinho não protege: "uploads/../../appsettings.json"
+    /// sai da pasta e "uploads//etc/passwd" vira caminho absoluto (o <c>Combine</c>
+    /// descarta a base). Por isso o caminho é canonicalizado com
+    /// <see cref="Path.GetFullPath(string)"/> e conferido contra a raiz.
+    /// </remarks>
+    private bool TryResolveUploadPath(string fileUrl, out string filePath)
+    {
+        filePath = string.Empty;
+
+        if (string.IsNullOrWhiteSpace(fileUrl))
+            return false;
+
+        // Ex: /uploads/2024/01/abc123.jpg -> uploads/2024/01/abc123.jpg
+        var relativePath = fileUrl.TrimStart('/');
+
+        // Só aceita URL dentro de /uploads/ (com barra): "uploadsQualquer" não é URL de upload
+        if (!relativePath.StartsWith(UploadsPrefix, StringComparison.OrdinalIgnoreCase))
+            return false;
+
+        var relativeFilePath = relativePath[UploadsPrefix.Length..];
+        if (relativeFilePath.Length == 0)
+            return false;
+
+        // GetFullPath resolve "..", "." e caminhos absolutos
+        var resolvedPath = Path.GetFullPath(Path.Combine(_uploadsPath, relativeFilePath));
+
+        // O caminho resolvido precisa continuar dentro da raiz de uploads
+        var rootWithSeparator = _uploadsPath.EndsWith(Path.DirectorySeparatorChar)
+            ? _uploadsPath
+            : _uploadsPath + Path.DirectorySeparatorChar;
+
+        if (!resolvedPath.StartsWith(rootWithSeparator, StringComparison.Ordinal))
+            return false;
+
+        filePath = resolvedPath;
+        return true;
     }
 }

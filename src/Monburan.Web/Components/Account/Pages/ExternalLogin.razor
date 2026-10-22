@@ -20,11 +20,10 @@
 
 <div class="auth-form-page">
     <header class="auth-form-heading">
-        <span class="auth-kicker">CONTA CONECTADA</span>
         <h1>Finalize seu cadastro</h1>
         <p>Você entrou com @ProviderDisplayName. Informe seu e-mail para concluir o acesso.</p>
     </header>
-    <StatusMessage Message="@message" />
+    <StatusMessage Message="@message" IsError="true" />
     <section class="auth-form-card">
         <EditForm Model="Input" OnValidSubmit="OnValidSubmitAsync" FormName="confirmation" method="post">
             <DataAnnotationsValidator />
@@ -72,13 +71,20 @@
     {
         if (RemoteError is not null)
         {
-            RedirectManager.RedirectToWithStatus("Account/Login", $"Error from external provider: {RemoteError}", HttpContext);
+            // O texto do provedor é técnico (e vem da URL): fica no log, a pessoa lê um recado simples
+            var sanitizedRemoteError = RemoteError
+                .Replace("\r", string.Empty)
+                .Replace("\n", string.Empty)
+                .Replace("\u2028", string.Empty)
+                .Replace("\u2029", string.Empty);
+            Logger.LogWarning("Erro retornado pelo provedor externo: {RemoteError}", sanitizedRemoteError);
+            RedirectManager.RedirectToWithStatus("Account/Login", "Erro: não foi possível entrar com o serviço externo. Tente novamente.", HttpContext);
         }
 
         var info = await SignInManager.GetExternalLoginInfoAsync();
         if (info is null)
         {
-            RedirectManager.RedirectToWithStatus("Account/Login", "Error loading external login information.", HttpContext);
+            RedirectManager.RedirectToWithStatus("Account/Login", "Erro: não foi possível carregar os dados do login externo. Tente novamente.", HttpContext);
         }
 
         externalLoginInfo = info;
@@ -162,7 +168,8 @@
             }
         }
 
-        message = $"Error: {string.Join(",", result.Errors.Select(error => error.Description))}";
+        // As descrições vêm do PortugueseIdentityErrorDescriber: já são texto para a pessoa
+        message = string.Join(" ", result.Errors.Select(error => error.Description));
     }
 
     private ApplicationUser CreateUser()

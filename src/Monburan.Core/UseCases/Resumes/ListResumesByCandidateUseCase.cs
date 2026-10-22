@@ -1,4 +1,4 @@
-using Monburan.Core.DTOs.Response;
+﻿using Monburan.Core.DTOs.Response;
 using Monburan.Core.Entities;
 using Monburan.Core.Enums;
 using Monburan.Core.Interfaces.Repositories;
@@ -17,9 +17,9 @@ public class ListResumesByCandidateUseCase : IUseCase<Guid, IEnumerable<ResumeRe
         _resumeRepository = resumeRepository;
     }
 
-    public async Task<RequestResult<IEnumerable<ResumeResponse>>> ExecuteAsync(Guid request)
+    public async Task<RequestResult<IEnumerable<ResumeResponse>>> ExecuteAsync(Guid request, CancellationToken cancellationToken = default)
     {
-        var result = await _resumeRepository.ListByCandidateAsync(request);
+        var result = await _resumeRepository.ListByCandidateAsync(request, cancellationToken: cancellationToken);
         if (result.Status != EResultStatus.Success)
             return RequestResult<IEnumerable<ResumeResponse>>.FromResult(result);
 
@@ -37,6 +37,8 @@ public class ListResumesByCandidateUseCase : IUseCase<Guid, IEnumerable<ResumeRe
         Title = r.Title,
         Summary = r.Summary,
         IsActive = r.IsActive,
+        SourceFileName = r.SourceFileName,
+        SourceFileUrl = r.SourceFileUrl,
         CreatedAt = r.CreatedAt,
         UpdatedAt = r.UpdatedAt,
         EducationHistory = r.EducationHistory?.Select(e => new EducationResponse

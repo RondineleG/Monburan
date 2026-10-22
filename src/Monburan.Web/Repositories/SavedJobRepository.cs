@@ -16,20 +16,20 @@ public class SavedJobRepository : ISavedJobRepository
         _contextFactory = contextFactory;
     }
 
-    public async Task<RequestResult<SavedJob>> SaveAsync(SavedJob savedJob)
+    public async Task<RequestResult<SavedJob>> SaveAsync(SavedJob savedJob, CancellationToken cancellationToken = default)
     {
-        await using var context = await _contextFactory.CreateDbContextAsync();
+        await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);
 
         var existing = await context.SavedJobs
             .AsNoTracking()
-            .FirstOrDefaultAsync(saved => saved.CandidateId == savedJob.CandidateId && saved.JobId == savedJob.JobId);
+            .FirstOrDefaultAsync(saved => saved.CandidateId == savedJob.CandidateId && saved.JobId == savedJob.JobId, cancellationToken);
         if (existing is not null)
             return RequestResult<SavedJob>.Success(existing);
 
         try
         {
             context.SavedJobs.Add(savedJob);
-            await context.SaveChangesAsync();
+            await context.SaveChangesAsync(cancellationToken);
             return RequestResult<SavedJob>.Success(savedJob);
         }
         catch (DbUpdateException)
@@ -38,7 +38,7 @@ public class SavedJobRepository : ISavedJobRepository
             context.Entry(savedJob).State = EntityState.Detached;
             var saved = await context.SavedJobs
                 .AsNoTracking()
-                .FirstOrDefaultAsync(item => item.CandidateId == savedJob.CandidateId && item.JobId == savedJob.JobId);
+                .FirstOrDefaultAsync(item => item.CandidateId == savedJob.CandidateId && item.JobId == savedJob.JobId, cancellationToken);
 
             return saved is not null
                 ? RequestResult<SavedJob>.Success(saved)
@@ -46,25 +46,25 @@ public class SavedJobRepository : ISavedJobRepository
         }
     }
 
-    public async Task<RequestResult<bool>> RemoveAsync(Guid candidateId, Guid jobId)
+    public async Task<RequestResult<bool>> RemoveAsync(Guid candidateId, Guid jobId, CancellationToken cancellationToken = default)
     {
-        await using var context = await _contextFactory.CreateDbContextAsync();
+        await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);
         var candidateKey = Id.Create(candidateId);
         var jobKey = Id.Create(jobId);
 
         var saved = await context.SavedJobs
-            .FirstOrDefaultAsync(item => item.CandidateId == candidateKey && item.JobId == jobKey);
+            .FirstOrDefaultAsync(item => item.CandidateId == candidateKey && item.JobId == jobKey, cancellationToken);
         if (saved is null)
             return RequestResult<bool>.Success(false);
 
         context.SavedJobs.Remove(saved);
-        await context.SaveChangesAsync();
+        await context.SaveChangesAsync(cancellationToken);
         return RequestResult<bool>.Success(true);
     }
 
-    public async Task<RequestResult<IEnumerable<SavedJob>>> ListByCandidateAsync(Guid candidateId)
+    public async Task<RequestResult<IEnumerable<SavedJob>>> ListByCandidateAsync(Guid candidateId, CancellationToken cancellationToken = default)
     {
-        await using var context = await _contextFactory.CreateDbContextAsync();
+        await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);
         var candidateKey = Id.Create(candidateId);
         var saved = await context.SavedJobs
             .AsNoTracking()
@@ -72,17 +72,17 @@ public class SavedJobRepository : ISavedJobRepository
                 .ThenInclude(job => job!.Advertiser)
             .Where(item => item.CandidateId == candidateKey && item.Job != null && !item.Job.IsDeleted)
             .OrderByDescending(item => item.CreatedAt)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         return RequestResult<IEnumerable<SavedJob>>.Success(saved);
     }
 
-    public async Task<RequestResult<IReadOnlyCollection<Guid>>> ListSavedJobIdsAsync(Guid candidateId, IReadOnlyCollection<Guid> jobIds)
+    public async Task<RequestResult<IReadOnlyCollection<Guid>>> ListSavedJobIdsAsync(Guid candidateId, IReadOnlyCollection<Guid> jobIds, CancellationToken cancellationToken = default)
     {
         if (jobIds.Count == 0)
             return RequestResult<IReadOnlyCollection<Guid>>.Success([]);
 
-        await using var context = await _contextFactory.CreateDbContextAsync();
+        await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);
         var candidateKey = Id.Create(candidateId);
         var jobKeys = jobIds.Select(Id.Create).ToList();
 
@@ -90,18 +90,18 @@ public class SavedJobRepository : ISavedJobRepository
             .AsNoTracking()
             .Where(item => item.CandidateId == candidateKey && jobKeys.Contains(item.JobId))
             .Select(item => item.JobId.Value)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         return RequestResult<IReadOnlyCollection<Guid>>.Success(savedIds);
     }
 
-    public async Task<RequestResult<int>> CountByCandidateAsync(Guid candidateId)
+    public async Task<RequestResult<int>> CountByCandidateAsync(Guid candidateId, CancellationToken cancellationToken = default)
     {
-        await using var context = await _contextFactory.CreateDbContextAsync();
+        await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);
         var candidateKey = Id.Create(candidateId);
         var count = await context.SavedJobs
             .AsNoTracking()
-            .CountAsync(item => item.CandidateId == candidateKey);
+            .CountAsync(item => item.CandidateId == candidateKey, cancellationToken);
 
         return RequestResult<int>.Success(count);
     }

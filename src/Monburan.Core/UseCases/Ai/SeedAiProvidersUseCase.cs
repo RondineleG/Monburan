@@ -23,9 +23,9 @@ public class SeedAiProvidersUseCase
     }
 
     /// <returns>Quantos provedores foram cadastrados (zero quando já havia algum).</returns>
-    public async Task<int> ExecuteAsync(string createdBy = "sistema")
+    public async Task<int> ExecuteAsync(string createdBy = "sistema", CancellationToken cancellationToken = default)
     {
-        if (await _repository.CountAsync() > 0)
+        if (await _repository.CountAsync(cancellationToken) > 0)
             return 0;
 
         var created = 0;
@@ -45,7 +45,8 @@ public class SeedAiProvidersUseCase
                 UseMaxCompletionTokens = preset.UseMaxCompletionTokens,
                 CreatedBy = createdBy,
                 UpdatedBy = createdBy
-            });
+            },
+            cancellationToken);
 
             if (result.Status == Enums.EResultStatus.Success)
                 created++;

@@ -40,12 +40,12 @@ public sealed class NotifyOnApplicationCreatedUseCase : IUseCase<NotifyOnApplica
         _logger = logger;
     }
 
-    public async Task<RequestResult<bool>> ExecuteAsync(NotifyOnApplicationCreatedRequest request)
+    public async Task<RequestResult<bool>> ExecuteAsync(NotifyOnApplicationCreatedRequest request, CancellationToken cancellationToken = default)
     {
         try
         {
             // Buscar candidatura
-            var applicationResult = await _applicationRepository.GetByIdAsync(Id.Create(request.ApplicationId));
+            var applicationResult = await _applicationRepository.GetByIdAsync(Id.Create(request.ApplicationId), cancellationToken);
             if (applicationResult.Status != EResultStatus.Success)
             {
                 _logger.LogWarning("Candidatura não encontrada: {ApplicationId}", request.ApplicationId);
@@ -55,7 +55,7 @@ public sealed class NotifyOnApplicationCreatedUseCase : IUseCase<NotifyOnApplica
             var application = applicationResult.Data!;
 
             // Buscar vaga para obter dados do anunciante
-            var jobResult = await _jobRepository.GetByIdAsync(application.JobId);
+            var jobResult = await _jobRepository.GetByIdAsync(application.JobId, cancellationToken);
             if (jobResult.Status != EResultStatus.Success)
             {
                 _logger.LogWarning("Vaga não encontrada: {JobId}", application.JobId.Value);
@@ -65,7 +65,7 @@ public sealed class NotifyOnApplicationCreatedUseCase : IUseCase<NotifyOnApplica
             var job = jobResult.Data!;
 
             // Buscar anunciante para obter email
-            var advertiserResult = await _advertiserRepository.GetByIdAsync(job.AdvertiserId);
+            var advertiserResult = await _advertiserRepository.GetByIdAsync(job.AdvertiserId, cancellationToken);
             if (advertiserResult.Status != EResultStatus.Success)
             {
                 _logger.LogWarning("Anunciante não encontrado: {AdvertiserId}", job.AdvertiserId.Value);
@@ -88,7 +88,7 @@ public sealed class NotifyOnApplicationCreatedUseCase : IUseCase<NotifyOnApplica
                 HtmlContent = html
             };
 
-            var emailResult = await _sendEmailUseCase.ExecuteAsync(emailRequest);
+            var emailResult = await _sendEmailUseCase.ExecuteAsync(emailRequest, cancellationToken);
 
             if (emailResult.Status != EResultStatus.Success)
             {
@@ -118,7 +118,7 @@ public sealed class NotifyOnApplicationCreatedUseCase : IUseCase<NotifyOnApplica
         }
     }
 
-    private async Task CreateInAppNotificationAsync(Advertiser advertiser, Job job, Application application)
+    private async Task CreateInAppNotificationAsync(Advertiser advertiser, Job job, Application application, CancellationToken cancellationToken = default)
     {
         try
         {
@@ -129,7 +129,8 @@ public sealed class NotifyOnApplicationCreatedUseCase : IUseCase<NotifyOnApplica
                 Type = ENotificationType.ApplicationStatus,
                 Title = "Nova candidatura",
                 Message = $"{candidateName} se candidatou à vaga \"{job.Title}\"."
-            });
+            },
+            cancellationToken);
 
             if (result.Status != EResultStatus.Success)
                 _logger.LogWarning("Notificação in-app de nova candidatura não criada: {Detail}", result.Message);

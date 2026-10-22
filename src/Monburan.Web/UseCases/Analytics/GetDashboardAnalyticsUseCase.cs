@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Monburan.Core.DTOs.Response;
 using Monburan.Core.Entities;
 using Monburan.Core.Enums;
+using Monburan.Core.Mappers;
 using Monburan.Core.Requests;
 using Monburan.Core.ValueObjects;
 
@@ -17,12 +18,14 @@ public class GetDashboardAnalyticsUseCase
         _contextFactory = contextFactory;
     }
 
-    public async Task<RequestResult<DashboardAnalyticsResponse>> ExecuteAsync(Guid? advertiserId = null)
+    public async Task<RequestResult<DashboardAnalyticsResponse>> ExecuteAsync(
+        Guid? advertiserId = null,
+        CancellationToken cancellationToken = default)
     {
         if (!advertiserId.HasValue)
             return RequestResult<DashboardAnalyticsResponse>.WithError("O painel de recrutamento exige um perfil de anunciante.");
 
-        await using var context = await _contextFactory.CreateDbContextAsync();
+        await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);
         var advertiserKey = Id.Create(advertiserId.Value);
 
         // Agregações feitas no banco: antes todas as candidaturas (com Candidate e Job)
@@ -38,19 +41,19 @@ public class GetDashboardAnalyticsUseCase
         var jobsByStatus = await jobs
             .GroupBy(j => j.Status)
             .Select(g => new { Status = g.Key, Count = g.Count() })
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         var applicationsByStatus = await applications
             .GroupBy(a => a.Status)
             .Select(g => new { Status = g.Key, Count = g.Count() })
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         var response = new DashboardAnalyticsResponse
         {
             JobsByStatus = jobsByStatus.ToDictionary(g => g.Status.ToString(), g => g.Count),
             ApplicationsByStatus = applicationsByStatus.ToDictionary(g => g.Status.ToString(), g => g.Count),
             TotalAdvertisers = 1,
-            TotalCandidates = await applications.Select(a => a.CandidateId).Distinct().CountAsync()
+            TotalCandidates = await applications.Select(a => a.CandidateId).Distinct().CountAsync(cancellationToken)
         };
 
         response.TotalJobs = response.JobsByStatus.Values.Sum();
@@ -61,56 +64,18 @@ public class GetDashboardAnalyticsUseCase
             .Include(j => j.Advertiser)
             .OrderByDescending(j => j.CreatedAt)
             .Take(6)
-            .ToListAsync();
-        response.RecentJobs = recentJobs.Select(MapToJobResponse).ToList();
+            .ToListAsync(cancellationToken);
+        response.RecentJobs = recentJobs.Select(job => JobResponseMapper.ToResponse(job)).ToList();
 
         var recentApplications = await applications
             .Include(a => a.Candidate)
             .Include(a => a.Job)
             .OrderByDescending(a => a.AppliedAt ?? a.CreatedAt)
             .Take(6)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
         response.RecentApplications = recentApplications.Select(MapToApplicationResponse).ToList();
 
         return RequestResult<DashboardAnalyticsResponse>.Success(response);
-    }
-
-    private static JobResponse MapToJobResponse(Job job)
-    {
-        return new JobResponse
-        {
-            Id = job.Id.Value,
-            Title = job.Title,
-            Description = job.Description,
-            Requirements = job.Requirements,
-            Responsibilities = job.Responsibilities,
-            Benefits = job.Benefits,
-            ApplicationInstructions = job.ApplicationInstructions,
-            NumberOfOpenings = job.NumberOfOpenings,
-            Observations = job.Observations,
-            Category = job.Category,
-            ContractType = job.ContractType?.ToString(),
-            Tags = job.Tags,
-            ExpirationDate = job.ExpirationDate,
-            Status = job.Status.ToString(),
-            City = job.Location?.City,
-            State = job.Location?.State,
-            Country = job.Location?.Country ?? "BR",
-            Type = job.Location?.Type ?? "OnSite",
-            IsRemote = job.Location?.IsRemote ?? false,
-            SalaryMin = job.Salary?.Min,
-            SalaryMax = job.Salary?.Max,
-            SalaryCurrency = job.Salary?.Currency ?? "BRL",
-            SalaryDisplay = job.Salary?.Display ?? true,
-            SalaryPeriod = job.Salary?.Period?.ToString(),
-            Views = job.Counters?.Views ?? 0,
-            Applications = job.Counters?.Applications ?? 0,
-            AdvertiserId = job.AdvertiserId.Value,
-            AdvertiserName = job.Advertiser?.Name,
-            AdvertiserLogoUrl = job.Advertiser?.LogoUrl,
-            CreatedAt = job.CreatedAt,
-            UpdatedAt = job.UpdatedAt
-        };
     }
 
     private static ApplicationResponse MapToApplicationResponse(Application application)

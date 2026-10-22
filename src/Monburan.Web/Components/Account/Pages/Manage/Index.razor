@@ -9,9 +9,9 @@
 @inject IdentityUserAccessor UserAccessor
 @inject IdentityRedirectManager RedirectManager
 
-<PageTitle>Perfil</PageTitle>
+<PageTitle>Perfil - Monburan</PageTitle>
 
-<h3>Perfil</h3>
+<h2>Perfil</h2>
 <StatusMessage />
 
 <div class="row">
@@ -19,16 +19,17 @@
         <EditForm Model="Input" FormName="profile" OnValidSubmit="OnValidSubmitAsync" method="post">
             <DataAnnotationsValidator />
             <ValidationSummary class="text-danger" role="alert" />
-            <div class="form-floating mb-3">
-                <input id="username" type="text" value="@username" class="form-control" placeholder="Please choose your username." disabled />
-                <label for="username" class="form-label">Username</label>
+            <div class="mb-3">
+                @* O e-mail de acesso não muda aqui: somente leitura, mas ainda focável e legível *@
+                <label for="username" class="form-label">E-mail de acesso</label>
+                <input id="username" type="text" value="@username" class="form-control" readonly />
             </div>
-            <div class="form-floating mb-3">
-                <InputText id="phone-number" @bind-Value="Input.PhoneNumber" class="form-control" placeholder="Please enter your phone number." />
-                <label for="phone-number" class="form-label">Phone number</label>
+            <div class="mb-3">
+                <label for="phone-number" class="form-label">Telefone</label>
+                <InputText id="phone-number" type="tel" autocomplete="tel" @bind-Value="Input.PhoneNumber" class="form-control" placeholder="(00) 00000-0000" />
                 <ValidationMessage For="() => Input.PhoneNumber" class="text-danger" />
             </div>
-            <button type="submit" class="w-100 btn btn-lg btn-primary">Save</button>
+            <button type="submit" class="w-100 btn btn-lg btn-primary">Salvar telefone</button>
         </EditForm>
     </div>
 </div>

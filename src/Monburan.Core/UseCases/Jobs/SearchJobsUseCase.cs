@@ -4,6 +4,7 @@ using Monburan.Core.Entities;
 using Monburan.Core.Enums;
 using Monburan.Core.Interfaces.Repositories;
 using Monburan.Core.Interfaces.UseCases;
+using Monburan.Core.Mappers;
 using Monburan.Core.Requests;
 
 namespace Monburan.Core.UseCases.Jobs;
@@ -19,7 +20,7 @@ public class SearchJobsUseCase : IUseCase<ListJobsRequest, ListJobsResponse>
         _savedJobs = savedJobs;
     }
 
-    public async Task<RequestResult<ListJobsResponse>> ExecuteAsync(ListJobsRequest request)
+    public async Task<RequestResult<ListJobsResponse>> ExecuteAsync(ListJobsRequest request, CancellationToken cancellationToken = default)
     {
         var result = await _jobRepository.SearchAsync(
             searchTerm: request.SearchTerm,
@@ -37,7 +38,8 @@ public class SearchJobsUseCase : IUseCase<ListJobsRequest, ListJobsResponse>
             sortDescending: request.SortDescending,
             contractType: ParseEnum<EContractType>(request.ContractType),
             salaryPeriod: ParseEnum<ESalaryPeriod>(request.SalaryPeriod),
-            publishedWithinDays: request.PublishedWithinDays is > 0 ? request.PublishedWithinDays : null);
+            publishedWithinDays: request.PublishedWithinDays is > 0 ? request.PublishedWithinDays : null,
+            cancellationToken: cancellationToken);
 
         if (result.Status != EResultStatus.Success || result.Data is null)
             return RequestResult<ListJobsResponse>.FromResult(result);
@@ -59,8 +61,24 @@ public class SearchJobsUseCase : IUseCase<ListJobsRequest, ListJobsResponse>
         return RequestResult<ListJobsResponse>.Success(response);
     }
 
+    public async Task<RequestResult<ListJobsResponse>> ExecutePublicByAdvertiserAsync(
+        Guid advertiserId, int page, int size, CancellationToken cancellationToken = default)
+    {
+        var result = await _jobRepository.SearchPublicByAdvertiserAsync(advertiserId, page, size, cancellationToken);
+        if (result.Status != EResultStatus.Success || result.Data is null)
+            return RequestResult<ListJobsResponse>.FromResult(result);
+
+        return RequestResult<ListJobsResponse>.Success(new ListJobsResponse
+        {
+            Jobs = result.Data.Data.Select(job => JobResponseMapper.ToResponse(job)).ToList(),
+            TotalCount = result.Data.TotalCount,
+            Page = result.Data.Page,
+            Size = result.Data.Size
+        });
+    }
+
     // Uma consulta em lote por página; falha na marcação não derruba a listagem (as vagas só perdem o coração preenchido)
-    private async Task<IReadOnlyCollection<Guid>> GetSavedJobIdsAsync(Guid? candidateId, IEnumerable<Job> jobs)
+    private async Task<IReadOnlyCollection<Guid>> GetSavedJobIdsAsync(Guid? candidateId, IEnumerable<Job> jobs, CancellationToken cancellationToken = default)
     {
         if (!candidateId.HasValue)
             return [];
@@ -69,7 +87,7 @@ public class SearchJobsUseCase : IUseCase<ListJobsRequest, ListJobsResponse>
         if (jobIds.Count == 0)
             return [];
 
-        var saved = await _savedJobs.ListSavedJobIdsAsync(candidateId.Value, jobIds);
+        var saved = await _savedJobs.ListSavedJobIdsAsync(candidateId.Value, jobIds, cancellationToken);
         return saved.Status == EResultStatus.Success && saved.Data is not null ? saved.Data : [];
     }
 

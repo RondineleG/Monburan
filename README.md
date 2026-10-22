@@ -106,8 +106,8 @@ export Smtp__Password="sua-api-key-resend"
 ## 📊 Monitoramento
 
 ### Health Checks
-- **Endpoint**: `/health`
-- **Uso**: Monitoramento de saúde da aplicação (checagem básica de liveness)
+- **Liveness** — `/health` e `/health/live`: o app está no ar. Não dependem do banco, para o deploy e o orquestrador não reiniciarem o contêiner porque o Postgres caiu. `/health` mantém o corpo de texto simples (`Healthy`), de que o `deploy.sh` e o nginx dependem.
+- **Readiness** — `/health/ready`: o app está pronto para receber tráfego. Verifica o Postgres e devolve JSON com o estado de cada checagem (503 quando o banco não responde).
 
 ### Logging Estruturado
 - **Framework**: Serilog

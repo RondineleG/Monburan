@@ -16,18 +16,18 @@ public class TenantConfigRepository : IBaseRepository<TenantConfig>
         _contextFactory = contextFactory;
     }
 
-    public async Task<RequestResult<TenantConfig>> CreateAsync(TenantConfig entity)
+    public async Task<RequestResult<TenantConfig>> CreateAsync(TenantConfig entity, CancellationToken cancellationToken = default)
     {
-        await using var context = await _contextFactory.CreateDbContextAsync();
+        await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);
         context.TenantConfigs.Add(entity);
-        await context.SaveChangesAsync();
+        await context.SaveChangesAsync(cancellationToken);
         return RequestResult<TenantConfig>.Success(entity);
     }
 
-    public async Task<RequestResult<TenantConfig>> DeleteAsync(Id id)
+    public async Task<RequestResult<TenantConfig>> DeleteAsync(Id id, CancellationToken cancellationToken = default)
     {
-        await using var context = await _contextFactory.CreateDbContextAsync();
-        var tenantConfig = await context.TenantConfigs.FindAsync(id);
+        await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);
+        var tenantConfig = await context.TenantConfigs.FindAsync([id], cancellationToken);
         if (tenantConfig == null)
             return RequestResult<TenantConfig>.EntityNotFound("TenantConfig", id.Value, "Configuração de tenant não encontrada.");
 
@@ -35,28 +35,28 @@ public class TenantConfigRepository : IBaseRepository<TenantConfig>
         tenantConfig.DeletedAt = DateTime.UtcNow;
         
         context.TenantConfigs.Update(tenantConfig);
-        await context.SaveChangesAsync();
+        await context.SaveChangesAsync(cancellationToken);
         return RequestResult<TenantConfig>.Success(tenantConfig);
     }
 
-    public async Task<RequestResult<IEnumerable<TenantConfig>>> GetAllAsync(int page, int size)
+    public async Task<RequestResult<IEnumerable<TenantConfig>>> GetAllAsync(int page, int size, CancellationToken cancellationToken = default)
     {
-        await using var context = await _contextFactory.CreateDbContextAsync();
+        await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);
         var tenantConfigs = await context.TenantConfigs
             .Where(t => !t.IsDeleted)
             .OrderByDescending(t => t.CreatedAt)
             .Skip((page - 1) * size)
             .Take(size)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         return RequestResult<IEnumerable<TenantConfig>>.Success(tenantConfigs);
     }
 
-    public async Task<RequestResult<TenantConfig>> GetByIdAsync(Id id)
+    public async Task<RequestResult<TenantConfig>> GetByIdAsync(Id id, CancellationToken cancellationToken = default)
     {
-        await using var context = await _contextFactory.CreateDbContextAsync();
+        await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);
         var tenantConfig = await context.TenantConfigs
-            .FirstOrDefaultAsync(t => t.Id == id && !t.IsDeleted);
+            .FirstOrDefaultAsync(t => t.Id == id && !t.IsDeleted, cancellationToken);
 
         if (tenantConfig == null)
             return RequestResult<TenantConfig>.EntityNotFound("TenantConfig", id.Value, "Configuração de tenant não encontrada.");
@@ -64,11 +64,11 @@ public class TenantConfigRepository : IBaseRepository<TenantConfig>
         return RequestResult<TenantConfig>.Success(tenantConfig);
     }
 
-    public async Task<RequestResult<TenantConfig>> UpdateAsync(TenantConfig entity)
+    public async Task<RequestResult<TenantConfig>> UpdateAsync(TenantConfig entity, CancellationToken cancellationToken = default)
     {
-        await using var context = await _contextFactory.CreateDbContextAsync();
+        await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);
         context.TenantConfigs.Update(entity);
-        await context.SaveChangesAsync();
+        await context.SaveChangesAsync(cancellationToken);
         return RequestResult<TenantConfig>.Success(entity);
     }
 }

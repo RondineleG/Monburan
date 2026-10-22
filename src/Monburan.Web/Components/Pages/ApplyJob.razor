@@ -4,6 +4,7 @@
 @using Monburan.Core.DTOs.Request
 @using Monburan.Core.DTOs.Response
 @using Monburan.Core.Enums
+@using Monburan.Core.Requests
 @using Monburan.Core.UseCases.Applications
 @using Monburan.Core.UseCases.Jobs
 @using Monburan.Core.UseCases.Resumes
@@ -11,6 +12,7 @@
 @inject CreateApplicationUseCase CreateApplicationUseCase
 @inject GetJobByIdUseCase GetJobByIdUseCase
 @inject ListResumesByCandidateUseCase ListResumesByCandidateUseCase
+@inject ApplicationLookupService ApplicationLookup
 @inject ILogger<ApplyJob> Logger
 @inject ICurrentUserHelper CurrentUserHelper
 @inject NavigationManager Navigation
@@ -19,42 +21,50 @@
 
 <PageTitle>Candidatar-se - Monburan</PageTitle>
 
-<div class="container mt-4 application-page">
-    <header class="page-heading">
-        <div class="page-heading__copy">
-            <span class="page-kicker">CANDIDATURA</span>
-            <h1>Candidatar-se à vaga</h1>
-            <p>Revise os detalhes e envie seu perfil para a empresa.</p>
-        </div>
-        <button class="btn btn-secondary" @onclick="Cancel">Voltar à oportunidade</button>
-    </header>
-    <div class="row">
-        <div class="col-lg-8 mx-auto">
+<div class="page-narrow application-page">
+    <PageHeader Title="Candidatar-se à vaga" Description="Revise os detalhes e envie seu perfil para a empresa."
+                BackHref="@($"/jobs/{JobId}")" BackText="Voltar à vaga" />
+    <div>
+        <div>
 
             @if (isLoading)
             {
-                <LoadingState Message="Carregando a vaga..." />
+                <LoadingState Message="Carregando a vaga…" />
             }
             else if (!isCandidate)
             {
-                <div class="alert alert-info" role="status">
-                    Esta etapa é exclusiva para candidatos. Entre com uma conta de candidato para enviar sua candidatura.
-                    <a href="/dashboard">Voltar ao início</a>
-                </div>
+                <AccessRestricted Reason="A candidatura é exclusiva para contas de candidato. Entre com uma conta de candidato para enviar sua candidatura." />
+            }
+            else if (lookupFailed)
+            {
+                <ErrorState Title="Não foi possível verificar sua candidatura"
+                            Message="Tivemos um problema ao conferir se você já se candidatou a esta vaga. Sem essa verificação não dá para enviar de novo — tente novamente em instantes."
+                            OnRetry="LoadAsync" />
+            }
+            else if (existingApplication is not null)
+            {
+                <section class="card" data-testid="application-already" aria-live="polite">
+                    <div class="card-body">
+                        <h2 class="h4" id="apply-step-title" tabindex="-1">Você já se candidatou a esta vaga</h2>
+                        <p>Situação atual: <StatusBadge Kind="StatusKind.Application" Value="@existingApplication.Status" /></p>
+                        <p>A empresa já recebeu seu perfil. Você pode acompanhar as etapas do processo seletivo em Minhas candidaturas.</p>
+                        <a class="btn btn-primary" href="/my-applications?aba=candidaturas" data-testid="application-track">Acompanhar candidatura</a>
+                    </div>
+                </section>
             }
             else if (submitted)
             {
                 <section class="card" data-testid="application-feedback" aria-live="polite">
                     <div class="card-body">
-                        <h2 class="h4" id="apply-step-title" tabindex="-1">Candidatura enviada!</h2>
-                        <p>A empresa já pode ver seu perfil para esta vaga. Acompanhe as atualizações em Minhas vagas.</p>
+                        <h2 class="h4" id="apply-step-title" tabindex="-1">Candidatura enviada</h2>
+                        <p>A empresa já pode ver seu perfil para esta vaga. Acompanhe as atualizações em Minhas candidaturas.</p>
                         <h3 class="h6">Próximos passos</h3>
                         <ul>
-                            <li>Acompanhe as etapas do processo seletivo em <a href="/my-applications?aba=candidaturas">Minhas vagas</a>.</li>
+                            <li>Acompanhe as etapas do processo seletivo em <a href="/my-applications?aba=candidaturas">Minhas candidaturas</a>.</li>
                             <li>Continue explorando <a href="/jobs">outras oportunidades</a>.</li>
                             <li>Mantenha seu <a href="/resumes">currículo</a> atualizado.</li>
                         </ul>
-                        <button class="btn btn-primary" @onclick="ViewApplications">Ir para Minhas vagas</button>
+                        <a class="btn btn-primary" href="/my-applications?aba=candidaturas">Ver minhas candidaturas</a>
                     </div>
                 </section>
             }
@@ -78,9 +88,7 @@
 
                 @if (!string.IsNullOrEmpty(errorMessage))
                 {
-                    <div class="alert alert-danger" data-testid="application-feedback">
-                        <i class="bi bi-exclamation-triangle"></i> @errorMessage
-                    </div>
+                    <div class="alert alert-danger" role="alert" data-testid="application-feedback">@errorMessage</div>
                 }
 
                 <div class="card">
@@ -127,21 +135,20 @@
                             }
                             else
                             {
-                                <div class="alert alert-info">
-                                    <i class="bi bi-info-circle"></i>
-                                    Você ainda não tem currículo cadastrado. <a href="/resumes/new">Crie um currículo</a> para enviá-lo junto com a candidatura.
+                                <div class="alert alert-info" role="status">
+                                    Você ainda não tem currículo cadastrado. <a href="/resumes/wizard">Crie um currículo</a> para enviá-lo junto com a candidatura.
                                 </div>
                             }
 
                             <div class="mb-3">
                                 <label class="form-label" for="application-notes">Observações (opcional)</label>
                                 <InputTextArea id="application-notes" class="form-control" @bind-Value="model.Notes" rows="4" data-testid="application-notes"
-                                               placeholder="Escreva uma breve mensagem ou destaque suas qualificações..." />
+                                               placeholder="Escreva uma breve mensagem ou destaque suas qualificações…" />
                             </div>
 
                             <div class="d-grid gap-2">
                                 <button type="button" class="btn btn-primary btn-lg" @onclick="GoToConfirm" data-testid="application-continue">
-                                    Continuar <span aria-hidden="true">→</span>
+                                    Continuar<Icon Name="arrow-right" Size="18" />
                                 </button>
                             </div>
                         }
@@ -168,25 +175,34 @@
                                 <dd>@(string.IsNullOrWhiteSpace(model.Notes) ? "Sem observações" : model.Notes)</dd>
                             </dl>
 
-                            <div class="form-check mb-3">
+                            <label class="form-check form-check--boxed mb-3" for="application-confirm">
                                 <input type="checkbox" class="form-check-input" id="application-confirm"
                                        @bind="confirmed" data-testid="application-confirm" />
-                                <label class="form-check-label" for="application-confirm">
-                                    Confirmo que as informações estão corretas
-                                </label>
-                            </div>
+                                <span class="form-check-label">Confirmo que as informações estão corretas</span>
+                            </label>
 
-                            <div class="d-flex gap-2">
-                                <button type="button" class="btn btn-secondary" @onclick="BackToReview">
-                                    <span aria-hidden="true">←</span> Voltar
+                            @if (!confirmed)
+                            {
+                                @* Explica por que o envio está desabilitado *@
+                                <p id="application-confirm-hint" class="form-text mb-3">Marque a confirmação acima para enviar.</p>
+                            }
+                            <div class="form-actions">
+                                <button type="button" class="btn btn-outline-secondary" @onclick="BackToReview">
+                                    <Icon Name="arrow-left" Size="18" />Voltar
                                 </button>
-                                <button type="button" class="btn btn-success btn-lg flex-grow-1" disabled="@(!confirmed || isSubmitting)"
+                                <button type="button" class="btn btn-primary btn-lg flex-grow-1" disabled="@(!confirmed || isSubmitting)"
+                                        aria-busy="@(isSubmitting ? "true" : null)"
+                                        aria-describedby="@(confirmed ? null : "application-confirm-hint")"
                                         @onclick="SubmitForm" data-testid="application-submit">
                                     @if (isSubmitting)
                                     {
-                                        <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                                        <span class="spinner-border spinner-border-sm" aria-hidden="true"></span>
+                                        <span>Enviando…</span>
                                     }
-                                    Enviar candidatura
+                                    else
+                                    {
+                                        <span>Enviar candidatura</span>
+                                    }
                                 </button>
                             </div>
                         }
@@ -213,12 +229,34 @@
     private bool isLoading = true;
     private int step = 1;
     private List<ResumeResponse> resumes = [];
+    private ApplicationResponse? existingApplication;
+    private bool lookupFailed;
 
     private string? SelectedResumeTitle =>
         resumes.FirstOrDefault(resume => resume.Id == model.ResumeId)?.Title;
 
-    protected override async Task OnInitializedAsync()
+    protected override async Task OnParametersSetAsync()
     {
+        // Trocar de vaga reaproveita o componente: zera tudo e recarrega para o novo JobId
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        isLoading = true;
+        model = new CreateApplicationRequest { JobId = JobId };
+        job = null;
+        salary = null;
+        resumes = [];
+        step = 1;
+        submitted = false;
+        confirmed = false;
+        isSubmitting = false;
+        errorMessage = string.Empty;
+        jobUnavailableMessage = null;
+        existingApplication = null;
+        lookupFailed = false;
+
         var jobResult = await GetJobByIdUseCase.ExecuteAsync(JobId, CurrentUserHelper.GetCandidateId());
         if (jobResult.Status == EResultStatus.Success && jobResult.Data is not null)
         {
@@ -242,19 +280,51 @@
 
         var candidateId = CurrentUserHelper.GetCandidateId();
         isCandidate = candidateId.HasValue;
-        if (candidateId.HasValue)
+        if (!isCandidate || jobUnavailableMessage is not null)
         {
-            model.CandidateId = candidateId.Value;
-
-            // Antes a tela prometia enviar "o currículo ativo", mas nenhum era anexado
-            var resumesResult = await ListResumesByCandidateUseCase.ExecuteAsync(candidateId.Value);
-            if (resumesResult.Status == EResultStatus.Success && resumesResult.Data is not null)
-            {
-                resumes = resumesResult.Data.ToList();
-                model.ResumeId = resumes.FirstOrDefault(r => r.IsActive)?.Id ?? resumes.FirstOrDefault()?.Id;
-            }
+            isLoading = false;
+            return;
         }
-        model.JobId = JobId;
+
+        model.CandidateId = candidateId!.Value;
+
+        // Verificação ANTES do formulário: já candidatado vê a situação e não o wizard;
+        // falha na consulta bloqueia o envio (nunca fingir "não se candidatou")
+        RequestResult<ApplicationResponse?> lookup;
+        try
+        {
+            lookup = await ApplicationLookup.GetAsync(JobId);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            Logger.LogError(ex, "Falha ao verificar candidatura existente antes do formulário");
+            lookupFailed = true;
+            isLoading = false;
+            return;
+        }
+        if (lookup.Status != EResultStatus.Success)
+        {
+            Logger.LogFailure(lookup, "Verificar candidatura existente antes do formulário");
+            lookupFailed = true;
+            isLoading = false;
+            return;
+        }
+
+        if (lookup.Data is not null)
+        {
+            existingApplication = lookup.Data;
+            isLoading = false;
+            return;
+        }
+
+        // Antes a tela prometia enviar "o currículo ativo", mas nenhum era anexado
+        var resumesResult = await ListResumesByCandidateUseCase.ExecuteAsync(candidateId.Value);
+        if (resumesResult.Status == EResultStatus.Success && resumesResult.Data is not null)
+        {
+            resumes = resumesResult.Data.ToList();
+            model.ResumeId = resumes.FirstOrDefault(r => r.IsActive)?.Id ?? resumes.FirstOrDefault()?.Id;
+        }
+
         isLoading = false;
     }
 
@@ -297,27 +367,17 @@
         if (result.Status == EResultStatus.Success)
         {
             submitted = true;
-            Toast.ShowSuccess("A empresa já pode ver sua candidatura. Acompanhe em Minhas vagas.", "Candidatura enviada");
+            Toast.ShowSuccess("A empresa já pode ver sua candidatura. Acompanhe em Minhas candidaturas.", "Candidatura enviada");
             await FocusStepTitleAsync();
         }
         else
         {
-            // "Já se candidatou" (409) e validações chegavam com Message vazio — nada aparecia
+            // "Já se candidatou" (409) e validações chegavam com Message vazio — nada aparecia.
+            // O alerta da página (role="alert") já anuncia: um toast repetiria a mesma mensagem.
             Logger.LogFailure(result, "Enviar candidatura");
             errorMessage = ResultMessages.ToUserMessage(result, "Não foi possível enviar sua candidatura. Tente novamente.");
-            Toast.ShowError(errorMessage);
         }
 
         isSubmitting = false;
-    }
-
-    private void Cancel()
-    {
-        Navigation.NavigateTo($"/jobs/{JobId}");
-    }
-
-    private void ViewApplications()
-    {
-        Navigation.NavigateTo("/my-applications");
     }
 }

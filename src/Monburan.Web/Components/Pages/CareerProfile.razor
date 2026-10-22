@@ -18,17 +18,11 @@
 <PageTitle>Perfil de carreira - Monburan</PageTitle>
 
 <div class="container my-applications-page">
-    <header class="page-heading">
-        <div class="page-heading__copy">
-            <span class="page-kicker">MINHA CARREIRA</span>
-            <h1>Perfil de carreira</h1>
-            <p>Usamos estas informações para recomendar vagas.</p>
-        </div>
-    </header>
+    <PageHeader Title="Perfil de carreira" Description="Usamos estas informações para recomendar vagas." />
 
     @if (isLoading)
     {
-        <LoadingState Message="Carregando seu perfil de carreira..." />
+        <LoadingState Message="Carregando seu perfil de carreira…" />
     }
     else if (loadFailed)
     {
@@ -47,12 +41,13 @@
                             <div class="alert alert-danger" role="alert" data-testid="career-profile-error">@errorMessage</div>
                         }
 
-                        <EditForm Model="model" OnValidSubmit="SaveAsync" novalidate>
+                        <EditForm Model="model" OnValidSubmit="SaveAsync" Context="form" novalidate>
+                            <DataAnnotationsValidator />
+                            <UnsavedChangesGuard HasChanges="() => form.IsModified() && !isSaving" />
                             <div class="mb-3">
                                 <label class="form-label" for="career-role">Cargo desejado</label>
                                 <InputText id="career-role" class="form-control" @bind-Value="model.DesiredRole" data-testid="career-role"
                                            placeholder="Ex.: Atendente, Vendedor(a), Desenvolvedor(a)" />
-                                <div class="form-text">Usamos estas informações para recomendar vagas.</div>
                             </div>
 
                             <div class="row g-2">
@@ -108,19 +103,23 @@
                                 <div class="col-md-5">
                                     <label class="form-label" for="career-salary">Salário mínimo (R$)</label>
                                     <InputNumber id="career-salary" class="form-control" @bind-Value="model.MinimumSalary"
-                                                 Culture="@BrazilianCulture" data-testid="career-salary" />
+                                                 Culture="@BrazilianCulture" inputmode="decimal" data-testid="career-salary" />
                                 </div>
                             </div>
 
-                            <div class="d-flex gap-2 mt-4">
-                                <button type="submit" class="btn btn-primary" disabled="@isSaving" data-testid="career-profile-submit">
+                            <div class="form-actions">
+                                <button type="submit" class="btn btn-primary" disabled="@isSaving" aria-busy="@(isSaving ? "true" : null)" data-testid="career-profile-submit">
                                     @if (isSaving)
                                     {
-                                        <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                                        <span class="spinner-border spinner-border-sm" aria-hidden="true"></span>
+                                        <span>Salvando…</span>
                                     }
-                                    Salvar perfil de carreira
+                                    else
+                                    {
+                                        <span>Salvar perfil de carreira</span>
+                                    }
                                 </button>
-                                <button type="button" class="btn btn-secondary" @onclick="BackToDashboard">Voltar</button>
+                                <a class="btn btn-outline-secondary" href="/">Voltar ao início</a>
                             </div>
                         </EditForm>
                     </div>
@@ -175,7 +174,7 @@
         isLoading = false;
     }
 
-    private async Task SaveAsync()
+    private async Task SaveAsync(EditContext form)
     {
         if (isSaving)
             return;
@@ -189,12 +188,14 @@
         if (result.Status == EResultStatus.Success)
         {
             Toast.ShowSuccess("Perfil salvo. Suas recomendações já consideram as novas informações.", "Perfil de carreira");
+            // Salvo: sair da página não precisa mais de confirmação
+            form.MarkAsUnmodified();
         }
         else
         {
             Logger.LogFailure(result, "Salvar perfil de carreira");
+            // O alerta da página (role="alert") já anuncia: sem toast repetindo
             errorMessage = ResultMessages.ToUserMessage(result, "Não foi possível salvar o perfil. Revise os campos e tente novamente.");
-            Toast.ShowError(errorMessage);
         }
 
         isSaving = false;

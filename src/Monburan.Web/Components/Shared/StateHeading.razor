@@ -1,0 +1,21 @@
+@* Título de estado (vazio, erro, não encontrado) com o nível que a página pedir *@
+@switch (Level)
+{
+    case 1:
+        <h1 tabindex="-1">@Text</h1>
+        break;
+    case 3:
+        <h3>@Text</h3>
+        break;
+    default:
+        <h2>@Text</h2>
+        break;
+}
+
+@code {
+    [Parameter]
+    public int Level { get; set; } = 2;
+
+    [Parameter]
+    public string Text { get; set; } = string.Empty;
+}

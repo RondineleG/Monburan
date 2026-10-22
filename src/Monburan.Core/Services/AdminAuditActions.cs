@@ -13,6 +13,7 @@ public static class AdminAuditActions
     public const string AccountTwoFactorReset = "account.two_factor_reset";
     public const string AccountAdminGranted = "account.admin_granted";
     public const string AccountAdminRevoked = "account.admin_revoked";
+    public const string AccountPlanChanged = "account.plan_changed";
     public const string JobStatusChanged = "job.status_changed";
     public const string JobDeleted = "job.deleted";
     public const string AiProviderSaved = "ai_provider.saved";
@@ -33,6 +34,7 @@ public static class AdminAuditActions
         [AccountTwoFactorReset] = "Verificação em duas etapas redefinida",
         [AccountAdminGranted] = "Papel de administrador concedido",
         [AccountAdminRevoked] = "Papel de administrador removido",
+        [AccountPlanChanged] = "Plano da conta alterado",
         [JobStatusChanged] = "Situação da vaga alterada",
         [JobDeleted] = "Vaga excluída",
         [AiProviderSaved] = "Provedor de IA salvo",

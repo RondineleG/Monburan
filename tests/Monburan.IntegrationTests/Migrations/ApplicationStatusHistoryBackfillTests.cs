@@ -35,23 +35,26 @@ public class ApplicationStatusHistoryBackfillTests : IClassFixture<PostgresDatab
         // Para uma versão antes da migration da trilha e grava candidaturas como eram antes dela
         await migrator.MigrateAsync("ApplicationResumeId");
 
-        var advertiser = new Advertiser
-        {
-            Id = Id.Create(Guid.NewGuid()),
-            Name = "Empresa Teste",
-            Email = $"empresa.{Guid.NewGuid():N}@teste.com",
-            TenantId = "default"
-        };
-        var candidate = new Candidate
-        {
-            Id = Id.Create(Guid.NewGuid()),
-            Name = "Candidato Teste",
-            Email = $"candidato.{Guid.NewGuid():N}@teste.com",
-            TenantId = "default"
-        };
-        context.Advertisers.Add(advertiser);
-        context.Candidates.Add(candidate);
-        await context.SaveChangesAsync();
+        // A empresa e o candidato entram por SQL: o modelo atual já conhece colunas que o
+        // schema antigo não tem (a coluna do plano ativo do candidato, por exemplo)
+        var advertiserId = Guid.NewGuid();
+        await context.Database.ExecuteSqlAsync(
+            $"""
+            INSERT INTO "Advertisers" ("Id", "Name", "Email", "Status", "PersonType", "IsEmailVerified",
+                                       "IsPhoneVerified", "CreatedAt", "CreatedBy", "DeletedBy", "IsDeleted",
+                                       "TenantId", "UpdatedBy")
+            VALUES ({advertiserId}, 'Empresa Teste', 'empresa.teste@teste.com', 'Incomplete', 0, false, false,
+                    {DateTime.UtcNow}, 'teste', '', false, 'default', '')
+            """);
+
+        var candidateId = Guid.NewGuid();
+        await context.Database.ExecuteSqlAsync(
+            $"""
+            INSERT INTO "Candidates" ("Id", "Name", "Email", "Status", "IsEmailVerified", "IsPhoneVerified",
+                                      "CreatedAt", "CreatedBy", "DeletedBy", "IsDeleted", "TenantId", "UpdatedBy")
+            VALUES ({candidateId}, 'Candidato Teste', 'candidato.teste@teste.com', 'Incomplete', false, false,
+                    {DateTime.UtcNow}, 'teste', '', false, 'default', '')
+            """);
 
         // A vaga entra por SQL: o modelo atual já conhece colunas que o schema antigo não tem
         var jobId = Guid.NewGuid();
@@ -59,14 +62,14 @@ public class ApplicationStatusHistoryBackfillTests : IClassFixture<PostgresDatab
             $"""
             INSERT INTO "Jobs" ("Id", "AdvertiserId", "Title", "Description", "ExpirationDate", "Status",
                                 "CreatedAt", "CreatedBy", "DeletedBy", "IsDeleted", "TenantId", "UpdatedBy")
-            VALUES ({jobId}, {advertiser.Id.Value}, 'Desenvolvedor .NET', 'Descrição da vaga',
+            VALUES ({jobId}, {advertiserId}, 'Desenvolvedor .NET', 'Descrição da vaga',
                     {DateTime.UtcNow.AddDays(30)}, 'Active', {DateTime.UtcNow}, 'teste', '', false, 'default', '')
             """);
 
         var application = new Application
         {
             Id = Id.Create(Guid.NewGuid()),
-            CandidateId = candidate.Id,
+            CandidateId = Id.Create(candidateId),
             JobId = Id.Create(jobId),
             Status = EApplicationStatus.Selected,
             TenantId = "default"

@@ -12,7 +12,8 @@ namespace Monburan.Web.Components.Account
 
             if (user is null)
             {
-                redirectManager.RedirectToWithStatus("Account/InvalidUser", $"Error: Unable to load user with ID '{userManager.GetUserId(context.User)}'.", context);
+                // O ID da conta não aparece para a pessoa: só o recado de como seguir
+                redirectManager.RedirectToWithStatus("Account/InvalidUser", "Erro: não foi possível carregar sua conta. Entre novamente.", context);
             }
 
             return user;

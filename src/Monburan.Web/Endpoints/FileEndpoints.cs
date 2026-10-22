@@ -46,7 +46,7 @@ public static class FileEndpoints
                 FileType = fileType
             };
 
-            var result = await useCase.ExecuteAsync(request);
+            var result = await useCase.ExecuteAsync(request, cancellationToken);
             return result.ToHttpResult();
         })
         .DisableAntiforgery()

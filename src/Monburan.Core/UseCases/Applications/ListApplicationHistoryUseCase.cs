@@ -25,9 +25,9 @@ public class ListApplicationHistoryUseCase : IUseCase<ListApplicationHistoryRequ
         _historyRepository = historyRepository;
     }
 
-    public async Task<RequestResult<IEnumerable<ApplicationHistoryItemResponse>>> ExecuteAsync(ListApplicationHistoryRequest request)
+    public async Task<RequestResult<IEnumerable<ApplicationHistoryItemResponse>>> ExecuteAsync(ListApplicationHistoryRequest request, CancellationToken cancellationToken = default)
     {
-        var applicationResult = await _applicationRepository.GetByIdAsync(Id.Create(request.ApplicationId));
+        var applicationResult = await _applicationRepository.GetByIdAsync(Id.Create(request.ApplicationId), cancellationToken);
         if (applicationResult.Status != EResultStatus.Success || applicationResult.Data is null)
             return RequestResult<IEnumerable<ApplicationHistoryItemResponse>>.EntityNotFound(
                 "Application", request.ApplicationId, "Candidatura não encontrada.");
@@ -39,7 +39,7 @@ public class ListApplicationHistoryUseCase : IUseCase<ListApplicationHistoryRequ
                 "Application", request.ApplicationId, "Candidatura não encontrada.");
         }
 
-        var historyResult = await _historyRepository.ListByApplicationAsync(request.ApplicationId);
+        var historyResult = await _historyRepository.ListByApplicationAsync(request.ApplicationId, cancellationToken);
         if (historyResult.Status != EResultStatus.Success || historyResult.Data is null)
             return RequestResult<IEnumerable<ApplicationHistoryItemResponse>>.FromResult(historyResult);
 

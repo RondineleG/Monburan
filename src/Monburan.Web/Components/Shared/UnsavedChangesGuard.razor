@@ -1,0 +1,74 @@
+@inject NavigationManager Navigation
+@implements IDisposable
+
+@* Protege formulários longos: sair com alterações pede confirmação dentro do site e o aviso nativo do
+   navegador ao fechar ou recarregar a aba. Uso: <UnsavedChangesGuard HasChanges="() => editContext.IsModified()" /> *@
+<NavigationLock OnBeforeInternalNavigation="OnBeforeInternalNavigationAsync" ConfirmExternalNavigation="@HasChanges()" />
+<ConfirmDialog @ref="dialog" />
+
+@code {
+    private ConfirmDialog dialog = default!;
+    private bool leaving;
+    private EditContext? subscribedContext;
+
+    [CascadingParameter]
+    private EditContext? CurrentEditContext { get; set; }
+
+    protected override void OnParametersSet()
+    {
+        if (ReferenceEquals(subscribedContext, CurrentEditContext))
+            return;
+
+        Unsubscribe();
+        subscribedContext = CurrentEditContext;
+        if (subscribedContext is not null)
+            subscribedContext.OnFieldChanged += OnFieldChanged;
+    }
+
+    /// <summary>
+    /// Há alterações não salvas? Avaliado na hora da navegação (não na última renderização): quem acabou
+    /// de salvar e navega no mesmo clique já responde false.
+    /// </summary>
+    [Parameter, EditorRequired]
+    public Func<bool> HasChanges { get; set; } = () => false;
+
+    private async Task OnBeforeInternalNavigationAsync(LocationChangingContext context)
+    {
+        if (leaving || !HasChanges())
+            return;
+
+        // Precisa acontecer antes do primeiro await: depois disso a navegação já seguiu
+        context.PreventNavigation();
+        var target = context.TargetLocation;
+
+        var confirmed = await dialog.ShowAsync(new ConfirmOptions
+        {
+            Title = "Sair sem salvar?",
+            Message = "As alterações desta página ainda não foram salvas e serão perdidas.",
+            ConfirmText = "Sair sem salvar",
+            CancelText = "Continuar editando",
+            Destructive = true
+        });
+        if (!confirmed)
+            return;
+
+        leaving = true;
+        Navigation.NavigateTo(target);
+    }
+
+    private void OnFieldChanged(object? sender, FieldChangedEventArgs e)
+    {
+        _ = InvokeAsync(StateHasChanged);
+    }
+
+    private void Unsubscribe()
+    {
+        if (subscribedContext is null)
+            return;
+
+        subscribedContext.OnFieldChanged -= OnFieldChanged;
+        subscribedContext = null;
+    }
+
+    public void Dispose() => Unsubscribe();
+}

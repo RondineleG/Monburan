@@ -17,9 +17,9 @@ public sealed class GetAdvertiserByIdUseCase : IUseCase<Guid, AdvertiserResponse
         _advertiserRepository = advertiserRepository;
     }
 
-    public async Task<RequestResult<AdvertiserResponse>> ExecuteAsync(Guid request)
+    public async Task<RequestResult<AdvertiserResponse>> ExecuteAsync(Guid request, CancellationToken cancellationToken = default)
     {
-        var result = await _advertiserRepository.GetByIdAsync(Id.Create(request));
+        var result = await _advertiserRepository.GetByIdAsync(Id.Create(request), cancellationToken);
         if (result.Status != EResultStatus.Success)
             return RequestResult<AdvertiserResponse>.FromResult(result);
 

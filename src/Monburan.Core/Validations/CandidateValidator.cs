@@ -12,10 +12,12 @@ public class CandidateValidator : IEntityValidator<Candidate>
         RegexOptions.Compiled | RegexOptions.IgnoreCase,
         TimeSpan.FromMilliseconds(250));
 
-    private static readonly Regex UrlRegex = new(
-        @"^https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)$",
-        RegexOptions.Compiled | RegexOptions.IgnoreCase,
-        TimeSpan.FromMilliseconds(250));
+    // URL sem regex: o padrão anterior retrocedia exponencialmente e estourava o timeout em produção
+    private static bool IsValidHttpUrl(string value) =>
+        value.Length <= 2048
+        && Uri.TryCreate(value, UriKind.Absolute, out var uri)
+        && (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps)
+        && uri.Host.Contains('.', StringComparison.Ordinal);
 
     public IValidationResult Validate(Candidate entity)
     {
@@ -44,7 +46,7 @@ public class CandidateValidator : IEntityValidator<Candidate>
             result.AddError("Telefone deve ter no máximo 25 caracteres.", "Phone");
 
         // Validar LinkedIn se informado (URL válida)
-        if (!string.IsNullOrEmpty(entity.LinkedIn) && !UrlRegex.IsMatch(entity.LinkedIn))
+        if (!string.IsNullOrEmpty(entity.LinkedIn) && !IsValidHttpUrl(entity.LinkedIn))
             result.AddError("LinkedIn deve ser uma URL válida.", "LinkedIn");
 
         return result;

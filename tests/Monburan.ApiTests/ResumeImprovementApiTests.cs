@@ -39,11 +39,36 @@ public class ResumeImprovementApiTests : IClassFixture<MonburanApiFactory>
         var enabled = await on.Content.ReadFromJsonAsync<JsonElement>();
         enabled.GetProperty("enabled").GetBoolean().Should().BeTrue();
         enabled.GetProperty("provider").GetString().Should().Be("Provedor de teste");
+        enabled.GetProperty("premium").GetBoolean().Should().BeTrue();
 
         _ai.IsConfigured = false;
         var off = await (await SendAsync(HttpMethod.Get, "/api/v1/resumes/improvements/availability", token)).Content.ReadFromJsonAsync<JsonElement>();
         off.GetProperty("enabled").GetBoolean().Should().BeFalse();
         off.GetProperty("provider").ValueKind.Should().Be(JsonValueKind.Null);
+    }
+
+    [Fact]
+    public async Task Availability_FreeCandidate_IsDisabled()
+    {
+        var token = await LoginAsync("maria.santos@email.com");
+
+        var body = await (await SendAsync(HttpMethod.Get, "/api/v1/resumes/improvements/availability", token)).Content.ReadFromJsonAsync<JsonElement>();
+
+        body.GetProperty("enabled").GetBoolean().Should().BeFalse();
+        body.GetProperty("premium").GetBoolean().Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task Improve_FreeCandidate_IsRejectedAsPremiumOnly_AndNeverCallsTheProvider()
+    {
+        var token = await LoginAsync("maria.santos@email.com");
+        var resumeId = await CreateResumeAsync(token, "Currículo do plano gratuito");
+
+        var response = await ImproveAsync(token, resumeId, consent: true);
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        (await response.Content.ReadAsStringAsync()).Should().Contain("Premium");
+        _ai.Requests.Should().BeEmpty();
     }
 
     [Fact]

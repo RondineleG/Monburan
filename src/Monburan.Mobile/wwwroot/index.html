@@ -2,26 +2,36 @@
 <html lang="pt-BR">
 <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#0A0806" />
     <title>Monburan</title>
     <base href="/" />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;900&family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Share+Tech+Mono&display=swap" rel="stylesheet" />
+    <!-- Sem Google Fonts: interface na fonte do sistema e a Cinzel do logotipo vem de fonts/ (app.css) -->
+    <link rel="preload" href="fonts/cinzel-latin.woff2" as="font" type="font/woff2" crossorigin />
     <link rel="stylesheet" href="app.css" />
+    <link rel="stylesheet" href="brand.css" />
     <link rel="stylesheet" href="Monburan.Mobile.styles.css" />
     <link rel="icon" href="data:,">
 </head>
 
 <body>
 
-    <div id="app">Carregando...</div>
+    <div id="app">
+        <!-- Tela de abertura: fica até o Blazor montar o app (o conteúdo de #app é substituído) -->
+        <div class="app-splash" role="status" aria-label="Carregando o Monburan">
+            <svg class="app-splash__mark" viewBox="0 0 64 64" aria-hidden="true" focusable="false">
+                <!-- A marca; só o sino balança -->
+                <defs><mask id="splash-cut" maskUnits="userSpaceOnUse" x="0" y="0" width="64" height="64"><rect width="64" height="64" fill="#fff" /><circle cx="32" cy="30" r="3.6" fill="#000" /><path d="M17 48.5 L24.5 36 L32 44.5 L39.5 36 L47 48.5" fill="none" stroke="#000" stroke-width="4.4" stroke-linecap="round" stroke-linejoin="round" /></mask></defs>
+                <g class="brand-mark__metal" transform="translate(0 1.5)"><g class="brand-mark__bell"><rect x="30" y="6" width="4" height="4" rx="1.5" /><path d="M32 9 C27 9 24.5 12.5 24.5 17 V19 C24.5 19.8 23.8 20.3 22.5 20.6 H41.5 C40.2 20.3 39.5 19.8 39.5 19 V17 C39.5 12.5 37 9 32 9Z" /></g><rect x="5" y="23" width="54" height="32" rx="7" mask="url(#splash-cut)" /></g>
+            </svg>
+            <p class="app-splash__name">Monburan</p>
+        </div>
+    </div>
 
     <div id="blazor-error-ui" data-nosnippet>
         Ocorreu um erro inesperado.
         <a href="." class="reload">Recarregar</a>
-        <span class="dismiss">🗙</span>
+        <button type="button" class="dismiss" aria-label="Fechar aviso">×</button>
     </div>
 
     <script src="_framework/blazor.webview.js" autostart="false"></script>

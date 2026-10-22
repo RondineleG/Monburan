@@ -136,6 +136,20 @@ public class RequestResult : IRequestValidations, IRequestError, IRequestEntityW
         return result;
     }
 
+    /// <summary>Propaga o resultado de outra operação preservando status e erros.</summary>
+    public static RequestResult FromResult(RequestResult source)
+    {
+        return new RequestResult
+        {
+            Status = source.Status,
+            Message = source.Message,
+            RequestError = source.RequestError,
+            RequestEntityWarning = source.RequestEntityWarning,
+            _generalErrors = source._generalErrors,
+            _entityErrors = source._entityErrors
+        };
+    }
+
     public void AddEntityError(string entity, string message)
     {
         Status = EResultStatus.EntityHasError;
@@ -271,7 +285,7 @@ public class RequestResult<T> : RequestResult, IRequestCustomResult<T>
 
     // Propaga status/mensagens/erros de outro result (preserva NotFound/Conflict/validação
     // em vez de achatar tudo para HasError)
-    public static RequestResult<T> FromResult(RequestResult source)
+    public new static RequestResult<T> FromResult(RequestResult source)
     {
         return new RequestResult<T>
         {
@@ -300,7 +314,15 @@ public class RequestResult<T> : RequestResult, IRequestCustomResult<T>
 
     public new static RequestResult<T> WithValidations(params RequestValidation[] validations)
     {
-        return new RequestResult<T> { Status = EResultStatus.HasValidation, Validations = validations };
+        // Mesma regra da sobrecarga com IEnumerable: os erros vão para o ValidationResult
+        // e para a lista de Validations. Sem isso, quem só lê o ValidationResult (a API e a
+        // tela de erro) não via nada.
+        var result = new RequestResult<T> { Status = EResultStatus.HasValidation, Validations = validations };
+
+        foreach (var validation in validations)
+            result.ValidationResult.AddError(validation.Description, validation.PropertyName);
+
+        return result;
     }
 
     public new static RequestResult<T> WithValidations(IEnumerable<RequestValidation> validations)

@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <!-- Harness fora da solução e da esteira: roda os componentes Razor do app MAUI no navegador (Blazor Server) para
+       revisão visual e captura sem o workload MAUI. Os .razor do app entram por link, então a tela é o código atual. -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>Monburan.Mobile</RootNamespace>
+    <NoWarn>$(NoWarn);NU1801;NU1608</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Content Include="..\..\src\Monburan.Mobile\Components\**\*.razor" Link="Components\%(RecursiveDir)%(Filename)%(Extension)" />
+    <Compile Include="..\..\src\Monburan.Mobile\Components\**\*.cs" Link="Components\%(RecursiveDir)%(Filename)%(Extension)" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- No MAUI estes namespaces vêm dos usings implícitos; aqui as APIs de plataforma são substituídas (Preview/MauiStubs.cs) -->
+    <Using Include="Microsoft.Maui.Storage" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Monburan.Mobile.Shared\Monburan.Mobile.Shared.csproj" />
+  </ItemGroup>
+</Project>

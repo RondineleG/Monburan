@@ -17,13 +17,13 @@ public sealed class ListAdvertisersUseCase : IUseCase<ListAdvertisersRequest, Li
         _advertiserRepository = advertiserRepository;
     }
 
-    public async Task<RequestResult<ListAdvertisersResponse>> ExecuteAsync(ListAdvertisersRequest request)
+    public async Task<RequestResult<ListAdvertisersResponse>> ExecuteAsync(ListAdvertisersRequest request, CancellationToken cancellationToken = default)
     {
         var page = request.Page < 1 ? 1 : request.Page;
         var size = request.Size is < 1 or > 100 ? 20 : request.Size;
         EAdvertiserStatus? status = Enum.TryParse<EAdvertiserStatus>(request.Status, true, out var parsed) ? parsed : null;
 
-        var result = await _advertiserRepository.SearchAsync(request.SearchTerm, status, page, size);
+        var result = await _advertiserRepository.SearchAsync(request.SearchTerm, status, page, size, cancellationToken: cancellationToken);
         if (result.Status != EResultStatus.Success || result.Data is null)
             return RequestResult<ListAdvertisersResponse>.FromResult(result);
 

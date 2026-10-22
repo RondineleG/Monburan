@@ -23,7 +23,7 @@ public static class NotificationEndpoints
             if (recipientId is null)
                 return Results.Problem(statusCode: StatusCodes.Status403Forbidden, title: "Perfil necessário");
 
-            var result = await useCase.ExecuteAsync(recipientId);
+            var result = await useCase.ExecuteAsync(recipientId, cancellationToken);
             return result.ToHttpResult();
         })
         .WithSummary("Lista notificações do usuário autenticado");
@@ -55,7 +55,7 @@ public static class NotificationEndpoints
             if (recipientId is null)
                 return Results.Problem(statusCode: StatusCodes.Status403Forbidden, title: "Perfil necessário");
 
-            var result = await useCase.ExecuteAsync(recipientId);
+            var result = await useCase.ExecuteAsync(recipientId, cancellationToken);
             return result.Status == EResultStatus.Success
                 ? Results.Ok(new { updated = result.Data })
                 : result.ToHttpResult();
@@ -74,7 +74,7 @@ public static class NotificationEndpoints
                 return Results.Problem(statusCode: StatusCodes.Status403Forbidden, title: "Perfil necessário");
 
             // Checagem de propriedade fail-closed: se a listagem falhar, não marca nada
-            var mine = await listUseCase.ExecuteAsync(recipientId);
+            var mine = await listUseCase.ExecuteAsync(recipientId, cancellationToken);
             if (mine.Status != EResultStatus.Success || mine.Data is null)
                 return mine.ToHttpResult();
 
@@ -85,7 +85,7 @@ public static class NotificationEndpoints
                     title: "Notificação não encontrada");
             }
 
-            var result = await useCase.ExecuteAsync(id);
+            var result = await useCase.ExecuteAsync(id, cancellationToken);
             return result.ToHttpResult();
         })
         .WithSummary("Marca notificação como lida");

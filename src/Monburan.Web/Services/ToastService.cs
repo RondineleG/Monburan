@@ -30,6 +30,12 @@ public interface IToastService
     void ShowInfo(string message, string? title = null);
 
     void Dismiss(Guid id);
+
+    /// <summary>Segura o aviso na tela enquanto o ponteiro ou o foco estão sobre ele (WCAG 2.2.1).</summary>
+    void Pause(Guid id);
+
+    /// <summary>Retoma a contagem com o tempo inteiro do nível do aviso.</summary>
+    void Resume(Guid id);
 }
 
 public sealed class ToastService : IToastService, IDisposable
@@ -46,8 +52,10 @@ public sealed class ToastService : IToastService, IDisposable
     /// <summary>Tempo de exibição de sucesso/aviso/informação.</summary>
     public TimeSpan DefaultDuration { get; init; } = TimeSpan.FromSeconds(5);
 
-    /// <summary>Erros ficam mais tempo — o usuário precisa ler o que fazer.</summary>
-    public TimeSpan ErrorDuration { get; init; } = TimeSpan.FromSeconds(8);
+    /// <summary>
+    /// Erros ficam até a pessoa fechar (<c>null</c>): ela precisa ler o que fazer, no próprio ritmo.
+    /// </summary>
+    public TimeSpan? ErrorDuration { get; init; }
 
     public IReadOnlyList<ToastMessage> Toasts
     {
@@ -79,6 +87,24 @@ public sealed class ToastService : IToastService, IDisposable
             Changed?.Invoke();
     }
 
+    public void Pause(Guid id)
+    {
+        lock (_gate)
+            CancelTimer(id);
+    }
+
+    public void Resume(Guid id)
+    {
+        lock (_gate)
+        {
+            var toast = _toasts.Find(t => t.Id == id);
+            if (toast is null || _timers.ContainsKey(id))
+                return;
+
+            StartTimer(toast);
+        }
+    }
+
     public void Dispose()
     {
         lock (_gate)
@@ -100,14 +126,11 @@ public sealed class ToastService : IToastService, IDisposable
             return;
 
         var toast = new ToastMessage(Guid.NewGuid(), level, message.Trim(), title);
-        var timer = new CancellationTokenSource();
-        // Token lido antes de publicar o timer: outro Show pode descartá-lo ao remover o mais antigo
-        var token = timer.Token;
 
         lock (_gate)
         {
             _toasts.Add(toast);
-            _timers[toast.Id] = timer;
+            StartTimer(toast);
 
             while (_toasts.Count > MaxVisible)
             {
@@ -117,8 +140,21 @@ public sealed class ToastService : IToastService, IDisposable
             }
         }
 
-        _ = DismissLaterAsync(toast.Id, level == ToastLevel.Error ? ErrorDuration : DefaultDuration, token);
         Changed?.Invoke();
+    }
+
+    // Chamado sob _gate
+    private void StartTimer(ToastMessage toast)
+    {
+        var duration = toast.Level == ToastLevel.Error ? ErrorDuration : DefaultDuration;
+        if (duration is null)
+            return;
+
+        var timer = new CancellationTokenSource();
+        // Token lido antes de publicar o timer: outro Show pode descartá-lo ao remover o mais antigo
+        var token = timer.Token;
+        _timers[toast.Id] = timer;
+        _ = DismissLaterAsync(toast.Id, duration.Value, token);
     }
 
     private async Task DismissLaterAsync(Guid id, TimeSpan delay, CancellationToken cancellationToken)

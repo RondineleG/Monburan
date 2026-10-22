@@ -18,7 +18,7 @@ public class CreateNotificationUseCase : IUseCase<CreateNotificationRequest, Not
         _notificationRepository = notificationRepository;
     }
 
-    public async Task<RequestResult<NotificationResponse>> ExecuteAsync(CreateNotificationRequest request)
+    public async Task<RequestResult<NotificationResponse>> ExecuteAsync(CreateNotificationRequest request, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(request.Title))
             return RequestResult<NotificationResponse>.WithValidationError("Título é obrigatório.", "Title");
@@ -40,7 +40,7 @@ public class CreateNotificationUseCase : IUseCase<CreateNotificationRequest, Not
             TenantId = "default"
         };
 
-        var result = await _notificationRepository.CreateAsync(notification);
+        var result = await _notificationRepository.CreateAsync(notification, cancellationToken);
         if (result.Status != EResultStatus.Success)
             return RequestResult<NotificationResponse>.FromResult(result);
 

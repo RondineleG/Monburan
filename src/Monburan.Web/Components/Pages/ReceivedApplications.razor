@@ -5,6 +5,7 @@
 @using Monburan.Core.DTOs.Request
 @using Monburan.Core.DTOs.Response
 @using Monburan.Core.Enums
+@using Monburan.Core.Interfaces.Repositories
 @using Monburan.Core.UseCases.Applications
 @using Monburan.Core.UseCases.Jobs
 @using Monburan.Web.Services
@@ -16,31 +17,32 @@
 @inject IJSRuntime JS
 @inject ILogger<ReceivedApplications> Logger
 
-<PageTitle>Candidaturas Recebidas - Monburan</PageTitle>
+<PageTitle>Candidaturas recebidas - Monburan</PageTitle>
 
-<div class="container mt-4 received-applications-page">
-    <header class="page-heading">
-        <div class="page-heading__copy">
-            <span class="page-kicker">ÁREA DA EMPRESA</span>
-            <h1>Candidaturas recebidas</h1>
-            <p>
-                @if (JobId.HasValue && !string.IsNullOrEmpty(filteredJobTitle))
-                {
-                    <text>Candidatos da vaga <strong>@filteredJobTitle</strong>. <a href="/received-applications">Ver de todas as vagas</a></text>
-                }
-                else
-                {
-                    <text>Revise os perfis e escolha os próximos passos do processo.</text>
-                }
-            </p>
-        </div>
-        <a class="btn btn-secondary" href="/my-jobs">Voltar às vagas</a>
-    </header>
+@if (!isLoading && !isAdvertiser)
+{
+    <AccessRestricted Reason="Esta área é exclusiva para empresas." />
+}
+else
+{
+<div class="container received-applications-page">
+    <PageHeader Title="Candidaturas recebidas" BackHref="/my-jobs" BackText="Minhas vagas">
+        <p>
+            @if (JobId.HasValue && !string.IsNullOrEmpty(filteredJobTitle))
+            {
+                <text>Candidatos da vaga <strong>@filteredJobTitle</strong>. <a href="/received-applications">Ver de todas as vagas</a></text>
+            }
+            else
+            {
+                <text>Revise os perfis e escolha os próximos passos do processo.</text>
+            }
+        </p>
+    </PageHeader>
 
     @if (isLoading)
     {
         <div class="skeleton-stack" role="status" aria-live="polite" data-testid="loading-state">
-            <span class="visually-hidden">Carregando candidaturas...</span>
+            <span class="visually-hidden">Carregando candidaturas…</span>
             <SkeletonBlock Height="2.8rem" />
             <SkeletonBlock Height="3.2rem" />
             <SkeletonBlock Height="3.2rem" />
@@ -48,12 +50,6 @@
             <SkeletonBlock Height="3.2rem" />
             <SkeletonBlock Height="3.2rem" />
         </div>
-    }
-    else if (!isAdvertiser)
-    {
-        <EmptyState Icon="!" Title="Área exclusiva para empresas" Message="Entre com uma conta de empresa para ver candidaturas recebidas.">
-            <a href="/dashboard" class="btn btn-primary">Voltar ao início</a>
-        </EmptyState>
     }
     else if (loadFailed)
     {
@@ -65,8 +61,8 @@
     {
         <form class="received-filters" method="get" action="@FilterAction" data-clean-query data-testid="applications-filters">
             <label class="received-filter">
-                <span class="visually-hidden">Vaga</span>
-                <select name="vaga" data-autosubmit data-default="" data-testid="filter-job">
+                <span class="received-filter__label">Vaga</span>
+                <select class="form-select" name="vaga" data-autosubmit data-default="" data-testid="filter-job">
                     <option value="">Todas as vagas</option>
                     @foreach (var job in advertiserJobs)
                     {
@@ -75,29 +71,30 @@
                 </select>
             </label>
             <label class="received-filter">
-                <span class="visually-hidden">Situação</span>
-                <select name="situacao" data-autosubmit data-default="" data-testid="filter-status">
+                <span class="received-filter__label">Situação</span>
+                <select class="form-select" name="situacao" data-autosubmit data-default="" data-testid="filter-status">
                     <option value="">Todas as situações</option>
                     <option value="sent" selected="@(FilterStatus == "sent")">Enviada</option>
                     <option value="viewed" selected="@(FilterStatus == "viewed")">Visualizada</option>
                     <option value="selected" selected="@(FilterStatus == "selected")">Selecionada</option>
-                    <option value="rejected" selected="@(FilterStatus == "rejected")">Rejeitada</option>
+                    <option value="rejected" selected="@(FilterStatus == "rejected")">Não selecionada</option>
                     <option value="archived" selected="@(FilterStatus == "archived")">Arquivada</option>
                 </select>
             </label>
             <label class="received-filter">
-                <span class="visually-hidden">Período</span>
-                <select name="periodo" data-autosubmit data-default="" data-testid="filter-period">
+                <span class="received-filter__label">Período</span>
+                <select class="form-select" name="periodo" data-autosubmit data-default="" data-testid="filter-period">
                     <option value="">Todo o período</option>
                     <option value="7" selected="@(FilterPeriod == "7")">Últimos 7 dias</option>
                     <option value="30" selected="@(FilterPeriod == "30")">Últimos 30 dias</option>
                 </select>
             </label>
             <label class="received-filter received-filter--search">
-                <span class="visually-hidden">Buscar por nome</span>
-                <input type="search" name="busca" value="@FilterSearch" maxlength="80" placeholder="Buscar por nome" data-testid="filter-search" />
+                <span class="received-filter__label">Buscar por nome</span>
+                <input type="search" class="form-control" name="busca" value="@FilterSearch" maxlength="80" placeholder="Buscar por nome" data-testid="filter-search" />
             </label>
-            <button type="submit" class="btn btn-outline-primary btn-sm">Filtrar</button>
+            <button type="submit" class="btn btn-outline-secondary received-filters__submit" data-testid="filter-submit">Buscar</button>
+            <span class="received-filters__count" data-testid="applications-count">@filteredApplications.Count @(filteredApplications.Count == 1 ? "candidatura" : "candidaturas")</span>
             @if (isFiltered)
             {
                 <a class="chip-clear" href="@FilterAction" data-enhance-nav="false" data-testid="filters-clear">
@@ -106,19 +103,35 @@
             }
         </form>
 
+        @if (jobsFilterIncomplete)
+        {
+            <p class="alert alert-warning" role="status" data-testid="jobs-filter-incomplete">
+                Não foi possível carregar todas as vagas para o filtro. As candidaturas abaixo continuam disponíveis, mas algumas vagas podem não aparecer nas opções.
+            </p>
+        }
+        @if (applications.Count >= IApplicationRepository.MaxListSize)
+        {
+            <p class="alert alert-warning" role="status" data-testid="applications-list-incomplete">
+                A lista pode estar incompleta. Busca e filtros consideram apenas as candidaturas carregadas.
+            </p>
+        }
+
+        @* Ao trocar um filtro a lista atual fica na tela (sem esqueleto), marcada como ocupada até recarregar *@
+        <div class="received-applications-results" aria-busy="@(isRefreshing ? "true" : null)" data-testid="applications-results">
         @if (filteredApplications.Count > 0)
         {
             <div class="card received-applications-card">
                 <div class="card-body p-0">
                     <div class="table-responsive">
-                        <table class="table table-hover table-cards">
+                        <table class="table table-cards">
+                            <caption class="visually-hidden">Candidaturas recebidas: candidato, vaga, situação e data</caption>
                             <thead>
                                 <tr>
-                                    <th>Candidato</th>
-                                    <th>Vaga</th>
-                                    <th>Situação</th>
-                                    <th>Data</th>
-                                    <th>Ações</th>
+                                    <th scope="col">Candidato</th>
+                                    <th scope="col">Vaga</th>
+                                    <th scope="col">Situação</th>
+                                    <th scope="col">Data</th>
+                                    <th scope="col">Ações</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -126,7 +139,13 @@
                                 {
                                     <tr data-testid="received-application-row">
                                         <td data-label="Candidato">
-                                            <strong>@app.CandidateName</strong>
+                                            <span class="candidate-initials" aria-hidden="true">@Initials(app.CandidateName)</span> <button type="button"
+                                                    id="application-open-@app.Id"
+                                                    class="btn btn-link p-0 candidate-name-btn"
+                                                    data-testid="application-open"
+                                                    @onclick="() => OpenDrawerAsync(app)">
+                                                <strong>@app.CandidateName</strong>
+                                            </button>
                                             <br />
                                             <small class="text-muted">@app.CandidateEmail</small>
                                             @if (app.ResumeId.HasValue)
@@ -140,16 +159,15 @@
                                         </td>
                                         <td data-label="Vaga">@app.JobTitle</td>
                                         <td data-label="Situação">
-                                            <span class="badge @UiLabels.ApplicationStatusBadge(app.Status)">@UiLabels.ApplicationStatus(app.Status)</span>
+                                            <StatusBadge Kind="StatusKind.Application" Value="@app.Status" />
                                         </td>
                                         <td data-label="Data">@UiLabels.FormatMoment(app.AppliedAt)</td>
                                         <td data-label="Ações">
                                             <button type="button"
-                                                    id="application-open-@app.Id"
-                                                    class="btn btn-outline-primary btn-sm"
-                                                    data-testid="application-open"
+                                                    class="btn btn-outline-secondary btn-sm"
+                                                    aria-label="Perfil e currículo de @app.CandidateName"
                                                     @onclick="() => OpenDrawerAsync(app)">
-                                                Ver candidato
+                                                Perfil e currículo
                                             </button>
                                         </td>
                                     </tr>
@@ -162,32 +180,36 @@
         }
         else if (applications.Count > 0)
         {
-            <EmptyState Icon="⌕"
-                        Title="Nenhuma candidatura com estes filtros"
+            <EmptyState Icon="search"
+                        Title="Nenhum resultado para estes filtros"
                         Message="Ajuste a vaga, a situação ou o período para ver outras candidaturas."
                         TestId="received-applications-filtered-empty">
-                <a class="btn btn-outline-primary" href="@FilterAction">Limpar filtros</a>
+                <a class="btn btn-outline-secondary" href="@FilterAction" data-enhance-nav="false">Limpar filtros</a>
             </EmptyState>
         }
         else
         {
-            <EmptyState Icon="◎"
+            <EmptyState Icon="users"
                         Title="Nenhuma candidatura recebida ainda"
                         Message="Quando alguém se candidatar às suas vagas, os perfis aparecem aqui."
                         TestId="received-applications-empty">
                 <a class="btn btn-primary" href="/my-jobs">Ver minhas vagas</a>
             </EmptyState>
         }
+        </div>
     }
 </div>
+}
 
 <ApplicantDrawer Application="selected"
                  OnClose="CloseDrawerAsync"
                  OnStatusChanged="OnStatusChangedAsync" />
 
-<ConfirmDialog @ref="confirmDialog" />
-
 @code {
+    private static string Initials(string? name) =>
+        string.IsNullOrWhiteSpace(name) ? "?"
+            : string.Concat(name.Split(' ', StringSplitOptions.RemoveEmptyEntries).Take(2).Select(w => char.ToUpper(w[0])));
+
     [Parameter]
     public Guid? JobId { get; set; }
 
@@ -213,7 +235,8 @@
     private Guid? advertiserId;
     private string? filteredJobTitle;
     private Guid? lastOpenedId;
-    private ConfirmDialog confirmDialog = default!;
+    private bool isRefreshing;
+    private bool jobsFilterIncomplete;
 
     private Guid? FilterJobId => JobId ?? (Guid.TryParse(JobQuery, out var id) ? id : null);
     private string FilterStatus => StatusQuery ?? string.Empty;
@@ -230,7 +253,12 @@
         isAdvertiser = advertiserId.HasValue;
 
         if (isAdvertiser)
+        {
+            // Primeira carga mostra o esqueleto; troca de filtro mantém a lista e marca o contêiner como ocupado
+            isRefreshing = !isLoading;
             await LoadAsync();
+            isRefreshing = false;
+        }
 
         isLoading = false;
     }
@@ -258,17 +286,34 @@
         }
     }
 
+    // Filtro "Vaga": todas as vagas da empresa (antes só as 100 primeiras apareciam na lista)
     private async Task LoadJobsAsync()
     {
-        var result = await SearchJobsUseCase.ExecuteAsync(new ListJobsRequest
+        var loaded = new List<JobResponse>();
+        jobsFilterIncomplete = false;
+        for (var page = 1; page <= 20; page++)
         {
-            Page = 1,
-            Size = 100,
-            AdvertiserId = advertiserId
-        });
-        advertiserJobs = result.Status == EResultStatus.Success
-            ? result.Data?.Jobs.OrderBy(job => job.Title).ToList() ?? []
-            : [];
+            var result = await SearchJobsUseCase.ExecuteAsync(new ListJobsRequest
+            {
+                Page = page,
+                Size = 100,
+                AdvertiserId = advertiserId
+            });
+            if (result.Status != EResultStatus.Success || result.Data is null)
+            {
+                Logger.LogFailure(result, "Carregar vagas para filtrar candidaturas");
+                jobsFilterIncomplete = true;
+                break;
+            }
+
+            loaded.AddRange(result.Data.Jobs);
+            if (!result.Data.HasNextPage)
+                break;
+            if (page == 20)
+                jobsFilterIncomplete = true;
+        }
+
+        advertiserJobs = loaded.OrderBy(job => job.Title).ToList();
     }
 
     private void ApplyFilters()

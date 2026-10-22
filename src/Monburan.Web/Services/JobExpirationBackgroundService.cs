@@ -67,7 +67,7 @@ public class JobExpirationBackgroundService : BackgroundService
 
         while (hasMoreJobs)
         {
-            var jobsResult = await jobRepository.GetAllAsync(page, pageSize);
+            var jobsResult = await jobRepository.GetAllAsync(page, pageSize, cancellationToken);
             if (jobsResult.Status != EResultStatus.Success)
             {
                 _logger.LogError("Falha ao buscar vagas para verificação de expiração: {Error}", jobsResult.Message);
@@ -114,7 +114,7 @@ public class JobExpirationBackgroundService : BackgroundService
             {
                 // Atualizar status da vaga para Expired
                 job.Status = EJobStatus.Expired;
-                var updateResult = await jobRepository.UpdateAsync(job);
+                var updateResult = await jobRepository.UpdateAsync(job, cancellationToken);
 
                 if (updateResult.Status != EResultStatus.Success)
                 {
@@ -125,7 +125,7 @@ public class JobExpirationBackgroundService : BackgroundService
                 }
 
                 // Enviar email para anunciante
-                var notifyResult = await notifyOnJobExpiredUseCase.ExecuteAsync(new NotifyOnJobExpiredRequest(job.Id.Value));
+                var notifyResult = await notifyOnJobExpiredUseCase.ExecuteAsync(new NotifyOnJobExpiredRequest(job.Id.Value), cancellationToken);
                 if (notifyResult.Status != EResultStatus.Success)
                 {
                     _logger.LogWarning("Falha ao enviar notificação de expiração para vaga {JobId}: {Error}",
@@ -143,7 +143,7 @@ public class JobExpirationBackgroundService : BackgroundService
                     IsRead = false
                 };
 
-                var notificationResult = await notificationRepository.CreateAsync(notification);
+                var notificationResult = await notificationRepository.CreateAsync(notification, cancellationToken);
                 if (notificationResult.Status != EResultStatus.Success)
                 {
                     _logger.LogWarning("Falha ao criar notificação para vaga expirada {JobId}: {Error}",
