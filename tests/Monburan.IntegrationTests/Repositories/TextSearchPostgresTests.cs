@@ -179,11 +179,11 @@ public class TextSearchPostgresTests : IClassFixture<PostgresDatabase>
         await context.Database.ExecuteSqlRawAsync("SET enable_seqscan = off");
 
         // A consulta por e-mail (a mais usada do produto: login, troca de e-mail, listagem)
-        // compara lower("Email"); os índices sobre essa expressão são o que a faz deixar de
-        // varrer a tabela
+        // compara lower("Email") nas linhas não excluídas (como AccountProfileService); o índice
+        // único é parcial (WHERE "IsDeleted" = false), então a consulta precisa repetir esse filtro
         var plan = await context.Database
             .SqlQueryRaw<string>(
-                "EXPLAIN SELECT * FROM \"Candidates\" WHERE lower(\"Email\") = 'alguem@teste.com'")
+                "EXPLAIN SELECT * FROM \"Candidates\" WHERE \"IsDeleted\" = false AND lower(\"Email\") = 'alguem@teste.com'")
             .ToListAsync();
 
         await context.Database.CloseConnectionAsync();
