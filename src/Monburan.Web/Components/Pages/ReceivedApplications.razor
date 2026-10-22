@@ -5,6 +5,7 @@
 @using Monburan.Core.DTOs.Request
 @using Monburan.Core.DTOs.Response
 @using Monburan.Core.Enums
+@using Monburan.Core.Interfaces.Repositories
 @using Monburan.Core.UseCases.Applications
 @using Monburan.Core.UseCases.Jobs
 @using Monburan.Web.Services
@@ -101,6 +102,19 @@ else
                 </a>
             }
         </form>
+
+        @if (jobsFilterIncomplete)
+        {
+            <p class="alert alert-warning" role="status" data-testid="jobs-filter-incomplete">
+                Não foi possível carregar todas as vagas para o filtro. As candidaturas abaixo continuam disponíveis, mas algumas vagas podem não aparecer nas opções.
+            </p>
+        }
+        @if (applications.Count >= IApplicationRepository.MaxListSize)
+        {
+            <p class="alert alert-warning" role="status" data-testid="applications-list-incomplete">
+                A lista pode estar incompleta. Busca e filtros consideram apenas as candidaturas carregadas.
+            </p>
+        }
 
         @* Ao trocar um filtro a lista atual fica na tela (sem esqueleto), marcada como ocupada até recarregar *@
         <div class="received-applications-results" aria-busy="@(isRefreshing ? "true" : null)" data-testid="applications-results">
@@ -222,6 +236,7 @@ else
     private string? filteredJobTitle;
     private Guid? lastOpenedId;
     private bool isRefreshing;
+    private bool jobsFilterIncomplete;
 
     private Guid? FilterJobId => JobId ?? (Guid.TryParse(JobQuery, out var id) ? id : null);
     private string FilterStatus => StatusQuery ?? string.Empty;
@@ -275,6 +290,7 @@ else
     private async Task LoadJobsAsync()
     {
         var loaded = new List<JobResponse>();
+        jobsFilterIncomplete = false;
         for (var page = 1; page <= 20; page++)
         {
             var result = await SearchJobsUseCase.ExecuteAsync(new ListJobsRequest
@@ -284,11 +300,17 @@ else
                 AdvertiserId = advertiserId
             });
             if (result.Status != EResultStatus.Success || result.Data is null)
+            {
+                Logger.LogFailure(result, "Carregar vagas para filtrar candidaturas");
+                jobsFilterIncomplete = true;
                 break;
+            }
 
             loaded.AddRange(result.Data.Jobs);
             if (!result.Data.HasNextPage)
                 break;
+            if (page == 20)
+                jobsFilterIncomplete = true;
         }
 
         advertiserJobs = loaded.OrderBy(job => job.Title).ToList();

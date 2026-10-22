@@ -70,6 +70,31 @@ public class SearchJobsUseCaseTests
     }
 
     [Fact]
+    public async Task ExecutePublicByAdvertiserAsync_UsesThePublicRepositoryQuery()
+    {
+        var advertiserId = Guid.NewGuid();
+        var job = JobOf(Guid.NewGuid(), "Vaga pública");
+        job.AdvertiserId = Id.Create(advertiserId);
+        _jobs.SearchPublicByAdvertiserAsync(advertiserId, 1, 50, Arg.Any<CancellationToken>())
+            .Returns(RequestResult<PagedResponse<Job>>.Success(new PagedResponse<Job>
+            {
+                Data = [job],
+                TotalCount = 1,
+                Page = 1,
+                Size = 50
+            }));
+
+        var result = await _useCase.ExecutePublicByAdvertiserAsync(advertiserId, 1, 50);
+
+        result.Status.Should().Be(EResultStatus.Success);
+        result.Data!.Jobs.Should().ContainSingle().Which.Title.Should().Be("Vaga pública");
+        await _jobs.Received(1).SearchPublicByAdvertiserAsync(advertiserId, 1, 50, Arg.Any<CancellationToken>());
+        await _jobs.DidNotReceiveWithAnyArgs().SearchAsync(
+            default, default, default, default, default, default, default, default, default, default,
+            default, default, default, default, default, default, default);
+    }
+
+    [Fact]
     public async Task ExecuteAsync_WhenTheSavedLookupFails_StillReturnsTheListing()
     {
         var candidateId = Guid.NewGuid();

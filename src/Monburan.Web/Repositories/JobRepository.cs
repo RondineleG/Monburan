@@ -240,6 +240,34 @@ public class JobRepository : IJobRepository
         return RequestResult<Job>.Success(tracked);
     }
 
+    public async Task<RequestResult<PagedResponse<Job>>> SearchPublicByAdvertiserAsync(
+        Guid advertiserId, int page, int size, CancellationToken cancellationToken = default)
+    {
+        await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);
+        var advertiserKey = Id.Create(advertiserId);
+        var query = context.Jobs
+            .AsNoTracking()
+            .Include(job => job.Advertiser)
+            .Where(job => !job.IsDeleted
+                && job.AdvertiserId == advertiserKey
+                && job.Status == EJobStatus.Active);
+
+        var totalCount = await query.CountAsync(cancellationToken);
+        var jobs = await query
+            .OrderByDescending(job => job.CreatedAt)
+            .Skip((page - 1) * size)
+            .Take(size)
+            .ToListAsync(cancellationToken);
+
+        return RequestResult<PagedResponse<Job>>.Success(new PagedResponse<Job>
+        {
+            Data = jobs,
+            TotalCount = totalCount,
+            Page = page,
+            Size = size
+        });
+    }
+
     public async Task<RequestResult<PagedResponse<Job>>> SearchAsync(
         string? searchTerm = null,
         string? city = null,

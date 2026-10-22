@@ -37,15 +37,15 @@
         <a class="journey-tab@(Tab == "candidaturas" ? " journey-tab--active" : string.Empty)"
            href="/my-applications?aba=candidaturas"
            aria-current="@(Tab == "candidaturas" ? "page" : null)"
-           data-testid="tab-candidaturas">Candidaturas <span class="journey-tab__count">@applications.Count</span></a>
+           data-testid="tab-candidaturas">Candidaturas @if (!applicationsLoadFailed) { <span class="journey-tab__count">@applications.Count</span> }</a>
         <a class="journey-tab@(Tab == "salvas" ? " journey-tab--active" : string.Empty)"
            href="/my-applications?aba=salvas"
            aria-current="@(Tab == "salvas" ? "page" : null)"
-           data-testid="tab-salvas">Vagas salvas <span class="journey-tab__count">@savedJobs.Count</span></a>
+           data-testid="tab-salvas">Vagas salvas @if (!savedJobsLoadFailed) { <span class="journey-tab__count">@savedJobs.Count</span> }</a>
         <a class="journey-tab@(Tab == "alertas" ? " journey-tab--active" : string.Empty)"
            href="/my-applications?aba=alertas"
            aria-current="@(Tab == "alertas" ? "page" : null)"
-           data-testid="tab-alertas">Alertas <span class="journey-tab__count">@alerts.Count</span></a>
+           data-testid="tab-alertas">Alertas @if (!alertsLoadFailed) { <span class="journey-tab__count">@alerts.Count</span> }</a>
     </nav>
 
     @if (isLoading)
@@ -62,10 +62,22 @@
     {
         <AccessRestricted Reason="Minhas candidaturas é exclusiva para contas de candidato." />
     }
-    else if (loadFailed)
+    else if (Tab == "candidaturas" && applicationsLoadFailed)
     {
-        <ErrorState Title="Não foi possível carregar suas informações"
-                    Message="Tivemos um problema ao buscar seus dados. Tente novamente em instantes."
+        <ErrorState Title="Não foi possível carregar suas candidaturas"
+                    Message="Tivemos um problema ao buscar suas candidaturas. Tente novamente em instantes."
+                    OnRetry="LoadAsync" />
+    }
+    else if (Tab == "salvas" && savedJobsLoadFailed)
+    {
+        <ErrorState Title="Não foi possível carregar suas vagas salvas"
+                    Message="Tivemos um problema ao buscar suas vagas salvas. Tente novamente em instantes."
+                    OnRetry="LoadAsync" />
+    }
+    else if (Tab == "alertas" && alertsLoadFailed)
+    {
+        <ErrorState Title="Não foi possível carregar seus alertas"
+                    Message="Tivemos um problema ao buscar seus alertas. Tente novamente em instantes."
                     OnRetry="LoadAsync" />
     }
     else if (Tab == "salvas")
@@ -344,7 +356,9 @@
     private bool isUndoing;
     private bool isLoading = true;
     private bool isCandidate;
-    private bool loadFailed;
+    private bool applicationsLoadFailed;
+    private bool savedJobsLoadFailed;
+    private bool alertsLoadFailed;
     private bool prefillDone;
 
     private string Tab => TabQuery is "salvas" or "alertas" ? TabQuery : "candidaturas";
@@ -376,7 +390,6 @@
 
     private async Task LoadAsync()
     {
-        loadFailed = false;
         var candidateId = CurrentUserHelper.GetCandidateId()!.Value;
 
         var applicationsResult = await ListApplicationsByCandidateUseCase.ExecuteAsync(new Core.DTOs.Request.ListApplicationsByCandidateRequest
@@ -386,22 +399,26 @@
         var savedResult = await ListSavedJobsUseCase.ExecuteAsync(candidateId);
         var alertsResult = await ListJobAlertsUseCase.ExecuteAsync(candidateId);
 
-        if (applicationsResult.Status == EResultStatus.Success
-            && savedResult.Status == EResultStatus.Success
-            && alertsResult.Status == EResultStatus.Success)
-        {
-            applications = applicationsResult.Data?.ToList() ?? [];
-            savedJobs = savedResult.Data?.Jobs.ToList() ?? [];
-            alerts = alertsResult.Data?.ToList() ?? [];
-            ApplyFilter();
-        }
-        else
-        {
+        applicationsLoadFailed = applicationsResult.Status != EResultStatus.Success || applicationsResult.Data is null;
+        savedJobsLoadFailed = savedResult.Status != EResultStatus.Success || savedResult.Data is null;
+        alertsLoadFailed = alertsResult.Status != EResultStatus.Success || alertsResult.Data is null;
+
+        if (applicationsLoadFailed)
             Logger.LogFailure(applicationsResult, "Listar candidaturas do candidato");
+        else
+            applications = applicationsResult.Data!.ToList();
+
+        if (savedJobsLoadFailed)
             Logger.LogFailure(savedResult, "Listar vagas salvas do candidato");
+        else
+            savedJobs = savedResult.Data!.Jobs.ToList();
+
+        if (alertsLoadFailed)
             Logger.LogFailure(alertsResult, "Listar alertas do candidato");
-            loadFailed = true;
-        }
+        else
+            alerts = alertsResult.Data!.ToList();
+
+        ApplyFilter();
     }
 
     private void ApplyFilter() =>

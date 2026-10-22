@@ -70,6 +70,10 @@ internal sealed class FakeJobRepository : IJobRepository
         CancellationToken cancellationToken = default) =>
         throw new NotSupportedException();
 
+    public Task<RequestResult<PagedResponse<Job>>> SearchPublicByAdvertiserAsync(
+        Guid advertiserId, int page, int size, CancellationToken cancellationToken = default) =>
+        throw new NotSupportedException();
+
     public Task<PagedResponse<Job>> GetAllPagedAsync(int page, int size, CancellationToken cancellationToken = default) => throw new NotSupportedException();
 
     public Task<int> CountActiveByAdvertiserAsync(Guid advertiserId, CancellationToken cancellationToken = default) => throw new NotSupportedException();

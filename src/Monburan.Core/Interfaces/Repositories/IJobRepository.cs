@@ -28,6 +28,10 @@ public interface IJobRepository : IBaseRepository<Job>
         int? publishedWithinDays = null,
         CancellationToken cancellationToken = default);
 
+    /// <summary>Busca somente vagas públicas ativas de uma empresa, nunca itens da visão de gestão.</summary>
+    Task<RequestResult<PagedResponse<Job>>> SearchPublicByAdvertiserAsync(
+        Guid advertiserId, int page, int size, CancellationToken cancellationToken = default);
+
     Task<PagedResponse<Job>> GetAllPagedAsync(int page, int size, CancellationToken cancellationToken = default);
 
     /// <summary>

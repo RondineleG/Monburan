@@ -97,6 +97,12 @@
                         <a class="btn btn-outline-secondary btn-sm" href="@($"/resumes/{Application.ResumeId}/cv")" data-testid="applicant-resume-cv">Visualizar CV</a>
                     </div>
                 }
+                else if (resumeLoadFailed)
+                {
+                    <ErrorState Title="Não foi possível carregar o currículo" HeadingLevel="4"
+                                Message="Tente novamente sem sair desta candidatura."
+                                OnRetry="LoadResumeAsync" />
+                }
                 else
                 {
                     <p class="text-muted">Não foi possível carregar o currículo enviado.</p>
@@ -156,6 +162,7 @@
     private IReadOnlyList<ApplicationTimelineStep> timeline = [];
     private ResumeViewerResponse? attachedResume;
     private bool resumeLoading;
+    private bool resumeLoadFailed;
     private Guid? loadedResumeFor;
     private string statusNote = string.Empty;
     private bool isUpdating;
@@ -196,11 +203,15 @@
             return;
 
         resumeLoading = true;
+        resumeLoadFailed = false;
         var result = await ResumeViewer.GetAsync(resumeId);
-        if (result.Status == EResultStatus.Success)
+        if (result.Status == EResultStatus.Success && result.Data is not null)
             attachedResume = result.Data;
         else if (result.Status is not EResultStatus.EntityNotFound)
+        {
+            resumeLoadFailed = true;
             Logger.LogFailure(result, "Carregar currículo anexado à candidatura");
+        }
         resumeLoading = false;
     }
 

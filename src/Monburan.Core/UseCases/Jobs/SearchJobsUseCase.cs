@@ -61,6 +61,22 @@ public class SearchJobsUseCase : IUseCase<ListJobsRequest, ListJobsResponse>
         return RequestResult<ListJobsResponse>.Success(response);
     }
 
+    public async Task<RequestResult<ListJobsResponse>> ExecutePublicByAdvertiserAsync(
+        Guid advertiserId, int page, int size, CancellationToken cancellationToken = default)
+    {
+        var result = await _jobRepository.SearchPublicByAdvertiserAsync(advertiserId, page, size, cancellationToken);
+        if (result.Status != EResultStatus.Success || result.Data is null)
+            return RequestResult<ListJobsResponse>.FromResult(result);
+
+        return RequestResult<ListJobsResponse>.Success(new ListJobsResponse
+        {
+            Jobs = result.Data.Data.Select(job => JobResponseMapper.ToResponse(job)).ToList(),
+            TotalCount = result.Data.TotalCount,
+            Page = result.Data.Page,
+            Size = result.Data.Size
+        });
+    }
+
     // Uma consulta em lote por página; falha na marcação não derruba a listagem (as vagas só perdem o coração preenchido)
     private async Task<IReadOnlyCollection<Guid>> GetSavedJobIdsAsync(Guid? candidateId, IEnumerable<Job> jobs, CancellationToken cancellationToken = default)
     {

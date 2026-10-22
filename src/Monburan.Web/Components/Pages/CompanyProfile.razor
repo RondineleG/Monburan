@@ -47,13 +47,19 @@
             }
         </PageHeader>
 
-        <h2 class="h4 mb-3">Vagas abertas (@jobs.TotalCount)</h2>
-        @if (jobs.TotalCount > jobs.Jobs.Count())
+        <h2 class="h4 mb-3">@(jobsLoadFailed ? "Vagas da empresa" : $"Vagas abertas ({jobs.TotalCount})")</h2>
+        @if (jobsLoadFailed)
+        {
+            <ErrorState Title="Não foi possível carregar as vagas"
+                        Message="Tivemos um problema ao buscar as vagas desta empresa. Tente novamente em instantes."
+                        RetryHref="@($"/companies/{AdvertiserId}")" />
+        }
+        else if (jobs.TotalCount > jobs.Jobs.Count())
         {
             <p class="text-muted" data-testid="company-jobs-truncated">Mostrando as @jobs.Jobs.Count() vagas mais recentes.</p>
         }
 
-        @if (jobs.Jobs.Any())
+        @if (!jobsLoadFailed && jobs.Jobs.Any())
         {
             <ul class="jobs-grid">
                 @foreach (var job in jobs.Jobs)
@@ -61,8 +67,17 @@
                     <li @key="job.Id"><JobCard Job="job" IsOwner="isOwner" /></li>
                 }
             </ul>
+            <Pager Page="CurrentPage" TotalPages="jobs.TotalPages" HrefFor="PageUrl"
+                   Total="jobs.TotalCount" PageSize="PageSize" ItemName="@(jobs.TotalCount == 1 ? "vaga" : "vagas")"
+                   AriaLabel="Páginas de vagas da empresa" />
         }
-        else
+        else if (!jobsLoadFailed && jobs.TotalCount > 0)
+        {
+            <EmptyState Icon="search" Title="Página não encontrada" Message="Esta página da lista não existe. Volte às vagas mais recentes.">
+                <a class="btn btn-outline-secondary" href="@($"/companies/{AdvertiserId}")">Ver vagas mais recentes</a>
+            </EmptyState>
+        }
+        else if (!jobsLoadFailed)
         {
             <EmptyState Icon="briefcase" Title="Nenhuma vaga aberta" Message="Esta empresa não tem vagas publicadas no momento.">
                 <a class="btn btn-outline-secondary" href="/jobs">Ver todas as vagas</a>
@@ -75,10 +90,16 @@
     [Parameter]
     public Guid AdvertiserId { get; set; }
 
+    [SupplyParameterFromQuery(Name = "pagina")]
+    public int RequestedPage { get; set; } = 1;
+
+    private const int PageSize = 20;
     private Monburan.Core.Entities.Advertiser? advertiser;
     private ListJobsResponse jobs = new();
     private bool loadFailed;
+    private bool jobsLoadFailed;
     private bool isOwner;
+    private int CurrentPage => Math.Max(1, RequestedPage);
 
     [CascadingParameter]
     private HttpContext? HttpContext { get; set; }
@@ -112,14 +133,16 @@
             return;
         }
 
-        var result = await SearchJobsUseCase.ExecuteAsync(new ListJobsRequest
-        {
-            AdvertiserId = AdvertiserId,
-            Size = 50
-        });
+        var result = await SearchJobsUseCase.ExecutePublicByAdvertiserAsync(AdvertiserId, CurrentPage, PageSize);
         if (result.Status == EResultStatus.Success && result.Data is not null)
             jobs = result.Data;
-        else if (result.Status != EResultStatus.Success)
+        else
+        {
             Logger.LogFailure(result, "Listar vagas da empresa");
+            jobsLoadFailed = true;
+        }
     }
+
+    private string PageUrl(int page) =>
+        page <= 1 ? $"/companies/{AdvertiserId}" : $"/companies/{AdvertiserId}?pagina={page}";
 }

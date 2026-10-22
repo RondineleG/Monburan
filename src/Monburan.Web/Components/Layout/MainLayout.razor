@@ -162,9 +162,13 @@ else
                 </button>
                 <nav class="app-topbar__trail" aria-label="Você está em">
                     <ol class="trail" data-testid="trail">
-                        @foreach (var item in Trail)
+                        @{
+                            var trail = Trail;
+                        }
+                        @for (var index = 0; index < trail.Count; index++)
                         {
-                            var isLast = ReferenceEquals(item, Trail[^1]);
+                            var item = trail[index];
+                            var isLast = index == trail.Count - 1;
                             <li class="trail__item" aria-current="@(isLast ? "page" : null)">
                                 @if (!isLast && item.Href is not null)
                                 {
