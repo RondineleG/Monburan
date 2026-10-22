@@ -141,8 +141,8 @@
                 @foreach (var section in Sections())
                 {
                     <section class="job-section@(section.Key == "apply" ? " job-section--apply" : string.Empty)" data-testid="@($"job-section-{section.Key}")">
-                        <h2>@section.Title</h2>
-                        <RichText Text="@section.Text" />
+                        <h2>@(section.Title)</h2>
+                        <RichText Text="@(section.Text)" />
                     </section>
                 }
 

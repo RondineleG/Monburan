@@ -35,7 +35,7 @@
                         @ref="tabRefs[index]"
                         @onclick="() => activeSection = section"
                         @onkeydown="e => OnTabKeyDownAsync(e, index)"
-                        data-testid="ai-workspace-section-@KeyOf(section)">@section</button>
+                        data-testid="ai-workspace-section-@KeyOf(section)">@(section)</button>
             }
         </div>
 
