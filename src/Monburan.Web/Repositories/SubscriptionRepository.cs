@@ -98,10 +98,12 @@ public class SubscriptionRepository : ISubscriptionRepository
     public async Task<RequestResult<Subscription?>> GetActiveByAdvertiserIdAsync(Id advertiserId, CancellationToken cancellationToken = default)
     {
         await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);
+        var now = DateTime.UtcNow;
         var subscription = await context.Subscriptions
             .Include(s => s.Plan)
             .FirstOrDefaultAsync(s => s.AdvertiserId == advertiserId
                 && s.Status == ESubscriptionStatus.Active
+                && (s.EndDate == null || s.EndDate > now)
                 && !s.IsDeleted,
                 cancellationToken);
 
@@ -114,10 +116,12 @@ public class SubscriptionRepository : ISubscriptionRepository
     public async Task<RequestResult<Subscription?>> GetActiveByCandidateIdAsync(Id candidateId, CancellationToken cancellationToken = default)
     {
         await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);
+        var now = DateTime.UtcNow;
         var subscription = await context.Subscriptions
             .Include(s => s.Plan)
             .FirstOrDefaultAsync(s => s.CandidateId == candidateId
                 && s.Status == ESubscriptionStatus.Active
+                && (s.EndDate == null || s.EndDate > now)
                 && !s.IsDeleted,
                 cancellationToken);
 
@@ -182,12 +186,14 @@ public class SubscriptionRepository : ISubscriptionRepository
         {
             var trackedPrevious = await context.Subscriptions
                 .FirstOrDefaultAsync(s => s.Id == previousSubscription.Id, cancellationToken);
-            if (trackedPrevious is not null)
-            {
-                trackedPrevious.Status = previousSubscription.Status;
-                trackedPrevious.EndDate = previousSubscription.EndDate;
-                trackedPrevious.CancellationReason = previousSubscription.CancellationReason;
-            }
+            // Sem a anterior não dá para cancelá-la: seguir criaria duas assinaturas ativas. A
+            // transação não é confirmada, então nada é gravado.
+            if (trackedPrevious is null)
+                return RequestResult<Subscription>.EntityNotFound("Subscription", previousSubscription.Id.Value, "Assinatura anterior não encontrada.");
+
+            trackedPrevious.Status = previousSubscription.Status;
+            trackedPrevious.EndDate = previousSubscription.EndDate;
+            trackedPrevious.CancellationReason = previousSubscription.CancellationReason;
         }
 
         context.Subscriptions.Add(newSubscription);
