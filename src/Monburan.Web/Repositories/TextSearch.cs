@@ -24,6 +24,17 @@ internal static class TextSearch
     /// <summary>
     /// Padrão de busca. O "%" na frente é justamente o que exige o índice de trigramas —
     /// sem ele a busca por substring não usa índice nenhum.
+    /// <para>
+    /// O termo digitado é literal: <c>%</c>, <c>_</c> e <c>\</c> são escapados com <c>\</c>
+    /// (escape padrão do LIKE no PostgreSQL), senão "dev_ops" casaria com "dev ops".
+    /// </para>
     /// </summary>
-    public static string Pattern(string term) => $"%{term}%";
+    public static string Pattern(string term)
+    {
+        var escaped = term
+            .Replace("\\", "\\\\", StringComparison.Ordinal)
+            .Replace("%", "\\%", StringComparison.Ordinal)
+            .Replace("_", "\\_", StringComparison.Ordinal);
+        return $"%{escaped}%";
+    }
 }

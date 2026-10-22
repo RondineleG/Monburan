@@ -75,6 +75,22 @@ public class TextSearchPostgresTests : IClassFixture<PostgresDatabase>
     }
 
     [Fact]
+    public async Task SearchAsync_TreatsUnderscoreAsLiteral_NotAnyCharacter()
+    {
+        await using var context = _database.CreateContext();
+        await context.Database.MigrateAsync();
+        var marker = Marker();
+        var jobs = await SeedAsync(context, $"Analista {marker} Ops", "Tecnologia");
+
+        // "_" no LIKE casa com qualquer caractere; escapado, precisa ser o "_" literal do termo
+        var withSpace = await jobs.SearchAsync(searchTerm: $"{marker}_Ops", size: 50);
+        withSpace.Data!.TotalCount.Should().Be(0);
+
+        var exact = await jobs.SearchAsync(searchTerm: $"{marker} Ops", size: 50);
+        exact.Data!.TotalCount.Should().Be(1);
+    }
+
+    [Fact]
     public async Task SearchAsync_FindsByMiddleOfTheWord_WhichNeedsTheTrigramIndex()
     {
         await using var context = _database.CreateContext();
@@ -144,7 +160,7 @@ public class TextSearchPostgresTests : IClassFixture<PostgresDatabase>
 
         var plan = await context.Database
             .SqlQueryRaw<string>(
-                "EXPLAIN SELECT * FROM \"Jobs\" WHERE lower(\"Title\") LIKE '%engenheiro%'")
+                "EXPLAIN SELECT * FROM \"Jobs\" WHERE \"Title\" ILIKE '%engenheiro%'")
             .ToListAsync();
 
         await context.Database.CloseConnectionAsync();

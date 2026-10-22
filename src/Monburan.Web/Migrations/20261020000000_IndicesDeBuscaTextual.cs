@@ -47,47 +47,47 @@ namespace Monburan.Web.Migrations
 
             migrationBuilder.Sql("""
                 CREATE INDEX "IX_Jobs_Title_Trgm"
-                    ON "Jobs" USING GIN (lower("Title") gin_trgm_ops);
+                    ON "Jobs" USING GIN ("Title" gin_trgm_ops);
                 """);
 
             migrationBuilder.Sql("""
                 CREATE INDEX "IX_Jobs_Description_Trgm"
-                    ON "Jobs" USING GIN (lower("Description") gin_trgm_ops);
+                    ON "Jobs" USING GIN ("Description" gin_trgm_ops);
                 """);
 
             migrationBuilder.Sql("""
                 CREATE INDEX "IX_Jobs_Category_Trgm"
-                    ON "Jobs" USING GIN (lower("Category") gin_trgm_ops);
+                    ON "Jobs" USING GIN ("Category" gin_trgm_ops);
                 """);
 
             migrationBuilder.Sql("""
                 CREATE INDEX "IX_Candidates_Name_Trgm"
-                    ON "Candidates" USING GIN (lower("Name") gin_trgm_ops);
+                    ON "Candidates" USING GIN ("Name" gin_trgm_ops);
                 """);
 
             migrationBuilder.Sql("""
                 CREATE INDEX "IX_Candidates_Email_Trgm"
-                    ON "Candidates" USING GIN (lower("Email") gin_trgm_ops);
+                    ON "Candidates" USING GIN ("Email" gin_trgm_ops);
                 """);
 
             migrationBuilder.Sql("""
                 CREATE INDEX "IX_Advertisers_Name_Trgm"
-                    ON "Advertisers" USING GIN (lower("Name") gin_trgm_ops);
+                    ON "Advertisers" USING GIN ("Name" gin_trgm_ops);
                 """);
 
             migrationBuilder.Sql("""
                 CREATE INDEX "IX_Advertisers_Email_Trgm"
-                    ON "Advertisers" USING GIN (lower("Email") gin_trgm_ops);
+                    ON "Advertisers" USING GIN ("Email" gin_trgm_ops);
                 """);
 
             migrationBuilder.Sql("""
                 CREATE INDEX "IX_AdminAuditEntries_ActorEmail_Trgm"
-                    ON "AdminAuditEntries" USING GIN (lower("ActorEmail") gin_trgm_ops);
+                    ON "AdminAuditEntries" USING GIN ("ActorEmail" gin_trgm_ops);
                 """);
 
             migrationBuilder.Sql("""
                 CREATE INDEX "IX_AdminAuditEntries_TargetLabel_Trgm"
-                    ON "AdminAuditEntries" USING GIN (lower("TargetLabel") gin_trgm_ops);
+                    ON "AdminAuditEntries" USING GIN ("TargetLabel" gin_trgm_ops);
                 """);
         }
 
