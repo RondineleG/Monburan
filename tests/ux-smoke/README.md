@@ -36,3 +36,10 @@ cd ../ux-smoke && dotnet run -- --capture all --out <pasta>   # all | web | mobi
 ```
 
 O `summary.txt` não pode ter overflow, contraste abaixo de AA, texto < 12px, campo sem rótulo ou controle sem nome.
+
+## Notificações (`--notifications`)
+
+`dotnet run -- --notifications` usa dados isolados e mensagens longas para validar a tela em 320, 390, 834 e 1440px,
+nos dois temas. Também verifica marcação pelo teclado, bloqueio de ações simultâneas, preservação da lista durante
+recarga, falha e recuperação da consulta e persistência da leitura. Capturas e métricas ficam em
+`%TEMP%/opencode/monburan-notifications`; qualquer falha de métrica ou interação encerra com erro.

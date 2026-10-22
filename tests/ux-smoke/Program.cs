@@ -21,6 +21,12 @@ static string FindRepoRoot()
     var dir = new DirectoryInfo(AppContext.BaseDirectory);
     while (dir is not null && !File.Exists(Path.Combine(dir.FullName, "Monburan.sln")))
         dir = dir.Parent;
+    if (dir is null)
+    {
+        dir = new DirectoryInfo(Directory.GetCurrentDirectory());
+        while (dir is not null && !File.Exists(Path.Combine(dir.FullName, "Monburan.sln")))
+            dir = dir.Parent;
+    }
     return dir?.FullName ?? throw new DirectoryNotFoundException("Monburan.sln não encontrado");
 }
 
@@ -46,6 +52,12 @@ static async Task LoopbackOnly(Microsoft.Playwright.IRoute route)
 }
 
 // Modo de captura (revisão visual e regressão): ver Capture/CaptureRunner.cs e o README
+if (args.Contains("--notifications"))
+{
+    await NotificationChecks.RunAsync(FindRepoRoot());
+    return;
+}
+
 if (args.Contains("--capture"))
 {
     Environment.ExitCode = await CaptureRunner.RunAsync(args, FindRepoRoot(), contentRoot =>
@@ -55,6 +67,16 @@ if (args.Contains("--capture"))
         var captureClient = captureFactory.CreateClient();
         return new MonburanApiFactoryHandle(captureFactory, captureClient.BaseAddress!.ToString().TrimEnd('/'), captureFactory.Services);
     });
+    return;
+}
+
+if (args.Contains("--serve-only"))
+{
+    await using var testHost = new UxFactory(Path.Combine(FindRepoRoot(), "src", "Monburan.Web"));
+    testHost.UseKestrel(0);
+    using var testClient = testHost.CreateClient();
+    Console.WriteLine($"HOST={testClient.BaseAddress!.ToString().TrimEnd('/')}");
+    await Task.Delay(Timeout.Infinite);
     return;
 }
 

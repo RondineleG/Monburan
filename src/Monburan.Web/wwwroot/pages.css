@@ -350,14 +350,19 @@
     .plans-footnote { margin-top: var(--s-6); color: var(--tx-2); font-size: var(--fs-sm); text-align: center; }
 
     /* ---------- Notificações ---------- */
-    .notification-metric .card-body { display: flex; min-height: 5.5rem; align-items: center; justify-content: space-between; gap: var(--s-4); }
+    .notification-metrics { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--s-3); margin-bottom: var(--s-4); }
+    .notification-metric .card-body { display: flex; flex-direction: column; min-height: 5.5rem; align-items: flex-start; justify-content: center; gap: var(--s-1); padding: var(--s-3); }
     .notification-metric__label { color: var(--tx-2); font-size: var(--fs-sm); }
-    .notification-metric__value { color: var(--gold-d); font-size: var(--fs-2xl); font-weight: var(--fw-bold); }
+    .notification-metric__value { color: var(--gold-d); font-size: var(--fs-2xl); font-weight: var(--fw-bold); font-variant-numeric: tabular-nums; }
     .notifications-toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--s-3); margin: var(--s-6) 0 var(--s-4); }
     .notifications-toolbar h2 { margin: 0; font-size: var(--fs-lg); }
     .notifications-toolbar__actions { display: flex; flex-wrap: wrap; gap: var(--s-2); }
-    .notifications-page .list-group-item > div { flex-wrap: wrap; gap: var(--s-4); }
-    .notifications-page .list-group-item > div > div { min-width: 0; }
+    .notification-item { display: flex; flex-wrap: wrap; align-items: flex-start; gap: var(--s-4); }
+    .notification-item__content { flex: 1 1 20rem; min-width: 0; overflow-wrap: anywhere; }
+    .notification-item__heading { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2); }
+    .notification-item__heading h3 { flex: 1 1 12rem; }
+    .notification-item__dates { display: flex; flex-wrap: wrap; gap: var(--s-2) var(--s-4); }
+    .notification-item__action { flex-shrink: 0; }
     .notifications-page .list-group-item h3 { margin: 0; font-size: var(--fs-md); overflow-wrap: anywhere; }
     .notifications-page .list-group-item p { margin-top: var(--s-2); }
 
