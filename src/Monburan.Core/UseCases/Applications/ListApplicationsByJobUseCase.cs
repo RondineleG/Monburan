@@ -20,7 +20,8 @@ public class ListApplicationsByJobUseCase : IUseCase<ListApplicationsByJobReques
 
     public async Task<RequestResult<IEnumerable<ApplicationResponse>>> ExecuteAsync(ListApplicationsByJobRequest request, CancellationToken cancellationToken = default)
     {
-        var result = await _applicationRepository.ListByAdvertiserAsync(request.AdvertiserId, request.JobId, cancellationToken: cancellationToken);
+        var result = await _applicationRepository.ListByAdvertiserAsync(
+            request.AdvertiserId, request.JobId, request.Page, request.Size, cancellationToken);
         if (result.Status != EResultStatus.Success)
             return RequestResult<IEnumerable<ApplicationResponse>>.FromResult(result);
 

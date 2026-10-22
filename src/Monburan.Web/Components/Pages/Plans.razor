@@ -82,7 +82,7 @@
                                 else
                                 {
                                     <strong>R$ @plan.Price.ToString("N2")</strong>
-                                    <small>/mês</small>
+                                    <small>@PeriodSuffix(plan)</small>
                                 }
                             </div>
 
@@ -155,6 +155,9 @@
 <ConfirmDialog @ref="confirmDialog" />
 
 @code {
+    // O preço do plano anual é anual: o rótulo não pode dizer "/mês"
+    private static string PeriodSuffix(PlanResponse plan) => plan.Period == "Annual" ? "/ano" : "/mês";
+
     private AvailablePlansResponse? availablePlans;
     private bool isLoading = true;
     private bool loadFailed;
@@ -195,7 +198,7 @@
         if (!advertiserId.HasValue || changingPlanId is not null)
             return;
 
-        var price = plan.Price == 0 ? "gratuito" : $"R$ {plan.Price:N2} por mês";
+        var price = plan.Price == 0 ? "gratuito" : $"R$ {plan.Price:N2} por {(plan.Period == "Annual" ? "ano" : "mês")}";
         var limit = plan.MaxJobs == -1 ? "vagas ativas ilimitadas" : $"até {plan.MaxJobs} vagas ativas";
         var confirmed = await confirmDialog.ShowAsync(new ConfirmOptions
         {

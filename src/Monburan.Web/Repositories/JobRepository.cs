@@ -223,18 +223,20 @@ public class JobRepository : IJobRepository
     /// atualização geral da vaga de propósito: são campos da administração, e uma edição
     /// da empresa não pode sobrescrever o que a administração gravou.
     /// </summary>
-    public async Task<RequestResult<Job>> UpdateModerationAsync(Id jobId, ModerationInfo moderation, CancellationToken cancellationToken = default)
+    public async Task<RequestResult<Job>> UpdateModerationAsync(Job job, CancellationToken cancellationToken = default)
     {
         await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);
-        var tracked = await context.Jobs.FirstOrDefaultAsync(job => job.Id == jobId, cancellationToken);
+        var tracked = await context.Jobs.FirstOrDefaultAsync(item => item.Id == job.Id, cancellationToken);
         if (tracked is null)
-            return RequestResult<Job>.EntityNotFound("Job", jobId.Value, "Vaga não encontrada.");
+            return RequestResult<Job>.EntityNotFound("Job", job.Id.Value, "Vaga não encontrada.");
 
+        tracked.Status = job.Status;
+        tracked.ExpirationDate = job.ExpirationDate;
         tracked.Moderation ??= new ModerationInfo();
-        tracked.Moderation.Status = moderation.Status;
-        tracked.Moderation.Reason = moderation.Reason;
-        tracked.Moderation.ModeratorId = moderation.ModeratorId;
-        tracked.Moderation.ModerationDate = moderation.ModerationDate;
+        tracked.Moderation.Status = job.Moderation!.Status;
+        tracked.Moderation.Reason = job.Moderation.Reason;
+        tracked.Moderation.ModeratorId = job.Moderation.ModeratorId;
+        tracked.Moderation.ModerationDate = job.Moderation.ModerationDate;
 
         await context.SaveChangesAsync(cancellationToken);
         return RequestResult<Job>.Success(tracked);

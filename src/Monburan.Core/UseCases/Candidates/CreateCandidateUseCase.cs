@@ -38,6 +38,7 @@ public sealed class CreateCandidateUseCase : IUseCase<CreateCandidateRequest, Ca
             Status = EAccountStatus.Incomplete,
             IsEmailVerified = false,
             IsPhoneVerified = false,
+            ActivePlan = "Free",
             TenantId = "default"
         };
 

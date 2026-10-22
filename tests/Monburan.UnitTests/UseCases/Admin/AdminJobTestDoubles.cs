@@ -127,18 +127,20 @@ internal sealed class FakeJobRepository : IJobRepository
         return Task.FromResult(RequestResult<bool>.Success(true));
     }
 
-    public Task<RequestResult<Job>> UpdateModerationAsync(Id jobId, ModerationInfo moderation, CancellationToken cancellationToken = default)
+    public Task<RequestResult<Job>> UpdateModerationAsync(Job job, CancellationToken cancellationToken = default)
     {
-        var job = _jobs.FirstOrDefault(item => item.Id == jobId && !item.IsDeleted);
-        if (job is null)
-            return Task.FromResult(RequestResult<Job>.EntityNotFound("Job", jobId.Value, "Vaga não encontrada."));
+        var tracked = _jobs.FirstOrDefault(item => item.Id == job.Id && !item.IsDeleted);
+        if (tracked is null)
+            return Task.FromResult(RequestResult<Job>.EntityNotFound("Job", job.Id.Value, "Vaga não encontrada."));
 
-        job.Moderation ??= new ModerationInfo();
-        job.Moderation.Status = moderation.Status;
-        job.Moderation.Reason = moderation.Reason;
-        job.Moderation.ModeratorId = moderation.ModeratorId;
-        job.Moderation.ModerationDate = moderation.ModerationDate;
-        return Task.FromResult(RequestResult<Job>.Success(job));
+        tracked.Status = job.Status;
+        tracked.ExpirationDate = job.ExpirationDate;
+        tracked.Moderation ??= new ModerationInfo();
+        tracked.Moderation.Status = job.Moderation!.Status;
+        tracked.Moderation.Reason = job.Moderation.Reason;
+        tracked.Moderation.ModeratorId = job.Moderation.ModeratorId;
+        tracked.Moderation.ModerationDate = job.Moderation.ModerationDate;
+        return Task.FromResult(RequestResult<Job>.Success(tracked));
     }
 }
 

@@ -108,7 +108,7 @@ public class ImportResumeFromPdfUseCase : IUseCase<ImportResumeRequest, ImportRe
     private static CreateResumeRequest ToCreateRequest(ImportedResumeDraft draft, ImportResumeRequest request) => new()
     {
         CandidateId = request.CandidateId,
-        Title = string.IsNullOrWhiteSpace(draft.Title) ? "Currículo importado" : draft.Title.Trim(),
+        Title = ToValidTitle(draft.Title),
         Summary = string.IsNullOrWhiteSpace(draft.Summary) ? null : draft.Summary.Trim(),
         IsActive = false,
         SourceFileName = request.FileName,
@@ -134,6 +134,22 @@ public class ImportResumeFromPdfUseCase : IUseCase<ImportResumeRequest, ImportRe
         Languages = draft.Languages.Select(l => new LanguageRequest { Language = l.Language, Level = l.Level }).ToList(),
         Skills = draft.Skills.Select(s => new SkillRequest { Skill = s.Skill, Level = s.Level, YearsOfExperience = s.YearsOfExperience }).ToList()
     };
+
+    /// <summary>
+    /// O título vem do nome do arquivo ou da IA e pode fugir da faixa aceita pelo currículo (3 a 100
+    /// caracteres). Fora dela, usa o título padrão ou corta, em vez de rejeitar um arquivo já enviado.
+    /// </summary>
+    private static string ToValidTitle(string? title)
+    {
+        const string fallback = "Currículo importado";
+        const int maxLength = 100;
+
+        var text = string.IsNullOrWhiteSpace(title) ? string.Empty : title.Trim();
+        if (text.Length < 3)
+            return fallback;
+
+        return text.Length <= maxLength ? text : text[..(maxLength - 1)].TrimEnd() + "…";
+    }
 
     private static int CountSections(ImportedResumeDraft draft)
     {

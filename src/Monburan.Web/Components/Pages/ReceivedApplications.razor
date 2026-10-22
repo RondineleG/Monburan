@@ -103,6 +103,13 @@ else
             }
         </form>
 
+        @if (applicationsIncomplete)
+        {
+            <p class="alert alert-warning" role="status" data-testid="applications-incomplete">
+                Mostramos só as @(ApplicationPageSize * MaxApplicationPages) candidaturas mais recentes. Use os filtros de vaga para ver as demais.
+            </p>
+        }
+
         @if (jobsFilterIncomplete)
         {
             <p class="alert alert-warning" role="status" data-testid="jobs-filter-incomplete">
@@ -237,6 +244,10 @@ else
     private Guid? lastOpenedId;
     private bool isRefreshing;
     private bool jobsFilterIncomplete;
+    private bool applicationsIncomplete;
+
+    private const int ApplicationPageSize = 200;
+    private const int MaxApplicationPages = 50;
 
     private Guid? FilterJobId => JobId ?? (Guid.TryParse(JobQuery, out var id) ? id : null);
     private string FilterStatus => StatusQuery ?? string.Empty;
@@ -266,24 +277,39 @@ else
     private async Task LoadAsync()
     {
         loadFailed = false;
-        var result = await ListApplicationsByJobUseCase.ExecuteAsync(new ListApplicationsByJobRequest
-        {
-            AdvertiserId = advertiserId!.Value,
-            JobId = FilterJobId
-        });
+        applicationsIncomplete = false;
+        var loaded = new List<ApplicationResponse>();
 
-        if (result.Status == EResultStatus.Success)
+        // A listagem vem em páginas (o banco não materializa todas as candidaturas de uma vez)
+        for (var page = 1; page <= MaxApplicationPages; page++)
         {
-            applications = result.Data?.ToList() ?? [];
-            filteredJobTitle = JobId.HasValue ? applications.FirstOrDefault()?.JobTitle : null;
-            await LoadJobsAsync();
-            ApplyFilters();
+            var result = await ListApplicationsByJobUseCase.ExecuteAsync(new ListApplicationsByJobRequest
+            {
+                AdvertiserId = advertiserId!.Value,
+                JobId = FilterJobId,
+                Page = page,
+                Size = ApplicationPageSize
+            });
+
+            if (result.Status != EResultStatus.Success)
+            {
+                Logger.LogFailure(result, "Listar candidaturas recebidas");
+                loadFailed = true;
+                return;
+            }
+
+            var batch = result.Data?.ToList() ?? [];
+            loaded.AddRange(batch);
+            if (batch.Count < ApplicationPageSize)
+                break;
+            if (page == MaxApplicationPages)
+                applicationsIncomplete = true;
         }
-        else
-        {
-            Logger.LogFailure(result, "Listar candidaturas recebidas");
-            loadFailed = true;
-        }
+
+        applications = loaded;
+        filteredJobTitle = JobId.HasValue ? applications.FirstOrDefault()?.JobTitle : null;
+        await LoadJobsAsync();
+        ApplyFilters();
     }
 
     // Filtro "Vaga": todas as vagas da empresa (antes só as 100 primeiras apareciam na lista)
