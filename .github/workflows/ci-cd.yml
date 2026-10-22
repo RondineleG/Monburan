@@ -1,19 +1,24 @@
 name: CI/CD Pipeline
 
-# Push na dev: validação rápida — restore, build, testes (unit, integração e API) e scan de segurança, sem a
-# suíte E2E. Pull request para a main: validação completa, com o E2E (Playwright) além do resto. Nenhum evento
-# deste workflow publica em produção a partir da dev: o deploy de produção continua restrito à main
-# (Azure Web App aqui; VPS via imagem do GHCR no docker-ghcr.yml, que só roda na main).
+# Validação proporcial à criticidade do evento:
+#   - PR para dev  → build + testes (unit, integração/Testcontainers, API) + security scan; SEM E2E.
+#   - Push na dev  → mesma validação rápida (segunda camada após o merge do PR); SEM E2E.
+#   - PR para main → validação completa, com a suíte E2E (Playwright) além do resto.
+#   - Push na main → build + testes + scan; o E2E já foi validado no PR dev→main.
+# Nenhum evento deste workflow publica em produção a partir da dev ou de PRs: o deploy de
+# produção continua restrito a push na main (Azure Web App aqui; VPS via imagem do GHCR no
+# docker-ghcr.yml, que só roda na main).
 #
-# Checks que devem ser obrigatórios no ruleset da main (Settings > Rules > Rulesets):
-#   build-and-test, e2e, security-scan, origem-do-pr (main-only-from-dev.yml),
-#   Analyze (csharp), Analyze (javascript-typescript), Analyze (actions) (codeql.yml).
+# Checks obrigatórios (Settings > Rules > Rulesets):
+#   dev  — build-and-test, security-scan (e2e NÃO é obrigatório na dev)
+#   main — build-and-test, e2e, security-scan, origem-do-pr (main-only-from-dev.yml),
+#          Analyze (csharp), Analyze (javascript-typescript), Analyze (actions) (codeql.yml)
 # Detalhes em .github/workflows/README.md.
 on:
   push:
     branches: [ main, dev ]
   pull_request:
-    branches: [ main ]
+    branches: [ dev, main ]
   workflow_dispatch:
 
 permissions:
@@ -116,12 +121,14 @@ jobs:
 
   # Suíte Playwright (55 testes): sobe o app em Development (seed) contra um Postgres de serviço.
   # Independente dos demais jobs — falha aqui aparece no PR, mas não trava build, scan ou APK.
-  # Roda em PR para a main e em dispatch manual; no push da dev/main o E2E já foi validado no PR
-  # (a main só recebe PR vindo da dev), então dispensar aqui evita ~15 min por push.
+  # Só roda em PR para a MAIN (promoção dev→main, único caminho de entrada na produção) e em
+  # dispatch manual. PRs para a dev e pushes dispensam o E2E: a suíte completa valeria o mesmo
+  # código mais tarde no PR dev→main, e cada execução custa ~15 min de runner.
+  # Nome do job preservado ("e2e") para não quebrar status checks já referenciados em rulesets.
   e2e:
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.base.ref == 'main')
     services:
       postgres:
         image: postgres:16-alpine
