@@ -16,7 +16,9 @@ O Monburan é uma aplicação web e um aplicativo Android para anunciar vagas, r
 
 ## 🖼️ Telas
 
-Capturas do site em produção, tema claro. As versões escuras estão no final da seção.
+Capturas do site em produção, nos dois temas (o site segue a preferência do usuário).
+
+### Tema claro
 
 | Início | Busca de vagas | Detalhe da vaga |
 |---|---|---|
@@ -30,8 +32,7 @@ Capturas do site em produção, tema claro. As versões escuras estão no final 
 |---|---|
 | ![Início celular](docs/prints/06-inicio-celular-claro.png) | ![Busca celular](docs/prints/07-busca-celular-claro.png) |
 
-<details>
-<summary>Tema escuro</summary>
+### Tema escuro
 
 | Início | Busca de vagas | Detalhe da vaga |
 |---|---|---|
@@ -41,7 +42,9 @@ Capturas do site em produção, tema claro. As versões escuras estão no final 
 |---|---|---|
 | ![Planos](docs/prints/04-planos-escuro.png) | ![Candidaturas](docs/prints/08-candidato-minhas-candidaturas-escuro.png) | ![Currículos](docs/prints/09-candidato-curriculos-escuro.png) |
 
-</details>
+| Início (celular) | Busca (celular) |
+|---|---|
+| ![Início celular](docs/prints/06-inicio-celular-escuro.png) | ![Busca celular](docs/prints/07-busca-celular-escuro.png) |
 
 ---
 
