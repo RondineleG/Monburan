@@ -25,7 +25,7 @@ mantém o host vivo para inspeção no endereço `HOST=` impresso no log.
 ## Captura para revisão visual e regressão (`--capture`)
 
 Percorre, somente leitura, todas as rotas do site por papel (visitante, candidato, empresa, admin) em
-1440×900, 834×1112 e 390×844 nos dois temas, e as telas do app em 360×800, 390×844 e 412×915 pela pré-visualização
+1440×900 e 390×844 nos dois temas, 834×1112 só no claro, e as telas do app pela pré-visualização (no claro só 390×844; no escuro 360×800, 390×844 e 412×915)
 (`tests/ux-mobile-preview`). Grava as capturas, `results.json` (métricas por página: contraste de cada texto, texto
 < 12px, alvos < 24px, campos sem rótulo, controles sem nome, ids duplicados, overflow, títulos, erros de console) e
 `summary.txt`. Diálogos e gavetas são só abertos e fechados; nada é confirmado.
@@ -33,9 +33,10 @@ Percorre, somente leitura, todas as rotas do site por papel (visitante, candidat
 ```bash
 cd tests/ux-mobile-preview && dotnet build            # só para incluir o app
 cd ../ux-smoke && dotnet run -- --capture all --out <pasta>   # all | web | mobile
+cd ../ux-smoke && dotnet run -- --serve-only              # sobe o host sem rodar o fluxo
 ```
 
-O `summary.txt` não pode ter overflow, contraste abaixo de AA, texto < 12px, campo sem rótulo ou controle sem nome.
+O harness não reprova sozinho: grava as métricas para revisão manual. Ao revisar o `summary.txt`, confira overflow, contraste abaixo de AA, texto < 12px, campo sem rótulo e controle sem nome.
 
 ## Notificações (`--notifications`)
 

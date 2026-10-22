@@ -2,24 +2,36 @@
 
 > **Instruções de uso (apague este bloco antes de exportar o PDF):**
 > - Este arquivo contém **todas as seções obrigatórias** do template, na mesma ordem e numeração.
-> - As passagens entre `[COLCHETES]` são **orientações do que escrever**. Substitua pelo seu próprio texto.
-> - Os dados técnicos já conferidos com o repositório estão pré-preenchidos nas seções 4.1.5, 4.1.6 e 4.1.8 — aproveite-os, mas reescreva com suas palavras.
+> - Os trechos entre `[COLCHETES]` dependem do grupo (comunidade, nomes, vídeo, métricas-alvo). **Não preencha com dados inventados.**
+> - Os dados técnicos foram conferidos com o repositório em 22/10/2026. Reescreva com suas próprias palavras, como exige o template.
 > - Formatação ABNT: fonte Times New Roman 12, espaçamento 1,5, margens esquerda 3 cm / superior 2 cm, recuo de primeira linha 1,25 cm, numeração de páginas no canto superior direito.
-> - Exporte como **um único PDF** (não zip, não anexo separado).
+> - Exporte como **um único PDF** (não zip, não anexo separado). O AVA aceita **uma tentativa**.
 
 ---
 
 ## 1 Introdução
 
-[Apresente o trabalho: tema geral, o problema social abordado, a solução proposta e a estrutura do relatório. Explique que o projeto consiste no desenvolvimento de uma plataforma digital (web + mobile) de intermediação entre candidatos e oportunidades de trabalho, voltada a uma comunidade específica — identifique essa comunidade aqui. Finalize indicando como o relatório está organizado.]
+[Identifique a comunidade atendida pelo projeto (cidade, bairro ou público) e o problema social abordado.]
+
+O projeto Monburan é uma plataforma digital, com aplicação web e aplicativo Android, que aproxima candidatos de empresas que publicam vagas. A solução centraliza perfis, currículos, vagas e candidaturas em um único lugar, em vez de dispersá-los em múltiplas plataformas e grupos de redes sociais.
+
+[Finalize indicando como o relatório está organizado.]
 
 ## 2 Geração de Ideia
 
-[Relate como o grupo chegou à ideia: brainstorming, rodas de conversa com a comunidade, identificação de dores reais. Descreva as alternativas consideradas e por que a ideia final foi escolhida. Conecte o tema "Resolvendo problemas na comunidade em que estamos inseridos" com a escolha.]
+[Relate como o grupo chegou à ideia: conversas, pesquisa, observação da comunidade. Descreva as alternativas consideradas e por que a ideia final foi escolhida. Conecte com o tema "Resolvendo problemas na comunidade em que estamos inseridos". Inclua evidências, se houver.]
 
 ## 3 Prova de Conceito
 
-[Descreva a validação inicial da viabilidade: o que foi testado para confirmar que a ideia é exequível. Informe que já existe um protótipo funcional — aplicação web (.NET 10 + Blazor) e app mobile (MAUI Blazor Hybrid) compilando sem erros, com 160 testes automatizados aprovados. Mencione prints/telas, o endereço do repositório GitHub (https://github.com/RondineleG/Monburan) e o board de gestão (https://github.com/users/RondineleG/projects/14).]
+[Descreva o que foi testado para confirmar que a ideia é exequível.]
+
+O protótipo está publicado e funcional:
+- **Aplicação web:** https://monburan.com.br (.NET 10 + Blazor), com páginas públicas de vagas, cadastro de candidatos e empresas e área de candidaturas.
+- **Aplicativo Android:** versão 1.5.0, disponível na release https://github.com/RondineleG/Monburan/releases/tag/v1.5.0 (APK).
+- **Repositório:** https://github.com/RondineleG/Monburan
+- **Board de gestão:** https://github.com/users/RondineleG/projects/14
+
+[Inserir prints das telas: página inicial, busca de vagas, candidatura e painel da empresa.]
 
 ## 4 Etapa 1
 
@@ -27,44 +39,54 @@
 
 #### 4.1.1 Compreensão do Problema na Comunidade
 
-[Descreva o problema concreto que a comunidade enfrenta — ex.: dificuldade de acesso a vagas de trabalho, desinformação sobre oportunidades locais, barreiras digitais. Apresente dados (se houver fontes) e como o problema foi apurado. **Esta é a seção mais importante da avaliação — conecte o software a uma dor real.**]
+[Descreva o problema concreto que a comunidade enfrenta, com a forma como foi apurado (pesquisa, entrevistas, dados públicos) e as fontes. **Esta é a seção mais importante da avaliação: conecte o software a uma dor real.** Sem essa evidência, a seção fica genérica.]
 
 #### 4.1.2 Definição Clara do Objetivo
 
-**Objetivo geral:** [Descreva em uma frase o objetivo do projeto.]
+**Objetivo geral:** oferecer uma plataforma web e móvel que facilite o encontro entre candidatos e empresas que publicam vagas.
 
 **Objetivos específicos:**
-- [ ] objetivo específico 1
-- [ ] objetivo específico 2
-- [ ] objetivo específico 3
+- [ ] permitir o cadastro e a autenticação de candidatos e empresas, em perfis separados;
+- [ ] permitir que empresas publiquem, editem e acompanhem vagas;
+- [ ] permitir que candidatos busquem vagas, se candidatem e acompanhem o andamento;
+- [ ] disponibilizar o acesso também pelo aplicativo Android.
 
 #### 4.1.3 Delimitação do Escopo
 
-**O que o projeto faz (dentro do escopo):**
-- [funcionalidades incluídas — ex.: cadastro e autenticação, publicação e gestão de vagas, busca e candidatura, currículos, notificações, planos e assinaturas, app mobile Android]
+**O que o projeto faz (dentro do escopo da Etapa 1):**
+- cadastro e autenticação, com perfis de candidato e de anunciante (empresa);
+- publicação, edição e moderação de vagas;
+- busca de vagas, candidatura e acompanhamento de candidaturas;
+- currículos, com importação de PDF;
+- notificações na plataforma e por e-mail;
+- planos e assinaturas, com limites por plano;
+- aplicativo Android (APK).
 
 **O que o projeto NÃO faz (fora do escopo):**
-- [limites definidos — ex.: publicação na Play Store/App Store na Etapa 1, notificações push, processos seletivos por vídeo, integração com LinkedIn]
+- publicação nas lojas Play Store e App Store;
+- aplicativo iOS (o IPA da release é não assinado e não há conta de desenvolvedor para distribuição);
+- notificações push e chat em tempo real;
+- isolamento de dados por tenant (o campo existe, mas a lógica ainda não foi implementada).
 
 #### 4.1.4 Identificação dos Stakeholders da Comunidade
 
 | Stakeholder | Papel / Interesse |
 |---|---|
-| Candidatos (comunidade local) | [buscam oportunidades] |
-| Empresas / anunciantes locais | [publicam vagas] |
-| Centro de emprego / prefeitura | [apoio institucional] |
-| Faculdade / disciplina | [orientação acadêmica] |
-| Grupo de desenvolvimento | [execução do projeto] |
+| Candidatos | buscam oportunidades e acompanham candidaturas |
+| Empresas / anunciantes | publicam vagas e recebem candidaturas |
+| Administração da plataforma | modera vagas e contas |
+| [Instituição de apoio, se houver] | [definir] |
+| Grupo de desenvolvimento | execução do projeto |
 
 #### 4.1.5 Atividades e Tarefas Principais
 
-[Descreva o que foi feito. Sugestão de parágrafos curtos por frente:]
-- **Modelagem de domínio e camada de dados:** entidades, repositórios, migrações de banco (PostgreSQL/EF Core).
-- **Backend e API:** casos de uso, autenticação JWT (access/refresh), endpoints REST, upload de arquivos, paginação.
-- **Interface web:** shell do aplicativo, design system próprio (dark), páginas públicas e áreas do anunciante e do candidato.
-- **App mobile:** projeto MAUI Blazor Hybrid com páginas de candidato, cliente HTTP tipado e SecureStorage.
-- **Qualidade:** suíte de testes (unitários, integração, API e E2E) — 160 testes automatizados.
-- **Infraestrutura:** Docker, CI/CD (GitHub Actions), imagem publicada no GHCR, deploy na VPS com nginx + TLS (certbot), e-mail transacional via SMTP (Resend), health checks e logging estruturado.
+[Descreva com suas palavras. Dados de referência:]
+- **Modelagem de domínio e dados:** entidades, repositórios e migrations (PostgreSQL com EF Core 10).
+- **Backend e API:** casos de uso, autenticação ASP.NET Identity com JWT, endpoints REST, upload de arquivos e paginação.
+- **Interface web:** design system próprio em CSS, páginas públicas e áreas de candidato e de empresa.
+- **Aplicativo mobile:** .NET MAUI Blazor Hybrid para Android, com cliente HTTP tipado e armazenamento seguro do token.
+- **Qualidade:** suíte de testes automatizados. Em 22/10/2026, 1.095 testes unitários e 245 testes de API passaram; há também 57 testes de integração (com PostgreSQL em contêiner) e 99 testes E2E com Playwright.
+- **Infraestrutura:** Docker, GitHub Actions, imagem no GHCR, publicação na VPS com nginx e TLS, e-mail transacional via SMTP, health checks e logs estruturados.
 
 #### 4.1.6 Ferramentas de Desenvolvimento e Teste
 
@@ -73,40 +95,47 @@
 | Linguagem / runtime | C# / .NET 10.0 |
 | Web | Blazor (WebAssembly + Server) |
 | Mobile | .NET MAUI Blazor Hybrid (Android) |
-| Banco de dados | PostgreSQL + Entity Framework Core |
-| Autenticação | JWT (access/refresh), ASP.NET Identity |
-| E-mail | SMTP via MailKit (Resend), SendGrid como fallback |
-| Testes | xUnit, NSubstitute, FluentAssertions, WebApplicationFactory (EF InMemory), Playwright |
+| Banco de dados | PostgreSQL + Entity Framework Core 10 |
+| Autenticação | ASP.NET Core Identity + JWT Bearer |
+| Validação | validadores próprios em `Monburan.Core/Validations` |
+| E-mail | SMTP via MailKit (Resend), SendGrid como alternativa |
+| Testes | xUnit, NSubstitute, FluentAssertions, WebApplicationFactory, Testcontainers (PostgreSQL), Playwright |
 | Contêineres | Docker / Docker Compose, imagem no GHCR |
 | CI/CD | GitHub Actions |
-| Produção | VPS + nginx + TLS (Let's Encrypt/certbot), domínio monburan.com.br |
+| Produção | VPS com nginx e TLS (Let's Encrypt / certbot), domínio monburan.com.br |
 | Logs / saúde | Serilog, Health Checks |
-| Gestão | GitHub Projects, GitHub Issues |
+| Gestão | GitHub Projects, GitHub Issues e Milestones |
 
 #### 4.1.7 Métricas de Sucesso
 
-[Defina métricas. Sugestões — combine as que fizerem sentido:]
-- **Técnicas:** build sem erros (0 erros / 0 avisos), 160 testes automatizados aprovados, pipeline de CI/CD operante.
-- **De produto:** tempo médio de resposta da listagem de vagas, taxa de conclusão de cadastro, nº de candidaturas enviadas.
-- **De impacto na comunidade:** nº de candidatos alcançados, nº de empresas cadastradas, taxa de resposta a candidaturas.
+[Defina as metas com o grupo. Valores de referência, já verificáveis:]
+- **Técnicas:** build sem erros; testes unitários e de API aprovados (1.095 e 245 em 22/10/2026); pipeline de CI/CD verde na `main`.
+- **De produto:** [definir: tempo de resposta da listagem de vagas; taxa de conclusão de cadastro; número de candidaturas enviadas].
+- **De impacto na comunidade:** [definir: candidatos alcançados; empresas cadastradas; taxa de resposta às candidaturas].
 
 #### 4.1.8 Cronograma e Recursos
 
-**Cronograma (histórico real de desenvolvimento):**
+**Cronograma (histórico real do repositório, por data de commit):**
 
 | Período | Entrega |
 |---|---|
-| 06/10/2026 | Estruturação da solução e modelo de domínio |
-| 07/10/2026 | Casos de uso, DTOs, validações, camada de dados |
-| 08/10/2026 | Autenticação e design system |
-| 09/10/2026 | Páginas públicas, marketplace e área do anunciante |
+| 06/10/2026 | Estrutura da solução e modelo de domínio |
+| 07/10/2026 | Casos de uso, DTOs, validações e camada de dados |
+| 08/10/2026 | Autenticação, fluxos de conta e design system escuro |
+| 09/10/2026 | Páginas públicas, marketplace de vagas e área da empresa |
 | 12/10/2026 | Área do candidato, currículos, planos e assinaturas |
-| 13/10/2026 | Notificações e migrações de banco |
+| 13/10/2026 | Notificações, serviços de plataforma e migrations |
 | 14/10/2026 | Testes unitários, de integração e E2E |
 | 15/10/2026 | Docker, deploy e utilitários |
-| 16/10/2026 | API REST, app mobile, documentação, deploy na VPS (imagem no GHCR + nginx/TLS), domínio monburan.com.br, e-mail via SMTP (Resend) e renovação de UI/UX (web e mobile) |
+| 16/10/2026 | API REST, aplicativo Android, documentação e configuração SCRUM |
+| 17/10/2026 | Auditoria UI x API e correções funcionais e de segurança |
+| 18/10/2026 | Revisão de UX/UI e nova busca de vagas |
+| 19/10/2026 | Deploy automático na VPS e página 404 |
+| 20/10/2026 | Correções do aplicativo Android |
+| 21/10/2026 | Tokens e componentes de interface e telas de conta |
+| 22/10/2026 | Pipeline de CI, correções de busca e assinaturas e release v1.5.0 |
 
-**Recursos:** [descreva recursos humanos (membros do grupo e papéis), materiais (estação de trabalho, contas de serviço) e de infraestrutura (GitHub, Docker, banco de dados).]
+**Recursos:** [Membros do grupo e papéis. Ambiente: estação de trabalho, GitHub, Docker e PostgreSQL.]
 
 ---
 
@@ -126,29 +155,29 @@
 
 ## 6 SCRUM Configurado
 
-[Descreva a metodologia ágil adotada e a configuração do Scrum.]
+[Descreva a metodologia adotada e a configuração do Scrum com suas palavras. Base em `docs/scrum.md`.]
 
 **Papéis:**
-- Product Owner: [nome]
-- Scrum Master: [nome]
-- Desenvolvedores: [nomes]
+- Product Owner: [nome completo]
+- Scrum Master: [nome completo]
+- Desenvolvedores: [nomes completos]
 
 **Artefatos:**
-- **Product Backlog:** [GitHub Issues — https://github.com/RondineleG/Monburan/issues, com 24 itens priorizados]
-- **Sprint Backlog:** [itens atribuídos às sprints no GitHub Projects]
-- **Incremento:** [entrega funcional por sprint]
+- **Product Backlog:** issues do repositório (https://github.com/RondineleG/Monburan/issues), com 24 itens até 22/10/2026.
+- **Sprint Backlog:** itens atribuídos às sprints pelo campo *Fase* no GitHub Projects.
+- **Incremento:** entrega funcional verificável ao fim de cada ciclo.
 
-**Quadro (board) configurado:** [GitHub Projects #14 — https://github.com/users/RondineleG/projects/14, com fluxo de 6 colunas — *Backlog / Ready for Dev / In Progress / In Review / In QA / Done* — e campos personalizados *Fase* (Etapa 1 / Etapa 2) e *Prioridade* (Alta / Média / Baixa).]
+**Quadro (board) configurado:** GitHub Projects #14 (https://github.com/users/RondineleG/projects/14), com seis colunas de status — *Backlog, Ready for Dev, In Progress, In Review, In QA, Done* — e os campos personalizados *Fase* (Etapa 1 / Etapa 2) e *Prioridade* (Alta / Média / Baixa).
 
-**Definição de "Feito":** [ex.: código revisado, testes aprovados, build sem erros, documentação atualizada.]
+**Definição de "Feito":** [definir com o grupo; ex.: código revisado em PR para `dev`, testes aprovados, build sem erros, documentação atualizada.]
 
-**Milestones:** [Etapa 1 — https://github.com/RondineleG/Monburan/milestone/1 (prazo 25/10/2026); Etapa 2 — milestone/2.]
+**Milestones:** Etapa 1 (https://github.com/RondineleG/Monburan/milestone/1), com prazo de 25/10/2026; Etapa 2 (milestone/2), sem prazo definido.
 
 ## 7 Vídeo de Apresentação
 
 ### 7.1 Etapa 1
 
-[Insira o link do vídeo da Etapa 1 e uma breve descrição do conteúdo.]
+[Insira o link do vídeo não listado e uma breve descrição do conteúdo.]
 
 ### 7.2 Etapa 2
 
@@ -156,18 +185,21 @@
 
 ## 8 Conclusão
 
-[Apresente as conclusões do relatório parcial: o que foi alcançado na Etapa 1, o que ficou pendente para a Etapa 2, e a contribuição do projeto para a comunidade identificada.]
+[Escreva com suas palavras: o que foi alcançado na Etapa 1, o que fica para a Etapa 2 e a contribuição para a comunidade identificada. Inclua também as limitações conhecidas do protótipo.]
 
 ## 9 Referências Bibliográficas
 
-[Lista de referências em formato ABNT (NBR 10235 / ABNT NBR 6023). Exemplos de formatação:]
+[Liste apenas as fontes que o grupo realmente consultou, em ABNT (NBR 6023), em ordem alfabética. Conferir os dados antes de entregar.]
 
-SILVA, João das Neves. **Engenharia de software**: princípios e práticas. São Paulo: Atlas, 2024.
+BECK, Kent. **Test-driven development**: by example. Boston: Addison-Wesley, 2002.
 
-SOMMERVILLE, Ian. **Engenharia de software**. 10. ed. São Paulo: Pearson, 2019.
+MARTIN, Robert C. **Clean architecture**: a craftsman's guide to software structure and design. Boston: Prentice Hall, 2017.
 
-BECK, Kent. **TDD explícito**: testes e código de produção. Rio de Janeiro: Alta Books, 2021.
+SCHWABER, Ken; SUTHERLAND, Jeff. **The Scrum guide**. [S. l.]: Scrum.org, 2020. Disponível em: https://scrumguides.org/. Acesso em: [data].
 
-SCHWABER, Ken; SUTHERLAND, Jeff. **Guia do Scrum**. Disponível em: https://scrumguides.org/. Acesso em: 16 out. 2026.
+[Acrescente as fontes da pesquisa com a comunidade e os materiais da disciplina.]
 
-[Mantenha a ordem alfabética. Inclua as fontes técnicas e acadêmicas que realmente consultaram.]
+Repositório e recursos do projeto (fontes primárias):
+- MONBURAN. **Repositório do projeto**. GitHub, 2026. Disponível em: https://github.com/RondineleG/Monburan. Acesso em: [data].
+- MONBURAN. **Board de gestão**. GitHub Projects, 2026. Disponível em: https://github.com/users/RondineleG/projects/14. Acesso em: [data].
+- MONBURAN. **Aplicação web**. 2026. Disponível em: https://monburan.com.br. Acesso em: [data].
