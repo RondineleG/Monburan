@@ -71,7 +71,7 @@ jobs:
 
     # Monburan.E2ETests precisa do app no ar com Postgres e navegador: roda no job "e2e".
     # Roda os três projetos mesmo se um falhar, para o log mostrar tudo de uma vez.
-    # Cada projeto grava seu TRX em tests/Monburan.<projeto>/TestResults (arquivo nomeado por projeto).
+    # Cada projeto grava seu TRX em $RUNNER_TEMP/trx (arquivo nomeado por projeto); o upload lê desse diretório.
     # Monburan.IntegrationTests usa Testcontainers (Postgres 16 real por classe de teste): o runner
     # ubuntu-latest já traz o Docker Engine instalado, então nenhum serviço/contêiner extra é necessário
     # aqui — o docker daemon do host basta para o Testcontainers subir seus contêineres.
@@ -80,6 +80,7 @@ jobs:
         rc=0
         for project in UnitTests IntegrationTests ApiTests; do
           dotnet test "tests/Monburan.$project" --configuration Release --no-build --verbosity normal \
+            --results-directory "$RUNNER_TEMP/trx" \
             --logger "trx;LogFileName=Monburan.$project.trx" \
             --collect:"XPlat Code Coverage" --settings tests/coverlet.runsettings || rc=1
         done
@@ -88,7 +89,7 @@ jobs:
     - name: Generate code coverage report
       run: |
         dotnet tool install -g dotnet-reportgenerator-globaltool
-        reportgenerator -reports:**/coverage.cobertura.xml -targetdir:coverage-report -reporttypes:html
+        reportgenerator -reports:"$RUNNER_TEMP/trx/**/coverage.cobertura.xml" -targetdir:coverage-report -reporttypes:html
       continue-on-error: true
 
     - name: Upload coverage reports
@@ -105,9 +106,9 @@ jobs:
       uses: actions/upload-artifact@v7
       with:
         name: test-results-trx
-        path: tests/**/TestResults/*.trx
+        path: ${{ runner.temp }}/trx/*.trx
         retention-days: 7
-        if-no-files-found: ignore
+        if-no-files-found: warn
 
     - name: Publish application
       run: dotnet publish src/Monburan.Web/Monburan.Web.csproj --configuration Release --output ./publish --no-build
@@ -194,8 +195,10 @@ jobs:
     - name: Run E2E tests
       run: |
         for attempt in 1 2; do
+          # Cada tentativa grava o próprio TRX: a repetição não apaga o diagnóstico da falha anterior
           if dotnet test tests/Monburan.E2ETests/Monburan.E2ETests.csproj --configuration Release --no-build --verbosity normal \
-              --logger "trx;LogFileName=Monburan.E2ETests.trx"; then
+              --results-directory "$RUNNER_TEMP/trx" \
+              --logger "trx;LogFileName=Monburan.E2ETests.attempt$attempt.trx"; then
             exit 0
           fi
           echo "::warning::E2E falhou na tentativa $attempt"
@@ -209,9 +212,9 @@ jobs:
         name: e2e-app-log
         path: |
           app.log
-          tests/Monburan.E2ETests/TestResults/*.trx
+          ${{ runner.temp }}/trx/*.trx
         retention-days: 7
-        if-no-files-found: ignore
+        if-no-files-found: warn
 
   security-scan:
     runs-on: ubuntu-latest
