@@ -24,7 +24,7 @@ public class RegisterJobViewUseCase : IUseCase<RegisterJobViewRequest, bool>
         if (jobResult.Status != EResultStatus.Success || jobResult.Data is null)
             return RequestResult<bool>.EntityNotFound("Job", request.JobId, "Vaga não encontrada.");
 
-        if (request.ViewerId.HasValue && jobResult.Data.AdvertiserId.Value == request.ViewerId.Value)
+        if (request.ViewerId.HasValue && jobResult.Data.AdvertiserId?.Value == request.ViewerId.Value)
             return RequestResult<bool>.Success(true);
 
         return await _jobs.IncrementViewsAsync(request.JobId, cancellationToken);

@@ -24,6 +24,7 @@ using Monburan.Core.Interfaces.UseCases;
 using Monburan.Core.Interfaces.Validations;
 using Monburan.Core.UseCases.Ai;
 using Monburan.Core.UseCases.Jobs;
+using Monburan.Core.UseCases.Submissions;
 using Monburan.Core.UseCases.JobAlerts;
 using Monburan.Core.UseCases.Applications;
 using Monburan.Core.UseCases.Candidates;
@@ -300,6 +301,7 @@ builder.Services.AddSingleton<IAiTextClient, AiTextClient>();
 
 // Registrar Repositórios
 builder.Services.AddScoped<IJobRepository, JobRepository>();
+builder.Services.AddScoped<IJobSubmissionRepository, JobSubmissionRepository>();
 builder.Services.AddScoped<IBaseRepository<Job>, JobRepository>(); // Para UseCases que usam IBaseRepository
 builder.Services.AddScoped<IBaseRepository<Candidate>, CandidateRepository>();
 builder.Services.AddScoped<ICandidateRepository, CandidateRepository>();
@@ -430,6 +432,13 @@ builder.Services.AddScoped<IStorageProvider, LocalStorageProvider>();
 
 // Registrar Use Case de Upload
 builder.Services.AddScoped<UploadFileUseCase>();
+
+// Sugestões anônimas de vaga: evidência privada, limite de envios e moderação humana
+builder.Services.AddSingleton<IEvidenceStorage, LocalEvidenceStorage>();
+builder.Services.AddSingleton<ISubmissionRateLimiter, SubmissionRateLimiter>();
+builder.Services.AddScoped<SubmitJobSuggestionUseCase>();
+builder.Services.AddScoped<ModerateJobSubmissionUseCase>();
+builder.Services.AddScoped<ExtractJobDraftUseCase>();
 
 // Registrar CurrentUserHelper
 builder.Services.AddHttpContextAccessor();

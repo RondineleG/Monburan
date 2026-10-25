@@ -1,0 +1,200 @@
+@page "/sugerir-vaga"
+@rendermode InteractiveServer
+@using Monburan.Core.DTOs.Request
+@using Monburan.Core.Requests
+@using Monburan.Core.Services
+@using Monburan.Core.UseCases.Submissions
+@using Microsoft.AspNetCore.Components.Forms
+@inject SubmitJobSuggestionUseCase Submit
+@inject IHttpContextAccessor HttpAccessor
+@inject ILogger<SugerirVaga> Logger
+
+<PageTitle>Sugerir uma vaga - Monburan</PageTitle>
+
+<PageHeader Title="Sugerir uma vaga" TestId="suggest-job-page"
+            Description="Achou uma vaga em outro lugar? Envie os dados e uma imagem da publicação. Não precisa criar conta.">
+</PageHeader>
+
+<div class="container">
+    <section class="card suggest-card" data-testid="suggest-job-card">
+        @if (sent)
+        {
+            <div class="alert alert-success" role="status" data-testid="suggest-job-sent">
+                <h2 class="h5">Recebemos sua sugestão.</h2>
+                <p class="mb-0">Um moderador vai conferir a imagem e os dados. A vaga só aparece na Monburan depois dessa análise.</p>
+            </div>
+            <button type="button" class="btn btn-outline-secondary mt-3" @onclick="Reset">Enviar outra sugestão</button>
+        }
+        else
+        {
+            <p class="mb-3">
+                Os dados da vaga são revisados por uma pessoa antes de qualquer publicação. Não publicamos
+                a imagem original: a vaga aparece no formato padrão da Monburan.
+            </p>
+
+            @if (error is not null)
+            {
+                <p class="alert alert-danger" role="alert" data-testid="suggest-job-error">@error</p>
+            }
+
+            <div class="mb-3">
+                <label class="form-label" for="sugestao-cargo">Cargo *</label>
+                <input id="sugestao-cargo" class="form-control" @bind="request.Title" maxlength="200" data-testid="suggest-title" />
+            </div>
+
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label class="form-label" for="sugestao-empresa">Empresa contratante</label>
+                    <input id="sugestao-empresa" class="form-control" @bind="request.CompanyName" maxlength="200" />
+                </div>
+                <div class="col-md-3 mb-3">
+                    <label class="form-label" for="sugestao-cidade">Cidade</label>
+                    <input id="sugestao-cidade" class="form-control" @bind="request.City" maxlength="200" />
+                </div>
+                <div class="col-md-3 mb-3">
+                    <label class="form-label" for="sugestao-uf">Estado</label>
+                    <input id="sugestao-uf" class="form-control" @bind="request.State" maxlength="200" />
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label" for="sugestao-descricao">Descrição da vaga</label>
+                <textarea id="sugestao-descricao" class="form-control" rows="4" maxlength="2000" @bind="request.Description"></textarea>
+                <small class="form-text">Informe apenas o que estiver na publicação. Salário, prazo e forma de candidatura podem ser confirmados pela moderação.</small>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label" for="sugestao-fonte">Endereço da publicação</label>
+                <input id="sugestao-fonte" class="form-control" @bind="request.SourceUrl" placeholder="https://" />
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label" for="sugestao-fonte-texto">Onde encontrou? *</label>
+                <textarea id="sugestao-fonte-texto" class="form-control" rows="2" maxlength="500" @bind="request.SourceDescription"
+                          placeholder="Ex.: cartaz no posto de saúde, grupo de WhatsApp da prefeitura, site da agência"></textarea>
+                <small class="form-text">Obrigatório quando não houver endereço da publicação.</small>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label" for="sugestao-contato">Seu e-mail (opcional)</label>
+                <input id="sugestao-contato" class="form-control" type="email" @bind="request.ContactEmail" autocomplete="email" />
+                <small class="form-text">Usado só para pedir esclarecimentos sobre esta sugestão.</small>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label" for="sugestao-imagens">Imagens da publicação * (JPG, PNG ou WebP, até 5 MB cada)</label>
+                <InputFile id="sugestao-imagens" class="form-control" OnChange="OnFilesSelected" multiple accept="image/jpeg,image/png,image/webp" data-testid="suggest-files" />
+                @if (files.Count > 0)
+                {
+                    <ul class="mt-2">
+                        @foreach (var file in files)
+                        {
+                            <li>@file.Name</li>
+                        }
+                    </ul>
+                }
+            </div>
+
+            <button type="button" class="btn btn-primary" disabled="@sending" @onclick="SubmitAsync" data-testid="suggest-submit">
+                @(sending ? "Enviando…" : "Enviar sugestão")
+            </button>
+        }
+    </section>
+</div>
+
+@code {
+    private readonly SubmitJobSuggestionRequest request = new();
+    private readonly List<IBrowserFile> files = [];
+    private string? submitterKey;
+    private string? error;
+    private bool sending;
+    private bool sent;
+
+    protected override void OnInitialized()
+    {
+        submitterKey = HttpAccessor.HttpContext?.Connection.RemoteIpAddress?.ToString();
+    }
+
+    private void OnFilesSelected(InputFileChangeEventArgs args)
+    {
+        files.Clear();
+        files.AddRange(args.GetMultipleFiles(JobSubmissionRules.MaxEvidences));
+        error = null;
+    }
+
+    private async Task SubmitAsync()
+    {
+        if (sending)
+            return;
+
+        error = null;
+        sending = true;
+        try
+        {
+            request.SubmitterKey = submitterKey ?? string.Empty;
+            request.Evidences = await ReadEvidenceAsync();
+            if (request.Evidences.Count == 0 && error is null)
+                error = "Envie pelo menos uma imagem da publicação.";
+            if (error is not null)
+                return;
+
+            var result = await Submit.ExecuteAsync(request);
+            if (result.Status == Monburan.Core.Enums.EResultStatus.Success)
+            {
+                sent = true;
+                return;
+            }
+
+            error = result.Status == Monburan.Core.Enums.EResultStatus.HasValidation
+                ? result.ValidationResult.ErrorMessage
+                : result.Message;
+            if (string.IsNullOrWhiteSpace(error))
+                error = "Não foi possível enviar a sugestão agora. Tente novamente em instantes.";
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            Logger.LogError(ex, "Falha ao enviar sugestão de vaga");
+            error = "Não foi possível enviar a sugestão agora. Tente novamente em instantes.";
+        }
+        finally
+        {
+            sending = false;
+        }
+    }
+
+    private async Task<List<SubmissionEvidenceInput>> ReadEvidenceAsync()
+    {
+        var inputs = new List<SubmissionEvidenceInput>();
+        foreach (var file in files)
+        {
+            try
+            {
+                await using var stream = file.OpenReadStream(JobSubmissionRules.MaxEvidenceBytes);
+                using var buffer = new MemoryStream();
+                await stream.CopyToAsync(buffer);
+                inputs.Add(new SubmissionEvidenceInput(file.Name, file.ContentType, buffer.ToArray()));
+            }
+            catch (IOException)
+            {
+                error = "Uma das imagens passa de 5 MB. Envie arquivos menores.";
+                return [];
+            }
+        }
+        return inputs;
+    }
+
+    private void Reset()
+    {
+        request.Title = string.Empty;
+        request.CompanyName = null;
+        request.City = null;
+        request.State = null;
+        request.Description = null;
+        request.SourceUrl = null;
+        request.SourceDescription = null;
+        request.ContactEmail = null;
+        files.Clear();
+        sent = false;
+        error = null;
+    }
+}

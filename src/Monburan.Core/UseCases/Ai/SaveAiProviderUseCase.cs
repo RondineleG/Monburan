@@ -74,6 +74,7 @@ public class SaveAiProviderUseCase : IUseCase<AiProviderRequest, AiProviderRespo
         provider.Temperature = request.Temperature;
         provider.SendTemperature = request.SendTemperature;
         provider.UseJsonResponseFormat = request.UseJsonResponseFormat;
+        provider.SupportsVision = request.SupportsVision;
         provider.UseMaxCompletionTokens = request.UseMaxCompletionTokens;
         provider.UpdatedBy = request.UpdatedBy;
 

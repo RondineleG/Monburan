@@ -129,6 +129,9 @@ public sealed class AdminChangeJobStatusUseCase : IUseCase<AdminChangeJobStatusR
     /// <summary>Aviso dentro da plataforma para a empresa. Se falhar, a moderação já foi feita e vale.</summary>
     private async Task NotifyAsync(Job job, EJobStatus status, string? reason, CancellationToken cancellationToken = default)
     {
+        if (job.AdvertiserId is null)
+            return; // vaga externa: não há anunciante para avisar
+
         var (title, message) = status switch
         {
             EJobStatus.Hidden => ("Sua vaga foi ocultada pela moderação",

@@ -1,7 +1,12 @@
 namespace Monburan.Core.Interfaces.Services;
 
-/// <summary>Mensagem de uma conversa (<c>system</c>, <c>user</c> ou <c>assistant</c>).</summary>
-public sealed record AiMessage(string Role, string Content);
+/// <summary>Imagem enviada junto da mensagem (só para provedores marcados como multimodais).</summary>
+/// <param name="MediaType">Tipo MIME da imagem (image/jpeg, image/png ou image/webp).</param>
+/// <param name="Data">Conteúdo binário da imagem.</param>
+public sealed record AiImage(string MediaType, byte[] Data);
+
+/// <summary>Mensagem de uma conversa (<c>system</c>, <c>user</c> ou <c>assistant</c>), com imagens opcionais.</summary>
+public sealed record AiMessage(string Role, string Content, IReadOnlyList<AiImage>? Images = null);
 
 /// <param name="Messages">Conversa enviada ao modelo.</param>
 /// <param name="JsonObject">Pede ao provedor que responda com um objeto JSON (quando ele aceita).</param>
@@ -23,5 +28,8 @@ public enum AiFailureKind
     Unauthorized,
     ProviderError,
     InvalidResponse,
-    Truncated
+    Truncated,
+
+    /// <summary>A mensagem tem imagens, mas o provedor não foi marcado como multimodal.</summary>
+    VisionNotSupported
 }

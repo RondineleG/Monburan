@@ -6,7 +6,7 @@ public class AdminJobResponse
 
     public string Title { get; set; } = string.Empty;
 
-    public Guid AdvertiserId { get; set; }
+    public Guid? AdvertiserId { get; set; }
 
     public string? AdvertiserName { get; set; }
 
