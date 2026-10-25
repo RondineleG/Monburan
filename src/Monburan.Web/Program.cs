@@ -25,6 +25,7 @@ using Monburan.Core.Interfaces.Validations;
 using Monburan.Core.UseCases.Ai;
 using Monburan.Core.UseCases.Jobs;
 using Monburan.Core.UseCases.Submissions;
+using Monburan.Core.UseCases.ResumeShares;
 using Monburan.Core.UseCases.JobAlerts;
 using Monburan.Core.UseCases.Applications;
 using Monburan.Core.UseCases.Candidates;
@@ -302,6 +303,11 @@ builder.Services.AddSingleton<IAiTextClient, AiTextClient>();
 // Registrar Repositórios
 builder.Services.AddScoped<IJobRepository, JobRepository>();
 builder.Services.AddScoped<IJobSubmissionRepository, JobSubmissionRepository>();
+builder.Services.AddScoped<IResumeShareRepository, ResumeShareRepository>();
+builder.Services.AddScoped<CreateResumeShareUseCase>();
+builder.Services.AddScoped<RevokeResumeShareUseCase>();
+builder.Services.AddScoped<ListResumeSharesUseCase>();
+builder.Services.AddScoped<GetPublicResumeUseCase>();
 builder.Services.AddScoped<IBaseRepository<Job>, JobRepository>(); // Para UseCases que usam IBaseRepository
 builder.Services.AddScoped<IBaseRepository<Candidate>, CandidateRepository>();
 builder.Services.AddScoped<ICandidateRepository, CandidateRepository>();
@@ -458,6 +464,14 @@ builder.Services.AddHostedService<JobExpirationBackgroundService>();
 builder.Services.AddScoped<AddressRepository>();
 builder.Services.AddScoped<AddressService>();
 var app = builder.Build();
+
+// Links públicos de currículo: a página e o cabeçalho impedem indexação
+app.Use(async (context, next) =>
+{
+    if (context.Request.Path.StartsWithSegments("/curriculo", StringComparison.OrdinalIgnoreCase))
+        context.Response.Headers["X-Robots-Tag"] = "noindex, nofollow, noarchive";
+    await next();
+});
 
 // Antes de tudo (HSTS, redirecionamento para https, autenticação, limites): esquema e IP reais do cliente
 app.UseForwardedHeaders();

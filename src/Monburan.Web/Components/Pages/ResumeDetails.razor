@@ -1,4 +1,4 @@
-@page "/resumes/{resumeId:guid}"
+@page "/curriculos/{resumeId:guid}"
 @rendermode InteractiveServer
 @attribute [Microsoft.AspNetCore.Authorization.Authorize]
 @using Monburan.Core.DTOs.Response
@@ -41,13 +41,13 @@
             <Actions>
                 @if (isOwner && !showWorkspace)
                 {
-                    <a class="btn btn-primary" href="/resumes/@ResumeId/edit">Editar currículo</a>
+                    <a class="btn btn-primary" href="/curriculos/@ResumeId/editar">Editar currículo</a>
                     <button type="button" class="btn btn-outline-secondary" @onclick="ToggleImprovementAsync" data-testid="resume-improve-toggle"><Icon Name="sparkles" Size="16" />Melhorar currículo</button>
                     <details class="page-heading__more">
                         <summary class="btn btn-outline-secondary">Outras ações<Icon Name="chevron-down" Size="16" /></summary>
                         <div class="page-heading__more-menu">
-                            <a href="/resumes/@ResumeId/cv" data-testid="resume-export-pdf">Ver CV</a>
-                            <a href="/resumes/@ResumeId/wizard" aria-label="Completar o currículo no passo a passo">Completar no passo a passo</a>
+                            <a href="/curriculos/@ResumeId/cv" data-testid="resume-export-pdf">Ver CV</a>
+                            <a href="/curriculos/@ResumeId/assistente" aria-label="Completar o currículo no passo a passo">Completar no passo a passo</a>
                             <button type="button" class="link-danger" @onclick="DeleteAsync" disabled="@isDeleting" data-testid="resume-delete"
                                     aria-busy="@(isDeleting ? "true" : null)"
                                     aria-label="@(isDeleting ? "Excluindo currículo…" : $"Excluir o currículo {resume.Title}")">
@@ -58,7 +58,7 @@
                 }
                 else if (!isOwner)
                 {
-                    <a class="btn btn-outline-secondary" href="/resumes/@ResumeId/cv" data-testid="resume-export-pdf"><Icon Name="download" Size="16" />Imprimir ou salvar PDF</a>
+                    <a class="btn btn-outline-secondary" href="/curriculos/@ResumeId/cv" data-testid="resume-export-pdf"><Icon Name="download" Size="16" />Imprimir ou salvar PDF</a>
                 }
             </Actions>
             <ChildContent>
@@ -116,6 +116,13 @@
                     }
                 </aside>
             </div>
+        </div>
+    }
+
+    @if (isOwner)
+    {
+        <div class="container">
+            <ResumeShareCard ResumeId="ResumeId" />
         </div>
     }
 </div>
@@ -244,7 +251,7 @@
         if (result.Status == EResultStatus.Success)
         {
             Toast.ShowSuccess($"O currículo \"{resume.Title}\" foi excluído.");
-            Navigation.NavigateTo("/resumes");
+            Navigation.NavigateTo("/curriculos");
             return;
         }
 
@@ -252,5 +259,5 @@
         Toast.ShowError(ResultMessages.ToUserMessage(result, "Não foi possível excluir o currículo. Tente novamente."));
     }
 
-    private string BackHref => isOwner ? "/resumes" : "/received-applications";
+    private string BackHref => isOwner ? "/curriculos" : "/candidaturas-recebidas";
 }
