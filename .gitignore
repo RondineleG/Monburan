@@ -492,3 +492,9 @@ $RECYCLE.BIN/
 # Vim temporary swap files
 *.swp
 .neon
+
+# Evidências privadas de sugestões de vaga (nunca versionar)
+src/Monburan.Web/App_Data/
+
+# Relatórios de cobertura gerados localmente
+coverage-report/
