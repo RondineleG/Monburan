@@ -15,7 +15,7 @@ public class CandidateFlowTests : E2ETestBase
     public async Task Candidate_Dashboard_ShouldShowCareerContentOnly()
     {
         await LoginAsCandidateAsync();
-        await GotoAsync("/dashboard");
+        await GotoAsync("/painel");
         await WaitForBlazorAsync();
 
         var body = await Page.Locator("body").InnerTextAsync();
@@ -30,7 +30,7 @@ public class CandidateFlowTests : E2ETestBase
     {
         await LoginAsCandidateAsync();
 
-        var response = await GotoAsync("/profile/candidate");
+        var response = await GotoAsync("/perfil/candidato");
         Assert.True(response!.Ok, $"Profile retornou {response.Status}");
 
         await WaitForBlazorAsync();
@@ -54,7 +54,7 @@ public class CandidateFlowTests : E2ETestBase
     {
         await LoginAsCandidateAsync();
 
-        var response = await GotoAsync("/my-applications");
+        var response = await GotoAsync("/minhas-candidaturas");
         Assert.True(response!.Ok, $"MyApplications retornou {response.Status}");
 
         await WaitForBlazorAsync();
@@ -75,7 +75,7 @@ public class CandidateFlowTests : E2ETestBase
 
         await Page.GetByTestId("job-apply").ClickAsync();
         await Page.WaitForFunctionAsync(
-            "() => location.pathname.startsWith('/apply/')",
+            "() => location.pathname.startsWith('/candidatar/')",
             null,
             new PageWaitForFunctionOptions { Timeout = 30000 });
         await WaitForBlazorAsync();
@@ -120,7 +120,7 @@ public class CandidateFlowTests : E2ETestBase
         Assert.Equal(0, await Page.GetByTestId("job-apply").CountAsync());
 
         // Voltar direto à URL de candidatura mostra a situação, nunca o formulário de novo
-        await GotoAsync($"/apply/{jobId}");
+        await GotoAsync($"/candidatar/{jobId}");
         await WaitForBlazorAsync();
         var already = Page.GetByTestId("application-already");
         await already.WaitForAsync();
@@ -140,7 +140,7 @@ public class CandidateFlowTests : E2ETestBase
     {
         await LoginAsCandidateAsync();
 
-        var response = await GotoAsync("/resumes");
+        var response = await GotoAsync("/curriculos");
         Assert.True(response!.Ok, $"Resumes retornou {response.Status}");
         await WaitForBlazorAsync();
     }
@@ -150,7 +150,7 @@ public class CandidateFlowTests : E2ETestBase
     {
         await LoginAsCandidateAsync();
 
-        var response = await GotoAsync("/resumes/new");
+        var response = await GotoAsync("/curriculos/novo");
         Assert.True(response!.Ok, $"ResumeCreate retornou {response.Status}");
 
         await WaitForBlazorAsync();
@@ -175,10 +175,10 @@ public class CandidateFlowTests : E2ETestBase
     {
         await LoginAsCandidateAsync();
 
-        await GotoAsync("/my-subscription");
+        await GotoAsync("/minha-assinatura");
         await WaitForBlazorAsync();
 
-        Assert.Contains("/Account/AccessDenied", Page.Url, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("/acesso-negado", Page.Url, StringComparison.OrdinalIgnoreCase);
         var body = await Page.Locator("body").InnerTextAsync();
         Assert.Contains("Esta área é restrita", body, StringComparison.OrdinalIgnoreCase);
     }

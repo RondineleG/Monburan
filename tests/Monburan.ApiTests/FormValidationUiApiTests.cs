@@ -43,7 +43,7 @@ public class FormValidationUiApiTests : IClassFixture<MonburanApiFactory>
         });
         await CookieAuth.LoginAsync(client, "joao.silva@email.com", "Monburan123");
 
-        var response = await client.GetAsync("/address/create");
+        var response = await client.GetAsync("/enderecos/novo");
         var html = await response.Content.ReadAsStringAsync();
 
         response.StatusCode.Should().Be(HttpStatusCode.OK);

@@ -11,11 +11,11 @@ internal static partial class CookieAuth
     /// <summary>O cliente precisa guardar cookies e não seguir redirecionamentos.</summary>
     public static async Task<HttpResponseMessage> PostLoginAsync(HttpClient client, string email, string password)
     {
-        var page = await client.GetStringAsync("/Account/Login");
+        var page = await client.GetStringAsync("/entrar");
         var token = AntiforgeryToken().Match(page).Groups[1].Value;
         token.Should().NotBeNullOrEmpty("a página de login traz o token antiforgery");
 
-        return await client.PostAsync("/Account/Login", new FormUrlEncodedContent(new Dictionary<string, string>
+        return await client.PostAsync("/entrar", new FormUrlEncodedContent(new Dictionary<string, string>
         {
             ["Input.Email"] = email,
             ["Input.Password"] = password,

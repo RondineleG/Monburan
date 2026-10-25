@@ -1,4 +1,4 @@
-﻿@page "/Account/ConfirmEmail"
+﻿@page "/confirmar-email"
 
 @using System.Text
 @using Microsoft.AspNetCore.Identity
@@ -16,7 +16,7 @@
     <StatusMessage Message="@statusMessage" IsError="@isError" />
     @* Sem estas ações a página era um beco sem saída depois de clicar no link do e-mail *@
     <div class="form-actions">
-        <a class="btn btn-primary" href="Account/Login">Entrar</a>
+        <a class="btn btn-primary" href="/entrar">Entrar</a>
         <a class="btn btn-outline-secondary" href="./">Ir para o início</a>
     </div>
 </section>

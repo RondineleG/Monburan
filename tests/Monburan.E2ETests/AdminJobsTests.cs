@@ -8,7 +8,7 @@ namespace Monburan.E2ETests;
 public class AdminJobsTests : E2ETestBase
 {
     private const string AdminEmail = "admin@monburan.com.br";
-    private const string JobsPath = "/admin/jobs";
+    private const string JobsPath = "/admin/vagas";
 
     public AdminJobsTests(PlaywrightFixture fixture) : base(fixture)
     {
@@ -100,12 +100,12 @@ public class AdminJobsTests : E2ETestBase
         {
             var company = await context.NewPageAsync();
             company.SetDefaultTimeout(20000);
-            await company.GotoAsync(BaseUrl + "/Account/Login");
+            await company.GotoAsync(BaseUrl + "/entrar");
             await company.GetByTestId("login-email").FillAsync(AdvertiserEmail);
             await company.GetByTestId("login-password").FillAsync(TestPassword);
             await company.GetByTestId("login-submit").ClickAsync();
-            await company.WaitForURLAsync(url => !url.Contains("/Account/Login", StringComparison.OrdinalIgnoreCase));
-            await company.GotoAsync(BaseUrl + "/my-jobs?situacao=ocultas");
+            await company.WaitForURLAsync(url => !url.Contains("/entrar", StringComparison.OrdinalIgnoreCase));
+            await company.GotoAsync(BaseUrl + "/minhas-vagas?situacao=ocultas");
             await Assertions.Expect(company.GetByTestId("my-job-moderation").First).ToContainTextAsync("Descrição sem as responsabilidades da função");
         }
 
@@ -129,7 +129,7 @@ public class AdminJobsTests : E2ETestBase
         Assert.Equal(404, await PublicStatusOfAsync(jobId));
 
         // Tudo ficou na auditoria
-        await GotoAsync("/admin/audit");
+        await GotoAsync("/admin/auditoria");
         await WaitForBlazorAsync();
         await Page.GetByTestId("audit-search").FillAsync(title);
         await Page.GetByTestId("audit-apply").ClickAsync();
@@ -187,11 +187,11 @@ public class AdminJobsTests : E2ETestBase
         await using var context = await Fixture.Browser.NewContextAsync(new BrowserNewContextOptions { IgnoreHTTPSErrors = true });
         var company = await context.NewPageAsync();
         company.SetDefaultTimeout(20000);
-        await company.GotoAsync(BaseUrl + "/Account/Login");
+        await company.GotoAsync(BaseUrl + "/entrar");
         await company.GetByTestId("login-email").FillAsync(AdvertiserEmail);
         await company.GetByTestId("login-password").FillAsync(TestPassword);
         await company.GetByTestId("login-submit").ClickAsync();
-        await company.WaitForURLAsync(url => !url.Contains("/Account/Login", StringComparison.OrdinalIgnoreCase));
+        await company.WaitForURLAsync(url => !url.Contains("/entrar", StringComparison.OrdinalIgnoreCase));
 
         await company.GotoAsync(BaseUrl + JobsPath);
 
@@ -204,6 +204,6 @@ public class AdminJobsTests : E2ETestBase
     {
         await GotoAsync(JobsPath);
 
-        Assert.Contains("/Account/Login", Page.Url, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("/entrar", Page.Url, StringComparison.OrdinalIgnoreCase);
     }
 }

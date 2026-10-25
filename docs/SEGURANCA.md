@@ -77,14 +77,14 @@ local). Em produção:
 4. No primeiro acesso, ligue o 2FA (veja abaixo).
 
 **Verificação em duas etapas (2FA) obrigatória.** Quem é administrador só abre a administração com o 2FA ligado na conta;
-sem ele vê um aviso com o botão para a configuração (`/Account/Manage/TwoFactorAuthentication`). Perdeu o aparelho e os
+sem ele vê um aviso com o botão para a configuração (`/conta/seguranca-2fa`). Perdeu o aparelho e os
 códigos de recuperação:
 
 1. Outro administrador abre **Contas**, escolhe a pessoa e usa **Redefinir 2FA**; ou
 2. se for o único administrador, `REQUIRE_ADMIN_2FA=false` no `.env` da VPS e `docker compose up -d --force-recreate app`
    reabre o acesso até a pessoa reconfigurar. Volte para `true` em seguida.
 
-### Contas (`/admin/accounts`)
+### Contas (`/admin/contas`)
 
 Busca por nome ou e-mail, filtros por tipo (candidato, empresa, administrador) e por situação (ativa, inativa, bloqueada por
 tentativas, e-mail não confirmado), e um painel por conta com:
@@ -102,7 +102,7 @@ tentativas, e-mail não confirmado), e um painel por conta com:
 Travas: ninguém inativa a si mesmo nem remove o próprio papel; o último administrador ativo não sai; quem está em
 `ADMIN_EMAILS` não perde o papel pela tela (tire o e-mail da lista).
 
-### Vagas (`/admin/jobs`)
+### Vagas (`/admin/vagas`)
 
 Todas as vagas de todas as empresas, com contadores por situação, busca (título, categoria ou empresa) e filtro por
 situação. Para cada vaga: **Aprovar e ativar** ou
@@ -111,7 +111,7 @@ situação. Para cada vaga: **Aprovar e ativar** ou
 reprovada some da busca, da página pública e da API pública (só a empresa dona e a administração a veem). O administrador não
 edita o texto da vaga de outra empresa: a moderação é por situação, para o conteúdo continuar sendo da empresa.
 
-### Auditoria (`/admin/audit`)
+### Auditoria (`/admin/auditoria`)
 
 Toda ação administrativa (contas, vagas e provedores de IA) grava quem fez, em quem, quando, o motivo e o que mudou. Há
 busca (quem fez, alvo ou motivo) e filtros por ação e por tipo de alvo. A trilha é só de inclusão: não há tela nem rota para apagar ou editar registros.

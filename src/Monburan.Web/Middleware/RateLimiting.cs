@@ -21,13 +21,13 @@ public static class RateLimiting
     // Rotas sensíveis (só POST): páginas do Identity e API de autenticação
     private static readonly HashSet<string> SensitivePaths = new(StringComparer.OrdinalIgnoreCase)
     {
-        "/Account/Login",
-        "/Account/LoginWith2fa",
-        "/Account/LoginWithRecoveryCode",
-        "/Account/Register",
-        "/Account/ForgotPassword",
-        "/Account/ResendEmailConfirmation",
-        "/Account/ResetPassword",
+        "/entrar",
+        "/entrar/2fa",
+        "/entrar/codigo-recuperacao",
+        "/criar-conta",
+        "/esqueci-senha",
+        "/reenviar-confirmacao",
+        "/redefinir-senha",
         "/api/auth/login",
         "/api/auth/register",
         "/api/auth/refresh",

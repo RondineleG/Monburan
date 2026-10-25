@@ -1,6 +1,6 @@
 # Provedores de IA (tela do administrador)
 
-Quem administra o Monburan cadastra, pela tela **Administração → Provedores de IA** (`/admin/ai-providers`), os
+Quem administra o Monburan cadastra, pela tela **Administração → Provedores de IA** (`/admin/provedores-ia`), os
 serviços de IA que a aplicação pode usar, escolhe qual é o **padrão** e diz em qual **variável de ambiente** está a
 chave de cada um. Trocar de provedor, de modelo ou de endereço não exige deploy nem mudança de código.
 

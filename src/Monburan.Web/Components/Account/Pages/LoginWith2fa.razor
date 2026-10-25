@@ -1,4 +1,4 @@
-@page "/Account/LoginWith2fa"
+@page "/entrar/2fa"
 
 @using System.ComponentModel.DataAnnotations
 @using Microsoft.AspNetCore.Identity
@@ -36,7 +36,7 @@
             </div>
             <button type="submit" class="w-100 btn btn-lg btn-primary">Confirmar e entrar</button>
         </EditForm>
-        <p class="auth-secondary-action">Sem acesso ao aplicativo? <a href="@($"Account/LoginWithRecoveryCode?ReturnUrl={Uri.EscapeDataString(ReturnUrl ?? "")}")">Use um código de recuperação</a>.</p>
+        <p class="auth-secondary-action">Sem acesso ao aplicativo? <a href="@($"/entrar/codigo-recuperacao?ReturnUrl={Uri.EscapeDataString(ReturnUrl ?? "")}")">Use um código de recuperação</a>.</p>
     </section>
 </div>
 
@@ -70,7 +70,7 @@
         {
             // Acesso direto ou cookie de 2FA vencido: volta ao login em vez de dar erro 500
             RedirectManager.RedirectToWithStatus(
-                "Account/Login",
+                "/entrar",
                 "Erro: sua verificação em duas etapas expirou. Entre novamente.",
                 HttpContext);
         }
@@ -92,7 +92,7 @@
         else if (result.IsLockedOut)
         {
             Logger.LogWarning("User with ID '{UserId}' account locked out.", userId);
-            RedirectManager.RedirectTo("Account/Lockout");
+            RedirectManager.RedirectTo("/conta-bloqueada");
         }
         else
         {

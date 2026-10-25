@@ -1,4 +1,4 @@
-@page "/apply/{jobId:guid}"
+@page "/candidatar/{jobId:guid}"
 @rendermode InteractiveServer
 @attribute [Microsoft.AspNetCore.Authorization.Authorize(Policy = "CandidateOnly")]
 @using Monburan.Core.DTOs.Request
@@ -48,7 +48,7 @@
                         <h2 class="h4" id="apply-step-title" tabindex="-1">Você já se candidatou a esta vaga</h2>
                         <p>Situação atual: <StatusBadge Kind="StatusKind.Application" Value="@existingApplication.Status" /></p>
                         <p>A empresa já recebeu seu perfil. Você pode acompanhar as etapas do processo seletivo em Minhas candidaturas.</p>
-                        <a class="btn btn-primary" href="/my-applications?aba=candidaturas" data-testid="application-track">Acompanhar candidatura</a>
+                        <a class="btn btn-primary" href="/minhas-candidaturas?aba=candidaturas" data-testid="application-track">Acompanhar candidatura</a>
                     </div>
                 </section>
             }
@@ -60,11 +60,11 @@
                         <p>A empresa já pode ver seu perfil para esta vaga. Acompanhe as atualizações em Minhas candidaturas.</p>
                         <h3 class="h6">Próximos passos</h3>
                         <ul>
-                            <li>Acompanhe as etapas do processo seletivo em <a href="/my-applications?aba=candidaturas">Minhas candidaturas</a>.</li>
+                            <li>Acompanhe as etapas do processo seletivo em <a href="/minhas-candidaturas?aba=candidaturas">Minhas candidaturas</a>.</li>
                             <li>Continue explorando <a href="/jobs">outras oportunidades</a>.</li>
-                            <li>Mantenha seu <a href="/resumes">currículo</a> atualizado.</li>
+                            <li>Mantenha seu <a href="/curriculos">currículo</a> atualizado.</li>
                         </ul>
-                        <a class="btn btn-primary" href="/my-applications?aba=candidaturas">Ver minhas candidaturas</a>
+                        <a class="btn btn-primary" href="/minhas-candidaturas?aba=candidaturas">Ver minhas candidaturas</a>
                     </div>
                 </section>
             }
@@ -136,7 +136,7 @@
                             else
                             {
                                 <div class="alert alert-info" role="status">
-                                    Você ainda não tem currículo cadastrado. <a href="/resumes/wizard">Crie um currículo</a> para enviá-lo junto com a candidatura.
+                                    Você ainda não tem currículo cadastrado. <a href="/curriculos/assistente">Crie um currículo</a> para enviá-lo junto com a candidatura.
                                 </div>
                             }
 
@@ -262,11 +262,11 @@
         {
             job = jobResult.Data;
             salary = JobDisplay.Salary(job);
-            if (!string.IsNullOrWhiteSpace(UiLabels.SalaryPeriod(job.SalaryPeriod)))
-                salary = $"{salary} {UiLabels.SalaryPeriod(job.SalaryPeriod)}";
 
             if (job.Status != "Active")
                 jobUnavailableMessage = "Esta vaga não está mais recebendo candidaturas.";
+            else if (JobChannel.IsExternal(job))
+                jobUnavailableMessage = "Esta vaga recebe candidaturas no canal da empresa, fora da Monburan. Veja as instruções na página da vaga.";
         }
         else if (jobResult.Status == EResultStatus.EntityNotFound)
         {

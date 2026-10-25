@@ -16,7 +16,7 @@ public class AdvertiserFlowTests : E2ETestBase
     {
         await LoginAsAdvertiserAsync();
 
-        var response = await GotoAsync("/profile/advertiser");
+        var response = await GotoAsync("/perfil/empresa");
         Assert.True(response!.Ok, $"AdvertiserProfile retornou {response.Status}");
 
         await WaitForBlazorAsync();
@@ -41,7 +41,7 @@ public class AdvertiserFlowTests : E2ETestBase
     {
         await LoginAsAdvertiserAsync();
 
-        var response = await GotoAsync("/my-jobs");
+        var response = await GotoAsync("/minhas-vagas");
         Assert.True(response!.Ok, $"MyJobs retornou {response.Status}");
 
         await WaitForBlazorAsync();
@@ -55,7 +55,7 @@ public class AdvertiserFlowTests : E2ETestBase
     {
         await LoginAsAdvertiserAsync();
 
-        await GotoAsync("/jobs/create");
+        await GotoAsync("/vagas/nova");
         await WaitForBlazorAsync();
 
         var jobTitle = $"Vaga E2E {DateTime.Now:HHmmss}";
@@ -93,7 +93,7 @@ public class AdvertiserFlowTests : E2ETestBase
     {
         await LoginAsAdvertiserAsync();
 
-        var response = await GotoAsync("/received-applications");
+        var response = await GotoAsync("/candidaturas-recebidas");
         Assert.True(response!.Ok, $"ReceivedApplications retornou {response.Status}");
         await WaitForBlazorAsync();
     }
@@ -103,7 +103,7 @@ public class AdvertiserFlowTests : E2ETestBase
     {
         await LoginAsAdvertiserAsync();
 
-        var response = await GotoAsync("/dashboard");
+        var response = await GotoAsync("/painel");
         Assert.True(response!.Ok, $"Dashboard retornou {response.Status}");
         await WaitForBlazorAsync();
 
@@ -118,7 +118,7 @@ public class AdvertiserFlowTests : E2ETestBase
     {
         await LoginAsAdvertiserAsync();
 
-        var response = await GotoAsync("/my-subscription");
+        var response = await GotoAsync("/minha-assinatura");
         Assert.True(response!.Ok, $"MySubscription retornou {response.Status}");
         await WaitForBlazorAsync();
     }
@@ -128,7 +128,7 @@ public class AdvertiserFlowTests : E2ETestBase
     {
         await LoginAsAdvertiserAsync();
 
-        var response = await GotoAsync("/advertiser/upload-logo");
+        var response = await GotoAsync("/empresa/logo");
         Assert.True(response!.Ok, $"UploadLogo retornou {response.Status}");
         await WaitForBlazorAsync();
     }
@@ -138,7 +138,7 @@ public class AdvertiserFlowTests : E2ETestBase
     {
         await LoginAsAdvertiserAsync();
 
-        var response = await GotoAsync("/address/create");
+        var response = await GotoAsync("/enderecos/novo");
         Assert.True(response!.Ok, $"AddressCreate retornou {response.Status}");
         await WaitForBlazorAsync();
     }

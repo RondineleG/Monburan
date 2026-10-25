@@ -1,4 +1,4 @@
-@page "/address/list"
+@page "/enderecos"
 @rendermode InteractiveServer
 @attribute [Microsoft.AspNetCore.Authorization.Authorize]
 
@@ -16,7 +16,7 @@
 <div class="container address-page">
     <PageHeader Title="Endereços" Description="Gerencie os endereços associados à sua conta.">
         <Actions>
-            <a class="btn btn-primary" href="/address/create"><Icon Name="plus" Size="16" />Adicionar endereço</a>
+            <a class="btn btn-primary" href="/enderecos/novo"><Icon Name="plus" Size="16" />Adicionar endereço</a>
         </Actions>
     </PageHeader>
 
@@ -34,7 +34,7 @@
     {
         <EmptyState Icon="map-pin" Title="Nenhum endereço cadastrado"
                     Message="Adicione um endereço para completar suas informações de perfil.">
-            <a class="btn btn-primary" href="/address/create">Adicionar endereço</a>
+            <a class="btn btn-primary" href="/enderecos/novo">Adicionar endereço</a>
         </EmptyState>
     }
     else
@@ -67,7 +67,7 @@
                                 <td data-label="Ações">
                                     <div class="btn-group">
                                         <a class="btn btn-outline-secondary btn-sm"
-                                           href="/address/edit/@address.Id.Value"
+                                           href="/enderecos/@address/editar.Id.Value"
                                            aria-label="@($"Editar endereço {address.Street}, {address.Number}")">Editar</a>
                                         <button type="button" class="btn btn-outline-danger btn-sm"
                                                 @onclick="() => DeleteAsync(address)"
@@ -116,9 +116,9 @@
         }
     }
 
-    private void Create() => Navigation.NavigateTo("/address/create");
+    private void Create() => Navigation.NavigateTo("/enderecos/novo");
 
-    private void Edit(Guid id) => Navigation.NavigateTo($"/address/edit/{id}");
+    private void Edit(Guid id) => Navigation.NavigateTo($"/enderecos/{id}/editar");
 
     private async Task DeleteAsync(Address address)
     {

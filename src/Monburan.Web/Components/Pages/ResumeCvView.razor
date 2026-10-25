@@ -1,4 +1,4 @@
-@page "/resumes/{resumeId:guid}/cv"
+@page "/curriculos/{resumeId:guid}/cv"
 @rendermode InteractiveServer
 @attribute [Microsoft.AspNetCore.Authorization.Authorize]
 @using Monburan.Core.DTOs.Response
@@ -42,13 +42,13 @@ else
     @* Cabeçalho e dica somem na impressão (pages.css, @media print): só a folha vai para o papel *@
     <div class="container">
         <PageHeader Title="@($"CV: {viewer.Resume.Title}")" TestId="cv-toolbar"
-                    BackHref="@($"/resumes/{ResumeId}")" BackText="Voltar ao currículo">
+                    BackHref="@($"/curriculos/{ResumeId}")" BackText="Voltar ao currículo">
             <Actions>
                 <button type="button" class="btn btn-primary" @onclick="PrintAsync" data-testid="cv-print"><Icon Name="download" Size="16" />Imprimir ou salvar PDF</button>
                 @if (viewer.IsOwner)
                 {
-                    <a class="btn btn-outline-secondary" href="/resumes/@ResumeId/edit">Editar currículo</a>
-                    <a class="btn btn-outline-secondary" href="/resumes/@ResumeId?melhorar=true"><Icon Name="sparkles" Size="16" />Melhorar currículo</a>
+                    <a class="btn btn-outline-secondary" href="/curriculos/@ResumeId/editar">Editar currículo</a>
+                    <a class="btn btn-outline-secondary" href="/curriculos/@ResumeId?melhorar=true"><Icon Name="sparkles" Size="16" />Melhorar currículo</a>
                 }
             </Actions>
             <ChildContent>
@@ -80,7 +80,7 @@ else
 
     private bool isCandidateView => CurrentUserHelper.GetCandidateId().HasValue;
     private bool isOwnerView => isCandidateView && viewer?.Resume.CandidateId == CurrentUserHelper.GetCandidateId();
-    private string BackHref => isCandidateView ? "/resumes" : "/received-applications";
+    private string BackHref => isCandidateView ? "/curriculos" : "/candidaturas-recebidas";
 
     // Trocar de currículo reaproveita o componente: recarrega por id e zera o estado anterior
     protected override async Task OnParametersSetAsync()

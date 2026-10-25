@@ -15,32 +15,32 @@ public class FullSweepTests : E2ETestBase
 
     private static readonly string[] AnonymousRoutes =
     [
-        "/", "/jobs", "/plans", "/privacy", "/terms",
-        "/Account/Login", "/Account/Register",
-        "/Account/ForgotPassword", "/Account/ResendEmailConfirmation",
+        "/", "/jobs", "/plans", "/privacidade", "/termos",
+        "/entrar", "/criar-conta",
+        "/esqueci-senha", "/reenviar-confirmacao",
         "/404"
     ];
 
-    // Sem /my-subscription: é só de empresa (AdvertiserOnly); a restrição é testada em CandidateFlowTests
+    // Sem /minha-assinatura: é só de empresa (AdvertiserOnly); a restrição é testada em CandidateFlowTests
     private static readonly string[] CandidateRoutes =
     [
-        "/dashboard", "/profile/candidate", "/jobs", "/my-applications",
-        "/resumes", "/resumes/new", "/resumes/upload", "/notifications",
-        "/address/list", "/address/create",
-        "/plans", "/privacy", "/terms",
-        "/Account/Manage", "/Account/Manage/ChangePassword",
-        "/Account/Manage/Email", "/Account/Manage/PersonalData",
-        "/Account/Manage/TwoFactorAuthentication"
+        "/painel", "/perfil/candidato", "/jobs", "/minhas-candidaturas",
+        "/curriculos", "/curriculos/novo", "/curriculos/upload", "/notifications",
+        "/enderecos", "/enderecos/novo",
+        "/plans", "/privacidade", "/termos",
+        "/conta", "/conta/alterar-senha",
+        "/conta/email", "/conta/dados-pessoais",
+        "/conta/seguranca-2fa"
     ];
 
     private static readonly string[] AdvertiserRoutes =
     [
-        "/dashboard", "/profile/advertiser", "/jobs", "/jobs/create",
-        "/my-jobs", "/received-applications", "/advertiser/upload-logo",
-        "/notifications", "/my-subscription", "/plans",
-        "/address/list", "/address/create",
-        "/Account/Manage", "/Account/Manage/ChangePassword",
-        "/Account/Manage/Email", "/Account/Manage/PersonalData"
+        "/painel", "/perfil/empresa", "/jobs", "/vagas/nova",
+        "/minhas-vagas", "/candidaturas-recebidas", "/empresa/logo",
+        "/notifications", "/minha-assinatura", "/plans",
+        "/enderecos", "/enderecos/novo",
+        "/conta", "/conta/alterar-senha",
+        "/conta/email", "/conta/dados-pessoais"
     ];
 
     // ------------------------------------------------------------------
@@ -179,14 +179,14 @@ public class FullSweepTests : E2ETestBase
         await RegisterAdvertiserAsync(email);
 
         // Perfil da empresa
-        var response = await GotoAsync("/profile/advertiser");
+        var response = await GotoAsync("/perfil/empresa");
         Assert.True(response!.Ok, $"AdvertiserProfile retornou {response?.Status}");
         await WaitForBlazorAsync();
         var name = await Page.GetByTestId("advertiser-profile-name").InputValueAsync();
         Assert.Equal("Empresa E2E Real", name);
 
         // Criar vaga
-        await GotoAsync("/jobs/create");
+        await GotoAsync("/vagas/nova");
         await WaitForBlazorAsync();
 
         var jobTitle = $"Vaga Real E2E {DateTime.Now:HHmmss}";
@@ -211,7 +211,7 @@ public class FullSweepTests : E2ETestBase
             "A empresa dona deveria ver o painel 'Sua vaga'");
 
         // Vaga aparece em "Minhas vagas"
-        await GotoAsync("/my-jobs");
+        await GotoAsync("/minhas-vagas");
         await WaitForBlazorAsync();
         var body = await Page.Locator("body").InnerTextAsync();
         Assert.Contains(jobTitle, body, StringComparison.OrdinalIgnoreCase);
@@ -237,7 +237,7 @@ public class FullSweepTests : E2ETestBase
         await LoginOrRegisterAsync(email, TestPassword);
 
         // Perfil
-        var response = await GotoAsync("/profile/candidate");
+        var response = await GotoAsync("/perfil/candidato");
         Assert.True(response!.Ok, $"CandidateProfile retornou {response?.Status}");
         await WaitForBlazorAsync();
         var name = await Page.GetByTestId("candidate-profile-name").InputValueAsync();
@@ -248,7 +248,7 @@ public class FullSweepTests : E2ETestBase
         await WaitForBlazorAsync();
         await Page.GetByTestId("job-card").First.ClickAsync();
         await Page.GetByTestId("job-apply").ClickAsync();
-        await Page.WaitForFunctionAsync("() => location.pathname.startsWith('/apply/')");
+        await Page.WaitForFunctionAsync("() => location.pathname.startsWith('/candidatar/')");
         await WaitForBlazorAsync();
 
         await Page.GetByTestId("application-notes").FillAsync("Candidatura da varredura real");
@@ -265,7 +265,7 @@ public class FullSweepTests : E2ETestBase
             .WaitForAsync(new LocatorWaitForOptions { Timeout = 45000 });
 
         // Aparece em "Minhas candidaturas"
-        await GotoAsync("/my-applications");
+        await GotoAsync("/minhas-candidaturas");
         await WaitForBlazorAsync();
         var body = await Page.Locator("body").InnerTextAsync();
         Assert.DoesNotContain("Nenhuma candidatura", body, StringComparison.OrdinalIgnoreCase);
@@ -277,7 +277,7 @@ public class FullSweepTests : E2ETestBase
 
     private async Task RegisterAdvertiserAsync(string email)
     {
-        await GotoAsync("/Account/Register");
+        await GotoAsync("/criar-conta");
         await Page.GetByTestId("register-email").WaitForAsync();
         await Page.GetByTestId("register-name").FillAsync("Empresa E2E Real");
         await Page.GetByTestId("register-role-advertiser").CheckAsync();
@@ -289,6 +289,6 @@ public class FullSweepTests : E2ETestBase
             () => !!document.querySelector('[data-testid="nav-jobs"]') ||
                   !!document.querySelector('[data-testid="account-status"]')
             """);
-        Assert.DoesNotContain("/Account/Register", Page.Url, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("/criar-conta", Page.Url, StringComparison.OrdinalIgnoreCase);
     }
 }

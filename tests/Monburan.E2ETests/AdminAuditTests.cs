@@ -6,7 +6,7 @@ namespace Monburan.E2ETests;
 public class AdminAuditTests : E2ETestBase
 {
     private const string AdminEmail = "admin@monburan.com.br";
-    private const string AuditPath = "/admin/audit";
+    private const string AuditPath = "/admin/auditoria";
 
     public AdminAuditTests(PlaywrightFixture fixture) : base(fixture)
     {
@@ -32,7 +32,7 @@ public class AdminAuditTests : E2ETestBase
         var name = "E2E Auditoria " + Guid.NewGuid().ToString("N")[..8];
 
         // Cadastra e exclui um provedor pela tela (nenhuma chamada de rede: só o cadastro)
-        await GotoAsync("/admin/ai-providers");
+        await GotoAsync("/admin/provedores-ia");
         await WaitForBlazorAsync();
         await Page.GetByTestId("ai-status").WaitForAsync();
         await Page.GetByTestId("ai-provider-new").ClickAsync();
@@ -103,6 +103,6 @@ public class AdminAuditTests : E2ETestBase
     {
         await GotoAsync(AuditPath);
 
-        Assert.Contains("/Account/Login", Page.Url, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("/entrar", Page.Url, StringComparison.OrdinalIgnoreCase);
     }
 }

@@ -6,7 +6,7 @@ namespace Monburan.E2ETests;
 public class AdminAccountsTests : E2ETestBase
 {
     private const string AdminEmail = "admin@monburan.com.br";
-    private const string AccountsPath = "/admin/accounts";
+    private const string AccountsPath = "/admin/contas";
     private const string GoodPassword = "Cavalo-Azul-Bateria-7";
 
     public AdminAccountsTests(PlaywrightFixture fixture) : base(fixture)
@@ -42,7 +42,7 @@ public class AdminAccountsTests : E2ETestBase
         await using var context = await Fixture.Browser.NewContextAsync(new BrowserNewContextOptions { IgnoreHTTPSErrors = true });
         var page = await context.NewPageAsync();
         page.SetDefaultTimeout(20000);
-        await page.GotoAsync(BaseUrl + "/Account/Register");
+        await page.GotoAsync(BaseUrl + "/criar-conta");
         await page.GetByTestId("register-email").WaitForAsync();
         await page.GetByTestId("register-name").FillAsync("Pessoa Gerenciada");
         await page.GetByTestId("register-role-candidate").CheckAsync();
@@ -50,7 +50,7 @@ public class AdminAccountsTests : E2ETestBase
         await page.GetByTestId("register-password").FillAsync(GoodPassword);
         await page.GetByTestId("register-confirm-password").FillAsync(GoodPassword);
         await page.GetByTestId("register-submit").ClickAsync();
-        await page.WaitForURLAsync(url => !url.Contains("/Account/Register", StringComparison.OrdinalIgnoreCase));
+        await page.WaitForURLAsync(url => !url.Contains("/criar-conta", StringComparison.OrdinalIgnoreCase));
         return email;
     }
 
@@ -59,7 +59,7 @@ public class AdminAccountsTests : E2ETestBase
         await using var context = await Fixture.Browser.NewContextAsync(new BrowserNewContextOptions { IgnoreHTTPSErrors = true });
         var page = await context.NewPageAsync();
         page.SetDefaultTimeout(20000);
-        await page.GotoAsync(BaseUrl + "/Account/Login");
+        await page.GotoAsync(BaseUrl + "/entrar");
         await page.GetByTestId("login-email").FillAsync(email);
         await page.GetByTestId("login-password").FillAsync(password);
         await page.GetByTestId("login-submit").ClickAsync();
@@ -67,7 +67,7 @@ public class AdminAccountsTests : E2ETestBase
             () => location.pathname.toLowerCase() !== '/account/login' ||
                   !!document.querySelector('.alert, [role="alert"]')?.textContent?.trim()
             """);
-        return !page.Url.Contains("/Account/Login", StringComparison.OrdinalIgnoreCase);
+        return !page.Url.Contains("/entrar", StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -96,7 +96,7 @@ public class AdminAccountsTests : E2ETestBase
         await using (var context = await Fixture.Browser.NewContextAsync(new BrowserNewContextOptions { IgnoreHTTPSErrors = true }))
         {
             var page = await context.NewPageAsync();
-            await page.GotoAsync(BaseUrl + "/Account/Login");
+            await page.GotoAsync(BaseUrl + "/entrar");
             await page.GetByTestId("login-email").FillAsync(email);
             await page.GetByTestId("login-password").FillAsync(GoodPassword);
             await page.GetByTestId("login-submit").ClickAsync();
@@ -110,7 +110,7 @@ public class AdminAccountsTests : E2ETestBase
         Assert.True(await CanLogInInFreshContextAsync(email, GoodPassword), "Reativada, a conta volta a entrar");
 
         // Tudo ficou na auditoria
-        await GotoAsync("/admin/audit");
+        await GotoAsync("/admin/auditoria");
         await WaitForBlazorAsync();
         await Page.GetByTestId("audit-search").FillAsync(email);
         await Page.GetByTestId("audit-apply").ClickAsync();
@@ -162,11 +162,11 @@ public class AdminAccountsTests : E2ETestBase
         await using var context = await Fixture.Browser.NewContextAsync(new BrowserNewContextOptions { IgnoreHTTPSErrors = true });
         var candidate = await context.NewPageAsync();
         candidate.SetDefaultTimeout(20000);
-        await candidate.GotoAsync(BaseUrl + "/Account/Login");
+        await candidate.GotoAsync(BaseUrl + "/entrar");
         await candidate.GetByTestId("login-email").FillAsync(CandidateEmail);
         await candidate.GetByTestId("login-password").FillAsync(TestPassword);
         await candidate.GetByTestId("login-submit").ClickAsync();
-        await candidate.WaitForURLAsync(url => !url.Contains("/Account/Login", StringComparison.OrdinalIgnoreCase));
+        await candidate.WaitForURLAsync(url => !url.Contains("/entrar", StringComparison.OrdinalIgnoreCase));
 
         await candidate.GotoAsync(BaseUrl + AccountsPath);
 
@@ -179,6 +179,6 @@ public class AdminAccountsTests : E2ETestBase
     {
         await GotoAsync(AccountsPath);
 
-        Assert.Contains("/Account/Login", Page.Url, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("/entrar", Page.Url, StringComparison.OrdinalIgnoreCase);
     }
 }

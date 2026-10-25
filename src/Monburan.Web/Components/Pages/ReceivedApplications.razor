@@ -1,5 +1,5 @@
-@page "/received-applications"
-@page "/jobs/{jobId:guid}/applications"
+@page "/candidaturas-recebidas"
+@page "/vagas/{jobId:guid}/candidaturas"
 @rendermode InteractiveServer
 @attribute [Microsoft.AspNetCore.Authorization.Authorize(Policy = "AdvertiserOnly")]
 @using Monburan.Core.DTOs.Request
@@ -26,11 +26,11 @@
 else
 {
 <div class="container received-applications-page">
-    <PageHeader Title="Candidaturas recebidas" BackHref="/my-jobs" BackText="Minhas vagas">
+    <PageHeader Title="Candidaturas recebidas" BackHref="/minhas-vagas" BackText="Minhas vagas">
         <p>
             @if (JobId.HasValue && !string.IsNullOrEmpty(filteredJobTitle))
             {
-                <text>Candidatos da vaga <strong>@filteredJobTitle</strong>. <a href="/received-applications">Ver de todas as vagas</a></text>
+                <text>Candidatos da vaga <strong>@filteredJobTitle</strong>. <a href="/candidaturas-recebidas">Ver de todas as vagas</a></text>
             }
             else
             {
@@ -157,7 +157,7 @@ else
                                             <small class="text-muted">@app.CandidateEmail</small>
                                             @if (app.ResumeId.HasValue)
                                             {
-                                                <a class="d-block small" href="@($"/resumes/{app.ResumeId}")">Ver currículo enviado</a>
+                                                <a class="d-block small" href="@($"/curriculos/{app.ResumeId}")">Ver currículo enviado</a>
                                             }
                                             else
                                             {
@@ -200,7 +200,7 @@ else
                         Title="Nenhuma candidatura recebida ainda"
                         Message="Quando alguém se candidatar às suas vagas, os perfis aparecem aqui."
                         TestId="received-applications-empty">
-                <a class="btn btn-primary" href="/my-jobs">Ver minhas vagas</a>
+                <a class="btn btn-primary" href="/minhas-vagas">Ver minhas vagas</a>
             </EmptyState>
         }
         </div>
@@ -256,7 +256,7 @@ else
 
     private bool isFiltered => FilterJobId.HasValue || FilterStatus.Length > 0 || FilterPeriod.Length > 0 || FilterSearch.Length > 0;
 
-    private string FilterAction => JobId.HasValue ? $"/jobs/{JobId}/applications" : "/received-applications";
+    private string FilterAction => JobId.HasValue ? $"/vagas/{JobId}/candidaturas" : "/candidaturas-recebidas";
 
     protected override async Task OnParametersSetAsync()
     {

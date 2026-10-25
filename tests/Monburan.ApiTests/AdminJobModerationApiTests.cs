@@ -118,7 +118,7 @@ public class AdminJobModerationApiTests : IClassFixture<MonburanApiFactory>
         await ModerateAsync(hidden.Id, EJobStatus.Hidden, "Revisão pendente");
 
         using var site = SiteClient();
-        var response = await site.GetAsync($"/companies/{active.AdvertiserId}");
+        var response = await site.GetAsync($"/empresas/{active.AdvertiserId}");
         var html = WebUtility.HtmlDecode(await response.Content.ReadAsStringAsync());
 
         response.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -171,7 +171,7 @@ public class AdminJobModerationApiTests : IClassFixture<MonburanApiFactory>
 
         using var scope = _factory.Services.CreateScope();
         var own = await scope.ServiceProvider.GetRequiredService<Monburan.Core.UseCases.Jobs.ChangeJobStatusUseCase>()
-            .ExecuteAsync(new Monburan.Core.UseCases.Jobs.ChangeJobStatusRequest(job.Id, job.AdvertiserId, EJobStatus.Active));
+            .ExecuteAsync(new Monburan.Core.UseCases.Jobs.ChangeJobStatusRequest(job.Id, job.AdvertiserId!.Value, EJobStatus.Active));
         own.Status.Should().Be(EResultStatus.DomainError);
         own.Message.Should().Contain("não pode ser reativada");
     }
@@ -244,20 +244,20 @@ public class AdminJobModerationApiTests : IClassFixture<MonburanApiFactory>
     public async Task TheAdminJobsPage_IsClosedToVisitorsAndToNonAdmins()
     {
         using var anonymous = SiteClient();
-        var visitor = await anonymous.GetAsync("/admin/jobs");
+        var visitor = await anonymous.GetAsync("/admin/vagas");
         visitor.StatusCode.Should().Be(HttpStatusCode.Redirect);
-        visitor.Headers.Location!.ToString().Should().Contain("/Account/Login");
+        visitor.Headers.Location!.ToString().Should().Contain("/entrar");
 
         using var company = SiteClient();
         await CookieAuth.LoginAsync(company, OwnerEmail, Password);
-        var denied = await company.GetAsync("/admin/jobs");
+        var denied = await company.GetAsync("/admin/vagas");
         denied.StatusCode.Should().Be(HttpStatusCode.Redirect);
-        denied.Headers.Location!.ToString().Should().Contain("/Account/AccessDenied");
+        denied.Headers.Location!.ToString().Should().Contain("/acesso-negado");
 
         using var admin = SiteClient();
         await CookieAuth.LoginAsync(admin, "admin@monburan.com.br", Password);
-        (await admin.GetAsync("/admin/jobs")).StatusCode.Should().Be(HttpStatusCode.OK);
-        (await admin.GetAsync("/admin/accounts")).StatusCode.Should().Be(HttpStatusCode.OK);
-        (await admin.GetAsync("/admin/audit")).StatusCode.Should().Be(HttpStatusCode.OK);
+        (await admin.GetAsync("/admin/vagas")).StatusCode.Should().Be(HttpStatusCode.OK);
+        (await admin.GetAsync("/admin/contas")).StatusCode.Should().Be(HttpStatusCode.OK);
+        (await admin.GetAsync("/admin/auditoria")).StatusCode.Should().Be(HttpStatusCode.OK);
     }
 }

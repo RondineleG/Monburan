@@ -1,4 +1,4 @@
-@page "/career-profile"
+@page "/perfil-profissional"
 @rendermode InteractiveServer
 @attribute [Microsoft.AspNetCore.Authorization.Authorize(Policy = "CandidateOnly")]
 @using System.Globalization
@@ -201,5 +201,5 @@
         isSaving = false;
     }
 
-    private void BackToDashboard() => Navigation.NavigateTo("/dashboard");
+    private void BackToDashboard() => Navigation.NavigateTo("/painel");
 }

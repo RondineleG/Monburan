@@ -1,4 +1,4 @@
-@page "/resumes/{resumeId:guid}/edit"
+@page "/curriculos/{resumeId:guid}/editar"
 @rendermode InteractiveServer
 @attribute [Microsoft.AspNetCore.Authorization.Authorize(Policy = "CandidateOnly")]
 @using Monburan.Core.DTOs.Request
@@ -19,7 +19,7 @@
 
 <div class="container page-form-shell resume-edit-page">
     <PageHeader Title="Editar currículo" Description="Melhore seu currículo: complete as seções e mantenha as informações atualizadas."
-                BackHref="@($"/resumes/{ResumeId}")" BackText="Voltar ao currículo" />
+                BackHref="@($"/curriculos/{ResumeId}")" BackText="Voltar ao currículo" />
     <div class="row">
         <div class="col-lg-9 mx-auto">
 
@@ -43,7 +43,7 @@
             else if (!isOwner)
             {
                 <EmptyState Icon="alert" Title="Currículo não disponível" Message="Ele não existe mais ou pertence a outra pessoa.">
-                    <a class="btn btn-primary" href="/resumes">Voltar para meus currículos</a>
+                    <a class="btn btn-primary" href="/curriculos">Voltar para meus currículos</a>
                 </EmptyState>
             }
             else
@@ -255,7 +255,7 @@
                                     <span>Salvar alterações</span>
                                 }
                             </button>
-                            <a class="btn btn-outline-secondary" href="@($"/resumes/{ResumeId}")">Cancelar</a>
+                            <a class="btn btn-outline-secondary" href="@($"/curriculos/{ResumeId}")">Cancelar</a>
                         </div>
                     </EditForm>
                 </div>
@@ -393,7 +393,7 @@
         {
             Toast.ShowSuccess("Suas alterações foram salvas.", "Currículo atualizado");
             saved = true;
-            Navigation.NavigateTo($"/resumes/{ResumeId}");
+            Navigation.NavigateTo($"/curriculos/{ResumeId}");
             return;
         }
 

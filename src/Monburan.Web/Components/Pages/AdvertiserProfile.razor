@@ -1,4 +1,4 @@
-@page "/profile/advertiser"
+@page "/perfil/empresa"
 @rendermode InteractiveServer
 @using System.ComponentModel.DataAnnotations
 @attribute [Microsoft.AspNetCore.Authorization.Authorize(Policy = "AdvertiserOnly")]
@@ -46,7 +46,7 @@
                             <div class="mb-3 col-span-2">
                                 <label class="form-label" for="_editModel.Email">E-mail</label>
                                 <InputText @bind-Value="_editModel.Email" type="email" class="form-control" id="_editModel.Email" disabled aria-describedby="advertiser-email-help" />
-                                <small class="form-text" id="advertiser-email-help">Para trocar o e-mail de acesso, use <a href="/Account/Manage/Email">Conta e segurança</a>.</small>
+                                <small class="form-text" id="advertiser-email-help">Para trocar o e-mail de acesso, use <a href="/conta/email">Conta e segurança</a>.</small>
                             </div>
 
                             <div class="mb-3">
@@ -86,7 +86,7 @@
                                 <label class="form-label" for="_editModel.LogoUrl">Logo da empresa</label>
                                 <InputText @bind-Value="_editModel.LogoUrl" type="url" inputmode="url" class="form-control" id="_editModel.LogoUrl" placeholder="https://www.suaempresa.com.br/logo.png" />
                                 <ValidationMessage class="text-danger" For="@(() => _editModel.LogoUrl)" />
-                                <div class="form-text">Cole o endereço de uma imagem ou <a href="/advertiser/upload-logo">envie um arquivo do seu computador</a>.</div>
+                                <div class="form-text">Cole o endereço de uma imagem ou <a href="/empresa/logo">envie um arquivo do seu computador</a>.</div>
                                 @if (!string.IsNullOrEmpty(_editModel.LogoUrl))
                                 {
                                     <div class="mt-2">
@@ -118,7 +118,7 @@
                 <div class="settings-group">
                     <h3>Conta</h3>
                     <p class="small">Situação: <StatusBadge Text="@UiLabels.AccountStatus(_advertiser.Status)" Tone="@UiLabels.AccountStatusTone(_advertiser.Status)" /></p>
-                    <p class="small">Plano: <a href="/my-subscription">@UiLabels.PlanName(_advertiser.ActivePlan)</a></p>
+                    <p class="small">Plano: <a href="/minha-assinatura">@UiLabels.PlanName(_advertiser.ActivePlan)</a></p>
                     <p class="small">E-mail verificado:
                         <StatusBadge Text="@(_advertiser.IsEmailVerified ? "Sim" : "Não")" Tone="@(_advertiser.IsEmailVerified ? StatusTone.Ok : StatusTone.Warn)" />
                     </p>
@@ -126,11 +126,11 @@
                 </div>
                 <div class="settings-group">
                     <h3>Atalhos</h3>
-                    <a class="btn btn-outline-secondary btn-sm" href="/my-jobs">Minhas vagas</a>
-                    <a class="btn btn-outline-secondary btn-sm" href="/received-applications">Candidaturas recebidas</a>
-                    <a class="btn btn-outline-secondary btn-sm" href="/advertiser/upload-logo">Enviar logo</a>
-                    <a class="btn btn-outline-secondary btn-sm" href="/address/list">Endereço da empresa</a>
-                    <a class="btn btn-outline-secondary btn-sm" href="/Account/Manage">Senha e segurança</a>
+                    <a class="btn btn-outline-secondary btn-sm" href="/minhas-vagas">Minhas vagas</a>
+                    <a class="btn btn-outline-secondary btn-sm" href="/candidaturas-recebidas">Candidaturas recebidas</a>
+                    <a class="btn btn-outline-secondary btn-sm" href="/empresa/logo">Enviar logo</a>
+                    <a class="btn btn-outline-secondary btn-sm" href="/enderecos">Endereço da empresa</a>
+                    <a class="btn btn-outline-secondary btn-sm" href="/conta">Senha e segurança</a>
                 </div>
             </aside>
         </div>
@@ -138,7 +138,7 @@
     else
     {
         <EmptyState Icon="alert" Title="Perfil de empresa não encontrado" Message="Esta área é exclusiva para contas de empresa.">
-            <a class="btn btn-primary" href="/dashboard">Voltar ao início</a>
+            <a class="btn btn-primary" href="/painel">Voltar ao início</a>
         </EmptyState>
     }
 </div>
@@ -268,12 +268,12 @@
 
     private void NavigateToJobs()
     {
-        Navigation.NavigateTo("/my-jobs");
+        Navigation.NavigateTo("/minhas-vagas");
     }
 
     private void NavigateToApplications()
     {
-        Navigation.NavigateTo("/received-applications");
+        Navigation.NavigateTo("/candidaturas-recebidas");
     }
 
     private class EditModel

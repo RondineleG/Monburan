@@ -36,10 +36,10 @@ else
                     <NavLink class="@HomeLinkClass" href="/" Match="NavLinkMatch.All" data-testid="nav-dashboard" data-label="Visão geral">
                         <span class="sidebar-link__icon"><Icon Name="home" /></span><span>Visão geral</span>
                     </NavLink>
-                    <NavLink class="@SectionClass(IsRecruitJobsPath)" href="/my-jobs" data-testid="nav-my-jobs" data-label="Minhas vagas">
+                    <NavLink class="@SectionClass(IsRecruitJobsPath)" href="/minhas-vagas" data-testid="nav-my-jobs" data-label="Minhas vagas">
                         <span class="sidebar-link__icon"><Icon Name="briefcase" /></span><span>Minhas vagas</span>
                     </NavLink>
-                    <NavLink class="@SectionClass(IsReceivedPath)" href="/received-applications" data-testid="nav-received-applications" data-label="Candidaturas recebidas">
+                    <NavLink class="@SectionClass(IsReceivedPath)" href="/candidaturas-recebidas" data-testid="nav-received-applications" data-label="Candidaturas recebidas">
                         <span class="sidebar-link__icon"><Icon Name="users" /></span><span>Candidaturas recebidas</span>
                     </NavLink>
                     <NavLink class="sidebar-link" href="/notifications" data-testid="nav-notifications" data-label="Notificações">
@@ -50,10 +50,10 @@ else
                         <span class="sidebar-link__icon"><Icon Name="search" /></span><span>Vagas publicadas</span>
                     </NavLink>
                     <span class="sidebar-nav__label sidebar-nav__label--spaced">Conta da empresa</span>
-                    <NavLink class="sidebar-link" href="/my-subscription" data-label="Plano e assinatura">
+                    <NavLink class="sidebar-link" href="/minha-assinatura" data-label="Plano e assinatura">
                         <span class="sidebar-link__icon"><Icon Name="banknote" /></span><span>Plano e assinatura</span>
                     </NavLink>
-                    <NavLink class="sidebar-link" href="/Account/Manage" Match="NavLinkMatch.Prefix" data-label="Conta e segurança">
+                    <NavLink class="sidebar-link" href="/conta" Match="NavLinkMatch.Prefix" data-label="Conta e segurança">
                         <span class="sidebar-link__icon"><Icon Name="shield" /></span><span>Conta e segurança</span>
                     </NavLink>
                 }
@@ -66,20 +66,20 @@ else
                     <NavLink class="@SectionClass(IsPublicJobsPath)" href="/jobs" data-testid="nav-jobs" data-label="Explorar vagas">
                         <span class="sidebar-link__icon"><Icon Name="search" /></span><span>Explorar vagas</span>
                     </NavLink>
-                    <NavLink class="sidebar-link" href="/my-applications" data-testid="nav-applications" data-label="Minhas candidaturas">
+                    <NavLink class="sidebar-link" href="/minhas-candidaturas" data-testid="nav-applications" data-label="Minhas candidaturas">
                         <span class="sidebar-link__icon"><Icon Name="send" /></span><span>Minhas candidaturas</span>
                     </NavLink>
-                    <NavLink class="sidebar-link" href="/resumes" data-label="Meus currículos">
+                    <NavLink class="sidebar-link" href="/curriculos" data-label="Meus currículos">
                         <span class="sidebar-link__icon"><Icon Name="file" /></span><span>Meus currículos</span>
                     </NavLink>
-                    <NavLink class="sidebar-link" href="/career-profile" data-label="Perfil de carreira">
+                    <NavLink class="sidebar-link" href="/perfil-profissional" data-label="Perfil de carreira">
                         <span class="sidebar-link__icon"><Icon Name="sparkles" /></span><span>Perfil de carreira</span>
                     </NavLink>
                     <NavLink class="sidebar-link" href="/notifications" data-label="Notificações">
                         <span class="sidebar-link__icon"><Icon Name="bell" /></span><span>Notificações</span>
                     </NavLink>
                     <span class="sidebar-nav__label sidebar-nav__label--spaced">Minha conta</span>
-                    <NavLink class="sidebar-link" href="/Account/Manage" Match="NavLinkMatch.Prefix" data-label="Conta e segurança">
+                    <NavLink class="sidebar-link" href="/conta" Match="NavLinkMatch.Prefix" data-label="Conta e segurança">
                         <span class="sidebar-link__icon"><Icon Name="shield" /></span><span>Conta e segurança</span>
                     </NavLink>
                 }
@@ -102,22 +102,25 @@ else
                             <span class="sidebar-link__icon"><Icon Name="home" /></span><span>Visão geral</span>
                         </NavLink>
                     }
-                    <NavLink class="sidebar-link" href="/admin/accounts" data-testid="nav-admin-accounts" data-label="Contas">
+                    <NavLink class="sidebar-link" href="/admin/contas" data-testid="nav-admin-accounts" data-label="Contas">
                         <span class="sidebar-link__icon"><Icon Name="shield" /></span><span>Contas</span>
                     </NavLink>
-                    <NavLink class="sidebar-link" href="/admin/jobs" data-testid="nav-admin-jobs" data-label="Vagas">
+                    <NavLink class="sidebar-link" href="/admin/vagas" data-testid="nav-admin-jobs" data-label="Vagas">
                         <span class="sidebar-link__icon"><Icon Name="briefcase" /></span><span>Vagas</span>
                     </NavLink>
-                    <NavLink class="sidebar-link" href="/admin/candidates" data-label="Candidatos">
+                    <NavLink class="sidebar-link" href="/admin/sugestoes" data-testid="nav-admin-submissions" data-label="Sugestões">
+                        <span class="sidebar-link__icon"><Icon Name="file" /></span><span>Sugestões</span>
+                    </NavLink>
+                    <NavLink class="sidebar-link" href="/admin/candidatos" data-label="Candidatos">
                         <span class="sidebar-link__icon"><Icon Name="users" /></span><span>Candidatos</span>
                     </NavLink>
-                    <NavLink class="sidebar-link" href="/admin/advertisers" data-label="Empresas">
+                    <NavLink class="sidebar-link" href="/admin/empresas" data-label="Empresas">
                         <span class="sidebar-link__icon"><Icon Name="building" /></span><span>Empresas</span>
                     </NavLink>
-                    <NavLink class="sidebar-link" href="/admin/ai-providers" data-testid="nav-admin-ai-providers" data-label="Provedores de IA">
+                    <NavLink class="sidebar-link" href="/admin/provedores-ia" data-testid="nav-admin-ai-providers" data-label="Provedores de IA">
                         <span class="sidebar-link__icon"><Icon Name="sparkles" /></span><span>Provedores de IA</span>
                     </NavLink>
-                    <NavLink class="sidebar-link" href="/admin/audit" data-testid="nav-admin-audit" data-label="Auditoria">
+                    <NavLink class="sidebar-link" href="/admin/auditoria" data-testid="nav-admin-audit" data-label="Auditoria">
                         <span class="sidebar-link__icon"><Icon Name="clock" /></span><span>Auditoria</span>
                     </NavLink>
                     @if (IsAdminOnly)
@@ -140,7 +143,7 @@ else
                     </span>
                     <span class="profile-link__arrow"><Icon Name="chevron-right" Size="16" /></span>
                 </NavLink>
-                <form class="sidebar-logout" action="Account/Logout" method="post">
+                <form class="sidebar-logout" action="/Account/Logout" method="post">
                     <AntiforgeryToken />
                     <input type="hidden" name="returnUrl" value="/" />
                     <button type="submit" class="sidebar-logout__btn" data-label="Sair" data-testid="nav-logout">
@@ -186,7 +189,7 @@ else
                     <ThemeToggle />
                     @if (IsAdvertiser)
                     {
-                        <a class="btn btn-primary btn-sm topbar-publish" href="/jobs/create" aria-label="Publicar vaga" data-testid="topbar-publish"><Icon Name="plus" Size="16" /><span class="topbar-publish__text">Publicar vaga</span></a>
+                        <a class="btn btn-primary btn-sm topbar-publish" href="/vagas/nova" aria-label="Publicar vaga" data-testid="topbar-publish"><Icon Name="plus" Size="16" /><span class="topbar-publish__text">Publicar vaga</span></a>
                     }
                 </div>
             </header>
@@ -196,8 +199,8 @@ else
             <header class="public-header">
                 <Brand />
                 <nav class="public-nav" aria-label="Navegação principal">
-                    <a href="/Account/Login">Entrar</a>
-                    <a class="btn btn-primary btn-sm" href="/Account/Register">Criar conta</a>
+                    <a href="/entrar">Entrar</a>
+                    <a class="btn btn-primary btn-sm" href="/criar-conta">Criar conta</a>
                 </nav>
                 <ThemeToggle />
             </header>
@@ -218,21 +221,21 @@ else
                         <a href="/jobs">Buscar vagas</a>
                         @if (IsCandidate)
                         {
-                            <a href="/my-applications">Minhas candidaturas</a>
-                            <a href="/resumes">Meus currículos</a>
+                            <a href="/minhas-candidaturas">Minhas candidaturas</a>
+                            <a href="/curriculos">Meus currículos</a>
                         }
                         @if (IsAdvertiser)
                         {
-                            <a href="/jobs/create">Publicar vaga</a>
-                            <a href="/received-applications">Candidaturas recebidas</a>
+                            <a href="/vagas/nova">Publicar vaga</a>
+                            <a href="/candidaturas-recebidas">Candidaturas recebidas</a>
                         }
                         @if (!isAuthenticated)
                         {
-                            <a href="/Account/Register?AccountType=advertiser">Para empresas</a>
+                            <a href="/criar-conta?AccountType=advertiser">Para empresas</a>
                         }
                         <a href="/plans">Planos</a>
-                        <a href="/terms">Termos de uso</a>
-                        <a href="/privacy">Privacidade</a>
+                        <a href="/termos">Termos de uso</a>
+                        <a href="/privacidade">Privacidade</a>
                     </nav>
                     <p class="site-footer__legal">© @DateTime.Now.Year Monburan · Vagas de emprego e recrutamento</p>
                 </div>
@@ -261,8 +264,7 @@ else
 
     // Layout "auth" só nas páginas de entrada: o gerenciamento da conta usa o app shell normal
     private bool IsAccountPage =>
-        NavigationManager.Uri.Contains("/Account/", StringComparison.OrdinalIgnoreCase)
-        && !NavigationManager.Uri.Contains("/Account/Manage", StringComparison.OrdinalIgnoreCase);
+        AuthRoutes.IsAuthPage(CurrentPath);
     private bool IsAdvertiser => string.Equals(currentUserType, "advertiser", StringComparison.OrdinalIgnoreCase);
     private bool IsCandidate => string.Equals(currentUserType, "candidate", StringComparison.OrdinalIgnoreCase);
     private bool IsAdmin => isAdmin;
@@ -271,7 +273,7 @@ else
     private NavRole Role => IsAdvertiser ? NavRole.Advertiser : IsCandidate ? NavRole.Candidate : IsAdmin ? NavRole.Admin : NavRole.Visitor;
     private IReadOnlyList<TrailItem> Trail => NavigationTrail.For(CurrentPath, Role);
 
-    private string ProfileHref => IsAdvertiser ? "/profile/advertiser" : IsCandidate ? "/profile/candidate" : "/Account/Manage";
+    private string ProfileHref => IsAdvertiser ? "/perfil/empresa" : IsCandidate ? "/perfil/candidato" : "/conta";
     private string ProfileLabel => IsAdvertiser ? "Perfil da empresa" : IsCandidate ? "Meu perfil" : "Minha conta";
 
     protected override async Task OnParametersSetAsync()
@@ -287,28 +289,28 @@ else
         }
     }
 
-    // "/" e "/dashboard" são a mesma página: o item de início fica ativo nas duas
-    private string HomeLinkClass => SectionClass(CurrentPath is "/" or "/dashboard");
+    // "/" e "/painel" são a mesma página: o item de início fica ativo nas duas
+    private string HomeLinkClass => SectionClass(CurrentPath is "/" or "/painel");
 
     // Item ativo também nas subpáginas da seção (o NavLink só marca o endereço exato)
     private static string SectionClass(bool active) => active ? "sidebar-link active" : "sidebar-link";
 
     private bool IsRecruitJobsPath =>
-        CurrentPath.StartsWith("/my-jobs", StringComparison.OrdinalIgnoreCase)
-        || CurrentPath.StartsWith("/jobs/create", StringComparison.OrdinalIgnoreCase)
-        || CurrentPath.StartsWith("/jobs/edit/", StringComparison.OrdinalIgnoreCase);
+        CurrentPath.StartsWith("/minhas-vagas", StringComparison.OrdinalIgnoreCase)
+        || CurrentPath.StartsWith("/vagas/nova", StringComparison.OrdinalIgnoreCase)
+        || (CurrentPath.StartsWith("/vagas/", StringComparison.OrdinalIgnoreCase) && CurrentPath.EndsWith("/editar", StringComparison.OrdinalIgnoreCase));
 
     private bool IsReceivedPath =>
-        CurrentPath.StartsWith("/received-applications", StringComparison.OrdinalIgnoreCase)
-        || (CurrentPath.StartsWith("/jobs/", StringComparison.OrdinalIgnoreCase) && CurrentPath.EndsWith("/applications", StringComparison.OrdinalIgnoreCase));
+        CurrentPath.StartsWith("/candidaturas-recebidas", StringComparison.OrdinalIgnoreCase)
+        || (CurrentPath.StartsWith("/vagas/", StringComparison.OrdinalIgnoreCase) && CurrentPath.EndsWith("/candidaturas", StringComparison.OrdinalIgnoreCase));
 
     // Lista pública, página da vaga e da empresa (fora do fluxo de recrutamento)
     private bool IsPublicJobsPath =>
         !IsRecruitJobsPath && !IsReceivedPath
         && (CurrentPath.Equals("/jobs", StringComparison.OrdinalIgnoreCase)
             || CurrentPath.StartsWith("/jobs/", StringComparison.OrdinalIgnoreCase)
-            || CurrentPath.StartsWith("/companies/", StringComparison.OrdinalIgnoreCase)
-            || CurrentPath.StartsWith("/apply/", StringComparison.OrdinalIgnoreCase));
+            || CurrentPath.StartsWith("/empresas/", StringComparison.OrdinalIgnoreCase)
+            || CurrentPath.StartsWith("/candidatar/", StringComparison.OrdinalIgnoreCase));
 
     private string CurrentPath => "/" + NavigationManager.ToBaseRelativePath(NavigationManager.Uri)
         .Split('?', '#')[0]

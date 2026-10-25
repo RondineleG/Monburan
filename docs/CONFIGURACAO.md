@@ -60,7 +60,7 @@ Quando `Smtp:Host` está configurado (variáveis `Smtp__Host`, `Smtp__User`, `Sm
 
 ## Sugestões de IA (melhoria de currículo)
 
-O administrador cadastra os provedores (OpenAI, OpenRouter, DeepSeek, Anthropic, Xiaomi ou qualquer serviço compatível) na tela **Provedores de IA** (`/admin/ai-providers`), escolhe o padrão e informa o nome da variável de ambiente da chave (`AI_KEY_*`). A chave fica só no servidor:
+O administrador cadastra os provedores (OpenAI, OpenRouter, DeepSeek, Anthropic, Xiaomi ou qualquer serviço compatível) na tela **Provedores de IA** (`/admin/provedores-ia`), escolhe o padrão e informa o nome da variável de ambiente da chave (`AI_KEY_*`). A chave fica só no servidor:
 
 - desenvolvimento: `dotnet user-secrets set "AI_KEY_OPENROUTER" "<chave>" --project src/Monburan.Web`;
 - VPS: arquivo `ai-keys.env`.

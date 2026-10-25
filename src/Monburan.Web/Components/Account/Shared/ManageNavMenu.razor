@@ -7,25 +7,25 @@
 <nav aria-label="Seções de conta e segurança">
 <ul class="nav">
     <li class="nav-item">
-        <NavLink class="nav-link" href="Account/Manage" Match="NavLinkMatch.All" aria-current="@Current("Account/Manage", exact: true)">Perfil</NavLink>
+        <NavLink class="nav-link" href="/conta" Match="NavLinkMatch.All" aria-current="@Current("/conta", exact: true)">Perfil</NavLink>
     </li>
     <li class="nav-item">
-        <NavLink class="nav-link" href="Account/Manage/Email" aria-current="@Current("Account/Manage/Email")">E-mail</NavLink>
+        <NavLink class="nav-link" href="/conta/email" aria-current="@Current("/conta/email")">E-mail</NavLink>
     </li>
     <li class="nav-item">
-        <NavLink class="nav-link" href="Account/Manage/ChangePassword" aria-current="@Current("Account/Manage/ChangePassword")">Senha</NavLink>
+        <NavLink class="nav-link" href="/conta/alterar-senha" aria-current="@Current("/conta/alterar-senha")">Senha</NavLink>
     </li>
     @if (hasExternalLogins)
     {
         <li class="nav-item">
-            <NavLink class="nav-link" href="Account/Manage/ExternalLogins" aria-current="@Current("Account/Manage/ExternalLogins")">Contas conectadas</NavLink>
+            <NavLink class="nav-link" href="/conta/logins-externos" aria-current="@Current("/conta/logins-externos")">Contas conectadas</NavLink>
         </li>
     }
     <li class="nav-item">
-        <NavLink class="nav-link" href="Account/Manage/TwoFactorAuthentication" aria-current="@Current("Account/Manage/TwoFactorAuthentication")">Verificação em duas etapas</NavLink>
+        <NavLink class="nav-link" href="/conta/seguranca-2fa" aria-current="@Current("/conta/seguranca-2fa")">Verificação em duas etapas</NavLink>
     </li>
     <li class="nav-item">
-        <NavLink class="nav-link" href="Account/Manage/PersonalData" aria-current="@Current("Account/Manage/PersonalData")">Dados pessoais</NavLink>
+        <NavLink class="nav-link" href="/conta/dados-pessoais" aria-current="@Current("/conta/dados-pessoais")">Dados pessoais</NavLink>
     </li>
 </ul>
 </nav>

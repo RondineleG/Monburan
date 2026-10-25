@@ -1,4 +1,4 @@
-﻿@page "/Account/Manage/TwoFactorAuthentication"
+﻿@page "/conta/seguranca-2fa"
 
 @using Microsoft.AspNetCore.Http.Features
 @using Microsoft.AspNetCore.Identity
@@ -29,21 +29,21 @@
         {
             <div class="alert alert-danger">
                 <strong>Você não tem mais códigos de recuperação.</strong>
-                <p>Você precisa <a href="Account/Manage/GenerateRecoveryCodes">gerar novos códigos de recuperação</a> antes de entrar com um código de recuperação.</p>
+                <p>Você precisa <a href="/conta/codigos-recuperacao">gerar novos códigos de recuperação</a> antes de entrar com um código de recuperação.</p>
             </div>
         }
         else if (recoveryCodesLeft == 1)
         {
             <div class="alert alert-danger">
                 <strong>Resta apenas 1 código de recuperação.</strong>
-                <p>Você pode <a href="Account/Manage/GenerateRecoveryCodes">gerar novos códigos de recuperação</a>.</p>
+                <p>Você pode <a href="/conta/codigos-recuperacao">gerar novos códigos de recuperação</a>.</p>
             </div>
         }
         else if (recoveryCodesLeft <= 3)
         {
             <div class="alert alert-warning">
                 <strong>Restam @recoveryCodesLeft códigos de recuperação.</strong>
-                <p>Recomendamos <a href="Account/Manage/GenerateRecoveryCodes">gerar novos códigos de recuperação</a>.</p>
+                <p>Recomendamos <a href="/conta/codigos-recuperacao">gerar novos códigos de recuperação</a>.</p>
             </div>
         }
 
@@ -55,8 +55,8 @@
                     <button type="submit" class="btn btn-outline-secondary">Esquecer este navegador</button>
                 </form>
             }
-            <a href="Account/Manage/GenerateRecoveryCodes" class="btn btn-outline-secondary">Gerar novos códigos de recuperação</a>
-            <a href="Account/Manage/Disable2fa" class="btn btn-outline-danger">Desativar verificação em duas etapas</a>
+            <a href="/conta/codigos-recuperacao" class="btn btn-outline-secondary">Gerar novos códigos de recuperação</a>
+            <a href="/conta/desativar-2fa" class="btn btn-outline-danger">Desativar verificação em duas etapas</a>
         </div>
     }
 
@@ -64,12 +64,12 @@
     <div class="d-flex flex-wrap gap-2">
         @if (!hasAuthenticator)
         {
-            <a href="Account/Manage/EnableAuthenticator" class="btn btn-primary">Adicionar aplicativo autenticador</a>
+            <a href="/conta/ativar-autenticador" class="btn btn-primary">Adicionar aplicativo autenticador</a>
         }
         else
         {
-            <a href="Account/Manage/EnableAuthenticator" class="btn btn-primary">Configurar aplicativo autenticador</a>
-            <a href="Account/Manage/ResetAuthenticator" class="btn btn-outline-danger">Redefinir chave do autenticador</a>
+            <a href="/conta/ativar-autenticador" class="btn btn-primary">Configurar aplicativo autenticador</a>
+            <a href="/conta/redefinir-autenticador" class="btn btn-outline-danger">Redefinir chave do autenticador</a>
         }
     </div>
 }

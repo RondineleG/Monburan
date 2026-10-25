@@ -135,7 +135,7 @@
                             }
                             else
                             {
-                                <a class="btn btn-primary w-100" href="/Account/Register?AccountType=advertiser">
+                                <a class="btn btn-primary w-100" href="/criar-conta?AccountType=advertiser">
                                     Criar conta de empresa
                                 </a>
                             }
@@ -147,7 +147,7 @@
 
         @if (!isAdvertiser && !isCandidate)
         {
-            <p class="plans-footnote">Já tem conta de empresa? <a href="/Account/Login?ReturnUrl=%2Fplans">Entre para assinar</a>.</p>
+            <p class="plans-footnote">Já tem conta de empresa? <a href="/entrar?ReturnUrl=%2Fplans">Entre para assinar</a>.</p>
         }
     }
 </div>
@@ -221,7 +221,7 @@
         if (result.Status == Core.Enums.EResultStatus.Success)
         {
             Toast.ShowSuccess($"Seu plano agora é o {UiLabels.PlanName(plan.Name)}.", "Plano atualizado");
-            Navigation.NavigateTo("/my-subscription");
+            Navigation.NavigateTo("/minha-assinatura");
             return;
         }
 

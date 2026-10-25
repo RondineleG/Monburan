@@ -229,6 +229,8 @@ builder.Services.AddSingleton<IConfigureOptions<KeyManagementOptions>>(services 
 // Administrador sem 2FA que tenta abrir uma área de administração não vê "acesso negado": vai para a tela de configuração
 builder.Services.ConfigureApplicationCookie(options =>
 {
+    options.LoginPath = "/entrar";
+    options.AccessDeniedPath = "/acesso-negado";
     var accessDenied = options.Events.OnRedirectToAccessDenied;
     options.Events.OnRedirectToAccessDenied = context =>
     {
@@ -236,7 +238,7 @@ builder.Services.ConfigureApplicationCookie(options =>
         var user = context.HttpContext.User;
         if (security.RequireTwoFactorForAdmins && user.IsInRole("Admin") && !AdminTwoFactorHandler.HasTwoFactor(user))
         {
-            context.Response.Redirect("/Account/Manage/TwoFactorAuthentication?adminRequired=true");
+            context.Response.Redirect("/conta/seguranca-2fa?adminRequired=true");
             return Task.CompletedTask;
         }
 
@@ -516,6 +518,7 @@ app.UseRequestLocalization(new RequestLocalizationOptions()
     .SetDefaultCulture("pt-BR")
     .AddSupportedCultures("pt-BR")
     .AddSupportedUICultures("pt-BR"));
+app.UseLegacyRouteRedirects();
 app.UseRateLimiter();
 app.UseSecurityHeaders();
 // Rota inexistente no site chega ao navegador com a página /404 renderizada. A re-execução precisa ficar no pipeline

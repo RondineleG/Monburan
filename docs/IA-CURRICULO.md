@@ -8,7 +8,7 @@ O rascunho não sincroniza entre dispositivos, pode ser descartado na tela (ou l
 que for aplicado de fato é gravado no currículo do servidor.
 
 O recurso é **exclusivo do plano Premium do candidato**: só planos com o flag `HasAiAssistant` liberam o assistente
-(administração aplica o plano em `/admin/accounts`; sem ele a tela mostra o painel como vitrine do Premium e a API
+(administração aplica o plano em `/admin/contas`; sem ele a tela mostra o painel como vitrine do Premium e a API
 responde erro de domínio).
 
 A aplicação não depende de um provedor específico. Ela fala dois protocolos: o de **"chat completions" da OpenAI**
@@ -89,7 +89,7 @@ Ambos exigem o perfil de candidato (JWT `ApiBearer`):
 
 O envio é um compartilhamento com terceiro, possivelmente fora do Brasil. Por isso: autorização expressa a cada nova
 geração (na tela e na API), conteúdo mínimo e sem identificadores, nada guardado do nosso lado, e a Política de
-Privacidade (`/privacy`, item 5) descreve o envio. O resultado vira um **rascunho criptografado (Data Protection)
+Privacidade (`/privacidade`, item 5) descreve o envio. O resultado vira um **rascunho criptografado (Data Protection)
 no armazenamento local do navegador**, com chave por candidato + currículo: nunca vai para o banco e nunca volta
 ao provedor. A pessoa revisa, edita e escolhe o que aplicar; só aí o `UpdateResumeUseCase` grava (recheca dono e
 detecta edição posterior ao rascunho, sem sobrescrever). Apagar os dados do site descarta o rascunho. O tratamento
@@ -114,7 +114,7 @@ no provedor segue os termos dele, que a empresa deve conferir antes de ativar em
 
 ## Importação de currículo em PDF
 
-No upload (`/resumes/upload`) o PDF deixa de ser só um anexo: o texto é extraído com PdfPig e transformado nos
+No upload (`/curriculos/upload`) o PDF deixa de ser só um anexo: o texto é extraído com PdfPig e transformado nos
 campos do currículo (título, resumo, experiências, formação, idiomas e habilidades).
 
 1. Com a autorização expressa da pessoa e um provedor ativo, a IA estrutura o texto em JSON (mesmo protocolo acima);
@@ -123,8 +123,8 @@ campos do currículo (título, resumo, experiências, formação, idiomas e habi
 2. Sem autorização (ou sem IA configurada), a leitura é **local por regras** (`ResumeTextHeuristics`): detecta as
    seções usuais em pt-BR/en e monta o mesmo rascunho. O conteúdo nunca sai do servidor nesse caminho.
 3. PDF digitalizado (sem camada de texto) não gera nada: a tela avisa e o passo a passo cobre o preenchimento.
-4. O currículo é criado já preenchido e a pessoa cai no **wizard** (`/resumes/{id}/wizard`): um passo a passo por
+4. O currículo é criado já preenchido e a pessoa cai no **wizard** (`/curriculos/{id}/assistente`): um passo a passo por
    seção, que abre direto na primeira etapa com algo faltando e pergunta só o que falta. "Novo currículo" usa o
-   mesmo wizard vazio (`/resumes/wizard`).
+   mesmo wizard vazio (`/curriculos/assistente`).
 5. O PDF de origem fica referenciado no currículo (`SourceFileName`/`SourceFileUrl`) e o CV padronizado fica em
-   `/resumes/{id}/cv`, com visualização própria para impressão/PDF.
+   `/curriculos/{id}/cv`, com visualização própria para impressão/PDF.

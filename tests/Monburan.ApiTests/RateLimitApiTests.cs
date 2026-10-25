@@ -139,7 +139,7 @@ public class AuthRateLimitApiTests : IClassFixture<AuthLimitedApiFactory>
         jobs.Headers.Add("X-Forwarded-For", ip);
         (await _client.SendAsync(jobs)).StatusCode.Should().Be(HttpStatusCode.OK);
 
-        using var page = new HttpRequestMessage(HttpMethod.Get, "/Account/Login");
+        using var page = new HttpRequestMessage(HttpMethod.Get, "/entrar");
         page.Headers.Add("X-Forwarded-For", ip);
         (await _client.SendAsync(page)).StatusCode.Should().Be(HttpStatusCode.OK);
     }
