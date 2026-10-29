@@ -75,8 +75,9 @@ public sealed class AdminChangeJobStatusUseCase : IUseCase<AdminChangeJobStatusR
 
         if (request.NewStatus == EJobStatus.Active)
         {
-            var advertiser = await _advertisers.GetByIdAsync(job.AdvertiserId, cancellationToken);
-            if (advertiser.Data?.Status == EAdvertiserStatus.Blocked)
+            // Vaga externa (sem anunciante) não depende do status de nenhuma conta
+            var advertiser = job.AdvertiserId is null ? null : await _advertisers.GetByIdAsync(job.AdvertiserId, cancellationToken);
+            if (advertiser?.Data?.Status == EAdvertiserStatus.Blocked)
                 return RequestResult<AdminJobResponse>.WithDomainError("A conta da empresa está inativa: reative a conta antes de ativar as vagas dela.");
 
             if (job.ExpirationDate.Date < today)

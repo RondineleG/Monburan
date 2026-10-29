@@ -84,7 +84,7 @@ internal sealed class FakeJobRepository : IJobRepository
         if (status.HasValue)
             query = query.Where(job => job.Status == status.Value);
         if (advertiserId.HasValue)
-            query = query.Where(job => job.AdvertiserId.Value == advertiserId.Value);
+            query = query.Where(job => job.AdvertiserId != null && job.AdvertiserId.Value == advertiserId.Value);
         if (!string.IsNullOrWhiteSpace(searchTerm))
         {
             var term = searchTerm.Trim().ToLowerInvariant();

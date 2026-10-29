@@ -57,7 +57,7 @@ public class ListApplicationHistoryUseCase : IUseCase<ListApplicationHistoryRequ
     {
         var isCandidateOwner = request.CandidateId.HasValue && application.CandidateId.Value == request.CandidateId.Value;
         var isAdvertiserOwner = request.AdvertiserId.HasValue
-            && application.Job is not null
+            && application.Job?.AdvertiserId is not null
             && application.Job.AdvertiserId.Value == request.AdvertiserId.Value;
 
         return isCandidateOwner || isAdvertiserOwner;

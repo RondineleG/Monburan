@@ -25,7 +25,7 @@ public class ResumeShareTests
     public ResumeShareTests()
     {
         _resumes.GetByIdAsync(Arg.Any<Id>(), Arg.Any<CancellationToken>())
-            .Returns(_ => RequestResult<Resume?>.Success(Resume()));
+            .Returns(_ => RequestResult<Resume>.Success(Resume()));
         _shares.CreateAsync(Arg.Any<ResumeShare>(), Arg.Any<CancellationToken>())
             .Returns(call =>
             {
