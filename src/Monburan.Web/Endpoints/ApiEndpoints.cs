@@ -23,6 +23,7 @@ public static class ApiEndpoints
         api.MapNotificationEndpoints();
         api.MapSubscriptionEndpoints();
         api.MapDashboardEndpoints();
+        api.MapFeatureEndpoints();
 
         return app;
     }

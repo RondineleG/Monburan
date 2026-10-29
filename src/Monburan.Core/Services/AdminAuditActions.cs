@@ -20,11 +20,21 @@ public static class AdminAuditActions
     public const string AiProviderDefaultChanged = "ai_provider.default_changed";
     public const string AiProviderDeleted = "ai_provider.deleted";
     public const string SubmissionDecided = "submission.decided";
+    public const string FeatureFlagSaved = "feature_flag.saved";
+    public const string FeatureFlagDeleted = "feature_flag.deleted";
+    public const string AccessGroupSaved = "access_group.saved";
+    public const string AccessGroupDeleted = "access_group.deleted";
+    public const string AccessGroupMemberAdded = "access_group.member_added";
+    public const string AccessGroupMemberRemoved = "access_group.member_removed";
+    public const string AccountProductGranted = "account.product_granted";
+    public const string AccountProductRevoked = "account.product_revoked";
 
     public const string AccountTarget = "account";
     public const string JobTarget = "job";
     public const string AiProviderTarget = "aiProvider";
     public const string SubmissionTarget = "jobSubmission";
+    public const string FeatureFlagTarget = "featureFlag";
+    public const string AccessGroupTarget = "accessGroup";
 
     private static readonly IReadOnlyDictionary<string, string> Labels = new Dictionary<string, string>
     {
@@ -42,7 +52,15 @@ public static class AdminAuditActions
         [AiProviderSaved] = "Provedor de IA salvo",
         [AiProviderDefaultChanged] = "Provedor de IA padrão alterado",
         [AiProviderDeleted] = "Provedor de IA excluído",
-        [SubmissionDecided] = "Sugestão de vaga decidida"
+        [SubmissionDecided] = "Sugestão de vaga decidida",
+        [FeatureFlagSaved] = "Funcionalidade salva",
+        [FeatureFlagDeleted] = "Funcionalidade removida",
+        [AccessGroupSaved] = "Grupo de acesso salvo",
+        [AccessGroupDeleted] = "Grupo de acesso removido",
+        [AccessGroupMemberAdded] = "Conta adicionada a grupo",
+        [AccessGroupMemberRemoved] = "Conta retirada de grupo",
+        [AccountProductGranted] = "Papel de produto concedido",
+        [AccountProductRevoked] = "Papel de produto removido"
     };
 
     private static readonly IReadOnlyDictionary<string, string> TargetLabels = new Dictionary<string, string>
@@ -50,7 +68,9 @@ public static class AdminAuditActions
         [AccountTarget] = "Conta",
         [JobTarget] = "Vaga",
         [AiProviderTarget] = "Provedor de IA",
-        [SubmissionTarget] = "Sugestão de vaga"
+        [SubmissionTarget] = "Sugestão de vaga",
+        [FeatureFlagTarget] = "Funcionalidade",
+        [AccessGroupTarget] = "Grupo de acesso"
     };
 
     /// <summary>Todas as ações conhecidas, na ordem de exibição dos filtros.</summary>
