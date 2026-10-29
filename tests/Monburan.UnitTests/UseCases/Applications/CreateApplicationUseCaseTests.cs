@@ -60,12 +60,39 @@ public class CreateApplicationUseCaseTests
         TenantId = "default"
     };
 
+    private Job ExternalJob() => new()
+    {
+        Id = Id.Create(_jobId),
+        AdvertiserId = null,
+        PublicationType = EPublicationType.External,
+        ApplicationChannel = EApplicationChannel.ExternalUrl,
+        ApplicationUrl = "https://empresa.exemplo.com.br/vagas/1",
+        CompanyName = "Empresa Exemplo",
+        SourceName = "Site da agência",
+        Title = "Vaga externa",
+        Description = "Descrição",
+        Status = EJobStatus.Active,
+        ExpirationDate = DateTime.UtcNow.AddDays(10),
+        TenantId = "default"
+    };
+
     private CreateApplicationRequest Request() => new()
     {
         CandidateId = _candidateId,
         JobId = _jobId,
         Notes = "Tenho interesse."
     };
+
+    [Fact]
+    public async Task ExecuteAsync_WhenTheJobIsExternal_RefusesTheApplicationInsideMonburan()
+    {
+        _jobs.GetByIdAsync(Arg.Any<Id>()).Returns(RequestResult<Job>.Success(ExternalJob()));
+
+        var result = await _useCase.ExecuteAsync(Request());
+
+        result.Status.Should().Be(EResultStatus.DomainError);
+        await _applications.DidNotReceive().CreateAsync(Arg.Any<Application>());
+    }
 
     [Fact]
     public async Task ExecuteAsync_WhenTheApplicationIsCreated_WritesSentToTheHistory()

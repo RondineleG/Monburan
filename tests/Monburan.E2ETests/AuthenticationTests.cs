@@ -16,7 +16,7 @@ public class AuthenticationTests : E2ETestBase
         var registered = await TryRegisterAsync(email, TestPassword);
         Assert.True(registered, "Registro não redirecionou para fora da página");
 
-        await GotoAsync("/dashboard");
+        await GotoAsync("/painel");
         await WaitForBlazorAsync();
         Assert.True(await Page.GetByTestId("nav-applications").IsVisibleAsync());
         await AssertLoggedInAsync();
@@ -30,7 +30,7 @@ public class AuthenticationTests : E2ETestBase
         var registered = await TryRegisterAsync(email, TestPassword, accountType: "advertiser");
         Assert.True(registered, "Cadastro de recrutador não concluiu");
 
-        await GotoAsync("/dashboard");
+        await GotoAsync("/painel");
         await WaitForBlazorAsync();
         Assert.True(await Page.GetByTestId("nav-my-jobs").IsVisibleAsync());
         Assert.Contains("Ver candidaturas recebidas", await Page.Locator("body").InnerTextAsync());
@@ -39,7 +39,7 @@ public class AuthenticationTests : E2ETestBase
     [Fact]
     public async Task Login_EmptyFields_ShouldShowPortugueseValidation()
     {
-        await GotoAsync("/Account/Login");
+        await GotoAsync("/entrar");
         await Page.GetByTestId("login-submit").ClickAsync();
 
         // A validação é renderizada pelo circuito Blazor depois do clique: sem esperar a
@@ -56,7 +56,7 @@ public class AuthenticationTests : E2ETestBase
     [Fact]
     public async Task Register_ShouldShowLoginLinkAndPortugueseValidation()
     {
-        await GotoAsync("/Account/Register");
+        await GotoAsync("/criar-conta");
         await Page.GetByTestId("register-submit").ClickAsync();
 
         // A validação é renderizada pelo circuito Blazor depois do clique: sem esperar a
@@ -100,22 +100,22 @@ public class AuthenticationTests : E2ETestBase
     [Fact]
     public async Task Login_Form_ShouldAuthenticateThroughBrowser()
     {
-        await GotoAsync("/Account/Login");
+        await GotoAsync("/entrar");
         await Page.GetByTestId("login-email").WaitForAsync();
         await Page.GetByTestId("login-email").FillAsync(CandidateEmail);
         await Page.GetByTestId("login-password").FillAsync(TestPassword);
         await Page.GetByTestId("login-submit").ClickAsync();
         await Page.GetByTestId("nav-jobs").WaitForAsync();
 
-        Assert.DoesNotContain("/Account/Login", Page.Url, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("/entrar", Page.Url, StringComparison.OrdinalIgnoreCase);
         await AssertLoggedInAsync();
     }
 
     [Fact]
     public async Task Anonymous_ShouldRedirect_ToLogin_OnProfilePages()
     {
-        await GotoAsync("/profile/candidate");
+        await GotoAsync("/perfil/candidato");
         await Page.GetByTestId("login-email").WaitForAsync();
-        Assert.Contains("/Account/Login", Page.Url, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("/entrar", Page.Url, StringComparison.OrdinalIgnoreCase);
     }
 }

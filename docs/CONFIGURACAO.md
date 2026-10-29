@@ -60,12 +60,21 @@ Quando `Smtp:Host` está configurado (variáveis `Smtp__Host`, `Smtp__User`, `Sm
 
 ## Sugestões de IA (melhoria de currículo)
 
-O administrador cadastra os provedores (OpenAI, OpenRouter, DeepSeek, Anthropic, Xiaomi ou qualquer serviço compatível) na tela **Provedores de IA** (`/admin/ai-providers`), escolhe o padrão e informa o nome da variável de ambiente da chave (`AI_KEY_*`). A chave fica só no servidor:
+O administrador cadastra os provedores (OpenAI, OpenRouter, DeepSeek, Anthropic, Xiaomi ou qualquer serviço compatível) na tela **Provedores de IA** (`/admin/provedores-ia`), escolhe o padrão e informa o nome da variável de ambiente da chave (`AI_KEY_*`). A chave fica só no servidor:
 
 - desenvolvimento: `dotnet user-secrets set "AI_KEY_OPENROUTER" "<chave>" --project src/Monburan.Web`;
 - VPS: arquivo `ai-keys.env`.
 
 Sem provedor padrão e chave, o recurso fica desligado. Guia da tela, segurança e erros em [IA-PROVEDORES.md](IA-PROVEDORES.md); privacidade e limites em [IA-CURRICULO.md](IA-CURRICULO.md).
+
+## Sugestões de vaga (evidências)
+
+| Chave | Padrão | Para quê |
+|---|---|---|
+| `Evidence:StoragePath` | `App_Data/evidencias` (dentro da pasta do app) | Pasta privada das imagens enviadas em `/sugerir-vaga`. Em produção é o volume `app_evidence` (`/app/App_Data/evidencias`), incluído no backup. |
+| `Evidence:RetentionDays` | `90` | Dias, depois da moderação, até apagar as imagens de sugestões rejeitadas ou duplicadas. `0` desliga a limpeza. |
+
+O limite de envios é de 5 por hora por IPv4 ou por bloco IPv6 `/64`, em memória (reiniciar zera o contador). O formulário tem um campo-isca contra robôs.
 
 ## User Secrets (desenvolvimento)
 

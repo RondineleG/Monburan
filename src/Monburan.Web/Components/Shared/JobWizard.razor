@@ -424,9 +424,8 @@
     {
         get
         {
-            var text = JobDisplay.Salary(PreviewJob) ?? "Não informado";
-            var period = UiLabels.SalaryPeriod(Model.SalaryPeriod?.ToString());
-            return period.Length > 0 ? $"{text} {period}" : text;
+            // O período já vem da própria JobDisplay.Salary (a prévia leva o período escolhido)
+            return JobDisplay.Salary(PreviewJob) ?? "Não informado";
         }
     }
 

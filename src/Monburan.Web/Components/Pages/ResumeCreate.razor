@@ -1,4 +1,4 @@
-@page "/resumes/new"
+@page "/curriculos/novo"
 @rendermode InteractiveServer
 @attribute [Microsoft.AspNetCore.Authorization.Authorize(Policy = "CandidateOnly")]
 @using Monburan.Core.DTOs.Request
@@ -22,7 +22,7 @@
 
 <div class="container page-form-shell resume-create-page">
     <PageHeader Title="Criar currículo" Description="Comece com um resumo claro. Você pode completar as outras seções depois."
-                BackHref="/resumes" BackText="Meus currículos" />
+                BackHref="/curriculos" BackText="Meus currículos" />
     <div class="row">
         <div class="col-lg-8 mx-auto">
 
@@ -34,7 +34,7 @@
             {
                 <div class="alert alert-info" role="note" data-testid="resume-create-wizard-hint">
                     O passo a passo é o jeito recomendado de criar seu currículo.
-                    <a href="/resumes/wizard">Prefere ir por etapas? Use o passo a passo.</a>
+                    <a href="/curriculos/assistente">Prefere ir por etapas? Use o passo a passo.</a>
                 </div>
 
                 @if (!string.IsNullOrEmpty(errorMessage))
@@ -128,7 +128,7 @@
                                         <span>Criar currículo</span>
                                     }
                                 </button>
-                                <a class="btn btn-outline-secondary" href="/resumes">Cancelar</a>
+                                <a class="btn btn-outline-secondary" href="/curriculos">Cancelar</a>
                             </div>
                         </EditForm>
                     </div>
@@ -234,7 +234,7 @@
         {
             Toast.ShowSuccess("Agora complete experiências, formação e habilidades.", "Currículo criado");
             saved = true;
-            Navigation.NavigateTo($"/resumes/{result.Data.Id}");
+            Navigation.NavigateTo($"/curriculos/{result.Data.Id}");
             return;
         }
 

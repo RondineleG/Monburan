@@ -1,4 +1,4 @@
-﻿@page "/Account/ConfirmEmailChange"
+﻿@page "/confirmar-email/alteracao"
 
 @using System.Text
 @using Microsoft.AspNetCore.Identity
@@ -17,7 +17,7 @@
     @* Só existe um desfecho de sucesso; qualquer outra mensagem desta página é erro *@
     <StatusMessage Message="@message" IsError="@(message != SuccessMessage)" />
     <div class="form-actions">
-        <a class="btn btn-primary" href="Account/Login">Entrar</a>
+        <a class="btn btn-primary" href="/entrar">Entrar</a>
         <a class="btn btn-outline-secondary" href="./">Ir para o início</a>
     </div>
 </section>
@@ -44,7 +44,7 @@
         if (UserId is null || Email is null || Code is null)
         {
             RedirectManager.RedirectToWithStatus(
-                "Account/Login", "Erro: este link de alteração de e-mail não é válido.", HttpContext);
+                "/entrar", "Erro: este link de alteração de e-mail não é válido.", HttpContext);
         }
 
         var user = await UserManager.FindByIdAsync(UserId);

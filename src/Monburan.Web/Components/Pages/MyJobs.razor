@@ -1,4 +1,4 @@
-@page "/my-jobs"
+@page "/minhas-vagas"
 @rendermode InteractiveServer
 @attribute [Microsoft.AspNetCore.Authorization.Authorize(Policy = "AdvertiserOnly")]
 @using Monburan.Core.DTOs.Request
@@ -59,7 +59,7 @@
         </nav>
 
         <div class="list-toolbar">
-        <form class="my-jobs-search" method="get" action="/my-jobs" data-clean-query role="search">
+        <form class="my-jobs-search" method="get" action="/minhas-vagas" data-clean-query role="search">
             <input type="hidden" name="situacao" value="@Situation" />
             <label class="my-jobs-search__field" for="my-jobs-search">
                 <span class="form-label">Buscar vagas</span>
@@ -137,7 +137,7 @@
                                         <td data-label="Ações">
                                             @* Divulgação simples (botão + lista), não role="menu": Tab percorre as ações e Esc fecha *@
                                             <div class="job-actions" @onkeydown="OnMenuKeyDown">
-                                                <a class="btn btn-outline-secondary btn-sm" href="/jobs/edit/@job.Id" data-testid="my-job-edit"
+                                                <a class="btn btn-outline-secondary btn-sm" href="/vagas/@job/editar.Id" data-testid="my-job-edit"
                                                    aria-label="Editar a vaga @job.Title">Editar</a>
                                                 <button type="button"
                                                         id="job-actions-@job.Id"
@@ -153,7 +153,7 @@
                                                 {
                                                     <ul class="job-actions__menu" id="job-actions-list-@job.Id">
                                                         <li><a class="job-actions__item" href="@($"/jobs/{job.Id}")">Ver página da vaga</a></li>
-                                                        <li><a class="job-actions__item" href="@($"/jobs/{job.Id}/applications")" data-testid="my-job-applications">Ver candidaturas</a></li>
+                                                        <li><a class="job-actions__item" href="@($"/vagas/{job.Id}/candidaturas")" data-testid="my-job-applications">Ver candidaturas</a></li>
                                                         @if (job.Status == "Active")
                                                         {
                                                             <li><button type="button" class="job-actions__item" @onclick="() => ChangeStatusAsync(job, EJobStatus.Paused)" disabled="@(changingId == job.Id)" data-testid="my-job-pause">Pausar</button></li>
@@ -166,7 +166,7 @@
                                                             }
                                                             else
                                                             {
-                                                                <li><a class="job-actions__item" href="@($"/jobs/edit/{job.Id}")">Renovar validade</a></li>
+                                                                <li><a class="job-actions__item" href="@($"/vagas/{job.Id}/editar")">Renovar validade</a></li>
                                                             }
                                                         }
                                                         <li>
@@ -200,7 +200,7 @@
                 }
                 else
                 {
-                    <a class="btn btn-primary" href="/jobs/create">Publicar vaga</a>
+                    <a class="btn btn-primary" href="/vagas/nova">Publicar vaga</a>
                 }
             </EmptyState>
         }
@@ -210,7 +210,7 @@
                         Title="Nenhuma vaga publicada ainda"
                         Message="Publique sua primeira vaga para começar a receber candidaturas."
                         TestId="my-jobs-empty">
-                <a class="btn btn-primary" href="/jobs/create">Publicar vaga</a>
+                <a class="btn btn-primary" href="/vagas/nova">Publicar vaga</a>
             </EmptyState>
         }
     }
@@ -338,7 +338,7 @@
 
     private string TabUrl(string tab)
     {
-        var baseUrl = tab == "ativas" ? "/my-jobs" : $"/my-jobs?situacao={tab}";
+        var baseUrl = tab == "ativas" ? "/minhas-vagas" : $"/minhas-vagas?situacao={tab}";
         // A busca sobrevive à troca de aba; só o "limpar busca" a remove de propósito
         return HasSearch
             ? baseUrl + (baseUrl.Contains('?') ? "&" : "?") + $"busca={Uri.EscapeDataString(SearchQuery!.Trim())}"
@@ -346,7 +346,7 @@
     }
 
     private string ClearSearchUrl =>
-        Situation == "ativas" ? "/my-jobs" : $"/my-jobs?situacao={Situation}";
+        Situation == "ativas" ? "/minhas-vagas" : $"/minhas-vagas?situacao={Situation}";
 
     private void ToggleMenu(Guid jobId) => openMenuId = openMenuId == jobId ? null : jobId;
 

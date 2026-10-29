@@ -30,7 +30,7 @@ public class CompanyProfileUiApiTests
         using var db = factory.Services.GetRequiredService<IDbContextFactory<ApplicationDbContext>>().CreateDbContext();
         var job = db.Jobs.First();
 
-        var response = await client.GetAsync($"/companies/{job.AdvertiserId.Value}");
+        var response = await client.GetAsync($"/empresas/{job.AdvertiserId!.Value}");
         var html = WebUtility.HtmlDecode(await response.Content.ReadAsStringAsync());
 
         response.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -51,7 +51,7 @@ public class CompanyProfileUiApiTests
             .CreateDbContextAsync();
 
         var existingJob = db.Jobs.First();
-        var advertiserId = existingJob.AdvertiserId.Value;
+        var advertiserId = existingJob.AdvertiserId!.Value;
         var tenantId = existingJob.TenantId;
         var initialPublicCount = db.Jobs.Count(job =>
             job.AdvertiserId == existingJob.AdvertiserId && job.Status == EJobStatus.Active && !job.IsDeleted);
@@ -67,7 +67,7 @@ public class CompanyProfileUiApiTests
         }));
         await db.SaveChangesAsync();
 
-        var response = await client.GetAsync($"/companies/{advertiserId}?pagina=2");
+        var response = await client.GetAsync($"/empresas/{advertiserId}?pagina=2");
         var html = WebUtility.HtmlDecode(await response.Content.ReadAsStringAsync());
         var total = initialPublicCount + 21;
         var range = Regex.Match(html, "data-testid=\"pager-range\">(?<range>.*?)</p>", RegexOptions.Singleline)
@@ -75,7 +75,7 @@ public class CompanyProfileUiApiTests
 
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         Regex.Replace(range, @"\s+", " ").Should().Be($"Mostrando 21\u2013{total} de {total} vagas");
-        html.Should().Contain($"href=\"/companies/{advertiserId}\"");
+        html.Should().Contain($"href=\"/empresas/{advertiserId}\"");
         Regex.Matches(html, "data-testid=\"job-card\"").Should().HaveCount(total - 20);
     }
 
@@ -90,7 +90,7 @@ public class CompanyProfileUiApiTests
         });
         await CookieAuth.LoginAsync(client, "contato@techsolutions.com", "Monburan123");
 
-        var response = await client.GetAsync("/received-applications");
+        var response = await client.GetAsync("/candidaturas-recebidas");
         var html = WebUtility.HtmlDecode(await response.Content.ReadAsStringAsync());
 
         response.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -100,8 +100,8 @@ public class CompanyProfileUiApiTests
     }
 
     [Theory]
-    [InlineData("/resumes", 1)]
-    [InlineData("/resumes/new", 2)]
+    [InlineData("/curriculos", 1)]
+    [InlineData("/curriculos/novo", 2)]
     public async Task AuthenticatedTrail_MarksExactlyTheFinalStepAsCurrent(string path, int steps)
     {
         await using var factory = new MonburanApiFactory();

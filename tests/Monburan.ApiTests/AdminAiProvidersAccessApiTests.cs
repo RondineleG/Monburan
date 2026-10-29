@@ -18,9 +18,9 @@ public class AdminAiProvidersAccessApiTests : IClassFixture<MonburanApiFactory>
     {
         using var client = _factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
 
-        var response = await client.GetAsync("/admin/ai-providers");
+        var response = await client.GetAsync("/admin/provedores-ia");
 
         response.StatusCode.Should().Be(HttpStatusCode.Redirect);
-        response.Headers.Location!.ToString().Should().Contain("/Account/Login").And.Contain("ReturnUrl");
+        response.Headers.Location!.ToString().Should().Contain("/entrar").And.Contain("ReturnUrl");
     }
 }

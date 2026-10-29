@@ -132,6 +132,9 @@ public class JobExpirationBackgroundService : BackgroundService
                         job.Id.Value, notifyResult.Message);
                 }
 
+                if (job.AdvertiserId is null)
+                    continue; // vaga externa: sem anunciante para avisar
+
                 // Criar notificação no sistema para o anunciante
                 var notification = new Notification
                 {

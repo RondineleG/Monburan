@@ -33,14 +33,14 @@ public class MyApplicationsUiApiTests
         });
         await CookieAuth.LoginAsync(client, "joao.silva@email.com", "Monburan123");
 
-        var failed = await client.GetAsync($"/my-applications?aba={failedTab}");
+        var failed = await client.GetAsync($"/minhas-candidaturas?aba={failedTab}");
         var failedHtml = WebUtility.HtmlDecode(await failed.Content.ReadAsStringAsync());
         failed.StatusCode.Should().Be(HttpStatusCode.OK);
         failedHtml.Should().Contain($"Não foi possível carregar {errorText}")
             .And.Contain("data-testid=\"error-retry\"");
         failedHtml.Should().NotContain("data-testid=\"applications-empty\"");
 
-        var available = await client.GetAsync($"/my-applications?aba={availableTab}");
+        var available = await client.GetAsync($"/minhas-candidaturas?aba={availableTab}");
         var availableHtml = WebUtility.HtmlDecode(await available.Content.ReadAsStringAsync());
         available.StatusCode.Should().Be(HttpStatusCode.OK);
         availableHtml.Should().NotContain("data-testid=\"error-state\"");

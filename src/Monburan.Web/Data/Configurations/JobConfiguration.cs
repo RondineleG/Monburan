@@ -61,6 +61,34 @@ public class JobConfiguration : IEntityTypeConfiguration<Job>
         builder.Property(j => j.ExpirationDate)
             .HasColumnType("date");
 
+        builder.Property(j => j.PublicationType)
+            .HasConversion<string>()
+            .HasMaxLength(20)
+            .HasDefaultValue(EPublicationType.Direct);
+
+        builder.Property(j => j.ApplicationChannel)
+            .HasConversion<string>()
+            .HasMaxLength(30)
+            .HasDefaultValue(EApplicationChannel.InternalPlatform);
+
+        builder.Property(j => j.CompanyName)
+            .HasMaxLength(200);
+
+        builder.Property(j => j.SourceName)
+            .HasMaxLength(200);
+
+        builder.Property(j => j.SourceUrl)
+            .HasMaxLength(500);
+
+        builder.Property(j => j.ApplicationUrl)
+            .HasMaxLength(500);
+
+        builder.Property(j => j.ApplicationContact)
+            .HasMaxLength(200);
+
+        builder.Property(j => j.CboCode)
+            .HasMaxLength(10);
+
         builder.HasOne(j => j.Advertiser)
             .WithMany(a => a.Jobs)
             .HasForeignKey(j => j.AdvertiserId)

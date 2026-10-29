@@ -24,6 +24,8 @@ using Monburan.Core.Interfaces.UseCases;
 using Monburan.Core.Interfaces.Validations;
 using Monburan.Core.UseCases.Ai;
 using Monburan.Core.UseCases.Jobs;
+using Monburan.Core.UseCases.Submissions;
+using Monburan.Core.UseCases.ResumeShares;
 using Monburan.Core.UseCases.JobAlerts;
 using Monburan.Core.UseCases.Applications;
 using Monburan.Core.UseCases.Candidates;
@@ -64,7 +66,7 @@ builder.Services.AddRazorComponents()
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
-    c.SwaggerDoc("v1", new Microsoft.OpenApi.Models.OpenApiInfo
+    c.SwaggerDoc("v1", new Microsoft.OpenApi.OpenApiInfo
     {
         Title = "Monburan API",
         Version = "v1",
@@ -227,6 +229,8 @@ builder.Services.AddSingleton<IConfigureOptions<KeyManagementOptions>>(services 
 // Administrador sem 2FA que tenta abrir uma área de administração não vê "acesso negado": vai para a tela de configuração
 builder.Services.ConfigureApplicationCookie(options =>
 {
+    options.LoginPath = "/entrar";
+    options.AccessDeniedPath = "/acesso-negado";
     var accessDenied = options.Events.OnRedirectToAccessDenied;
     options.Events.OnRedirectToAccessDenied = context =>
     {
@@ -234,7 +238,7 @@ builder.Services.ConfigureApplicationCookie(options =>
         var user = context.HttpContext.User;
         if (security.RequireTwoFactorForAdmins && user.IsInRole("Admin") && !AdminTwoFactorHandler.HasTwoFactor(user))
         {
-            context.Response.Redirect("/Account/Manage/TwoFactorAuthentication?adminRequired=true");
+            context.Response.Redirect("/conta/seguranca-2fa?adminRequired=true");
             return Task.CompletedTask;
         }
 
@@ -300,6 +304,12 @@ builder.Services.AddSingleton<IAiTextClient, AiTextClient>();
 
 // Registrar Repositórios
 builder.Services.AddScoped<IJobRepository, JobRepository>();
+builder.Services.AddScoped<IJobSubmissionRepository, JobSubmissionRepository>();
+builder.Services.AddScoped<IResumeShareRepository, ResumeShareRepository>();
+builder.Services.AddScoped<CreateResumeShareUseCase>();
+builder.Services.AddScoped<RevokeResumeShareUseCase>();
+builder.Services.AddScoped<ListResumeSharesUseCase>();
+builder.Services.AddScoped<GetPublicResumeUseCase>();
 builder.Services.AddScoped<IBaseRepository<Job>, JobRepository>(); // Para UseCases que usam IBaseRepository
 builder.Services.AddScoped<IBaseRepository<Candidate>, CandidateRepository>();
 builder.Services.AddScoped<ICandidateRepository, CandidateRepository>();
@@ -431,6 +441,13 @@ builder.Services.AddScoped<IStorageProvider, LocalStorageProvider>();
 // Registrar Use Case de Upload
 builder.Services.AddScoped<UploadFileUseCase>();
 
+// Sugestões anônimas de vaga: evidência privada, limite de envios e moderação humana
+builder.Services.AddSingleton<IEvidenceStorage, LocalEvidenceStorage>();
+builder.Services.AddSingleton<ISubmissionRateLimiter, SubmissionRateLimiter>();
+builder.Services.AddScoped<SubmitJobSuggestionUseCase>();
+builder.Services.AddScoped<ModerateJobSubmissionUseCase>();
+builder.Services.AddScoped<ExtractJobDraftUseCase>();
+
 // Registrar CurrentUserHelper
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<CircuitUserAccessor>();
@@ -444,11 +461,21 @@ builder.Services.AddScoped<Monburan.Web.UseCases.Analytics.GetDashboardAnalytics
 
 // Registrar Background Services
 builder.Services.AddHostedService<JobExpirationBackgroundService>();
+// Retenção das imagens de sugestões encerradas (Evidence:RetentionDays, padrão 90 dias; 0 desliga)
+builder.Services.AddHostedService<EvidenceRetentionBackgroundService>();
 
 // Serviços existentes
 builder.Services.AddScoped<AddressRepository>();
 builder.Services.AddScoped<AddressService>();
 var app = builder.Build();
+
+// Links públicos de currículo: a página e o cabeçalho impedem indexação
+app.Use(async (context, next) =>
+{
+    if (context.Request.Path.StartsWithSegments("/curriculo", StringComparison.OrdinalIgnoreCase))
+        context.Response.Headers["X-Robots-Tag"] = "noindex, nofollow, noarchive";
+    await next();
+});
 
 // Antes de tudo (HSTS, redirecionamento para https, autenticação, limites): esquema e IP reais do cliente
 app.UseForwardedHeaders();
@@ -493,6 +520,7 @@ app.UseRequestLocalization(new RequestLocalizationOptions()
     .SetDefaultCulture("pt-BR")
     .AddSupportedCultures("pt-BR")
     .AddSupportedUICultures("pt-BR"));
+app.UseLegacyRouteRedirects();
 app.UseRateLimiter();
 app.UseSecurityHeaders();
 // Rota inexistente no site chega ao navegador com a página /404 renderizada. A re-execução precisa ficar no pipeline

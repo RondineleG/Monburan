@@ -1,0 +1,461 @@
+@page "/admin/sugestoes"
+@rendermode InteractiveServer
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Policy = "AdminOnly")]
+@using Monburan.Core.DTOs.Request
+@using Monburan.Core.DTOs.Response
+@using Monburan.Core.Entities
+@using Monburan.Core.Enums
+@using Monburan.Core.Interfaces.Repositories
+@using Monburan.Core.Interfaces.Services
+@using Monburan.Core.Interfaces.Storage
+@using Monburan.Core.UseCases.Submissions
+@using Monburan.Core.ValueObjects
+@using System.Globalization
+@using System.Text.Json
+@using Monburan.Core.Services
+@inject IJobSubmissionRepository Submissions
+@inject IEvidenceStorage Evidence
+@inject ModerateJobSubmissionUseCase Moderate
+@inject AuthenticationStateProvider AuthenticationState
+@inject ILogger<AdminSugestoes> Logger
+@inject ExtractJobDraftUseCase ExtractDraft
+@inject IAiTextClient AiText
+
+<PageTitle>Sugestões de vaga - Moderação - Monburan</PageTitle>
+
+<PageHeader Title="Sugestões de vaga" TestId="admin-submissions-page"
+            Description="Confira a imagem e os dados antes de decidir. Só a aprovação cria uma vaga, sempre como vaga externa.">
+</PageHeader>
+
+<div class="container">
+    @if (message is not null)
+    {
+        <p class="alert @(messageIsError ? "alert-danger" : "alert-success")" role="status" data-testid="admin-submission-message">@message</p>
+    }
+
+    @if (loading)
+    {
+        <p>Carregando sugestões…</p>
+    }
+    else if (queue.Count == 0)
+    {
+        <section class="card" data-testid="admin-submissions-empty">
+            <p class="mb-0">Nenhuma sugestão aguardando moderação.</p>
+        </section>
+    }
+    else
+    {
+        <div class="row">
+            <aside class="col-md-4 mb-3">
+                <ul class="list-group" data-testid="admin-submissions-queue">
+                    @foreach (var item in queue)
+                    {
+                        <li class="list-group-item @(item.Id.Value == selectedId ? "active" : "")">
+                            <button type="button" class="btn btn-link p-0 text-start" @onclick="() => SelectAsync(item.Id.Value)">
+                                @item.Title
+                            </button>
+                            <small class="d-block">@StatusLabel(item.Status) · @item.CreatedAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</small>
+                        </li>
+                    }
+                </ul>
+            </aside>
+
+            <section class="col-md-8" data-testid="admin-submission-detail">
+                @if (selected is not null)
+                {
+                    <article class="card mb-3">
+                        <h2 class="h5">@selected.Title</h2>
+                        <dl class="row mb-0">
+                            <dt class="col-sm-4">Empresa</dt><dd class="col-sm-8">@(selected.CompanyName ?? "Não informada")</dd>
+                            <dt class="col-sm-4">Local</dt><dd class="col-sm-8">@Place(selected)</dd>
+                            <dt class="col-sm-4">Descrição</dt><dd class="col-sm-8">@(selected.Description ?? "Não informada")</dd>
+                            <dt class="col-sm-4">Fonte</dt>
+                            <dd class="col-sm-8">
+                                @if (!string.IsNullOrWhiteSpace(selected.SourceUrl))
+                                {
+                                    <a href="@selected.SourceUrl" target="_blank" rel="noopener noreferrer nofollow">@selected.SourceUrl</a>
+                                }
+                                @if (!string.IsNullOrWhiteSpace(selected.SourceDescription))
+                                {
+                                    <span> @selected.SourceDescription</span>
+                                }
+                            </dd>
+                            <dt class="col-sm-4">Contato</dt><dd class="col-sm-8">@(selected.ContactEmail ?? "Não informado")</dd>
+                        </dl>
+                    </article>
+
+                    <article class="card mb-3" data-testid="admin-submission-evidence">
+                        <h3 class="h6">Evidência (privada, não publicada)</h3>
+                        <div class="d-flex flex-wrap gap-3">
+                            @foreach (var image in evidenceImages)
+                            {
+                                <img src="@image" alt="Imagem enviada como evidência" style="max-width: 320px; border-radius: 8px;" loading="lazy" />
+                            }
+                        </div>
+                    </article>
+
+                    @if (duplicates.Count > 0)
+                    {
+                        <article class="card mb-3" data-testid="admin-submission-duplicates">
+                            <h3 class="h6">Possíveis duplicatas</h3>
+                            <p class="small">A detecção só ajuda a decidir. Confirme antes de marcar como repetida.</p>
+                            <ul>
+                                @foreach (var candidate in duplicates)
+                                {
+                                    <li>
+                                        <strong>@candidate.Kind:</strong> @candidate.Title <small>(@candidate.Reason)</small>
+                                        <button type="button" class="btn btn-sm btn-outline-secondary ms-2" @onclick="() => MarkDuplicate(candidate)">Marcar como repetida</button>
+                                    </li>
+                                }
+                            </ul>
+                        </article>
+                    }
+
+                    <article class="card" data-testid="admin-submission-decision">
+                        <h3 class="h6">Decisão</h3>
+                        <div class="mb-3">
+                            <label class="form-label" for="decisao">Decisão</label>
+                            <select id="decisao" class="form-select" @bind="decision">
+                                <option value="@ESubmissionDecision.Approve">Aprovar e publicar como vaga externa</option>
+                                <option value="@ESubmissionDecision.NeedsMoreInformation">Pedir mais informações</option>
+                                <option value="@ESubmissionDecision.Duplicate">Marcar como duplicada</option>
+                                <option value="@ESubmissionDecision.Reject">Rejeitar</option>
+                            </select>
+                        </div>
+
+                        @if (decision == ESubmissionDecision.Approve)
+                        {
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label" for="empresa">Empresa contratante *</label>
+                                    <input id="empresa" class="form-control" @bind="form.CompanyName" maxlength="200" />
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label" for="prazo">Prazo de candidatura *</label>
+                                    <input id="prazo" class="form-control" type="date" @bind="form.ExpirationDate" />
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label" for="canal">Como a candidatura é feita *</label>
+                                    <select id="canal" class="form-select" @bind="form.Channel">
+                                        <option value="">Escolha</option>
+                                        <option value="@EApplicationChannel.ExternalUrl">Site da empresa</option>
+                                        <option value="@EApplicationChannel.WhatsApp">WhatsApp</option>
+                                        <option value="@EApplicationChannel.Email">E-mail</option>
+                                        <option value="@EApplicationChannel.OnSite">Presencial</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label" for="contato-canal">Endereço, número ou e-mail do canal</label>
+                                    <input id="contato-canal" class="form-control" @bind="form.ChannelDetail" />
+                                </div>
+                                <div class="col-12 mb-3">
+                                    <label class="form-label" for="instrucoes">Instruções (obrigatórias para presencial)</label>
+                                    <textarea id="instrucoes" class="form-control" rows="2" @bind="form.Instructions"></textarea>
+                                </div>
+                                <div class="col-12 mb-3">
+                                    <label class="form-label" for="descricao-aprovada">Descrição confirmada</label>
+                                    <textarea id="descricao-aprovada" class="form-control" rows="3" @bind="form.Description"></textarea>
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    <label class="form-label" for="cbo">Código CBO</label>
+                                    <input id="cbo" class="form-control" @bind="form.CboCode" maxlength="10" />
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    <label class="form-label" for="salario-min">Salário mínimo (só se informado)</label>
+                                    <input id="salario-min" class="form-control" type="number" min="0" step="0.01" @bind="form.SalaryMin" />
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    <label class="form-label" for="periodo-salario">Período do salário</label>
+                                    <select id="periodo-salario" class="form-select" @bind="form.SalaryPeriod">
+                                        <option value="">Não informado</option>
+                                        <option value="Hour">Por hora</option>
+                                        <option value="Day">Por dia</option>
+                                        <option value="Week">Por semana</option>
+                                        <option value="Month">Por mês</option>
+                                        <option value="Year">Por ano</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    <label class="form-label" for="salario-max">Salário máximo (só se informado)</label>
+                                    <input id="salario-max" class="form-control" type="number" min="0" step="0.01" @bind="form.SalaryMax" />
+                                </div>
+                            </div>
+                        }
+                        else if (decision == ESubmissionDecision.Duplicate)
+                        {
+                            <div class="mb-3">
+                                <label class="form-label" for="dup-vaga">Id da vaga publicada que esta repete</label>
+                                <input id="dup-vaga" class="form-control" @bind="form.DuplicateOfJobId" placeholder="Use o botão 'Marcar como repetida' ao lado de uma possível duplicata" />
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label" for="dup-sugestao">Id da sugestão que esta repete</label>
+                                <input id="dup-sugestao" class="form-control" @bind="form.DuplicateOfSubmissionId" />
+                            </div>
+                        }
+
+                        <div class="mb-3">
+                            <label class="form-label" for="observacao">@(decision == ESubmissionDecision.Approve ? "Observação para o registro" : "Motivo ou pergunta *")</label>
+                            <textarea id="observacao" class="form-control" rows="2" @bind="form.Note"></textarea>
+                        </div>
+
+                        @if (decisionError is not null)
+                        {
+                            <p class="alert alert-danger" role="alert">@decisionError</p>
+                        }
+
+                        @if (AiText.IsConfigured && decision == ESubmissionDecision.Approve)
+                        {
+                            <p class="small mb-2">O rascunho da IA só preenche campos. Confira cada um antes de aprovar.</p>
+                            <button type="button" class="btn btn-outline-secondary mb-3" @onclick="GenerateDraftAsync" disabled="@drafting" data-testid="admin-submission-ai-draft">@(drafting ? "Gerando rascunho…" : "Gerar rascunho com IA")</button>
+                            @if (draftNotice is not null)
+                            {
+                                <p class="alert alert-info" role="status">@draftNotice</p>
+                            }
+                        }
+
+                        <button type="button" class="btn btn-primary" @onclick="DecideAsync" disabled="@deciding" data-testid="admin-submission-decide">Registrar decisão</button>
+                    </article>
+                }
+            </section>
+        </div>
+    }
+</div>
+
+@code {
+    private readonly List<JobSubmission> queue = [];
+    private readonly List<string> evidenceImages = [];
+    private List<DuplicateCandidate> duplicates = [];
+    private JobSubmission? selected;
+    private Guid? selectedId;
+    private AdminActor actor = new(string.Empty, "administrador");
+    private ESubmissionDecision decision = ESubmissionDecision.Approve;
+    private DecisionForm form = new();
+    private string? decisionError;
+    private string? message;
+    private bool messageIsError;
+    private bool loading = true;
+    private bool deciding;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var state = await AuthenticationState.GetAuthenticationStateAsync();
+        actor = state.User.ToAdminActor();
+        await LoadQueueAsync();
+        loading = false;
+    }
+
+    private async Task LoadQueueAsync()
+    {
+        queue.Clear();
+        foreach (var status in new[] { ESubmissionStatus.Pending, ESubmissionStatus.NeedsMoreInformation })
+        {
+            var page = await Submissions.ListAsync(status, 1, 100);
+            if (page.Status == EResultStatus.Success && page.Data is not null)
+                queue.AddRange(page.Data.Data);
+        }
+        queue.Sort((a, b) => a.CreatedAt.CompareTo(b.CreatedAt));
+    }
+
+    private async Task SelectAsync(Guid id)
+    {
+        selectedId = id;
+        decisionError = null;
+        form = new DecisionForm();
+        decision = ESubmissionDecision.Approve;
+        var found = await Submissions.GetByIdAsync(Id.Create(id));
+        if (found.Status != EResultStatus.Success || found.Data is null)
+        {
+            selected = null;
+            Show("Não foi possível abrir esta sugestão.", true);
+            return;
+        }
+
+        selected = found.Data;
+        form.CompanyName = selected.CompanyName;
+        form.Description = selected.Description;
+        evidenceImages.Clear();
+        foreach (var evidence in selected.Evidences)
+        {
+            var bytes = await Evidence.ReadAsync(evidence.StorageKey);
+            if (bytes is not null)
+                evidenceImages.Add($"data:{evidence.ContentType};base64,{Convert.ToBase64String(bytes)}");
+        }
+
+        var hashes = selected.Evidences.Select(e => e.Sha256).ToList();
+        var found2 = await Submissions.FindDuplicatesAsync(selected.Title, selected.CompanyName, selected.City, selected.SourceUrl, hashes, selected.Id);
+        duplicates = found2.Status == EResultStatus.Success && found2.Data is not null ? found2.Data.ToList() : [];
+    }
+
+    private void MarkDuplicate(DuplicateCandidate candidate)
+    {
+        decision = ESubmissionDecision.Duplicate;
+        if (candidate.Kind == "Vaga")
+            form.DuplicateOfJobId = candidate.Id.ToString();
+        else
+            form.DuplicateOfSubmissionId = candidate.Id.ToString();
+    }
+
+    private async Task DecideAsync()
+    {
+        if (selected is null || deciding)
+            return;
+
+        deciding = true;
+        decisionError = null;
+        try
+        {
+            var request = BuildRequest();
+            if (request is null)
+                return;
+
+            var result = await Moderate.ExecuteAsync(request);
+            if (result.Status == EResultStatus.Success)
+            {
+                Show("Decisão registrada.", false);
+                selected = null;
+                selectedId = null;
+                await LoadQueueAsync();
+                return;
+            }
+
+            decisionError = result.Status == EResultStatus.HasValidation
+                ? result.ValidationResult.ErrorMessage
+                : result.Message;
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            Logger.LogError(ex, "Falha ao registrar decisão de sugestão");
+            decisionError = "Não foi possível registrar a decisão agora. Tente novamente.";
+        }
+        finally
+        {
+            deciding = false;
+        }
+    }
+
+    private ModerateJobSubmissionRequest? BuildRequest()
+    {
+        var request = new ModerateJobSubmissionRequest
+        {
+            SubmissionId = selected!.Id.Value,
+            Actor = actor,
+            Decision = decision,
+            Note = form.Note
+        };
+
+        if (decision == ESubmissionDecision.Approve)
+        {
+            request.CompanyName = form.CompanyName;
+            request.Description = form.Description;
+            request.Category = null;
+            request.ExpirationDate = form.ExpirationDate;
+            request.Channel = Enum.TryParse<EApplicationChannel>(form.Channel, out var channel) ? channel : null;
+            request.ApplicationUrl = request.Channel == EApplicationChannel.ExternalUrl ? form.ChannelDetail : null;
+            request.ApplicationContact = request.Channel is EApplicationChannel.WhatsApp or EApplicationChannel.Email ? form.ChannelDetail : null;
+            request.ApplicationInstructions = form.Instructions;
+            request.CboCode = form.CboCode;
+            request.SalaryMin = form.SalaryMin;
+            request.SalaryMax = form.SalaryMax;
+            request.SalaryPeriod = Enum.TryParse<ESalaryPeriod>(form.SalaryPeriod, out var period) ? period : null;
+        }
+        else if (decision == ESubmissionDecision.Duplicate)
+        {
+            request.DuplicateOfJobId = Guid.TryParse(form.DuplicateOfJobId, out var jobId) ? jobId : null;
+            request.DuplicateOfSubmissionId = Guid.TryParse(form.DuplicateOfSubmissionId, out var otherId) ? otherId : null;
+        }
+
+        return request;
+    }
+
+    private bool drafting;
+    private string? draftNotice;
+
+    private async Task GenerateDraftAsync()
+    {
+        if (selected is null || drafting)
+            return;
+
+        drafting = true;
+        decisionError = null;
+        draftNotice = null;
+        try
+        {
+            var result = await ExtractDraft.ExecuteAsync(new ExtractJobDraftRequest(selected.Id.Value));
+            if (result.Status == EResultStatus.Success && result.Data is not null)
+            {
+                ApplyDraft(result.Data);
+                draftNotice = result.Data.NeedsReview
+                    ? "Rascunho preenchido. Há campos vazios ou com confiança baixa: revise antes de aprovar."
+                    : "Rascunho preenchido. Confira os campos antes de aprovar.";
+            }
+            else
+            {
+                decisionError = result.Status == EResultStatus.HasValidation ? result.ValidationResult.ErrorMessage : result.Message;
+            }
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            Logger.LogError(ex, "Falha ao gerar rascunho de sugestão");
+            decisionError = "Não foi possível gerar o rascunho agora. Preencha manualmente.";
+        }
+        finally
+        {
+            drafting = false;
+        }
+    }
+
+    // Preenche só os campos que a IA encontrou; os demais continuam como o moderador deixou
+    private void ApplyDraft(AiJobDraft draft)
+    {
+        string? Value(string name) => draft.Fields.TryGetValue(name, out var field) ? field.Value : null;
+
+        form.CompanyName = Value(AiJobDraftParser.CompanyName) ?? form.CompanyName;
+        form.Description = Value(AiJobDraftParser.Description) ?? form.Description;
+        form.ExpirationDate = DateOnly.TryParseExact(Value(AiJobDraftParser.Deadline), "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var deadline)
+            ? deadline.ToDateTime(TimeOnly.MinValue)
+            : form.ExpirationDate;
+        form.Channel = Value(AiJobDraftParser.Channel) ?? form.Channel;
+        form.ChannelDetail = Value(AiJobDraftParser.ChannelDetail) ?? form.ChannelDetail;
+        form.Instructions = Value(AiJobDraftParser.Instructions) ?? form.Instructions;
+        form.CboCode = Value(AiJobDraftParser.CboCode) ?? form.CboCode;
+        form.SalaryMin = decimal.TryParse(Value(AiJobDraftParser.SalaryMin), NumberStyles.Number, CultureInfo.InvariantCulture, out var min) ? min : form.SalaryMin;
+        form.SalaryMax = decimal.TryParse(Value(AiJobDraftParser.SalaryMax), NumberStyles.Number, CultureInfo.InvariantCulture, out var max) ? max : form.SalaryMax;
+        form.SalaryPeriod = Value(AiJobDraftParser.SalaryPeriod) ?? form.SalaryPeriod;
+        decision = ESubmissionDecision.Approve;
+    }
+
+    private void Show(string text, bool isError)
+    {
+        message = text;
+        messageIsError = isError;
+    }
+
+    private static string Place(JobSubmission submission) =>
+        string.Join(" / ", new[] { submission.City, submission.State }.Where(v => !string.IsNullOrWhiteSpace(v))) is { Length: > 0 } place
+            ? place
+            : "Não informado";
+
+    private static string StatusLabel(ESubmissionStatus status) => status switch
+    {
+        ESubmissionStatus.Pending => "Aguardando análise",
+        ESubmissionStatus.NeedsMoreInformation => "Aguardando resposta",
+        _ => status.ToString()
+    };
+
+    private sealed class DecisionForm
+    {
+        public string? CompanyName { get; set; }
+        public string? Description { get; set; }
+        public DateTime? ExpirationDate { get; set; }
+        public string? Channel { get; set; }
+        public string? ChannelDetail { get; set; }
+        public string? Instructions { get; set; }
+        public string? CboCode { get; set; }
+        public decimal? SalaryMin { get; set; }
+        public decimal? SalaryMax { get; set; }
+        public string? SalaryPeriod { get; set; }
+        public string? Note { get; set; }
+        public string? DuplicateOfJobId { get; set; }
+        public string? DuplicateOfSubmissionId { get; set; }
+    }
+}

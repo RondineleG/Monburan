@@ -118,7 +118,11 @@
         _unread = 0;
         Toast.ShowWarning("Sua sessão expirou. Entre novamente para continuar.");
         if (!IsAuthPage)
-            Nav.NavigateTo("/login");
+        {
+            // Volta para a mesma tela depois de entrar de novo
+            var current = Nav.ToBaseRelativePath(Nav.Uri);
+            Nav.NavigateTo(string.IsNullOrEmpty(current) ? "/login" : $"/login?returnUrl={Uri.EscapeDataString("/" + current)}");
+        }
         StateHasChanged();
     });
 

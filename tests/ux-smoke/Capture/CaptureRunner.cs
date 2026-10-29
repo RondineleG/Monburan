@@ -164,7 +164,7 @@ static class CaptureRunner
     static async Task LoginWebAsync(IBrowserContext ctx, string baseUrl, string email)
     {
         var page = await ctx.NewPageAsync();
-        await page.GotoAsync(baseUrl + "/Account/Login");
+        await page.GotoAsync(baseUrl + "/entrar");
         await page.Locator("[data-testid=login-email]").FillAsync(email);
         await page.Locator("[data-testid=login-password]").FillAsync(Password);
         await page.Locator("[data-testid=login-submit]").ClickAsync();
@@ -232,18 +232,18 @@ static class CaptureRunner
         // ---------- Visitante ----------
         var probe = await s.NewContextAsync("light");
         var jobPath = await FirstHrefAsync(probe, b + "/jobs", @"^/jobs/[0-9a-f-]{36}$");
-        var companyPath = jobPath is null ? null : await FirstHrefAsync(probe, b + jobPath, @"^/companies/[0-9a-f-]{36}$");
+        var companyPath = jobPath is null ? null : await FirstHrefAsync(probe, b + jobPath, @"^/empresas/[0-9a-f-]{36}$");
         await probe.CloseAsync();
         var visitor = new List<(string, string, bool)>
         {
             ("home", "/", true), ("jobs", "/jobs", true), ("jobs-filtered", "/jobs?q=desenvolvedor&modo=remoto", false), ("jobs-empty", "/jobs?q=zzzznaoexiste", false),
-            ("plans", "/plans", false), ("terms", "/terms", false), ("privacy", "/privacy", false), ("404", "/rota-inexistente", false),
-            ("login", "/Account/Login", true), ("register", "/Account/Register", false), ("forgot", "/Account/ForgotPassword", false),
-            ("resend-confirmation", "/Account/ResendEmailConfirmation", false), ("lockout", "/Account/Lockout", false), ("access-denied", "/Account/AccessDenied", false),
-            ("register-confirmation", "/Account/RegisterConfirmation?email=x%40y.com", false), ("forgot-confirmation", "/Account/ForgotPasswordConfirmation", false),
-            ("reset-confirmation", "/Account/ResetPasswordConfirmation", false), ("invalid-reset", "/Account/InvalidPasswordReset", false), ("invalid-user", "/Account/InvalidUser", false),
-            ("job-notfound", "/jobs/00000000-0000-0000-0000-000000000001", false), ("company-notfound", "/companies/00000000-0000-0000-0000-000000000001", false),
-            ("protected-redirect", "/my-applications", false), ("error", "/Error", false),
+            ("plans", "/plans", false), ("terms", "/termos", false), ("privacy", "/privacidade", false), ("404", "/rota-inexistente", false),
+            ("login", "/entrar", true), ("register", "/criar-conta", false), ("forgot", "/esqueci-senha", false),
+            ("resend-confirmation", "/reenviar-confirmacao", false), ("lockout", "/conta-bloqueada", false), ("access-denied", "/acesso-negado", false),
+            ("register-confirmation", "/criar-conta/confirmacao?email=x%40y.com", false), ("forgot-confirmation", "/esqueci-senha/enviado", false),
+            ("reset-confirmation", "/redefinir-senha/concluido", false), ("invalid-reset", "/redefinir-senha/invalido", false), ("invalid-user", "/conta/usuario-invalido", false),
+            ("job-notfound", "/jobs/00000000-0000-0000-0000-000000000001", false), ("company-notfound", "/empresas/00000000-0000-0000-0000-000000000001", false),
+            ("protected-redirect", "/minhas-candidaturas", false), ("error", "/Error", false),
         };
         if (jobPath is not null) visitor.Add(("job-details", jobPath, true));
         if (companyPath is not null) visitor.Add(("company", companyPath, false));
@@ -251,9 +251,9 @@ static class CaptureRunner
         if (Wants("visitante"))
         {
             var ctx = await s.NewContextAsync("light");
-            await FormProbeAsync(s, ctx, "visitante", "login", "/Account/Login", "[data-testid=login-submit]");
-            await FormProbeAsync(s, ctx, "visitante", "register", "/Account/Register", "main button[type=submit]");
-            await FormProbeAsync(s, ctx, "visitante", "forgot", "/Account/ForgotPassword", "main button[type=submit]");
+            await FormProbeAsync(s, ctx, "visitante", "login", "/entrar", "[data-testid=login-submit]");
+            await FormProbeAsync(s, ctx, "visitante", "register", "/criar-conta", "main button[type=submit]");
+            await FormProbeAsync(s, ctx, "visitante", "forgot", "/esqueci-senha", "main button[type=submit]");
             await ctx.CloseAsync();
         }
 
@@ -262,24 +262,24 @@ static class CaptureRunner
         {
             var ctx = await s.NewContextAsync("light");
             await LoginWebAsync(ctx, b, "joao.silva@email.com");
-            addressPath = await FirstHrefAsync(ctx, b + "/address/list", @"^/address/edit/[0-9a-f-]{36}$");
+            addressPath = await FirstHrefAsync(ctx, b + "/enderecos", @"^/enderecos/[0-9a-f-]{36}/editar$");
             await ctx.CloseAsync();
         }
-        var resumePath = "/resumes/" + seed.ResumeId;
+        var resumePath = "/curriculos/" + seed.ResumeId;
         var candidate = new List<(string, string, bool)>
         {
-            ("dashboard", "/", true), ("jobs", "/jobs", false), ("my-applications", "/my-applications", true), ("my-applications-saved", "/my-applications?aba=salvas", false),
-            ("my-applications-alerts", "/my-applications?aba=alertas", false), ("career-profile", "/career-profile", false), ("profile", "/profile/candidate", false),
-            ("resumes", "/resumes", false), ("resume-new", "/resumes/new", false), ("resume-wizard", "/resumes/wizard", false), ("resume-upload", "/resumes/upload", false),
+            ("dashboard", "/", true), ("jobs", "/jobs", false), ("my-applications", "/minhas-candidaturas", true), ("my-applications-saved", "/minhas-candidaturas?aba=salvas", false),
+            ("my-applications-alerts", "/minhas-candidaturas?aba=alertas", false), ("career-profile", "/perfil-profissional", false), ("profile", "/perfil/candidato", false),
+            ("resumes", "/curriculos", false), ("resume-new", "/curriculos/novo", false), ("resume-wizard", "/curriculos/assistente", false), ("resume-upload", "/curriculos/upload", false),
             ("resume-details", resumePath, true), ("resume-edit", resumePath + "/edit", false), ("resume-cv", resumePath + "/cv", false), ("resume-wizard-edit", resumePath + "/wizard", false),
-            ("notifications", "/notifications", false), ("address-list", "/address/list", false), ("address-create", "/address/create", false),
-            ("address-edit-missing", "/address/edit/00000000-0000-0000-0000-000000000009", false), ("address-delete-missing", "/address/delete/00000000-0000-0000-0000-000000000009", false),
-            ("manage-index", "/Account/Manage", false), ("manage-email", "/Account/Manage/Email", false), ("manage-password", "/Account/Manage/ChangePassword", false),
-            ("manage-2fa", "/Account/Manage/TwoFactorAuthentication", false), ("manage-personal", "/Account/Manage/PersonalData", false),
-            ("manage-external", "/Account/Manage/ExternalLogins", false), ("manage-enable-auth", "/Account/Manage/EnableAuthenticator", false),
-            ("manage-reset-auth", "/Account/Manage/ResetAuthenticator", false), ("manage-delete-data", "/Account/Manage/DeletePersonalData", false),
-            ("forbidden-advertiser-area", "/my-jobs", false), ("forbidden-admin-area", "/admin/accounts", false), ("plans", "/plans", false),
-            ("apply-done", "/apply/" + seed.AppliedJobId, true),
+            ("notifications", "/notifications", false), ("address-list", "/enderecos", false), ("address-create", "/enderecos/novo", false),
+            ("address-edit-missing", "/enderecos/00000000-0000-0000-0000-000000000009/editar", false), ("address-delete-missing", "/enderecos/00000000-0000-0000-0000-000000000009/excluir", false),
+            ("manage-index", "/conta", false), ("manage-email", "/conta/email", false), ("manage-password", "/conta/alterar-senha", false),
+            ("manage-2fa", "/conta/seguranca-2fa", false), ("manage-personal", "/conta/dados-pessoais", false),
+            ("manage-external", "/conta/logins-externos", false), ("manage-enable-auth", "/conta/ativar-autenticador", false),
+            ("manage-reset-auth", "/conta/redefinir-autenticador", false), ("manage-delete-data", "/conta/excluir-dados", false),
+            ("forbidden-advertiser-area", "/minhas-vagas", false), ("forbidden-admin-area", "/admin/contas", false), ("plans", "/plans", false),
+            ("apply-done", "/candidatar/" + seed.AppliedJobId, true),
         };
         if (jobPath is not null) candidate.Add(("job-details", jobPath, false));
         if (addressPath is not null) { candidate.Add(("address-edit", addressPath, false)); candidate.Add(("address-delete", addressPath.Replace("/edit/", "/delete/"), false)); }
@@ -291,10 +291,10 @@ static class CaptureRunner
             // Uma vaga ainda sem candidatura deste candidato: o formulário de candidatura (sem enviar)
             var openJob = await FirstHrefAsync(ctx, b + "/jobs", @"^/jobs/[0-9a-f-]{36}$");
             if (openJob is not null && !openJob.EndsWith(seed.AppliedJobId.ToString()))
-                await s.CaptureAsync(ctx, "web", "candidato", "apply-form", b + "/apply/" + openJob.Split('/').Last(), WebViewports, "light");
-            await FormProbeAsync(s, ctx, "candidato", "profile", "/profile/candidate", "main button[type=submit]", "#candidate-name");
-            await FormProbeAsync(s, ctx, "candidato", "resume-wizard", "/resumes/wizard", "button:has-text('Próximo')");
-            await FormProbeAsync(s, ctx, "candidato", "manage-password", "/Account/Manage/ChangePassword", "main button[type=submit]");
+                await s.CaptureAsync(ctx, "web", "candidato", "apply-form", b + "/candidatar/" + openJob.Split('/').Last(), WebViewports, "light");
+            await FormProbeAsync(s, ctx, "candidato", "profile", "/perfil/candidato", "main button[type=submit]", "#candidate-name");
+            await FormProbeAsync(s, ctx, "candidato", "resume-wizard", "/curriculos/assistente", "button:has-text('Próximo')");
+            await FormProbeAsync(s, ctx, "candidato", "manage-password", "/conta/alterar-senha", "main button[type=submit]");
             await ctx.CloseAsync();
         }
 
@@ -303,15 +303,15 @@ static class CaptureRunner
         {
             var ctx = await s.NewContextAsync("light");
             await LoginWebAsync(ctx, b, "contato@techsolutions.com");
-            editPath = await FirstHrefAsync(ctx, b + "/my-jobs", @"^/jobs/edit/[0-9a-f-]{36}$");
-            appsPath = await FirstHrefAsync(ctx, b + "/my-jobs", @"^/jobs/[0-9a-f-]{36}/applications$");
+            editPath = await FirstHrefAsync(ctx, b + "/minhas-vagas", @"^/vagas/[0-9a-f-]{36}/editar$");
+            appsPath = await FirstHrefAsync(ctx, b + "/minhas-vagas", @"^/vagas/[0-9a-f-]{36}/candidaturas$");
             await ctx.CloseAsync();
         }
         var advertiser = new List<(string, string, bool)>
         {
-            ("dashboard", "/", false), ("my-jobs", "/my-jobs", true), ("received-applications", "/received-applications", true), ("job-create", "/jobs/create", true),
-            ("profile", "/profile/advertiser", false), ("upload-logo", "/advertiser/upload-logo", false), ("subscription", "/my-subscription", false), ("plans", "/plans", false),
-            ("notifications", "/notifications", false), ("forbidden-candidate-area", "/my-applications", false), ("jobs", "/jobs", false),
+            ("dashboard", "/", false), ("my-jobs", "/minhas-vagas", true), ("received-applications", "/candidaturas-recebidas", true), ("job-create", "/vagas/nova", true),
+            ("profile", "/perfil/empresa", false), ("upload-logo", "/empresa/logo", false), ("subscription", "/minha-assinatura", false), ("plans", "/plans", false),
+            ("notifications", "/notifications", false), ("forbidden-candidate-area", "/minhas-candidaturas", false), ("jobs", "/jobs", false),
         };
         if (editPath is not null) advertiser.Add(("job-edit", editPath, false));
         if (appsPath is not null) advertiser.Add(("job-applications", appsPath, false));
@@ -320,7 +320,7 @@ static class CaptureRunner
         {
             var ctx = await s.NewContextAsync("light");
             await LoginWebAsync(ctx, b, "contato@techsolutions.com");
-            await FormProbeAsync(s, ctx, "empresa", "job-create", "/jobs/create", "button:has-text('Próximo'), button:has-text('Continuar')");
+            await FormProbeAsync(s, ctx, "empresa", "job-create", "/vagas/nova", "button:has-text('Próximo'), button:has-text('Continuar')");
             await OverlaysAsync(s, ctx);
             await ctx.CloseAsync();
         }
@@ -328,8 +328,8 @@ static class CaptureRunner
         // ---------- Admin ----------
         var admin = new List<(string, string, bool)>
         {
-            ("dashboard", "/", false), ("accounts", "/admin/accounts", true), ("jobs", "/admin/jobs", false), ("audit", "/admin/audit", false),
-            ("ai-providers", "/admin/ai-providers", false), ("candidates", "/admin/candidates", false), ("advertisers", "/admin/advertisers", false),
+            ("dashboard", "/", false), ("accounts", "/admin/contas", true), ("jobs", "/admin/vagas", false), ("audit", "/admin/auditoria", false),
+            ("ai-providers", "/admin/provedores-ia", false), ("candidates", "/admin/candidatos", false), ("advertisers", "/admin/empresas", false),
         };
         await RoleAsync("admin", "admin@monburan.com.br", admin);
     }
@@ -341,7 +341,7 @@ static class CaptureRunner
         foreach (var vp in WebViewports.Length > 1 ? new[] { WebViewports[0], WebViewports[^1] } : WebViewports)
         {
             await page.SetViewportSizeAsync(vp.W, vp.H);
-            await page.GotoAsync(s.BaseUrl + "/received-applications", new() { WaitUntil = WaitUntilState.NetworkIdle });
+            await page.GotoAsync(s.BaseUrl + "/candidaturas-recebidas", new() { WaitUntil = WaitUntilState.NetworkIdle });
             await page.WaitForTimeoutAsync(1500);
             var open = page.Locator("[data-testid=applicant-open], button:has-text('Perfil e currículo')").First;
             if (await open.CountAsync() == 0 || !await open.IsVisibleAsync()) continue;
@@ -355,7 +355,7 @@ static class CaptureRunner
             s.Add(new() { ["site"] = "web", ["role"] = "empresa", ["page"] = "gaveta do candidato", ["viewport"] = $"{vp.W}x{vp.H}", ["tabStops"] = stops, ["afterEscape"] = await page.EvaluateAsync<JsonElement>(FocusJs) });
         }
         await page.SetViewportSizeAsync(1440, 900);
-        await page.GotoAsync(s.BaseUrl + "/my-jobs", new() { WaitUntil = WaitUntilState.NetworkIdle });
+        await page.GotoAsync(s.BaseUrl + "/minhas-vagas", new() { WaitUntil = WaitUntilState.NetworkIdle });
         await page.WaitForTimeoutAsync(1500);
         var menu = page.Locator("button[id^=job-actions-]").First;
         if (await menu.CountAsync() > 0)
@@ -396,11 +396,11 @@ static class CaptureRunner
         };
         var candidate = new List<(string, string)>
         {
-            ("home", "/"), ("jobs", "/jobs"), ("job-details", "/jobs/" + seed.AppliedJobId), ("apply-done", "/apply/" + seed.AppliedJobId),
+            ("home", "/"), ("jobs", "/jobs"), ("job-details", "/jobs/" + seed.AppliedJobId), ("apply-done", "/candidatar/" + seed.AppliedJobId),
             ("applications", "/applications"), ("saved-jobs", "/applications?aba=salvas"), ("job-alerts", "/applications?aba=alertas"),
-            ("notifications", "/notifications"), ("profile", "/profile"), ("career-profile", "/career-profile"), ("plans", "/plans"),
-            ("resumes", "/resumes"), ("resume-details", "/resumes/" + seed.ResumeId), ("resume-edit", "/resumes/" + seed.ResumeId + "/edit"),
-            ("resume-new", "/resumes/new"),
+            ("notifications", "/notifications"), ("profile", "/profile"), ("career-profile", "/perfil-profissional"), ("plans", "/plans"),
+            ("resumes", "/curriculos"), ("resume-details", "/curriculos/" + seed.ResumeId), ("resume-edit", "/curriculos/" + seed.ResumeId + "/edit"),
+            ("resume-new", "/curriculos/novo"),
         };
 
         // Uma pessoa por processo (as sessões do app são singletons): visitante e candidato em processos separados

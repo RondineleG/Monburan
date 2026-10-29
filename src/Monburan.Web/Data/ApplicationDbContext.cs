@@ -39,6 +39,14 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
 
     public DbSet<JobAlert> JobAlerts => Set<JobAlert>();
 
+    public DbSet<JobSubmission> JobSubmissions => Set<JobSubmission>();
+
+    public DbSet<JobSubmissionEvidence> JobSubmissionEvidences => Set<JobSubmissionEvidence>();
+
+    public DbSet<JobSubmissionHistory> JobSubmissionHistories => Set<JobSubmissionHistory>();
+
+    public DbSet<ResumeShare> ResumeShares => Set<ResumeShare>();
+
     public DbSet<Notification> Notifications => Set<Notification>();
 
     public DbSet<Resume> Resumes => Set<Resume>();

@@ -70,6 +70,12 @@ public class MonburanApiClient
     public Task<CandidateResponse> UpdateMyCandidateAsync(UpdateCandidateRequest request, CancellationToken ct = default) =>
         SendAsync<CandidateResponse>(HttpMethod.Put, "api/v1/candidates/me", request, ct);
 
+    // ---- Conta ----
+
+    /// <summary>Exclui a conta e anonimiza os dados pessoais. Senha errada vira 400 com erro no campo "password".</summary>
+    public Task DeleteMyAccountAsync(string password, CancellationToken ct = default) =>
+        SendAsync<object>(HttpMethod.Post, "api/v1/account/delete", new DeleteAccountRequest { Password = password }, ct);
+
     /// <summary>Completude do perfil, próximos passos e contagens (candidaturas, vagas salvas, alertas ativos).</summary>
     public Task<CandidateProgressResponse> GetMyProgressAsync(CancellationToken ct = default) =>
         SendAsync<CandidateProgressResponse>(HttpMethod.Get, "api/v1/candidates/me/progress", null, ct);

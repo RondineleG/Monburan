@@ -1,4 +1,4 @@
-@page "/jobs/edit/{jobId:guid}"
+@page "/vagas/{jobId:guid}/editar"
 @rendermode InteractiveServer
 @attribute [Microsoft.AspNetCore.Authorization.Authorize(Policy = "AdvertiserOnly")]
 @using Monburan.Core.DTOs.Request
@@ -34,14 +34,14 @@
                     Message="Esta vaga não existe ou pertence a outra empresa."
                     HeadingLevel="1"
                     TestId="job-edit-not-found">
-            <a class="btn btn-primary" href="/my-jobs">Voltar para Minhas vagas</a>
+            <a class="btn btn-primary" href="/minhas-vagas">Voltar para Minhas vagas</a>
         </EmptyState>
     }
     else
     {
         <PageHeader Title="Editar vaga"
                     Description="Atualize as informações da publicação. O que os candidatos já enviaram continua valendo."
-                    BackHref="/my-jobs"
+                    BackHref="/minhas-vagas"
                     BackText="Minhas vagas" />
         <div class="row">
             <div class="col-12">
@@ -110,7 +110,7 @@
         // Vaga antiga com categoria em texto livre e sem contrato/período continua editável
         draft = new CreateJobRequest
         {
-            AdvertiserId = job.AdvertiserId,
+            AdvertiserId = job.AdvertiserId ?? Guid.Empty,
             Title = job.Title,
             Description = job.Description,
             Requirements = job.Requirements,
@@ -179,7 +179,7 @@
         if (result.Status == EResultStatus.Success)
         {
             Toast.ShowSuccess($"As alterações em \"{draft.Title}\" foram salvas.", "Vaga atualizada");
-            Navigation.NavigateTo("/my-jobs");
+            Navigation.NavigateTo("/minhas-vagas");
             return;
         }
 
@@ -196,6 +196,6 @@
 
     private void Cancel()
     {
-        Navigation.NavigateTo("/my-jobs");
+        Navigation.NavigateTo("/minhas-vagas");
     }
 }

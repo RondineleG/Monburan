@@ -13,7 +13,7 @@ namespace Monburan.Web.Components.Account
             if (user is null)
             {
                 // O ID da conta não aparece para a pessoa: só o recado de como seguir
-                redirectManager.RedirectToWithStatus("Account/InvalidUser", "Erro: não foi possível carregar sua conta. Entre novamente.", context);
+                redirectManager.RedirectToWithStatus("/conta/usuario-invalido", "Erro: não foi possível carregar sua conta. Entre novamente.", context);
             }
 
             return user;

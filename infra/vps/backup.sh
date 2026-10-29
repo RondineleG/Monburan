@@ -80,6 +80,7 @@ chmod 700 "$BACKUP_DIR"
 stamp="$(date -u +%Y%m%dT%H%M%SZ)"
 database_file="$BACKUP_DIR/monburan-db-${stamp}.dump.age"
 uploads_file="$BACKUP_DIR/monburan-uploads-${stamp}.tar.gz.age"
+evidence_file="$BACKUP_DIR/monburan-evidencias-${stamp}.tar.gz.age"
 min_size=1024
 
 log "Banco: pg_dump de $POSTGRES_CONTAINER, criptografado na saída"
@@ -100,8 +101,20 @@ if [[ "$BACKUP_UPLOADS" == "true" ]]; then
         mv "${uploads_file}.partial" "$uploads_file"
         files+=("$uploads_file")
         log "Uploads: $(basename "$uploads_file") ($(stat -c %s "$uploads_file") bytes)"
+
+        # Imagens das sugestões de vaga: pasta privada, fora do wwwroot, em arquivo próprio
+        if docker exec "$APP_CONTAINER" test -d /app/App_Data/evidencias; then
+            log "Evidências: pasta de $APP_CONTAINER, criptografada na saída"
+            docker exec "$APP_CONTAINER" tar -czf - -C /app/App_Data evidencias \
+                | age --recipient "$BACKUP_AGE_RECIPIENT" --output "${evidence_file}.partial"
+            mv "${evidence_file}.partial" "$evidence_file"
+            files+=("$evidence_file")
+            log "Evidências: $(basename "$evidence_file") ($(stat -c %s "$evidence_file") bytes)"
+        else
+            log "aviso: $APP_CONTAINER não tem a pasta de evidências; ficou de fora deste backup"
+        fi
     else
-        log "aviso: $APP_CONTAINER não está rodando; uploads ficaram de fora deste backup"
+        log "aviso: $APP_CONTAINER não está rodando; uploads e evidências ficaram de fora deste backup"
     fi
 fi
 

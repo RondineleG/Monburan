@@ -1,4 +1,4 @@
-﻿@page "/Account/Manage/PersonalData"
+﻿@page "/conta/dados-pessoais"
 
 @inject IdentityUserAccessor UserAccessor
 
@@ -13,12 +13,12 @@
         <p>
             <strong>Excluir os dados remove sua conta de forma permanente — não é possível desfazer.</strong>
         </p>
-        <form action="Account/Manage/DownloadPersonalData" method="post" class="mb-3">
+        <form action="/Account/Manage/DownloadPersonalData" method="post" class="mb-3">
             <AntiforgeryToken />
             <button class="btn btn-primary" type="submit">Baixar meus dados</button>
         </form>
         <p>
-            <a href="Account/Manage/DeletePersonalData" class="btn btn-outline-danger">Excluir minha conta</a>
+            <a href="/conta/excluir-dados" class="btn btn-outline-danger">Excluir minha conta</a>
         </p>
     </div>
 </div>

@@ -1,4 +1,4 @@
-@page "/resumes/upload"
+@page "/curriculos/upload"
 @rendermode InteractiveServer
 @attribute [Microsoft.AspNetCore.Authorization.Authorize(Policy = "CandidateOnly")]
 @using Monburan.Core.DTOs.Request
@@ -20,7 +20,7 @@
 <div class="container page-form-shell upload-page">
     <PageHeader Title="Importar currículo em PDF"
                 Description="Nós lemos o seu PDF, preenchemos as seções do currículo e depois você revisa e completa o que faltar."
-                BackHref="/resumes" BackText="Meus currículos" />
+                BackHref="/curriculos" BackText="Meus currículos" />
     <div class="row">
         <div class="col-lg-6 mx-auto">
 
@@ -58,7 +58,7 @@
                             <strong>Importar com IA</strong> envia o texto do PDF a um serviço externo para preencher
                             o currículo com mais precisão. <strong>Importar sem IA</strong> faz a leitura no Monburan
                             e pode preencher menos campos. Você revisa o resultado antes de usar.
-                            <a href="/privacy" target="_blank" rel="noopener">Como tratamos seus dados<span class="visually-hidden"> (abre em nova aba)</span></a>.
+                            <a href="/privacidade" target="_blank" rel="noopener">Como tratamos seus dados<span class="visually-hidden"> (abre em nova aba)</span></a>.
                         </p>
                         <div class="d-grid gap-2 d-sm-flex">
                             <button type="button" class="btn btn-primary" @onclick="() => UploadResumeAsync(true)" disabled="@(!isFileSelected || isUploading)"
@@ -218,7 +218,7 @@
                 _ => "Este PDF parece digitalizado (sem texto selecionável), então não conseguimos ler nada. Preencha as seções pelo passo a passo."
             };
             Toast.ShowSuccess(message, result.ExtractedBy == EResumeImportMode.None ? "PDF sem texto legível" : "Currículo importado");
-            Navigation.NavigateTo($"/resumes/{result.ResumeId}/wizard");
+            Navigation.NavigateTo($"/curriculos/{result.ResumeId}/assistente");
         }
         catch (IOException ex)
         {

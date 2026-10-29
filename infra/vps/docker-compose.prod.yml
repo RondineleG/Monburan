@@ -9,13 +9,31 @@
 #   docker compose up -d
 # ============================================================
 services:
+  # Roda uma vez antes do app, como root, e passa os volumes para o usuário sem privilégios da imagem (UID 1654). Volumes
+  # criados quando o app ainda rodava como root ficaram com dono root; sem isto o app não grava uploads, chaves nem evidências.
+  volume-permissions:
+    image: ghcr.io/rondineleg/monburan:latest
+    user: "0:0"
+    entrypoint: ["sh", "-c", "chown -R 1654:1654 /app/wwwroot/uploads /app/keys /app/App_Data/evidencias /app/logs && chmod 700 /app/keys /app/App_Data/evidencias"]
+    volumes:
+      - app_uploads:/app/wwwroot/uploads
+      - app_keys:/app/keys
+      - app_evidence:/app/App_Data/evidencias
+      - app_logs:/app/logs
+    network_mode: none
+    restart: "no"
+
   app:
     image: ghcr.io/rondineleg/monburan:latest
     container_name: monburan-app
     restart: unless-stopped
+    depends_on:
+      volume-permissions:
+        condition: service_completed_successfully
     environment:
       - ASPNETCORE_ENVIRONMENT=Production
-      - ASPNETCORE_URLS=http://+:80
+      # A imagem roda sem root e escuta na 8080 (porta abaixo de 1024 exige root)
+      - ASPNETCORE_URLS=http://+:8080
       # Banco (rede interna do compose)
       - ConnectionStrings__DefaultConnection=Host=postgres;Port=5432;Database=${DB_NAME:-monburan};Username=${DB_USER:-monburan};Password=${DB_PASSWORD:?Defina DB_PASSWORD no .env}
       # Aplica migrations automaticamente no boot
@@ -42,6 +60,7 @@ services:
       - "AllowedHosts=${ALLOWED_HOSTS:-*}"
       # Chaves de sessão (DataProtection) persistidas no volume app_keys: o deploy não desloga mais ninguém
       - "DataProtection__KeysPath=/app/keys"
+      - "Evidence__StoragePath=/app/App_Data/evidencias"
     # Chaves dos provedores de IA (variáveis AI_KEY_*): ficam no arquivo ai-keys.env (chmod 600), fora do .env principal e
     # do repositório. O administrador cadastra cada provedor na tela "Provedores de IA" informando só o NOME da variável.
     # "required: false" exige Docker Compose 2.24+ (docker compose version); sem o arquivo o app sobe com a IA desligada.
@@ -51,11 +70,15 @@ services:
     volumes:
       - app_uploads:/app/wwwroot/uploads
       - app_keys:/app/keys
+      # Imagens das sugestões de vaga (pasta privada, fora do wwwroot): sem o volume, recriar o contêiner apaga as imagens
+      - app_evidence:/app/App_Data/evidencias
+      # Logs do Serilog (arquivo diário, 7 dias de retenção): sobrevivem à recriação do contêiner
+      - app_logs:/app/logs
     networks:
       - monburan-net
-    # Só o nginx do host acessa (via 127.0.0.1:8080 -> container 80)
+    # Só o nginx do host acessa (via 127.0.0.1:8080 -> container 8080)
     ports:
-      - "127.0.0.1:8080:80"
+      - "127.0.0.1:8080:8080"
 
   postgres:
     image: postgres:16-alpine
@@ -82,6 +105,10 @@ volumes:
   app_uploads:
     driver: local
   app_keys:
+    driver: local
+  app_evidence:
+    driver: local
+  app_logs:
     driver: local
 
 networks:

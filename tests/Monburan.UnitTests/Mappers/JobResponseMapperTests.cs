@@ -121,7 +121,7 @@ public class JobResponseMapperTests
 
         var detail = await new GetJobByIdUseCase(_jobRepository, _savedJobs).ExecuteAsync(job.Id.Value);
         var status = await new ChangeJobStatusUseCase(_jobRepository, JobLimitUseCase())
-            .ExecuteAsync(new ChangeJobStatusRequest(job.Id.Value, job.AdvertiserId.Value, EJobStatus.Paused));
+            .ExecuteAsync(new ChangeJobStatusRequest(job.Id.Value, job.AdvertiserId!.Value, EJobStatus.Paused));
 
         status.Status.Should().Be(EResultStatus.Success);
         status.Data!.AdvertiserName.Should().Be(detail.Data!.AdvertiserName);
@@ -142,7 +142,7 @@ public class JobResponseMapperTests
 
         response.AdvertiserName.Should().BeNull();
         response.AdvertiserLogoUrl.Should().BeNull();
-        response.AdvertiserId.Should().Be(job.AdvertiserId.Value);
+        response.AdvertiserId.Should().Be(job.AdvertiserId!.Value);
     }
 
     [Fact]

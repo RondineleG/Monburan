@@ -173,7 +173,7 @@
                     <p class="promo-strip__title">Sua empresa contratando por aqui</p>
                     <p class="promo-strip__text">Publique vagas gratuitamente e receba candidaturas organizadas em um só lugar.</p>
                 </div>
-                <a class="btn btn-outline-secondary" href="/Account/Register?AccountType=advertiser">Cadastrar minha empresa</a>
+                <a class="btn btn-outline-secondary" href="/criar-conta?AccountType=advertiser">Cadastrar minha empresa</a>
             </aside>
         }
     }
@@ -245,7 +245,7 @@
             if (searchTerm.Length > 0) parts.Add($"q={Uri.EscapeDataString(searchTerm)}");
             if (locationText.Length > 0) parts.Add($"local={Uri.EscapeDataString(locationText)}");
             if (jobType.Length > 0) parts.Add($"modo={Uri.EscapeDataString(jobType)}");
-            return $"/my-applications?{string.Join("&", parts)}";
+            return $"/minhas-candidaturas?{string.Join("&", parts)}";
         }
     }
 

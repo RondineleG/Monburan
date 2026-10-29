@@ -2,7 +2,7 @@
 <article class="job-card@(Compact ? " job-card--compact" : string.Empty)" data-testid="job-card">
     <div class="job-card__head">
         <span class="job-logo" aria-hidden="true">
-            @JobDisplay.Initial(Job.AdvertiserName)
+            @JobDisplay.Initial(JobChannel.CompanyName(Job))
             @if (!string.IsNullOrWhiteSpace(Job.AdvertiserLogoUrl))
             {
                 <img src="@Job.AdvertiserLogoUrl" alt="" loading="lazy" decoding="async" onerror="this.hidden=true" />
@@ -19,15 +19,16 @@
                     <a class="job-card__link" href="/jobs/@Job.Id" data-testid="job-card-link">@Job.Title</a>
                 }
             </h3>
-            @if (!string.IsNullOrWhiteSpace(Job.AdvertiserName))
+            @if (!string.IsNullOrWhiteSpace(JobChannel.CompanyName(Job)))
             {
-                <p class="job-card__company">@Job.AdvertiserName</p>
+                <p class="job-card__company">@JobChannel.CompanyName(Job)</p>
             }
         </div>
         @if (isNew)
         {
             <span class="job-flag status-badge badge--ok">Nova</span>
         }
+        <span class="status-badge @(JobChannel.IsExternal(Job) ? "badge--info" : "badge--neutral")" data-testid="job-publication">@JobChannel.PublicationLabel(Job)</span>
     </div>
 
     <ul class="job-facts" aria-label="Resumo da vaga">

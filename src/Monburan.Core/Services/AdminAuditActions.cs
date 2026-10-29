@@ -19,10 +19,12 @@ public static class AdminAuditActions
     public const string AiProviderSaved = "ai_provider.saved";
     public const string AiProviderDefaultChanged = "ai_provider.default_changed";
     public const string AiProviderDeleted = "ai_provider.deleted";
+    public const string SubmissionDecided = "submission.decided";
 
     public const string AccountTarget = "account";
     public const string JobTarget = "job";
     public const string AiProviderTarget = "aiProvider";
+    public const string SubmissionTarget = "jobSubmission";
 
     private static readonly IReadOnlyDictionary<string, string> Labels = new Dictionary<string, string>
     {
@@ -39,14 +41,16 @@ public static class AdminAuditActions
         [JobDeleted] = "Vaga excluída",
         [AiProviderSaved] = "Provedor de IA salvo",
         [AiProviderDefaultChanged] = "Provedor de IA padrão alterado",
-        [AiProviderDeleted] = "Provedor de IA excluído"
+        [AiProviderDeleted] = "Provedor de IA excluído",
+        [SubmissionDecided] = "Sugestão de vaga decidida"
     };
 
     private static readonly IReadOnlyDictionary<string, string> TargetLabels = new Dictionary<string, string>
     {
         [AccountTarget] = "Conta",
         [JobTarget] = "Vaga",
-        [AiProviderTarget] = "Provedor de IA"
+        [AiProviderTarget] = "Provedor de IA",
+        [SubmissionTarget] = "Sugestão de vaga"
     };
 
     /// <summary>Todas as ações conhecidas, na ordem de exibição dos filtros.</summary>

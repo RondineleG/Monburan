@@ -64,6 +64,9 @@ public sealed class NotifyOnApplicationCreatedUseCase : IUseCase<NotifyOnApplica
 
             var job = jobResult.Data!;
 
+            if (job.AdvertiserId is null)
+                return RequestResult<bool>.Success(true); // vaga externa: não há anunciante para avisar
+
             // Buscar anunciante para obter email
             var advertiserResult = await _advertiserRepository.GetByIdAsync(job.AdvertiserId, cancellationToken);
             if (advertiserResult.Status != EResultStatus.Success)

@@ -49,6 +49,9 @@ public sealed class AdminDeleteJobUseCase : IUseCase<AdminDeleteJobRequest, bool
         if (deleted.Status != EResultStatus.Success)
             return RequestResult<bool>.FromResult(deleted);
 
+        if (job.AdvertiserId is null)
+            return RequestResult<bool>.Success(true); // vaga externa: não há anunciante para avisar
+
         await _notifications.ExecuteAsync(new CreateNotificationRequest
         {
             RecipientId = job.AdvertiserId.Value.ToString(),

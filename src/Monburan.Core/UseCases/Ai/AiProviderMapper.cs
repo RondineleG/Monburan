@@ -21,6 +21,7 @@ internal static class AiProviderMapper
         Temperature = provider.Temperature,
         SendTemperature = provider.SendTemperature,
         UseJsonResponseFormat = provider.UseJsonResponseFormat,
+        SupportsVision = provider.SupportsVision,
         UseMaxCompletionTokens = provider.UseMaxCompletionTokens,
         UpdatedAt = provider.UpdatedAt,
         UpdatedBy = provider.UpdatedBy

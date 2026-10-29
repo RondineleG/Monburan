@@ -18,7 +18,8 @@ public sealed record AiProviderSettings(
     double Temperature,
     bool SendTemperature,
     bool UseJsonResponseFormat,
-    bool UseMaxCompletionTokens)
+    bool UseMaxCompletionTokens,
+    bool SupportsVision = false)
 {
     public static AiProviderSettings From(AiProvider provider) => new(
         provider.Id.Value,
@@ -34,5 +35,6 @@ public sealed record AiProviderSettings(
         provider.Temperature,
         provider.SendTemperature,
         provider.UseJsonResponseFormat,
-        provider.UseMaxCompletionTokens);
+        provider.UseMaxCompletionTokens,
+        provider.SupportsVision);
 }

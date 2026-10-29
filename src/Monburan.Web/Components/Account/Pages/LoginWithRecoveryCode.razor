@@ -1,4 +1,4 @@
-@page "/Account/LoginWithRecoveryCode"
+@page "/entrar/codigo-recuperacao"
 
 @using System.ComponentModel.DataAnnotations
 @using Microsoft.AspNetCore.Identity
@@ -58,7 +58,7 @@
         {
             // Acesso direto ou cookie de 2FA vencido: volta ao login em vez de dar erro 500
             RedirectManager.RedirectToWithStatus(
-                "Account/Login",
+                "/entrar",
                 "Erro: sua verificação em duas etapas expirou. Entre novamente.",
                 HttpContext);
         }
@@ -82,7 +82,7 @@
         else if (result.IsLockedOut)
         {
             Logger.LogWarning("User account locked out.");
-            RedirectManager.RedirectTo("Account/Lockout");
+            RedirectManager.RedirectTo("/conta-bloqueada");
         }
         else
         {

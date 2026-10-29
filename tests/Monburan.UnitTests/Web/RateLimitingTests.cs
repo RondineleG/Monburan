@@ -40,22 +40,22 @@ public class RateLimitingTests
     }
 
     [Theory]
-    [InlineData("POST", "/Account/Login", true)]
-    [InlineData("POST", "/account/login", true)]
-    [InlineData("POST", "/Account/Login/", true)]
-    [InlineData("POST", "/Account/Register", true)]
-    [InlineData("POST", "/Account/ForgotPassword", true)]
-    [InlineData("POST", "/Account/ResetPassword", true)]
-    [InlineData("POST", "/Account/ResendEmailConfirmation", true)]
-    [InlineData("POST", "/Account/LoginWith2fa", true)]
-    [InlineData("POST", "/Account/LoginWithRecoveryCode", true)]
+    [InlineData("POST", "/entrar", true)]
+    [InlineData("POST", "/ENTRAR", true)]
+    [InlineData("POST", "/entrar/", true)]
+    [InlineData("POST", "/criar-conta", true)]
+    [InlineData("POST", "/esqueci-senha", true)]
+    [InlineData("POST", "/redefinir-senha", true)]
+    [InlineData("POST", "/reenviar-confirmacao", true)]
+    [InlineData("POST", "/entrar/2fa", true)]
+    [InlineData("POST", "/entrar/codigo-recuperacao", true)]
     [InlineData("POST", "/api/auth/login", true)]
     [InlineData("POST", "/api/auth/register", true)]
     [InlineData("POST", "/api/auth/refresh", true)]
     [InlineData("POST", "/api/auth/forgot-password", true)]
-    [InlineData("GET", "/Account/Login", false)]
+    [InlineData("GET", "/entrar", false)]
     [InlineData("GET", "/api/auth/login", false)]
-    [InlineData("POST", "/Account/Manage/ChangePassword", false)]
+    [InlineData("POST", "/conta/alterar-senha", false)]
     [InlineData("POST", "/api/v1/jobs", false)]
     [InlineData("POST", "/", false)]
     public void IsSensitive_OnlyCoversTheSubmissionsOfLoginRegistrationAndRecovery(string method, string path, bool expected) =>
@@ -73,7 +73,7 @@ public class RateLimitingTests
     public void ClientKey_HasAFallbackWhenThereIsNoAddress() => RateLimiting.ClientKey(null).Should().Be("desconhecido");
 
     [Theory]
-    [InlineData("/Account/Login", "/Account/Login")]
+    [InlineData("/entrar", "/entrar")]
     [InlineData("/x\r\nWARN forjado: tudo certo", "/xWARN forjado: tudo certo")]
     [InlineData("/x\ny", "/xy")]
     [InlineData(null, "")]
@@ -90,9 +90,9 @@ public class RateLimitingTests
         var limiter = Limiter(authPerMinute: 3);
 
         for (var attempt = 1; attempt <= 3; attempt++)
-            Allowed(limiter, Request("POST", "/Account/Login", "203.0.113.1")).Should().BeTrue($"tentativa {attempt}");
+            Allowed(limiter, Request("POST", "/entrar", "203.0.113.1")).Should().BeTrue($"tentativa {attempt}");
 
-        Allowed(limiter, Request("POST", "/Account/Login", "203.0.113.1")).Should().BeFalse();
+        Allowed(limiter, Request("POST", "/entrar", "203.0.113.1")).Should().BeFalse();
     }
 
     [Fact]
@@ -100,8 +100,8 @@ public class RateLimitingTests
     {
         var limiter = Limiter(authPerMinute: 3);
 
-        Allowed(limiter, Request("POST", "/Account/Login", "203.0.113.2")).Should().BeTrue();
-        Allowed(limiter, Request("POST", "/Account/Register", "203.0.113.2")).Should().BeTrue();
+        Allowed(limiter, Request("POST", "/entrar", "203.0.113.2")).Should().BeTrue();
+        Allowed(limiter, Request("POST", "/criar-conta", "203.0.113.2")).Should().BeTrue();
         Allowed(limiter, Request("POST", "/api/auth/forgot-password", "203.0.113.2")).Should().BeTrue();
 
         Allowed(limiter, Request("POST", "/api/auth/login", "203.0.113.2")).Should().BeFalse();
@@ -111,22 +111,22 @@ public class RateLimitingTests
     public void AnotherIpIsNotAffected()
     {
         var limiter = Limiter(authPerMinute: 2);
-        Allowed(limiter, Request("POST", "/Account/Login", "203.0.113.3")).Should().BeTrue();
-        Allowed(limiter, Request("POST", "/Account/Login", "203.0.113.3")).Should().BeTrue();
-        Allowed(limiter, Request("POST", "/Account/Login", "203.0.113.3")).Should().BeFalse();
+        Allowed(limiter, Request("POST", "/entrar", "203.0.113.3")).Should().BeTrue();
+        Allowed(limiter, Request("POST", "/entrar", "203.0.113.3")).Should().BeTrue();
+        Allowed(limiter, Request("POST", "/entrar", "203.0.113.3")).Should().BeFalse();
 
-        Allowed(limiter, Request("POST", "/Account/Login", "203.0.113.4")).Should().BeTrue();
+        Allowed(limiter, Request("POST", "/entrar", "203.0.113.4")).Should().BeTrue();
     }
 
     [Fact]
     public void ReadingPagesIsNeverCountedAgainstTheLoginBudget()
     {
         var limiter = Limiter(authPerMinute: 1);
-        Allowed(limiter, Request("POST", "/Account/Login", "203.0.113.5")).Should().BeTrue();
-        Allowed(limiter, Request("POST", "/Account/Login", "203.0.113.5")).Should().BeFalse();
+        Allowed(limiter, Request("POST", "/entrar", "203.0.113.5")).Should().BeTrue();
+        Allowed(limiter, Request("POST", "/entrar", "203.0.113.5")).Should().BeFalse();
 
         for (var index = 0; index < 20; index++)
-            Allowed(limiter, Request("GET", "/Account/Login", "203.0.113.5")).Should().BeTrue();
+            Allowed(limiter, Request("GET", "/entrar", "203.0.113.5")).Should().BeTrue();
     }
 
     [Fact]
@@ -153,7 +153,7 @@ public class RateLimitingTests
         var limiter = Limiter(authPerMinute: 1);
         var context = new DefaultHttpContext();
         context.Request.Method = "POST";
-        context.Request.Path = "/Account/Login";
+        context.Request.Path = "/entrar";
 
         Allowed(limiter, context).Should().BeTrue();
         Allowed(limiter, context).Should().BeFalse();

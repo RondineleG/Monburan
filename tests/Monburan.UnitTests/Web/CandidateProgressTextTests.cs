@@ -25,10 +25,10 @@ public class CandidateProgressTextTests
         {
             Checklist =
             [
-                new CandidateProgressChecklistItem { Key = "name", Label = "Nome completo", Done = true, ActionUrl = "/profile/candidate" },
-                new CandidateProgressChecklistItem { Key = "phone", Label = "Telefone", Done = false, ActionUrl = "/profile/candidate" },
-                new CandidateProgressChecklistItem { Key = "resume", Label = "Currículo cadastrado", Done = false, ActionUrl = "/resumes" },
-                new CandidateProgressChecklistItem { Key = "careerProfile", Label = "Perfil de carreira", Done = true, ActionUrl = "/career-profile" }
+                new CandidateProgressChecklistItem { Key = "name", Label = "Nome completo", Done = true, ActionUrl = "/perfil/candidato" },
+                new CandidateProgressChecklistItem { Key = "phone", Label = "Telefone", Done = false, ActionUrl = "/perfil/candidato" },
+                new CandidateProgressChecklistItem { Key = "resume", Label = "Currículo cadastrado", Done = false, ActionUrl = "/curriculos" },
+                new CandidateProgressChecklistItem { Key = "careerProfile", Label = "Perfil de carreira", Done = true, ActionUrl = "/perfil-profissional" }
             ]
         };
 

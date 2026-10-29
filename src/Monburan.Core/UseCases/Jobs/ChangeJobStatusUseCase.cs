@@ -35,7 +35,7 @@ public sealed class ChangeJobStatusUseCase : IUseCase<ChangeJobStatusRequest, Jo
         var jobResult = await _jobRepository.GetByIdAsync(Id.Create(request.JobId), cancellationToken);
         // Vaga de outro anunciante responde como inexistente — não revela o id
         if (jobResult.Status != EResultStatus.Success || jobResult.Data is null
-            || jobResult.Data.AdvertiserId.Value != request.AdvertiserId)
+            || jobResult.Data.AdvertiserId?.Value != request.AdvertiserId)
         {
             return RequestResult<JobResponse>.EntityNotFound("Job", request.JobId, "Vaga não encontrada.");
         }

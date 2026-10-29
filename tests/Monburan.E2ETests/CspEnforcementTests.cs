@@ -21,11 +21,11 @@ public class CspEnforcementTests : E2ETestBase
 
     private async Task LoginAsync(string email)
     {
-        await Page.GotoAsync(BaseUrl + "/Account/Login");
+        await Page.GotoAsync(BaseUrl + "/entrar");
         await Page.GetByTestId("login-email").FillAsync(email);
         await Page.GetByTestId("login-password").FillAsync(TestPassword);
         await Page.GetByTestId("login-submit").ClickAsync();
-        await Page.WaitForURLAsync(url => !url.Contains("/Account/Login", StringComparison.OrdinalIgnoreCase));
+        await Page.WaitForURLAsync(url => !url.Contains("/entrar", StringComparison.OrdinalIgnoreCase));
     }
 
     private async Task VisitAsync(string path)
@@ -45,7 +45,7 @@ public class CspEnforcementTests : E2ETestBase
     [Fact]
     public async Task PublicPages_LoadWithoutAnyViolation()
     {
-        foreach (var path in new[] { "/", "/jobs", "/Account/Login", "/Account/Register", "/privacy", "/terms", "/plans" })
+        foreach (var path in new[] { "/", "/jobs", "/entrar", "/criar-conta", "/privacidade", "/termos", "/plans" })
             await VisitAsync(path);
     }
 
@@ -65,7 +65,7 @@ public class CspEnforcementTests : E2ETestBase
     {
         await LoginAsync(CandidateEmail);
 
-        foreach (var path in new[] { "/dashboard", "/resumes", "/my-applications", "/notifications", "/Account/Manage" })
+        foreach (var path in new[] { "/painel", "/curriculos", "/minhas-candidaturas", "/notifications", "/conta" })
             await VisitAsync(path);
     }
 
@@ -74,7 +74,7 @@ public class CspEnforcementTests : E2ETestBase
     {
         await LoginAsync(AdvertiserEmail);
 
-        foreach (var path in new[] { "/dashboard", "/my-jobs", "/received-applications", "/jobs/create", "/plans", "/Account/Manage" })
+        foreach (var path in new[] { "/painel", "/minhas-vagas", "/candidaturas-recebidas", "/vagas/nova", "/plans", "/conta" })
             await VisitAsync(path);
     }
 
@@ -83,7 +83,7 @@ public class CspEnforcementTests : E2ETestBase
     {
         await LoginAsync(AdminEmail);
 
-        foreach (var path in new[] { "/admin/candidates", "/admin/advertisers", "/admin/ai-providers" })
+        foreach (var path in new[] { "/admin/candidatos", "/admin/empresas", "/admin/provedores-ia" })
             await VisitAsync(path);
     }
 

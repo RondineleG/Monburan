@@ -19,7 +19,7 @@ public class AdminAiProvidersTests : E2ETestBase
 {
     private const string AdminEmail = "admin@monburan.com.br";
     private const string FakeKey = "valor-falso-so-para-o-teste-e2e";
-    private const string PagePath = "/admin/ai-providers";
+    private const string PagePath = "/admin/provedores-ia";
 
     public AdminAiProvidersTests(PlaywrightFixture fixture) : base(fixture)
     {
@@ -314,7 +314,7 @@ public class AdminAiProvidersTests : E2ETestBase
     {
         await GotoAsync(PagePath);
 
-        Assert.Contains("/Account/Login", Page.Url, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("/entrar", Page.Url, StringComparison.OrdinalIgnoreCase);
         Assert.Equal(0, await Page.GetByTestId("ai-provider-card").CountAsync());
     }
 }
