@@ -30,3 +30,11 @@ Este arquivo vale para qualquer agente ou ferramenta de IA que trabalhe neste re
 - Padrão **Conventional Commits** (`tipo(escopo): descrição`), em pt-BR, um assunto por commit.
 - Antes de empurrar, `git log <base>..HEAD --format=%B | grep -iE 'co-authored|generated with|claude|copilot|codex|gemini'`
   não deve retornar nada.
+
+## Funcionalidades novas atrás de feature flag
+
+- Funcionalidade nova entra desligada, atrás de uma feature flag por grupo de acesso, e é liberada pela tela
+  `/admin/funcionalidades` (time → beta → todos). Guia completo em `docs/FEATURE-FLAGS.md`.
+- Confira a flag também no servidor (`RequireFeature` no endpoint ou `IFeatureFlags` no caso de uso), não só na tela.
+- Migrations funcionam com a flag ligada e desligada (expandir antes, contrair depois).
+- Depois de liberada para todos, remova a flag do código e da tela. Regra permanente de negócio fica nos planos, não em flag.
