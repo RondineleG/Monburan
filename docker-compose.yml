@@ -31,7 +31,7 @@ services:
     container_name: monburan-app
     environment:
       - ASPNETCORE_ENVIRONMENT=Production
-      - ASPNETCORE_URLS=http://+:80
+      - ASPNETCORE_URLS=http://+:8080
       - ConnectionStrings__DefaultConnection=Host=postgres;Port=5432;Database=${DB_NAME:-monburan};Username=${DB_USER:-postgres};Password=${DB_PASSWORD:-postgres}
       - SendGrid__ApiKey=${SENDGRID_API_KEY:-}
       - SendGrid__FromEmail=noreply@monburan.com.br
@@ -55,10 +55,11 @@ services:
       - path: ./ai-keys.env
         required: false
     ports:
-      - "127.0.0.1:8080:80"
+      - "127.0.0.1:8080:8080"
     volumes:
       - app_uploads:/app/wwwroot/uploads
       - app_keys:/app/keys
+      - app_evidence:/app/App_Data/evidencias
     depends_on:
       postgres:
         condition: service_healthy
@@ -72,6 +73,8 @@ volumes:
   app_uploads:
     driver: local
   app_keys:
+    driver: local
+  app_evidence:
     driver: local
 
 networks:

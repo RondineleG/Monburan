@@ -30,13 +30,13 @@ services:
     container_name: monburan-app-dev
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
-      - ASPNETCORE_URLS=http://+:80
+      - ASPNETCORE_URLS=http://+:8080
       - ConnectionStrings__DefaultConnection=Host=postgres;Port=5432;Database=${DB_NAME:-monburan};Username=${DB_USER:-postgres};Password=${DB_PASSWORD:-postgres}
       - SendGrid__ApiKey=${SENDGRID_API_KEY:-}
       - SendGrid__FromEmail=noreply@monburan.com.br
       - SendGrid__FromName=Monburan
     ports:
-      - "8080:80"
+      - "8080:8080"
     volumes:
       - app_uploads:/app/wwwroot/uploads
       - ./src/Monburan.Web:/app/src/Monburan.Web:ro  # Hot reload
