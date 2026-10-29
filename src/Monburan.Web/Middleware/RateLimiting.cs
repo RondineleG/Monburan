@@ -103,6 +103,19 @@ public static class RateLimiting
         return cleaned.Length <= 200 ? cleaned : cleaned[..200];
     }
 
+    /// <summary>
+    /// Caminho para o log sem o token do link público de currículo (<c>/curriculo/{token}</c>): quem lê o log não deve
+    /// conseguir abrir o currículo.
+    /// </summary>
+    public static string PathForLog(string? path)
+    {
+        const string prefix = "/curriculo/";
+        var cleaned = ForLog(path);
+        return cleaned.StartsWith(prefix, StringComparison.OrdinalIgnoreCase) && cleaned.Length > prefix.Length
+            ? prefix + "***"
+            : cleaned;
+    }
+
     private static async ValueTask RejectAsync(OnRejectedContext context, CancellationToken cancellationToken)
     {
         var http = context.HttpContext;
@@ -112,7 +125,7 @@ public static class RateLimiting
 
         var logger = http.RequestServices.GetService<ILoggerFactory>()?.CreateLogger("Monburan.RateLimit");
         logger?.LogWarning("Limite de requisições: {Metodo} {Rota} de {Cliente} recusado (tente de novo em {Segundos}s)",
-            ForLog(http.Request.Method), ForLog(http.Request.Path.Value), ClientKey(http.Connection.RemoteIpAddress), seconds);
+            ForLog(http.Request.Method), PathForLog(http.Request.Path.Value), ClientKey(http.Connection.RemoteIpAddress), seconds);
 
         const string message = "Muitas tentativas em pouco tempo. Aguarde um instante e tente de novo.";
         if (http.Request.Path.StartsWithSegments("/api"))

@@ -461,6 +461,8 @@ builder.Services.AddScoped<Monburan.Web.UseCases.Analytics.GetDashboardAnalytics
 
 // Registrar Background Services
 builder.Services.AddHostedService<JobExpirationBackgroundService>();
+// Retenção das imagens de sugestões encerradas (Evidence:RetentionDays, padrão 90 dias; 0 desliga)
+builder.Services.AddHostedService<EvidenceRetentionBackgroundService>();
 
 // Serviços existentes
 builder.Services.AddScoped<AddressRepository>();

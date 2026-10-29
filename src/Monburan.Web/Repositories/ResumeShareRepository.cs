@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Monburan.Core.Entities;
 using Monburan.Core.Interfaces.Repositories;
 using Monburan.Core.Requests;
+using Monburan.Core.Services;
 using Monburan.Core.ValueObjects;
 using Monburan.Web.Data;
 
@@ -16,11 +17,39 @@ public class ResumeShareRepository : IResumeShareRepository
         _contextFactory = contextFactory;
     }
 
+    /// <summary>
+    /// Grava o link conferindo o limite de links ativos na mesma transação. No PostgreSQL a linha do currículo fica
+    /// travada (FOR UPDATE) até o fim, então dois pedidos simultâneos não passam juntos do limite.
+    /// </summary>
     public async Task<RequestResult<ResumeShare>> CreateAsync(ResumeShare share, CancellationToken cancellationToken = default)
     {
         await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);
+        await using var transaction = context.Database.IsRelational()
+            ? await context.Database.BeginTransactionAsync(cancellationToken)
+            : null;
+
+        if (context.Database.IsNpgsql())
+        {
+            await context.Database.ExecuteSqlInterpolatedAsync(
+                $"SELECT 1 FROM \"Resumes\" WHERE \"Id\" = {share.ResumeId.Value} FOR UPDATE", cancellationToken);
+        }
+
+        var now = DateTime.UtcNow;
+        var active = await context.ResumeShares
+            .CountAsync(s => s.ResumeId == share.ResumeId && !s.IsDeleted && s.RevokedAt == null
+                && (s.ExpiresAt == null || s.ExpiresAt > now), cancellationToken);
+        if (active >= ResumeShareRules.MaxActiveSharesPerResume)
+        {
+            return RequestResult<ResumeShare>.WithDomainError(
+                $"Este currículo já tem {ResumeShareRules.MaxActiveSharesPerResume} links ativos. Revogue um antes de criar outro.");
+        }
+
         context.ResumeShares.Add(share);
         await context.SaveChangesAsync(cancellationToken);
+
+        if (transaction is not null)
+            await transaction.CommitAsync(cancellationToken);
+
         return RequestResult<ResumeShare>.Success(share);
     }
 
