@@ -87,8 +87,34 @@ para o público.
 **Quando houver conta Apple Developer** (US$ 99/ano), a próxima fase é assinar na esteira e enviar ao TestFlight. Seriam
 necessários: certificado de distribuição (`.p12` e senha), perfil de provisionamento do `com.monburan.app` e a chave da
 API do App Store Connect (Issuer ID, Key ID e `.p8`), além de um número de build que cresça a cada envio (a Apple
-recusa repetidos). Para a App Store, faltam ainda a exclusão de conta dentro do app, o manifesto de privacidade
-(`PrivacyInfo.xcprivacy`), ícones e capturas de tela.
+recusa repetidos). Para a App Store, faltam ainda o manifesto de privacidade (`PrivacyInfo.xcprivacy`), ícones e
+capturas de tela (a exclusão de conta dentro do app já existe).
+
+## Homologação (dev) — https://app-dev-monburan.gearhost.io
+
+Cada push na `dev` (merge de PR) com mudança no site publica no ambiente de homologação pelo `deploy-dev.yml`: roda os
+testes unitários, publica, confere o tamanho, envia por FTP e espera o `/health/live` responder. Serve para testar a
+`dev` como se fosse produção antes de promover para a `main`. Para publicar sem merge: Actions → "Deploy dev" → Run
+workflow (só na `dev`).
+
+| Item | Como é |
+|---|---|
+| Hospedagem | GearHost (IIS, Windows), FTP em `deimos.gearhost.io/wwwroot`. Limite de **100 MB** por publicação: o workflow falha acima disso. |
+| Publicação | Dependente do framework (cerca de 46 MB). A autocontida passa de 160 MB. Por isso o servidor precisa do runtime **ASP.NET Core 10**; sem ele o site responde HTTP 500.31 e o workflow falha no `/health/live`. |
+| Banco | PostgreSQL próprio no Neon (separado de produção). Migrations aplicadas no boot (`APPLY_MIGRATIONS=true`). |
+| Ambiente | `ASPNETCORE_ENVIRONMENT=Staging`: o seed de Development (senhas públicas no repositório) **não** roda; 2FA de administrador desligado para facilitar o teste. |
+| Massa de dados | `DemoSeedData` (`Seed:DemoData=true`): 12 empresas, 40 candidatos, 61 vagas (inclui pausadas, expiradas, em moderação e 3 externas), currículos, 120 candidaturas com histórico, notificações, vagas salvas e perfis profissionais. Nomes e textos realistas. Roda uma vez, num banco sem a massa. |
+| Contas | `@demo.monburan.com.br` (domínio que não recebe e-mail; o ambiente não tem SMTP configurado). Administrador: `admin@demo.monburan.com.br`. Senha de todas: secret `DEV_SEED_PASSWORD`. |
+| Dados do servidor | `App_Data` (chaves de sessão e evidências), `logs` e `wwwroot/uploads` nunca são apagados pelo envio. |
+
+Segredos no environment **`dev`** do GitHub (Settings → Environments → dev; deploy só a partir da branch `dev`):
+`DEV_FTP_HOST`, `DEV_FTP_USER`, `DEV_FTP_PASSWORD`, `DEV_DB_CONNECTION` (formato Npgsql:
+`Host=...;Database=...;Username=...;Password=...;SSL Mode=Require;Channel Binding=Require`), `DEV_JWT_SIGNING_KEY` e
+`DEV_SEED_PASSWORD`. Variável `DEV_APP_URL` (opcional, padrão acima) e `DEV_FTP_DIR` (padrão `/wwwroot`). O arquivo
+`.publishsettings` baixado do painel tem a senha do FTP: fica fora do Git (`*.publishsettings` no `.gitignore`).
+
+Para recriar a massa do zero: apague os dados do banco do Neon (ou crie um branch novo do banco no painel do Neon e troque
+`DEV_DB_CONNECTION`) e rode o workflow de novo.
 
 ## Publicar a web (VPS)
 
