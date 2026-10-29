@@ -206,8 +206,8 @@ configure_ufw() {
     run ufw --force enable
 
     echo "    Lembrete: o Docker publica portas pelo iptables e IGNORA o ufw. O compose do Monburan publica o app só em"
-    echo "    127.0.0.1:8080 e não publica o Postgres; qualquer porta nova ligada a 0.0.0.0 ficaria exposta. A verificação"
-    echo "    final lista o que escuta fora do loopback."
+    echo "    127.0.0.1:8080 e o banco fica na nuvem (fora da VPS); qualquer porta nova ligada a 0.0.0.0 ficaria exposta."
+    echo "    A verificação final lista o que escuta fora do loopback."
 }
 
 check_ssh_key_for_admin() {

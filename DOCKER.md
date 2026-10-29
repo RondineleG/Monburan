@@ -202,7 +202,7 @@ A stack de produção fica em `infra/vps/` e serve `https://monburan.com.br`:
 
 ```
 infra/vps/
-├── docker-compose.prod.yml  # app (imagem GHCR) + postgres, app só em 127.0.0.1:8080
+├── docker-compose.prod.yml  # app (imagem GHCR), banco na nuvem; app só em 127.0.0.1:8080
 ├── nginx.conf               # reverse proxy: 80→443, WebSocket p/ Blazor Server
 ├── provision.sh             # prepara um servidor novo: Docker, nginx, certbot, age, rclone
 ├── harden.sh                # firewall, SSH só por chave, fail2ban, atualizações automáticas
@@ -224,9 +224,10 @@ infra/vps/
    bash deploy.sh --email voce@exemplo.com --admin-email adm@exemplo.com
    ```
 
-Na primeira vez o `deploy.sh` cria o `.env` com a senha do banco e a chave JWT geradas no
-servidor, sobe a stack, emite o certificado (certbot) e instala o `nginx.conf`. Nas seguintes,
-tira um backup, guarda a imagem atual para rollback, baixa as imagens novas e reinicia o app.
+Na primeira vez o `deploy.sh` cria o `.env` com a chave JWT gerada no servidor (a `DB_CONNECTION`
+do banco na nuvem você cola do painel do provedor), sobe o app, emite o certificado (certbot) e
+instala o `nginx.conf`. Nas seguintes, tira um backup, guarda a imagem atual para rollback, baixa
+a imagem nova e reinicia o app.
 Passo a passo e rollback em [docs/CI-CD.md](docs/CI-CD.md) e [docs/SEGURANCA.md](docs/SEGURANCA.md).
 
 ### Arquitetura de produção
@@ -234,11 +235,11 @@ Passo a passo e rollback em [docs/CI-CD.md](docs/CI-CD.md) e [docs/SEGURANCA.md]
 ```
 Internet → nginx (host, :443 TLS certbot)
             └── proxy → 127.0.0.1:8080 → container monburan-app (:8080, sem root)
-                                             └── postgres (rede interna)
+                                             └── PostgreSQL gerenciado (nuvem, DB_CONNECTION)
 ```
 
 - O app **não** expõe porta pública — só `127.0.0.1:8080`.
-- Uploads persistem no volume `app_uploads`, imagens das sugestões em `app_evidence`, logs em `app_logs`; banco no volume `postgres_data`.
+- Uploads persistem no volume `app_uploads`, imagens das sugestões em `app_evidence`, logs em `app_logs`; o banco fica na nuvem (`DB_CONNECTION` no `.env`).
 - `APPLY_MIGRATIONS=true` aplica migrations no boot.
 - E-mail sai via SMTP (Resend) usando as variáveis `Smtp__*`.
 
@@ -321,7 +322,7 @@ docker system df
 
 ### Senhas e Segredos
 - **Nunca** use as senhas padrão em produção
-- Altere `DB_PASSWORD` e defina `JWT_SIGNING_KEY` no `.env`
+- Defina `DB_CONNECTION` (banco na nuvem, com `SSL Mode=Require`) e `JWT_SIGNING_KEY` no `.env`
 - O `.env` de produção deve ter `chmod 600` (o `infra/vps/deploy.sh` já aplica)
 - Use senhas fortes (mínimo 12 caracteres com letras, números e símbolos)
 
@@ -336,7 +337,7 @@ da app expõe apenas HTTP interno (`127.0.0.1:8080`).
 - Multi-stage build para reduzir tamanho da imagem
 - `.dockerignore` para excluir arquivos desnecessários
 - Health check no Postgres (app só sobe com o banco pronto)
-- Volumes persistentes para dados do banco e uploads
+- Volumes persistentes para o banco (desenvolvimento) e uploads
 - Cache de camadas do build no GHCR (`cache-from/to: type=gha`)
 
 ### Tamanho das Imagens

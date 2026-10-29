@@ -2,10 +2,12 @@
 # ============================================================
 # Monburan — Deploy na VPS
 #
-# Sobe (ou atualiza) a stack Docker (app + Postgres, imagem do GHCR), instala o nginx.conf e, na primeira vez, emite o certificado
-# TLS (certbot). Pressupõe o servidor preparado (provision.sh) e os arquivos de infra/vps em /opt/monburan.
+# Sobe (ou atualiza) o app Docker (imagem do GHCR; o banco é o PostgreSQL gerenciado na nuvem, DB_CONNECTION no .env), instala o
+# nginx.conf e, na primeira vez, emite o certificado TLS (certbot). Pressupõe o servidor preparado (provision.sh) e os arquivos de
+# infra/vps em /opt/monburan.
 #
-# Primeira vez: cria o .env com a senha do banco e a chave JWT NOVAS (geradas aqui, nunca exibidas). Se o certificado ainda não
+# Primeira vez: cria o .env com a chave JWT NOVA (gerada aqui, nunca exibida); a DB_CONNECTION você copia do painel do provedor do
+# banco. Se o certificado ainda não
 # existe, o nginx sobe só em HTTP, o certbot emite o certificado e só então entra o nginx.conf completo (que depende dele).
 # Nas vezes seguintes: tira um backup (se o backup.sh estiver configurado), guarda a imagem atual como rollback, baixa a nova,
 # reinicia o app e espera o /health.
@@ -73,12 +75,11 @@ ensure_env() {
     if [[ ! -f "$env_file" ]]; then
         [[ -f "$INSTALL_DIR/env.example" ]] || fail "falta $INSTALL_DIR/env.example (copie infra/vps para $INSTALL_DIR)"
         install -m 600 "$INSTALL_DIR/env.example" "$env_file"
-        set_env_value "$env_file" DB_PASSWORD "$(openssl rand -hex 24)"
         set_env_value "$env_file" JWT_SIGNING_KEY "$(openssl rand -base64 48 | tr -d '\n')"
         set_env_value "$env_file" ALLOWED_HOSTS "$DOMAIN;www.$DOMAIN;127.0.0.1"
         set_env_value "$env_file" APP_PUBLIC_BASE_URL "https://$DOMAIN"
         chmod 600 "$env_file"
-        log ".env criado com a senha do banco e a chave JWT novas (não são exibidas)"
+        log ".env criado com a chave JWT nova (não é exibida)"
         warn "preencha SMTP_PASSWORD no .env (sem ele o app não envia e-mail) e reinicie o app: docker compose up -d --force-recreate app"
     fi
 
@@ -89,6 +90,11 @@ ensure_env() {
 
     if grep -q 'TROQUE' "$env_file"; then
         fail "$env_file ainda tem valores de exemplo (TROQUE_...): troque ou apague o arquivo para eu gerar novos"
+    fi
+
+    # O banco é gerenciado (nuvem) e a connection string não dá para gerar aqui: vem do painel do provedor
+    if ! grep -q '^DB_CONNECTION=[^[:space:]]' "$env_file"; then
+        fail "defina DB_CONNECTION no $env_file (connection string Npgsql do PostgreSQL na nuvem, com SSL Mode=Require — passo a passo em docs/SEGURANCA.md) e rode o deploy de novo"
     fi
     chmod 600 "$env_file"
 }
@@ -177,11 +183,11 @@ wait_for_health() {
 }
 
 start_stack() {
-    log "Stack (app + Postgres)"
+    log "Stack (app)"
     safety_net
     if [[ $SKIP_PULL -eq 1 ]]; then
         warn "--skip-pull: sobe a imagem que já está no servidor, sem baixar a nova"
-    # Todas as imagens, a do app e a do Postgres: o rebuild semanal traz os patches das duas, e o up só recria o que mudou
+    # O rebuild semanal traz os patches das imagens base, e o up só recria o que mudou
     elif ! docker compose pull; then
         # Antes só avisava e seguia com a imagem antiga: o deploy terminava "concluído" sem trocar a versão
         fail "não consegui baixar a imagem nova e nada foi trocado (confira o acesso ao ghcr.io; para subir a imagem que já está no servidor, use --skip-pull)"

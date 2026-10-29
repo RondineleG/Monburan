@@ -1,0 +1,6 @@
+# Arquivos de texto que rodam na VPS precisam de LF mesmo em checkout no Windows
+# (script com CRLF falha no bash; um *.env com CRLF carrega o \r para dentro dos valores)
+*.sh text eol=lf
+*.example text eol=lf
+*.service text eol=lf
+*.timer text eol=lf

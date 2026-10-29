@@ -1,6 +1,6 @@
 name: Rebuild semanal da imagem
 
-# As imagens base (.NET e Postgres) usam tags que recebem patches de segurança, mas a imagem do app só era reconstruída
+# As imagens base (.NET) usam tags que recebem patches de segurança, mas a imagem do app só era reconstruída
 # quando algo mudava em src/ ou infra/vps/: um patch do runtime podia ficar semanas fora da produção. Toda segunda este
 # workflow dispara o docker-ghcr.yml na MAIN, que reconstrói a imagem com as bases atualizadas, publica e faz o deploy na
 # VPS. O agendamento roda na branch padrão (dev), mas nada é construído a partir dela: o build e o deploy são os da main.

@@ -119,6 +119,10 @@ Falha ao gravar a trilha nunca derruba a ação, mas é registrada no log.
 
 ## Servidor novo, do zero
 
+O banco é um **PostgreSQL gerenciado na nuvem** (fora da VPS): crie-o antes, no provedor — no Neon, um projeto novo já vem com a
+connection string pronta; você vai precisar dela em dois formatos, a do **Npgsql** (`Host=...;...;SSL Mode=Require`, para o
+`DB_CONNECTION` do `.env`) e a **URI** (`postgresql://...`, para o `BACKUP_DB_URL` do `backup.env`).
+
 Para um servidor recém-instalado (Debian 12 ou 13, ou Ubuntu 22.04 ou 24.04; **Debian 13 recomendado**, com 2 GB de RAM ou mais), como
 root, com a sua chave SSH já autorizada. Cada script mostra o plano antes de aplicar e pode rodar de novo.
 
@@ -133,16 +137,17 @@ bash harden.sh --apply
 # 3. o app: copie infra/vps para /opt/monburan e rode (o DNS do domínio já tem que apontar para este servidor)
 cd /opt/monburan
 bash deploy.sh --email voce@exemplo.com --admin-email adm@exemplo.com
+# (a primeira vez ele cria o .env e para pedindo a DB_CONNECTION: cole a connection string no .env e rode de novo)
 
 # 4. confira
 bash validate.sh
 ```
 
-O `deploy.sh` cria o `.env` com a senha do banco e a chave JWT **novas** (geradas ali, nunca exibidas), sobe a stack, sobe o nginx só
+O `deploy.sh` cria o `.env` com a chave JWT **nova** (gerada ali, nunca exibida), sobe o app, sobe o nginx só
 em HTTP, pede o certificado ao certbot e só então instala o `nginx.conf` completo (que depende do certificado). Nas vezes seguintes ele
 tira um backup (se o `backup.sh` estiver configurado), guarda a imagem atual com uma tag de rollback, baixa a nova e espera o `/health`.
 Se o certbot falhar (o DNS ainda não aponta para o servidor), o site fica em HTTP, o script sai com erro e basta rodar de novo depois.
-Você digita direto no servidor o que é seu: `SMTP_PASSWORD` no `.env` e as credenciais do destino do backup.
+Você digita direto no servidor o que é seu: `DB_CONNECTION` e `SMTP_PASSWORD` no `.env`, `BACKUP_DB_URL` e as credenciais do destino do backup.
 
 Os testes `infra/vps/tests/deploy-smoke.sh` (e os da esteira `infra-scripts.yml`) rodam `provision.sh` e `deploy.sh` de verdade em um
 Debian 13 descartável, inclusive os casos de falha.
@@ -162,6 +167,7 @@ Para um servidor que já existe, faça nesta ordem. Os arquivos citados estão e
 
 | Variável | Para quê |
 |---|---|
+| `DB_CONNECTION` | Connection string Npgsql do banco na nuvem (obrigatória, com `SSL Mode=Require`) |
 | `ADMIN_EMAILS` | E-mails dos administradores (a conta precisa ter o e-mail confirmado) |
 | `REQUIRE_ADMIN_2FA` | `true` (padrão): administrador só entra com 2FA; `false` só em emergência |
 | `ALLOWED_HOSTS` | `monburan.com.br;www.monburan.com.br;127.0.0.1`: qualquer outro `Host` recebe 400 |
@@ -197,22 +203,24 @@ reinício automático**: de vez em quando confira `/var/run/reboot-required` e r
 sistema que ainda recebe correções: confira a versão (`cat /etc/os-release`) e veja o fim de "O que ainda não está coberto".
 
 Para desfazer o SSH: apague `/etc/ssh/sshd_config.d/00-monburan-hardening.conf` e recarregue o `ssh`. O Docker publica
-portas pelo iptables e **ignora** o ufw: o compose só publica o app em `127.0.0.1:8080` e não publica o Postgres; qualquer
-porta nova publicada em `0.0.0.0` ficaria exposta. A verificação final do script lista o que escuta fora do loopback.
+portas pelo iptables e **ignora** o ufw: o compose só publica o app em `127.0.0.1:8080` e o banco fica na nuvem (fora da VPS);
+qualquer porta nova publicada em `0.0.0.0` ficaria exposta. A verificação final do script lista o que escuta fora do loopback.
 
 Recomendado em seguida: criar um usuário próprio com `sudo`, copiar a chave para ele e trocar `PermitRootLogin` para `no`.
 
 ### 4. Backup criptografado fora do servidor
 
-O que vai: o banco (`pg_dump`), a pasta de uploads e as imagens das sugestões de vaga (`App_Data/evidencias`), criptografados com [age](https://github.com/FiloSottile/age) antes de
+O que vai: o banco (`pg_dump` de um contêiner descartável apontando para o banco na nuvem), a pasta de uploads e as imagens das sugestões de vaga (`App_Data/evidencias`), criptografados com [age](https://github.com/FiloSottile/age) antes de
 tocar o disco e enviados com [rclone](https://rclone.org). Quem invadir a VPS ou o armazenamento remoto só encontra
-arquivos que não consegue abrir, porque a **chave privada não fica na VPS**.
+arquivos que não consegue abrir, porque a **chave privada não fica na VPS**. Os snapshots do provedor do banco são uma camada
+a mais: este dump continua restaurável por você, em qualquer PostgreSQL, sem depender do provedor.
 
 1. Na sua máquina (não na VPS): `age-keygen -o monburan-backup-key.txt`. A linha `Public key: age1...` vai para a VPS; o
    arquivo inteiro é a chave privada: guarde no gerenciador de senhas e em uma cópia offline. **Sem ela, os backups não
    abrem.**
 2. Na VPS: `apt-get install -y age rclone`, copie `backup.sh`, `restore-test.sh` e `backup.env.example` para `/opt/monburan`
-   e faça `cp backup.env.example backup.env && chmod 600 backup.env`. Preencha `BACKUP_AGE_RECIPIENT` e `BACKUP_REMOTE`.
+   e faça `cp backup.env.example backup.env && chmod 600 backup.env`. Preencha `BACKUP_DB_URL` (o banco, em formato de URI
+   `postgresql://`), `BACKUP_AGE_RECIPIENT` e `BACKUP_REMOTE`.
 3. Configure o destino com `rclone config` (como root, que roda o timer) e teste com `rclone lsd <nome>:`. Qualquer serviço
    do rclone serve (Backblaze B2, S3, Google Drive...). Ou ponha as variáveis `RCLONE_CONFIG_<NOME>_*` no `backup.env`.
 4. Rode o primeiro backup: `bash backup.sh`. Depois ligue o diário:
@@ -244,12 +252,11 @@ Rodar fora da VPS mantém a chave privada longe dela. O script baixa o backup ma
 memória), confere contas, vagas, empresas, candidatos e migrations e confere que os backups dos uploads e das evidências abrem. Não toca em
 produção.
 
-**Restauração de verdade** (servidor novo ou banco perdido):
+**Restauração de verdade** (servidor novo ou banco perdido — recrie o banco no provedor antes):
 
 ```bash
 age -d -i monburan-backup-key.txt monburan-db-<data>.dump.age > monburan.dump
-docker compose up -d postgres                       # banco novo e vazio
-docker exec -i monburan-postgres sh -c 'pg_restore -U "$POSTGRES_USER" -d "$POSTGRES_DB" --no-owner' < monburan.dump
+docker run --rm -i postgres:18-alpine pg_restore -d "$BACKUP_DB_URL" --no-owner --no-acl < monburan.dump
 age -d -i monburan-backup-key.txt monburan-uploads-<data>.tar.gz.age | docker exec -i monburan-app tar -xzf - -C /app/wwwroot
 age -d -i monburan-backup-key.txt monburan-evidencias-<data>.tar.gz.age | docker exec -i monburan-app tar -xzf - -C /app/App_Data
 docker compose up -d app
@@ -303,50 +310,50 @@ bash infra/vps/validate.sh --ip IP_DO_SERVIDOR_NOVO                 # testa um s
   `AGENTS.md`). Os testes de `infra/vps` não são exigidos: o workflow só roda quando `infra/vps` muda. Para desfazer:
   *Settings → Branches*, ou `gh api -X DELETE repos/RondineleG/Monburan/branches/<branch>/protection`.
 
-## Banco de dados: local ou gerenciado?
+## Banco de dados: gerenciado (nuvem)
 
-**Hoje: fique com o PostgreSQL local** (contêiner na mesma VPS), com o backup criptografado diário e o teste mensal de
-restauração acima. Para um site de uma instância só, o que mais faltava era justamente o backup fora do servidor, e ele
-agora existe. Migrar agora trocaria um problema pequeno (operar um contêiner) por custo fixo e uma dependência a mais.
+O banco de produção é um **PostgreSQL gerenciado fora da VPS** (usamos o Neon, como o ambiente de homologação já fazia; a
+configuração vale para qualquer provedor — só muda a connection string). O que isso compra: uma VPS invadida ou perdida não
+leva o banco junto; snapshots/recuperação a um instante e as correções do PostgreSQL ficam por conta do provedor; e a VPS
+fica menor (só o app).
 
-O que o banco local **não** dá: recuperação até um instante qualquer (o backup é diário: o pior caso é perder até 24 h),
-failover automático, correções do PostgreSQL aplicadas por terceiros e um banco em um servidor separado do app (hoje um disco
-ou uma VPS perdida leva os dois; o backup remoto cobre o dado, não o tempo fora do ar).
+O que muda na prática:
 
-**Migre para um PostgreSQL gerenciado** (região do Brasil, mesma versão maior ou mais nova, TLS obrigatório) quando algum
-destes pontos aparecer: pagantes ou contrato que não aceitam perder 24 h de dados; o banco disputando CPU e memória com o
-app; necessidade de mais de uma instância do app (aí o limite por IP em memória, o limitador de IA e as chaves de sessão em
-disco local também precisam sair do processo); ou quando operar o banco ocupar mais tempo do que vale.
+- **`.env`:** `DB_CONNECTION` com a connection string Npgsql (`Host=...;...;SSL Mode=Require`), no lugar de
+  `DB_NAME`/`DB_USER`/`DB_PASSWORD`.
+- **`docker-compose.yml`:** só o app; não há mais serviço `postgres` nem volume `postgres_data`.
+- **`backup.env`:** `BACKUP_DB_URL` com a URI `postgresql://` do mesmo banco — o `backup.sh` roda o `pg_dump` de um
+  contêiner descartável (`BACKUP_PG_IMAGE`, `postgres:18-alpine` por padrão). Os snapshots do provedor são uma camada a
+  mais, não substituem o dump criptografado restaurável por você.
+- **Latência:** o banco sai do loopback para a rede. Prefira a região mais próxima da VPS e, no Neon, a connection string
+  do *pooled connection*.
 
-Como migrar (a conta é barata, porque só muda a string de conexão):
+Como migrar do Postgres local para a nuvem (a VPS já em produção), em uma janela curta:
 
-1. Crie o banco gerenciado e libere o IP da VPS no firewall dele.
-2. Em uma janela curta: pare o app, rode um `pg_dump` novo, restaure no gerenciado com
-   `pg_restore --no-owner --no-acl` e confira as contagens (como o `restore-test.sh` faz).
-3. Troque `ConnectionStrings__DefaultConnection` no compose para o host novo, com `SSL Mode=Require`, tire o serviço
-   `postgres` do compose e suba o app. Para voltar atrás, aponte de novo para o banco local (guarde o contêiner e o volume
-   por uma semana).
-4. Adapte o `backup.sh`: ele faz o `pg_dump` pelo contêiner local; com o banco gerenciado o dump passa a vir de um contêiner
-   avulso do `postgres` apontando para o host novo. Os backups do próprio serviço entram como camada extra, não no lugar do
-   backup criptografado e restaurável por você.
+1. Crie o banco no provedor (Neon: projeto novo, região mais próxima) e anote as duas strings.
+2. Tire um dump fresco do contêiner local: `docker exec monburan-postgres sh -c 'pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" --format=custom --no-owner' > monburan.dump`.
+3. Pare o app (`docker compose stop app`), restaure no banco novo: `docker run --rm -i postgres:18-alpine pg_restore -d "postgresql://..." --no-owner --no-acl < monburan.dump` e confira as contagens (como o `restore-test.sh` faz).
+4. Preencha `DB_CONNECTION` no `.env` e `BACKUP_DB_URL` no `backup.env`, suba o compose novo (`bash deploy.sh`) e valide.
+5. Guarde o contêiner `monburan-postgres` parado e o volume `postgres_data` por uma semana: para voltar atrás, aponte o
+   `.env` de novo para o banco local e suba o compose antigo. Depois remova os dois.
 
 ## Se algo der errado
 
 | Situação | O que fazer |
 |---|---|
 | O servidor não responde (site, SSH e às vezes nem ping) | Rode `bash infra/vps/validate.sh` de fora para ver o que responde. Depois use o **console do painel do provedor** (é por onde se vê a tela do boot, reinicia, entra em modo de resgate e abre chamado): erro de disco, `fsck` pendente e "Read-only file system" são problema do disco virtual, não de firewall ou SSH. Com o SSH de volta, `validate.sh --ssh` mostra o que ficou quebrado. Mantenha uma cópia dos backups fora do servidor: sem ela, uma falha de disco leva os dados junto. |
-| Uma chave ou senha vazou | Troque **na origem primeiro** (provedor de IA, SMTP, GitHub), atualize `.env` ou `ai-keys.env` e rode `docker compose up -d --force-recreate app`. Trocar `JWT_SIGNING_KEY` derruba os tokens do app (todos entram de novo). Senha do banco: `ALTER USER` no Postgres e depois o `.env`. |
+| Uma chave ou senha vazou | Troque **na origem primeiro** (provedor de IA, SMTP, banco, GitHub), atualize `.env` (`DB_CONNECTION`), `backup.env` (`BACKUP_DB_URL`) ou `ai-keys.env` e rode `docker compose up -d --force-recreate app`. Trocar `JWT_SIGNING_KEY` derruba os tokens do app (todos entram de novo). |
 | Conta suspeita de invasão | **Administração → Contas → Inativar** (desconecta na hora), veja a **Auditoria**, reative depois de a pessoa trocar a senha e o 2FA. |
 | Derrubar todas as sessões | Troque o carimbo de segurança de todas as contas (comando abaixo): todos saem em até 2 minutos. |
-| Servidor suspeito de invasão | Isole (bloqueie tudo no firewall do painel da hospedagem ou desligue), restaure em um servidor novo a partir do backup remoto e **troque tudo**: `JWT_SIGNING_KEY`, senha do banco, SMTP, chaves de IA e chaves SSH. |
+| Servidor suspeito de invasão | Isole (bloqueie tudo no firewall do painel da hospedagem ou desligue), restaure em um servidor novo a partir do backup remoto e **troque tudo**: `JWT_SIGNING_KEY`, senha do banco (no provedor, e depois `DB_CONNECTION`/`BACKUP_DB_URL`), SMTP, chaves de IA e chaves SSH. |
 | O app não sobe depois de uma mudança de configuração | `docker logs monburan-app --tail 50` mostra o motivo; desfaça a última alteração do `.env` ou do compose e suba de novo. |
 | Trancou-se fora do SSH | Console da hospedagem (acesso de emergência pelo painel): apague `/etc/ssh/sshd_config.d/00-monburan-hardening.conf`, `systemctl reload ssh` e, se foi o firewall, `ufw disable`. |
 
-Comando da terceira linha (derrubar todas as sessões):
+Comando da terceira linha (derrubar todas as sessões — o banco fica na nuvem; a URI é a `BACKUP_DB_URL` do `backup.env`):
 
 ```bash
-docker exec monburan-postgres sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" \
-  -c "UPDATE \"Identity\".\"Users\" SET \"SecurityStamp\" = gen_random_uuid()::text"'
+docker run --rm postgres:18-alpine psql "$(awk -F= '/^BACKUP_DB_URL=/ { print substr($0, index($0, \"=\") + 1) }' /opt/monburan/backup.env)" \
+  -c 'UPDATE "Identity"."Users" SET "SecurityStamp" = gen_random_uuid()::text'
 ```
 
 ## O que ainda não está coberto

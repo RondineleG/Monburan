@@ -2,11 +2,12 @@
 # ============================================================
 # Monburan — Teste de fumaça do backup e da restauração
 #
-# Sobe um PostgreSQL de mentira com dados de mentira, roda o backup.sh de verdade (age + rclone, com uma pasta local no lugar do
+# Sobe um PostgreSQL de mentira com dados de mentira em uma rede Docker própria (o papel do "banco na nuvem"), roda o
+# backup.sh de verdade (pg_dump de um contêiner descartável + age + rclone, com uma pasta local no lugar do
 # armazenamento remoto) e depois o restore-test.sh. Confere que:
 #   - o backup sai criptografado (nada legível no arquivo) e chega ao "remoto";
 #   - a restauração devolve os dados (acentos inclusive) com a chave certa e falha com a chave errada ou o arquivo corrompido;
-#   - falha do backup (banco parado, pg_dump ausente) não deixa arquivo pela metade nem mexe no remoto;
+#   - falha do backup (banco fora do ar, imagem sem pg_dump) não deixa arquivo pela metade nem mexe no remoto;
 #   - a retenção apaga só o que passou do prazo, e nada quando KEEP_REMOTE_DAYS=0.
 # Roda dentro de um contêiner auxiliar (Alpine com age, rclone e a CLI do Docker) que fala com o Docker de quem executa.
 #
@@ -27,13 +28,14 @@ WORK=$(mktemp -d)
 OUT=$WORK/out.log
 PG=monburan-smoke-pg
 APP=monburan-smoke-app
-NOPG=monburan-smoke-nopg
+NET=monburan-smoke-net
 PG_IMAGE=postgres:16-alpine
 passed=0
 failed=0
 
 cleanup() {
-    docker rm -f "$PG" "$APP" "$NOPG" monburan-restore-test >/dev/null 2>&1
+    docker rm -f "$PG" "$APP" monburan-restore-test >/dev/null 2>&1
+    docker network rm "$NET" >/dev/null 2>&1
     rm -rf "$WORK"
 }
 trap cleanup EXIT
@@ -70,9 +72,11 @@ write_config() {
     local remote=${2-$WORK/remote}
     cat >"$WORK/backup.env" <<CONFIG
 BACKUP_AGE_RECIPIENT=$RECIPIENT
+BACKUP_DB_URL=postgresql://monburan:smoke@$PG:5432/monburan
+BACKUP_PG_IMAGE=$PG_IMAGE
+BACKUP_DOCKER_NETWORK=$NET
 BACKUP_REMOTE=$remote
 BACKUP_DIR=$WORK/local
-POSTGRES_CONTAINER=$PG
 APP_CONTAINER=$APP
 KEEP_LOCAL_DAYS=7
 KEEP_REMOTE_DAYS=${1:-30}
@@ -95,10 +99,12 @@ remote_count() { find "$WORK/remote" -type f 2>/dev/null | wc -l; }
 db_file() { find "$WORK/local" -name 'monburan-db-*.dump.age' ! -name '*2020*' | sort | tail -1; }
 
 echo "Preparando o PostgreSQL e o app de mentira..."
-docker rm -f "$PG" "$APP" "$NOPG" >/dev/null 2>&1
-docker run -d --name "$PG" -e POSTGRES_USER=monburan -e POSTGRES_PASSWORD=smoke -e POSTGRES_DB=monburan "$PG_IMAGE" >/dev/null
+docker rm -f "$PG" "$APP" >/dev/null 2>&1
+docker network rm "$NET" >/dev/null 2>&1
+# O pg_dump roda em um contêiner avulso: a rede compartilhada é o que permite achar o banco pelo nome (na produção é a internet)
+docker network create "$NET" >/dev/null
+docker run -d --name "$PG" --network "$NET" -e POSTGRES_USER=monburan -e POSTGRES_PASSWORD=smoke -e POSTGRES_DB=monburan "$PG_IMAGE" >/dev/null
 docker run -d --name "$APP" alpine:3.21 sh -c 'mkdir -p /app/wwwroot/uploads && echo "curriculo do Joao" > /app/wwwroot/uploads/joao.txt && sleep 3600' >/dev/null
-docker run -d --name "$NOPG" alpine:3.21 sleep 3600 >/dev/null
 wait_for_pg "$PG" || { echo "O PostgreSQL de teste não ficou pronto"; exit 1; }
 for _ in $(seq 1 30); do
     docker exec "$APP" test -f /app/wwwroot/uploads/joao.txt 2>/dev/null && break
@@ -168,16 +174,16 @@ echo "3. Falhas do backup não deixam rastro"
 before=$(remote_count)
 docker stop "$PG" >/dev/null
 backup
-expect "banco parado: falha" test "$status" -ne 0
-expect "explica que o contêiner não está rodando" grep -q 'não está rodando' "$OUT"
+expect "banco fora do ar: falha" test "$status" -ne 0
+expect "registra o erro" grep -q 'ERRO: o backup falhou' "$OUT"
 expect "o remoto continua igual" test "$(remote_count)" -eq "$before"
 
-sed -i "s/^POSTGRES_CONTAINER=.*/POSTGRES_CONTAINER=$NOPG/" "$WORK/backup.env"
+sed -i 's/^BACKUP_PG_IMAGE=.*/BACKUP_PG_IMAGE=alpine:3.21/' "$WORK/backup.env"
 backup
-expect "pg_dump ausente (falha no meio do pipe): falha" test "$status" -ne 0
-expect "registra o erro" grep -q 'ERRO: o backup falhou' "$OUT"
+expect "imagem sem pg_dump (falha no meio do pipe): falha" test "$status" -ne 0
+expect "registra o erro de novo" bash -c "test \$(grep -c 'ERRO: o backup falhou' $OUT) -ge 1"
 expect "nenhum arquivo .partial sobrou" test -z "$(find "$WORK" -name '*.partial')"
-expect "o remoto continua igual" test "$(remote_count)" -eq "$before"
+expect "o remoto continua igual de novo" test "$(remote_count)" -eq "$before"
 write_config 30
 docker start "$PG" >/dev/null
 wait_for_pg "$PG" || { echo "O PostgreSQL de teste não voltou"; exit 1; }
@@ -225,6 +231,14 @@ chmod 600 "$WORK/backup.env"
 BACKUP_CONFIG=/nao-existe bash "$BACKUP" >"$OUT" 2>&1
 status=$?
 expect "sem BACKUP_AGE_RECIPIENT: falha pedindo a chave" bash -c "test $status -ne 0 && grep -q BACKUP_AGE_RECIPIENT $OUT"
+
+sed -i 's/^BACKUP_DB_URL=.*/BACKUP_DB_URL=/' "$WORK/backup.env"
+backup
+expect "sem BACKUP_DB_URL: falha pedindo a URI do banco" bash -c "test $status -ne 0 && grep -q 'Defina BACKUP_DB_URL' $OUT"
+sed -i 's/^BACKUP_DB_URL=.*/BACKUP_DB_URL=Host=foo/' "$WORK/backup.env"
+backup
+expect "URI fora do formato postgres:// é recusada" grep -q 'precisa ser uma URI' "$OUT"
+write_config 30
 
 sed -i 's/^BACKUP_AGE_RECIPIENT=.*/BACKUP_AGE_RECIPIENT=chave-qualquer/' "$WORK/backup.env"
 backup

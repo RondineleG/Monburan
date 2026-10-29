@@ -193,21 +193,34 @@ reset_site() {
 }
 deploy() { INSTALL_DIR="$DIR" runit bash "$DEPLOY" "$@"; }
 
+# O fluxo de primeira instalação real: o deploy cria o .env e para pedindo a connection string do banco (nuvem), que vem do
+# painel do provedor — aqui é de mentira (o docker é um stub). Usar nos testes que esperam a stack completa no ar.
+deploy_fresh() {
+    deploy "$@"
+    sed -i 's/^DB_CONNECTION=.*/DB_CONNECTION=Host=db.nuvem.example;Database=monburan;Username=u;Password=x;SSL Mode=Require/' "$DIR/.env"
+    deploy "$@"
+}
+
 echo
 echo "5. deploy.sh: primeira vez (sem .env, sem certificado)"
 fresh_dir
 reset_site
 deploy --email teste@example.com --admin-email adm@example.com
-expect "termina sem erro" test "$status" -eq 0
+expect "falha pedindo a connection string do banco" test "$status" -ne 0
+expect "explica que falta DB_CONNECTION" grep -q 'DB_CONNECTION' "$OUT"
 expect ".env criado só para o dono (600)" test "$(stat -c %a "$DIR/.env")" = 600
 expect ".env sem valores de exemplo" bash -c "! grep -q TROQUE '$DIR/.env'"
-expect "senha do banco gerada (48 caracteres hexadecimais)" bash -c "grep -qE '^DB_PASSWORD=[0-9a-f]{48}\$' '$DIR/.env'"
 expect "chave JWT gerada (60 caracteres ou mais)" bash -c "test \$(awk -F= '/^JWT_SIGNING_KEY=/ { print length(\$0) - 16 }' '$DIR/.env') -ge 60"
 expect "hosts permitidos restritos ao domínio" grep -q '^ALLOWED_HOSTS=monburan.com.br;www.monburan.com.br;127.0.0.1$' "$DIR/.env"
 expect "ADMIN_EMAILS definido" grep -q '^ADMIN_EMAILS=adm@example.com$' "$DIR/.env"
-expect "os segredos gerados não aparecem na saída" bash -c "! grep -qF \"\$(awk -F= '/^DB_PASSWORD=/ { print \$2 }' '$DIR/.env')\" $OUT"
+expect "a chave gerada não aparece na saída" bash -c "! grep -qF \"\$(awk -F= '/^JWT_SIGNING_KEY=/ { print \$2 }' '$DIR/.env')\" $OUT"
+expect "não baixou nem subiu nada sem a connection string" bash -c "! grep -q 'compose pull' $DOCKER_CALLS"
+# A connection string vem do painel do provedor do banco (de mentira aqui: o docker é um stub)
+sed -i 's/^DB_CONNECTION=.*/DB_CONNECTION=Host=db.nuvem.example;Database=monburan;Username=monburan;Password=x;SSL Mode=Require/' "$DIR/.env"
+deploy --email teste@example.com --admin-email adm@example.com
+expect "com a DB_CONNECTION preenchida termina sem erro" test "$status" -eq 0
 expect "criou o docker-compose.yml" test -f "$DIR/docker-compose.yml"
-expect "baixou as imagens (app e Postgres) e subiu a stack" bash -c "grep -qx 'docker compose pull' $DOCKER_CALLS && grep -q 'compose up -d --remove-orphans' $DOCKER_CALLS"
+expect "baixou a imagem do app e subiu a stack" bash -c "grep -qx 'docker compose pull' $DOCKER_CALLS && grep -q 'compose up -d --remove-orphans' $DOCKER_CALLS"
 expect "pediu o certificado ao certbot com o e-mail" grep -q 'certbot --nginx -d monburan.com.br -d www.monburan.com.br --non-interactive --agree-tos -m teste@example.com' "$CERTBOT_CALLS"
 expect "o nginx.conf completo entrou no lugar do provisório" cmp -s "$DIR/nginx.conf" "$SITE"
 expect "o site está habilitado" test -L /etc/nginx/sites-enabled/monburan.com.br
@@ -245,7 +258,7 @@ rm -f "$DIR/backup.sh" "$DIR/backup.env"
 echo
 echo "8. deploy.sh: .env com valores de exemplo é recusado"
 cp "$DIR/.env" /tmp/env.good
-sed -i 's/^DB_PASSWORD=.*/DB_PASSWORD=TROQUE_POR_UMA_SENHA_FORTE_AQUI/' "$DIR/.env"
+sed -i 's/^DB_CONNECTION=.*/DB_CONNECTION=TROQUE_PELA_CONNECTION_STRING/' "$DIR/.env"
 deploy
 expect "falha" test "$status" -ne 0
 expect "pede para trocar" grep -q 'valores de exemplo' "$OUT"
@@ -256,7 +269,7 @@ echo "9. deploy.sh: o certbot falha (DNS ainda não aponta para o servidor)"
 fresh_dir
 reset_site
 touch /tmp/certbot-fail
-deploy --email teste@example.com
+deploy_fresh --email teste@example.com
 expect "sai com erro (TLS pendente)" test "$status" -ne 0
 expect "explica o DNS" grep -q 'DNS' "$OUT"
 expect "o site fica em HTTP, com o proxy provisório" grep -q 'Provisório' "$SITE"
@@ -267,7 +280,7 @@ echo
 echo "10. deploy.sh: --skip-tls"
 fresh_dir
 reset_site
-deploy --skip-tls
+deploy_fresh --skip-tls
 expect "não chama o certbot" test ! -s "$CERTBOT_CALLS"
 expect "sai com erro avisando que o TLS está pendente" bash -c "test $status -ne 0 && grep -q 'sem certificado' $OUT"
 
@@ -278,7 +291,7 @@ reset_site
 printf 'server { listen 80; server_name monburan.com.br www.monburan.com.br; return 200 "antigo"; }\n' >/etc/nginx/sites-available/monburan.conf
 ln -sf /etc/nginx/sites-available/monburan.conf /etc/nginx/sites-enabled/monburan.conf
 nginx -s reload
-deploy --email teste@example.com
+deploy_fresh --email teste@example.com
 expect "termina sem erro" test "$status" -eq 0
 expect "atualiza o arquivo que já existia" cmp -s "$DIR/nginx.conf" /etc/nginx/sites-available/monburan.conf
 expect "não cria um segundo site para o mesmo domínio" test ! -e "$SITE"
@@ -297,7 +310,7 @@ echo
 echo "13. deploy.sh: arquivos com outro dono (o tar do deploy automático gravava o uid do runner) voltam para o root"
 fresh_dir
 reset_site
-deploy --email teste@example.com
+deploy_fresh --email teste@example.com
 expect "a instalação de base termina sem erro" test "$status" -eq 0
 chown -R 1001:1001 "$DIR"
 chmod g+w "$DIR/nginx.conf"
@@ -312,7 +325,7 @@ echo
 echo "14. deploy.sh: o download da imagem nova falha (token do GHCR vencido, registro fora do ar)"
 fresh_dir
 reset_site
-deploy --email teste@example.com
+deploy_fresh --email teste@example.com
 expect "a instalação de base termina sem erro" test "$status" -eq 0
 touch /tmp/docker-pull-fail
 : >"$DOCKER_CALLS"

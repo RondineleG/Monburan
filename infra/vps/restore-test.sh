@@ -3,10 +3,10 @@
 # Monburan — Teste de restauração do backup
 #
 # Restaura o backup do banco em um PostgreSQL DESCARTÁVEL (contêiner novo, sem portas publicadas, dados em memória) e confere
-# que os dados estão lá. Não toca no banco de produção. Um backup que nunca foi restaurado é só uma esperança: rode isto
-# todo mês e depois de qualquer mudança no backup. Se o backup dos uploads (monburan-uploads-*.tar.gz.age) ou das evidências
-# de sugestões (monburan-evidencias-*.tar.gz.age) do mesmo dia estiver ao lado do arquivo, ou no remoto, o script também
-# confere que ele abre.
+# que os dados estão lá. Não toca no banco de produção (que fica na nuvem). Um backup que nunca foi restaurado é só uma
+# esperança: rode isto todo mês e depois de qualquer mudança no backup. Se o backup dos uploads
+# (monburan-uploads-*.tar.gz.age) ou das evidências de sugestões (monburan-evidencias-*.tar.gz.age) do mesmo dia estiver ao
+# lado do arquivo, ou no remoto, o script também confere que ele abre.
 #
 # Precisa da chave PRIVADA do age (a que fica fora da VPS): copie-a para um lugar temporário, rode e apague.
 #
@@ -14,7 +14,7 @@
 #   bash restore-test.sh /caminho/monburan-db-AAAAMMDDTHHMMSSZ.dump.age --identity /caminho/chave-privada.txt
 #   bash restore-test.sh --latest-remote --identity /caminho/chave-privada.txt     # o mais recente do BACKUP_REMOTE
 #
-# Variáveis opcionais: POSTGRES_IMAGE (padrão: a imagem do contêiner de produção, ou postgres:16-alpine).
+# Variáveis opcionais: POSTGRES_IMAGE (padrão: postgres:18-alpine, a mesma do pg_dump do backup.sh).
 # ============================================================
 set -euo pipefail
 
@@ -34,7 +34,6 @@ fi
 SOURCE=""
 IDENTITY=""
 TEST_CONTAINER="monburan-restore-test"
-POSTGRES_CONTAINER="${POSTGRES_CONTAINER:-monburan-postgres}"
 
 log() { printf '%s %s\n' "$(date -u +%FT%TZ)" "$*"; }
 fail() { log "ERRO: $*"; exit 1; }
@@ -53,9 +52,8 @@ done
 command -v age >/dev/null || fail "age não está instalado"
 command -v docker >/dev/null || fail "docker não está instalado"
 
-# Mesma versão do PostgreSQL de produção: o pg_restore não lê arquivo feito por um pg_dump mais novo que ele
-POSTGRES_IMAGE="${POSTGRES_IMAGE:-$(docker inspect -f '{{.Config.Image}}' "$POSTGRES_CONTAINER" 2>/dev/null || true)}"
-POSTGRES_IMAGE="${POSTGRES_IMAGE:-postgres:16-alpine}"
+# O pg_restore não lê arquivo feito por um pg_dump mais novo que ele: a mesma imagem do backup.sh por padrão
+POSTGRES_IMAGE="${POSTGRES_IMAGE:-postgres:18-alpine}"
 
 umask 077
 workdir="$(mktemp -d)"
@@ -135,7 +133,7 @@ log "Subindo um PostgreSQL descartável ($POSTGRES_IMAGE)"
 docker rm -f "$TEST_CONTAINER" >/dev/null 2>&1 || true
 docker run -d --name "$TEST_CONTAINER" \
     -e POSTGRES_PASSWORD=restore-test -e POSTGRES_DB=restore \
-    --tmpfs /var/lib/postgresql/data \
+    --tmpfs /var/lib/postgresql \
     "$POSTGRES_IMAGE" >/dev/null
 
 ready=0

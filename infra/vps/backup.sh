@@ -2,9 +2,11 @@
 # ============================================================
 # Monburan — Backup criptografado e enviado para fora da VPS
 #
-# O que vai: o banco PostgreSQL (pg_dump) e a pasta de uploads do app. Tudo é criptografado com age ANTES de tocar o
-# disco (o dump nunca existe em texto claro na VPS) e enviado ao armazenamento remoto com rclone. A chave privada do age
-# fica FORA da VPS: quem invadir o servidor, ou o armazenamento remoto, só encontra arquivos que não consegue abrir.
+# O que vai: o banco PostgreSQL (pg_dump de um contêiner descartável apontando para o banco na nuvem, BACKUP_DB_URL) e a pasta de
+# uploads do app. Tudo é criptografado com age ANTES de tocar o disco (o dump nunca existe em texto claro na VPS) e enviado ao
+# armazenamento remoto com rclone. A chave privada do age fica FORA da VPS: quem invadir o servidor, ou o armazenamento remoto,
+# só encontra arquivos que não consegue abrir. Os snapshots do próprio provedor do banco são uma camada a mais: este backup
+# continua restaurável por você, em qualquer PostgreSQL, sem depender do provedor.
 # Sem BACKUP_REMOTE o backup fica só no disco da VPS (protege de erro e de dado apagado, não da perda do servidor) e o script avisa.
 #
 # Configuração: /opt/monburan/backup.env (modelo em backup.env.example; permissão 600). Uso:
@@ -30,11 +32,15 @@ if [[ -f "$CONFIG" ]]; then
 fi
 
 : "${BACKUP_AGE_RECIPIENT:?Defina BACKUP_AGE_RECIPIENT (chave PÚBLICA age, começa com age1) em $CONFIG}"
+: "${BACKUP_DB_URL:?Defina BACKUP_DB_URL (URI do banco na nuvem: postgresql://usuario:senha@host/banco?sslmode=require) em $CONFIG}"
 BACKUP_REMOTE="${BACKUP_REMOTE:-}"
 BACKUP_DIR="${BACKUP_DIR:-/opt/monburan/backups}"
 KEEP_LOCAL_DAYS="${KEEP_LOCAL_DAYS:-7}"
 KEEP_REMOTE_DAYS="${KEEP_REMOTE_DAYS:-30}"
-POSTGRES_CONTAINER="${POSTGRES_CONTAINER:-monburan-postgres}"
+# O pg_dump não lê servidores mais novos que ele: a imagem fica configurável para acompanhar a versão do provedor
+BACKUP_PG_IMAGE="${BACKUP_PG_IMAGE:-postgres:18-alpine}"
+# Rede Docker para o contêiner do pg_dump (só testes; em produção fica vazio e o banco é alcançado pela internet)
+BACKUP_DOCKER_NETWORK="${BACKUP_DOCKER_NETWORK:-}"
 APP_CONTAINER="${APP_CONTAINER:-monburan-app}"
 BACKUP_UPLOADS="${BACKUP_UPLOADS:-true}"
 HEALTHCHECK_URL="${HEALTHCHECK_URL:-}"
@@ -70,8 +76,8 @@ if [[ -n "$BACKUP_REMOTE" ]]; then
 fi
 
 [[ "$BACKUP_AGE_RECIPIENT" == age1* ]] || { log "ERRO: BACKUP_AGE_RECIPIENT precisa ser uma chave pública age (age1...)"; exit 1; }
-docker inspect -f '{{.State.Running}}' "$POSTGRES_CONTAINER" 2>/dev/null | grep -q true \
-    || { log "ERRO: o contêiner $POSTGRES_CONTAINER não está rodando"; exit 1; }
+[[ "$BACKUP_DB_URL" == postgresql://* || "$BACKUP_DB_URL" == postgres://* ]] \
+    || { log "ERRO: BACKUP_DB_URL precisa ser uma URI postgres:// ou postgresql://"; exit 1; }
 
 umask 077
 mkdir -p "$BACKUP_DIR"
@@ -83,10 +89,12 @@ uploads_file="$BACKUP_DIR/monburan-uploads-${stamp}.tar.gz.age"
 evidence_file="$BACKUP_DIR/monburan-evidencias-${stamp}.tar.gz.age"
 min_size=1024
 
-log "Banco: pg_dump de $POSTGRES_CONTAINER, criptografado na saída"
+log "Banco: pg_dump do banco na nuvem, criptografado na saída"
 # pg_dump -Fc é compactado e permite restaurar só uma parte; o texto claro segue direto para o age. Escreve em .partial e só
 # vira backup depois de terminar (um pg_dump que falha no meio não deixa arquivo com cara de bom)
-docker exec "$POSTGRES_CONTAINER" sh -c 'pg_dump -U "${POSTGRES_USER:-postgres}" -d "${POSTGRES_DB:-${POSTGRES_USER:-postgres}}" --format=custom --no-owner' \
+network_args=()
+[[ -n "$BACKUP_DOCKER_NETWORK" ]] && network_args=(--network "$BACKUP_DOCKER_NETWORK")
+docker run --rm "${network_args[@]}" "$BACKUP_PG_IMAGE" pg_dump "$BACKUP_DB_URL" --format=custom --no-owner \
     | age --recipient "$BACKUP_AGE_RECIPIENT" --output "${database_file}.partial"
 [[ $(stat -c %s "${database_file}.partial") -gt $min_size ]] || { log "ERRO: o dump do banco saiu pequeno demais"; exit 1; }
 mv "${database_file}.partial" "$database_file"

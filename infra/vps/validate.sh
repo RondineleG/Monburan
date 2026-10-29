@@ -153,7 +153,7 @@ else
 fi
 
 if command -v docker >/dev/null 2>&1; then
-    for name in monburan-app monburan-postgres; do
+    for name in monburan-app; do
         state=$(docker ps --filter "name=^${name}$" --format '{{.Status}}' 2>/dev/null)
         case "$state" in
             "") emit falha "contêiner ${name} não está rodando" ;;
@@ -163,8 +163,14 @@ if command -v docker >/dev/null 2>&1; then
     done
     code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 http://127.0.0.1:8080/health 2>/dev/null)
     if [ "$code" = "200" ]; then emit ok "o app responde /health localmente"; else emit falha "o app não responde /health localmente (${code:-sem resposta})"; fi
-    users=$(docker exec monburan-postgres sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -tAc "select count(*) from \"Identity\".\"Users\""' 2>/dev/null | head -1)
-    [ -n "$users" ] && emit info "contas no banco: ${users}"
+    # O banco fica na nuvem: a contagem confere de quebra que a VPS alcança o banco (BACKUP_DB_URL do backup.env)
+    if [ -f /opt/monburan/backup.env ]; then
+        dburl=$(awk -F= '/^BACKUP_DB_URL=/ { print substr($0, index($0, "=") + 1) }' /opt/monburan/backup.env)
+        if [ -n "$dburl" ]; then
+            users=$(docker run --rm postgres:18-alpine psql "$dburl" -tAc 'select count(*) from "Identity"."Users"' 2>/dev/null | head -1)
+            if [ -n "$users" ]; then emit ok "banco na nuvem alcançado (${users} contas)"; else emit aviso "não consegui consultar o banco na nuvem (BACKUP_DB_URL)"; fi
+        fi
+    fi
 fi
 
 if [ -d /opt/monburan ]; then

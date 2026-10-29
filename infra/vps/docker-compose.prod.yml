@@ -1,7 +1,8 @@
 # ============================================================
 # Monburan — Produção (VPS)
-# Sobe app + Postgres numa rede interna; nginx (host) faz proxy
-# reverse para o app e serve TLS via certbot.
+# Sobe só o app (o banco é o PostgreSQL gerenciado na nuvem — a
+# connection string vai no DB_CONNECTION do .env); nginx (host)
+# faz proxy reverso para o app e serve TLS via certbot.
 #
 # Uso (na VPS, em /opt/monburan):
 #   cp docker-compose.prod.yml docker-compose.yml
@@ -34,8 +35,9 @@ services:
       - ASPNETCORE_ENVIRONMENT=Production
       # A imagem roda sem root e escuta na 8080 (porta abaixo de 1024 exige root)
       - ASPNETCORE_URLS=http://+:8080
-      # Banco (rede interna do compose)
-      - ConnectionStrings__DefaultConnection=Host=postgres;Port=5432;Database=${DB_NAME:-monburan};Username=${DB_USER:-monburan};Password=${DB_PASSWORD:?Defina DB_PASSWORD no .env}
+      # Banco PostgreSQL gerenciado (nuvem), no formato do Npgsql:
+      # Host=...;Database=...;Username=...;Password=...;SSL Mode=Require
+      - "ConnectionStrings__DefaultConnection=${DB_CONNECTION:?Defina DB_CONNECTION no .env (connection string do banco na nuvem)}"
       # Aplica migrations automaticamente no boot
       - APPLY_MIGRATIONS=true
       # JWT — obrigatório, a app falha no boot sem chave de assinatura
@@ -80,28 +82,7 @@ services:
     ports:
       - "127.0.0.1:8080:8080"
 
-  postgres:
-    image: postgres:16-alpine
-    container_name: monburan-postgres
-    restart: unless-stopped
-    environment:
-      - POSTGRES_USER=${DB_USER:-monburan}
-      - POSTGRES_PASSWORD=${DB_PASSWORD:?Defina DB_PASSWORD no .env}
-      - POSTGRES_DB=${DB_NAME:-monburan}
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    networks:
-      - monburan-net
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-monburan} -d ${DB_NAME:-monburan}"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-      start_period: 15s
-
 volumes:
-  postgres_data:
-    driver: local
   app_uploads:
     driver: local
   app_keys:
