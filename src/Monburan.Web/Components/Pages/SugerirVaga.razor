@@ -5,6 +5,7 @@
 @using Monburan.Core.Services
 @using Monburan.Core.UseCases.Submissions
 @using Microsoft.AspNetCore.Components.Forms
+@using Monburan.Web.Middleware
 @inject SubmitJobSuggestionUseCase Submit
 @inject IHttpContextAccessor HttpAccessor
 @inject ILogger<SugerirVaga> Logger
@@ -30,6 +31,11 @@
             <p class="mb-3">
                 Os dados da vaga são revisados por uma pessoa antes de qualquer publicação. Não publicamos
                 a imagem original: a vaga aparece no formato padrão da Monburan.
+            </p>
+            <p class="alert alert-info mb-3" data-testid="suggest-job-ai-notice">
+                As imagens enviadas podem ser analisadas por inteligência artificial para montar um rascunho da vaga, que
+                sempre passa por revisão humana antes de qualquer publicação. Antes de enviar, oculte dados pessoais visíveis
+                na imagem (nomes, telefones, e-mails e rostos). Saiba mais na <a href="/privacidade">política de privacidade</a>.
             </p>
 
             @if (error is not null)
@@ -95,6 +101,12 @@
                 }
             </div>
 
+            @* Campo-isca: fica fora da tela para pessoas; robôs que preenchem todos os campos caem nele. *@
+            <div class="suggest-hp" aria-hidden="true">
+                <label for="sugestao-site">Site da empresa</label>
+                <input id="sugestao-site" @bind="honeypot" tabindex="-1" autocomplete="off" />
+            </div>
+
             <button type="button" class="btn btn-primary" disabled="@sending" @onclick="SubmitAsync" data-testid="suggest-submit">
                 @(sending ? "Enviando…" : "Enviar sugestão")
             </button>
@@ -106,13 +118,16 @@
     private readonly SubmitJobSuggestionRequest request = new();
     private readonly List<IBrowserFile> files = [];
     private string? submitterKey;
+    private string? honeypot;
     private string? error;
     private bool sending;
     private bool sent;
 
     protected override void OnInitialized()
     {
-        submitterKey = HttpAccessor.HttpContext?.Connection.RemoteIpAddress?.ToString();
+        // Mesma chave do limite geral: o IPv4 ou o bloco /64 do IPv6 (trocar o fim do endereço não zera o limite)
+        var address = HttpAccessor.HttpContext?.Connection.RemoteIpAddress;
+        submitterKey = address is null ? null : RateLimiting.ClientKey(address);
     }
 
     private void OnFilesSelected(InputFileChangeEventArgs args)
@@ -128,6 +143,14 @@
             return;
 
         error = null;
+        if (!string.IsNullOrEmpty(honeypot))
+        {
+            // Robô: a tela diz que deu certo e nada é gravado
+            Logger.LogInformation("Sugestão de vaga descartada pelo campo-isca");
+            sent = true;
+            return;
+        }
+
         sending = true;
         try
         {
@@ -193,6 +216,7 @@
         request.SourceUrl = null;
         request.SourceDescription = null;
         request.ContactEmail = null;
+        honeypot = null;
         files.Clear();
         sent = false;
         error = null;
