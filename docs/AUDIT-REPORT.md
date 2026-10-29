@@ -325,6 +325,8 @@ Resultado: **19/19 ✅**.
 - Os checks do GitHub Actions não rodam: a conta está bloqueada por cobrança ("The job was not started because your
   account is locked due to a billing issue"), então **toda a verificação desta auditoria foi local** — nenhum workflow
   validou estes commits. Enquanto isso durar, a imagem Docker é construída na VPS (`infra/vps/build-push.sh`).
+  **Atualização 2026-10-29:** o bloqueio acabou. Os workflows voltaram a rodar (CodeQL, `Build & Push Docker (GHCR)` e
+  rebuild semanal concluídos com sucesso em 26/10, conferido com `gh run list`).
 - A porta 5095 do host estava ocupada por outro processo local; a instância auditada rodou em 5195 e o app Android foi
   apontado para ela com `adb reverse tcp:5095 tcp:5195`.
 - O Chromium do Playwright 1.50 (`chromium-1155`), exigido pelo projeto E2E, foi instalado em `~/.cache/ms-playwright`.

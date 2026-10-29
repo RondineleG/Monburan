@@ -61,6 +61,7 @@ sozinho.
 | **Modelo** | O nome do modelo como o serviço o conhece. |
 | **Variável de ambiente da chave** | Só o nome, depois do `AI_KEY_` fixo (ex.: `OPENROUTER` vira `AI_KEY_OPENROUTER`). |
 | **Ativo / padrão** | Se o provedor pode ser usado e se é o padrão. |
+| **Aceita imagens (multimodal)** | Marque só se o modelo lê imagens. O rascunho de vaga das sugestões envia as imagens da publicação ao provedor padrão e recusa com aviso quando ele não é multimodal ([IA-CURRICULO.md](IA-CURRICULO.md#rascunho-de-vaga-a-partir-de-sugestões-imagens)). Confira nos termos do serviço a retenção e o uso das imagens para treinamento. |
 | **Ajustes avançados** | Tempo limite (5 a 300 s), limite de tokens da resposta (modelos de raciocínio gastam tokens pensando: deixe folga), temperatura, e opções de compatibilidade (enviar ou não a temperatura, pedir `response_format: json_object`, usar `max_completion_tokens`). |
 
 ### Modelos prontos

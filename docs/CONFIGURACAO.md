@@ -67,6 +67,15 @@ O administrador cadastra os provedores (OpenAI, OpenRouter, DeepSeek, Anthropic,
 
 Sem provedor padrão e chave, o recurso fica desligado. Guia da tela, segurança e erros em [IA-PROVEDORES.md](IA-PROVEDORES.md); privacidade e limites em [IA-CURRICULO.md](IA-CURRICULO.md).
 
+## Sugestões de vaga (evidências)
+
+| Chave | Padrão | Para quê |
+|---|---|---|
+| `Evidence:StoragePath` | `App_Data/evidencias` (dentro da pasta do app) | Pasta privada das imagens enviadas em `/sugerir-vaga`. Em produção é o volume `app_evidence` (`/app/App_Data/evidencias`), incluído no backup. |
+| `Evidence:RetentionDays` | `90` | Dias, depois da moderação, até apagar as imagens de sugestões rejeitadas ou duplicadas. `0` desliga a limpeza. |
+
+O limite de envios é de 5 por hora por IPv4 ou por bloco IPv6 `/64`, em memória (reiniciar zera o contador). O formulário tem um campo-isca contra robôs.
+
 ## User Secrets (desenvolvimento)
 
 ```bash

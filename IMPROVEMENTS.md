@@ -8,6 +8,10 @@ Este documento detalha todas as melhorias implementadas no projeto Monburan para
 ## 🎯 Objetivo
 Transformar o projeto Monburan de um MVP funcional (~70% completude) para uma aplicação production-ready (~98% completude).
 
+> **Atualização 2026-10-29:** o "~98%" abaixo mede só os itens desta lista de melhorias, não a prontidão para produção.
+> A auditoria (`docs/AUDIT-REPORT.md`) e o checklist de pré-produção (`docs/pre-prod.md`) mostram o que ainda falta
+> antes do lançamento (cobrança dos planos, backup remoto, monitoramento, revisão jurídica, entre outros).
+
 ---
 
 ## 🔒 Segurança Crítica (100% Implementado)

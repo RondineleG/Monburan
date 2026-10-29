@@ -1,6 +1,6 @@
 # Aplicativo Android (MAUI Blazor Hybrid)
 
-O aplicativo fica em `src/Monburan.Mobile`, com a camada compartilhada em `src/Monburan.Mobile.Shared`. O pacote é `com.monburan.app`. A versão atual é a 1.5.0; o APK está na release [v1.5.0](https://github.com/RondineleG/Monburan/releases/tag/v1.5.0).
+O aplicativo fica em `src/Monburan.Mobile`, com a camada compartilhada em `src/Monburan.Mobile.Shared`. O pacote é `com.monburan.app`. A versão no código é a 1.6.0 (build 6), publicada quando a `dev` for promovida para a `main`; a última release publicada é a [v1.5.0](https://github.com/RondineleG/Monburan/releases/tag/v1.5.0).
 
 ## Estrutura
 
@@ -41,3 +41,22 @@ dotnet publish src/Monburan.Mobile -f net10.0-android -c Release -p:AndroidPacka
 ## Testes
 
 Os testes de API ficam em `tests/Monburan.ApiTests` (WebApplicationFactory com EF InMemory). A pré-visualização das telas do app para revisão de interface fica em `tests/ux-mobile-preview`.
+
+## Exclusão de conta
+
+A tela **Perfil** tem a seção "Excluir conta": pede a senha, confirma numa caixa de diálogo e chama
+`POST /api/v1/account/delete`. O servidor segue a mesma regra da página `/conta/excluir-dados` do site: apaga o usuário e
+anonimiza perfil e currículos; as candidaturas ficam anônimas no histórico das empresas. Depois a sessão é limpa e o app
+volta ao início. É exigência do Google Play (e da App Store) para apps com cadastro.
+
+## Pronto para a loja (checklist técnico)
+
+| Item | Situação |
+|---|---|
+| Exclusão de conta dentro do app | Feito (acima). |
+| Sessão expirada | O `TokenService` renova em 401; se o refresh for recusado, `SessionExpired` limpa o estado, avisa "Sua sessão expirou" e leva ao login, que volta à mesma tela depois de entrar. Falha temporária no refresh (offline) **não** derruba a sessão. |
+| Sem internet | Erros de rede viram `ApiException.IsNetworkError`; as telas mostram "Sem conexão" com "Tentar novamente". |
+| Política de privacidade | `https://monburan.com.br/privacidade` (URL para a ficha da loja). |
+| Ícone 512 px | `src/Monburan.Web/wwwroot/icon-512.png` serve de base; a ficha do Play pede PNG 512×512 sem transparência. |
+| Data Safety (Play) | Dados coletados: nome, e-mail, telefone, currículo (profissional), candidaturas. Transmitidos com criptografia (HTTPS). Exclusão pelo app e pelo site. Sem anúncios e sem venda de dados. Conteúdo do currículo vai a provedor de IA **só** quando a pessoa pede as sugestões. |
+| Conta Google Play, ficha, classificação de conteúdo | Pendente (decisão de canal; veja `docs/pre-prod.md` §11.1). |

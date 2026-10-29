@@ -5,7 +5,7 @@ Status: **aplicado** na branch `refactor/ui-padronizada-web-app`. Rotas antigas 
 ## Motivação
 
 - As rotas de identidade usam `/Account/...` em inglês (77 arquivos citam esses caminhos).
-- Outras rotas já estão em português (`/jobs`, `/plans`, `/notifications`, `/sugerir-vaga`, `/admin/sugestoes`), mas algumas ainda estão em inglês (`/dashboard`, `/my-applications`, `/resumes`, `/privacy`, `/terms`, `/admin/accounts`, `/career-profile`, `/profile/...`).
+- Algumas rotas já estão em português (`/sugerir-vaga`, `/admin/sugestoes`), mas outras ainda estão em inglês (`/dashboard`, `/my-applications`, `/resumes`, `/privacy`, `/terms`, `/admin/accounts`, `/career-profile`, `/profile/...`).
 - Links já enviados por e-mail (confirmação e reset de senha) e favoritos precisam continuar funcionando.
 
 ## Mapeamento proposto
@@ -50,7 +50,7 @@ Status: **aplicado** na branch `refactor/ui-padronizada-web-app`. Rotas antigas 
 | `/privacy` | `/privacidade` |
 | `/terms` | `/termos` |
 
-Mantidas como estão (já em português): `/jobs`, `/jobs/{id}`, `/plans`, `/notifications`, `/sugerir-vaga`, `/admin/sugestoes`, `/404`, `/`.
+Mantidas como estão: `/sugerir-vaga`, `/admin/sugestoes`, `/404` e `/` (já em português) e **`/jobs`, `/jobs/{id}`, `/plans` e `/notifications`, que continuam em inglês** (veja "Pendente" abaixo).
 
 ## Decisões
 
@@ -72,3 +72,21 @@ Ficou fora de propósito:
 - Links de confirmação e reset gerados pelo Identity, nos e-mails enviados.
 - Testes e2e (`tests/Monburan.E2ETests`) e harness de UX (`tests/ux-smoke`) usam as URLs antigas.
 - Documentação com links (`README.md`, `docs/*.md`).
+
+## Pendente: rotas que ficaram em inglês
+
+`/jobs`, `/jobs/{id}`, `/plans` e `/notifications` não entraram na padronização. São as rotas mais indexadas (o `sitemap`
+lista cada `/jobs/{id}`) e as mais compartilhadas, então trocar exige o mesmo cuidado das demais: 301 no
+`LegacyRouteRedirects`, `sitemap` e `canonical` com o endereço novo, links internos, testes E2E e `ux-smoke`.
+
+Proposta, se for aprovada: `/vagas`, `/vagas/{id:guid}` (a restrição `guid` evita conflito com `/vagas/nova`), `/planos`
+e `/notificacoes`. Até a decisão, ficam como estão.
+
+### Duas rotas parecidas: `/curriculo/{token}` × `/curriculos`
+
+- `/curriculo/{token}` (singular): página **pública** de um link de compartilhamento. Sem login, `noindex`, fora do
+  `sitemap`, token mascarado nos logs.
+- `/curriculos` (plural) e subrotas: área **privada** do candidato, exige login.
+
+A diferença de uma letra é intencional (o link público é curto para ser enviado por mensagem), mas fácil de confundir na
+manutenção. Ao mexer em uma das duas, confira a outra.

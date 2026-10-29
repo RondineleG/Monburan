@@ -6,7 +6,7 @@ Este documento descreve a estratégia de testes implementada para o projeto Monb
 
 ## Estrutura de Testes
 
-O projeto está organizado em quatro camadas de testes, totalizando **160 testes automatizados**:
+O projeto está organizado em quatro camadas de testes (números de 2026-10-29 na seção "Métricas Atuais"):
 
 ### 1. Testes Unitários (Monburan.UnitTests)
 
@@ -28,7 +28,7 @@ O projeto está organizado em quatro camadas de testes, totalizando **160 testes
 - **Value Objects:** Testes para objetos de valor
   - IdTests
 
-**Total:** 63 testes
+**Total:** 1276 testes
 
 ### 2. Testes de Integração (Monburan.IntegrationTests)
 
@@ -42,7 +42,7 @@ O projeto está organizado em quatro camadas de testes, totalizando **160 testes
 - **Repositories:** Testes para repositórios de dados
   - JobRepositoryTests
 
-**Total:** 7 testes
+**Total:** 57 métodos de teste
 
 **Observações:**
 - Utiliza banco de dados em memória para isolamento
@@ -68,7 +68,7 @@ O projeto está organizado em quatro camadas de testes, totalizando **160 testes
 - `FilesApiTests` — upload multipart (válido/inválido)
 - `SubscriptionsApiTests` — planos e assinaturas
 
-**Total:** 38 testes
+**Total:** 256 testes
 
 ### 4. Testes E2E (Monburan.E2ETests)
 
@@ -87,7 +87,7 @@ O projeto está organizado em quatro camadas de testes, totalizando **160 testes
 - `FullSweepTests` — varredura de rotas principais
 - `E2ETestBase` — infraestrutura compartilhada (browser, base URL)
 
-**Total:** 52 testes
+**Total:** 99 métodos de teste
 
 ## Ferramentas Utilizadas
 
@@ -99,7 +99,7 @@ O projeto está organizado em quatro camadas de testes, totalizando **160 testes
 ### Testes de API
 - **Microsoft.AspNetCore.Mvc.Testing:** `WebApplicationFactory<Program>` sobe a app inteira em memória
 - **EF Core InMemory:** banco isolado por factory, sem dependência de PostgreSQL
-  (a migração para Testcontainers/PostgreSQL real está planejada — issue #4)
+  (o comportamento específico do PostgreSQL — transações, travas, migrations — é coberto pelo `Monburan.IntegrationTests`, com Testcontainers)
 
 ### Cobertura de Código
 - **Coverlet:** Ferramenta de coleta de cobertura de código
@@ -192,7 +192,7 @@ public void MetodoTestado_ComVariosInputs_RetornaEsperado(string input, bool exp
 2. Aumentar cobertura de testes unitários para outros Use Cases
 
 ### Médio Prazo
-1. Migrar testes de API/integração para Testcontainers com PostgreSQL real (issue #4)
+1. Investigar a causa da falha intermitente em `FullSweepTests.Sweep_Advertiser_AllRoutes` (hoje mascarada pela retentativa do job E2E)
 2. Adicionar testes de performance para operações críticas
 3. Adicionar testes de segurança
 
@@ -205,11 +205,11 @@ public void MetodoTestado_ComVariosInputs_RetornaEsperado(string input, bool exp
 
 | Projeto | Testes | Framework principal |
 |---|---|---|
-| Monburan.UnitTests | 63 | xUnit + NSubstitute |
-| Monburan.IntegrationTests | 7 | xUnit + EF InMemory |
-| Monburan.ApiTests | 38 | WebApplicationFactory |
-| Monburan.E2ETests | 52 | Playwright |
-| **Total** | **160** | |
+| Monburan.UnitTests | 1276 | xUnit + NSubstitute |
+| Monburan.IntegrationTests | 57 métodos | xUnit + Testcontainers (PostgreSQL 16) |
+| Monburan.ApiTests | 256 | WebApplicationFactory + EF InMemory |
+| Monburan.E2ETests | 99 métodos | Playwright |
+| **Total** | **~1700** | unitários e de API contados por execução; integração e E2E por método `[Fact]`/`[Theory]` |
 
 - **Cobertura de Código:** Coletada no CI (Coverlet + ReportGenerator, artefato `coverage-report`)
 - **Tempo de Execução:** < 1 segundo para testes unitários

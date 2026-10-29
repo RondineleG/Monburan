@@ -33,6 +33,31 @@
 > - **Pendente:** publicação nas stores (Fases 3/4 — Google Play, iOS/TestFlight
 >   que exige macOS), push notifications, cache offline e demais itens da Fase 6
 >
+> ## 🔄 Status atualizado em 2026-10-29
+>
+> Feito desde o resumo acima:
+>
+> - **App 1.6.0 (build 6):** telas de candidato completas (início com vagas
+>   recomendadas, vagas salvas, alertas de vaga, perfil de carreira, editor de
+>   currículo, sugestões de IA no currículo, histórico da candidatura, planos),
+>   tema claro/escuro (`NativeTheme`), estados de carregando/vazio/erro com
+>   "Tentar novamente", aviso de sessão expirada que volta à mesma tela depois do
+>   login e **exclusão de conta dentro do app** (`POST /api/v1/account/delete`,
+>   exigência das lojas)
+> - **Fase 1:** a suíte de API passou de 38 para 256 testes, com contrato real
+>   app × API (`MobileClientContractTests`, 11 testes, inclui refresh de token e
+>   exclusão de conta)
+> - **Fase 5:** `android-release.yml` gera o APK assinado e publica a release na
+>   `main`; `ios-build.yml` gera `.ipa` sem assinatura em `macos-latest`
+>
+> Continua pendente (decisão ou conta externa, não código):
+>
+> - **Canal Android:** só APK no GitHub Release (hoje) ou Google Play (conta de
+>   US$ 25, ficha, Data Safety; o checklist técnico está em `docs/APP-MOBILE.md`)
+> - **iOS:** TestFlight/App Store exigem Apple Developer (US$ 99/ano)
+> - **Fase 6:** push (FCM/APNs), cache offline, lado anunciante no app e
+>   telemetria de falhas. Nenhum destes bloqueia o lançamento
+>
 > ---
 
 ---
