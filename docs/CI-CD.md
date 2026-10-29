@@ -90,32 +90,6 @@ API do App Store Connect (Issuer ID, Key ID e `.p8`), além de um número de bui
 recusa repetidos). Para a App Store, faltam ainda o manifesto de privacidade (`PrivacyInfo.xcprivacy`), ícones e
 capturas de tela (a exclusão de conta dentro do app já existe).
 
-## Homologação (dev) — https://app-dev-monburan.gearhost.io
-
-Cada push na `dev` (merge de PR) com mudança no site publica no ambiente de homologação pelo `deploy-dev.yml`: roda os
-testes unitários, publica, confere o tamanho, envia por FTP e espera o `/health/live` responder. Serve para testar a
-`dev` como se fosse produção antes de promover para a `main`. Para publicar sem merge: Actions → "Deploy dev" → Run
-workflow (só na `dev`).
-
-| Item | Como é |
-|---|---|
-| Hospedagem | GearHost (IIS, Windows), FTP em `deimos.gearhost.io/wwwroot`. Limite de **100 MB** por publicação: o workflow falha acima disso. |
-| Publicação | Dependente do framework (cerca de 46 MB). A autocontida passa de 160 MB. Por isso o servidor precisa do runtime **ASP.NET Core 10**; sem ele o site responde HTTP 500.31 e o workflow falha no `/health/live`. |
-| Banco | PostgreSQL próprio no Neon (separado de produção). Migrations aplicadas no boot (`APPLY_MIGRATIONS=true`). |
-| Ambiente | `ASPNETCORE_ENVIRONMENT=Staging`: o seed de Development (senhas públicas no repositório) **não** roda; 2FA de administrador desligado para facilitar o teste. |
-| Massa de dados | `DemoSeedData` (`Seed:DemoData=true`): 12 empresas, 40 candidatos, 61 vagas (inclui pausadas, expiradas, em moderação e 3 externas), currículos, 120 candidaturas com histórico, notificações, vagas salvas e perfis profissionais. Nomes e textos realistas. Roda uma vez, num banco sem a massa. |
-| Contas | `@demo.monburan.com.br` (domínio que não recebe e-mail; o ambiente não tem SMTP configurado). Administrador: `admin@demo.monburan.com.br`. Senha de todas: secret `DEV_SEED_PASSWORD`. |
-| Dados do servidor | `App_Data` (chaves de sessão e evidências), `logs` e `wwwroot/uploads` nunca são apagados pelo envio. |
-
-Segredos no environment **`dev`** do GitHub (Settings → Environments → dev; deploy só a partir da branch `dev`):
-`DEV_FTP_HOST`, `DEV_FTP_USER`, `DEV_FTP_PASSWORD`, `DEV_DB_CONNECTION` (formato Npgsql:
-`Host=...;Database=...;Username=...;Password=...;SSL Mode=Require;Channel Binding=Require`), `DEV_JWT_SIGNING_KEY` e
-`DEV_SEED_PASSWORD`. Variável `DEV_APP_URL` (opcional, padrão acima) e `DEV_FTP_DIR` (padrão `/wwwroot`). O arquivo
-`.publishsettings` baixado do painel tem a senha do FTP: fica fora do Git (`*.publishsettings` no `.gitignore`).
-
-Para recriar a massa do zero: apague os dados do banco do Neon (ou crie um branch novo do banco no painel do Neon e troque
-`DEV_DB_CONNECTION`) e rode o workflow de novo.
-
 ## Publicar a web (VPS)
 
 A imagem `latest` é construída e publicada pelo `docker-ghcr.yml` a cada push na `main`.
@@ -181,19 +155,3 @@ administração e os ajustes de segurança do app: [SEGURANCA.md](SEGURANCA.md).
   vez antes de reprovar, como proteção até a esteira acumular execuções verdes sem a retentativa.
 - **Segurança**: o job `security-scan` procura formatos conhecidos de chave/token nos arquivos versionados e reprova se
   `dotnet list package --vulnerable --include-transitive` apontar algum pacote com vulnerabilidade.
-
-### Deploy da homologação a partir da sua máquina
-
-Quando o GitHub não alcança o FTP do GearHost (o passo "Enviar por FTP" falha com `Connection timed out`), o mesmo deploy
-roda localmente, no Git Bash:
-
-```bash
-cp infra/gearhost/dev.env.example infra/gearhost/dev.env   # preencha (fica fora do Git)
-# baixe o .publishsettings no painel do GearHost para a raiz do repositório (também fora do Git)
-bash infra/gearhost/deploy-dev.sh --dry-run   # publica e confere o tamanho, sem enviar
-bash infra/gearhost/deploy-dev.sh             # envia e espera o /health/live
-```
-
-O `web.config` é gerado pelo mesmo `infra/gearhost/make-webconfig.sh` que o workflow usa. Se o próprio site responder
-HTTP 522 (Cloudflare) e o FTP não abrir de lugar nenhum, o servidor do GearHost está fora do ar ou mudou: confira o site
-e baixe um `.publishsettings` novo no painel.

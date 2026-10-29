@@ -38,7 +38,6 @@ Publicação e deploy conforme workflows existentes
 | `rebuild-semanal.yml` | não | não | não | não | cron semanal (segunda 03:00 BRT); dispara o `docker-ghcr.yml` por `workflow_dispatch` |
 | `android-release.yml` / `ios-build.yml` | sim (paths de mobile) | não | não | sim (paths de mobile) | `workflow_dispatch` |
 | `infra-scripts.yml` | sim (paths de infra/vps) | não | não | sim (paths de infra/vps) | `workflow_dispatch` |
-| `deploy-dev.yml` | não | testes unitários + **deploy na homologação** (GearHost, só com mudança em `src/Monburan.Web*` ou `src/Monburan.Core`) | não | não | `workflow_dispatch` |
 
 Pushes em feature branches **não** disparam o `ci-cd.yml`: a validação da feature acontece
 no próprio PR (para a dev), então não há gatilho de push além de `main` e `dev`.
