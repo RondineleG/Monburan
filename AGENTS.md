@@ -21,6 +21,9 @@ Este arquivo vale para qualquer agente ou ferramenta de IA que trabalhe neste re
 - Nada é publicado a partir da `dev`: os workflows que geram versão (APK, iOS e imagem Docker) publicam só no push
   na `main`. Enquanto a `dev` não é promovida, a versão publicada continua a antiga; ao promover, a esteira completa
   roda. Não acrescente gatilhos da `dev` a esses workflows.
+- Exceção: o `deploy-dev.yml` publica a `dev` no ambiente de homologação (https://app-dev-monburan.gearhost.io, banco
+  próprio e massa de demonstração), para testar antes de promover. Ele não gera versão nem toca em produção; segredos só
+  no environment `dev` do GitHub, nunca no repositório (arquivos `*.publishsettings` ficam fora do Git).
 
 ## Commits
 

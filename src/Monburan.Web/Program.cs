@@ -601,6 +601,18 @@ if (app.Environment.IsDevelopment())
     await DevelopmentIdentitySeedData.InitializeAsync(userManager, roleManager);
 }
 
+// Massa de demonstração do ambiente público de homologação (Seed:DemoData=true). Nunca em produção.
+if (app.Configuration.GetValue<bool>("Seed:DemoData") && !app.Environment.IsProduction())
+{
+    using var scope = app.Services.CreateScope();
+    await DemoSeedData.InitializeAsync(
+        scope.ServiceProvider.GetRequiredService<ApplicationDbContext>(),
+        scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>(),
+        scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole<Guid>>>(),
+        app.Configuration,
+        app.Logger);
+}
+
 // Provedores de IA: cadastra os modelos iniciais na primeira execução e carrega o catálogo em memória. Uma falha aqui
 // não pode impedir o site de subir: a IA só fica desligada até a próxima releitura.
 try
