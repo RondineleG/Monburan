@@ -167,6 +167,32 @@ public class MobileClientContractTests : IClassFixture<MonburanApiFactory>
     }
 
     [Fact]
+    public async Task DeleteAccount_ThroughMobileClient_ChecksThePassword_ThenDeletes()
+    {
+        var app = MobileApp.Create(_factory);
+        var email = $"exclui-app-{Guid.NewGuid():N}@teste.com";
+        var registered = await app.AuthApi.RegisterAsync(new RegisterRequest
+        {
+            AccountType = "candidate",
+            Name = "Pessoa do App",
+            Email = email,
+            Password = Password,
+            ConfirmPassword = Password
+        });
+        await app.Auth.SignInAsync(registered);
+
+        var wrong = async () => await app.Api.DeleteMyAccountAsync("senha-errada");
+        var error = (await wrong.Should().ThrowAsync<ApiException>()).Which;
+        error.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        error.FieldError("password").Should().Be("Senha incorreta.");
+
+        await app.Api.DeleteMyAccountAsync(Password);
+
+        var login = async () => await app.AuthApi.LoginAsync(email, Password);
+        await login.Should().ThrowAsync<ApiException>();
+    }
+
+    [Fact]
     public async Task Register_WithWeakPassword_ReturnsPortugueseMessages()
     {
         var app = MobileApp.Create(_factory);

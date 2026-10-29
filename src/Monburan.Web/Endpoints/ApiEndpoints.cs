@@ -16,6 +16,7 @@ public static class ApiEndpoints
         api.MapJobAlertEndpoints();
         api.MapApplicationEndpoints();
         api.MapCandidateEndpoints();
+        api.MapAccountEndpoints();
         api.MapAdvertiserEndpoints();
         api.MapResumeEndpoints();
         api.MapFileEndpoints();
