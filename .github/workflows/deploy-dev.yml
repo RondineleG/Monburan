@@ -60,39 +60,8 @@ jobs:
           JWT_SIGNING_KEY: ${{ secrets.DEV_JWT_SIGNING_KEY }}
           SEED_PASSWORD: ${{ secrets.DEV_SEED_PASSWORD }}
           APP_URL: ${{ vars.DEV_APP_URL || 'https://app-dev-monburan.gearhost.io' }}
-        run: |
-          for name in DB_CONNECTION JWT_SIGNING_KEY SEED_PASSWORD; do
-            [ -n "${!name}" ] || { echo "::error::Falta o secret DEV_${name} no environment dev"; exit 1; }
-          done
-          xml() { printf '%s' "$1" | sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g' -e 's/"/\&quot;/g'; }
-          host="${APP_URL#https://}"; host="${host%%/*}"
-          # O web.config não é servido pelo IIS; os valores sensíveis ficam só nele, no servidor
-          cat > out/web.config <<EOF
-          <?xml version="1.0" encoding="utf-8"?>
-          <configuration>
-            <location path="." inheritInChildApplications="false">
-              <system.webServer>
-                <handlers>
-                  <add name="aspNetCore" path="*" verb="*" modules="AspNetCoreModuleV2" resourceType="Unspecified" />
-                </handlers>
-                <aspNetCore processPath="dotnet" arguments=".\Monburan.Web.dll" stdoutLogEnabled="false" stdoutLogFile=".\logs\stdout" hostingModel="outofprocess">
-                  <environmentVariables>
-                    <environmentVariable name="ASPNETCORE_ENVIRONMENT" value="Staging" />
-                    <environmentVariable name="APPLY_MIGRATIONS" value="true" />
-                    <environmentVariable name="ConnectionStrings__DefaultConnection" value="$(xml "$DB_CONNECTION")" />
-                    <environmentVariable name="Jwt__SigningKey" value="$(xml "$JWT_SIGNING_KEY")" />
-                    <environmentVariable name="App__PublicBaseUrl" value="$(xml "$APP_URL")" />
-                    <environmentVariable name="AllowedHosts" value="$(xml "$host")" />
-                    <environmentVariable name="DataProtection__KeysPath" value="App_Data\keys" />
-                    <environmentVariable name="Security__RequireTwoFactorForAdmins" value="false" />
-                    <environmentVariable name="Seed__DemoData" value="true" />
-                    <environmentVariable name="Seed__DemoPassword" value="$(xml "$SEED_PASSWORD")" />
-                  </environmentVariables>
-                </aspNetCore>
-              </system.webServer>
-            </location>
-          </configuration>
-          EOF
+        # Mesmo script do deploy local (infra/gearhost/deploy-dev.sh)
+        run: bash infra/gearhost/make-webconfig.sh out
 
       - name: Conferir o tamanho da publicação
         run: |

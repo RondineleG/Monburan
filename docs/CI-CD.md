@@ -181,3 +181,19 @@ administração e os ajustes de segurança do app: [SEGURANCA.md](SEGURANCA.md).
   vez antes de reprovar, como proteção até a esteira acumular execuções verdes sem a retentativa.
 - **Segurança**: o job `security-scan` procura formatos conhecidos de chave/token nos arquivos versionados e reprova se
   `dotnet list package --vulnerable --include-transitive` apontar algum pacote com vulnerabilidade.
+
+### Deploy da homologação a partir da sua máquina
+
+Quando o GitHub não alcança o FTP do GearHost (o passo "Enviar por FTP" falha com `Connection timed out`), o mesmo deploy
+roda localmente, no Git Bash:
+
+```bash
+cp infra/gearhost/dev.env.example infra/gearhost/dev.env   # preencha (fica fora do Git)
+# baixe o .publishsettings no painel do GearHost para a raiz do repositório (também fora do Git)
+bash infra/gearhost/deploy-dev.sh --dry-run   # publica e confere o tamanho, sem enviar
+bash infra/gearhost/deploy-dev.sh             # envia e espera o /health/live
+```
+
+O `web.config` é gerado pelo mesmo `infra/gearhost/make-webconfig.sh` que o workflow usa. Se o próprio site responder
+HTTP 522 (Cloudflare) e o FTP não abrir de lugar nenhum, o servidor do GearHost está fora do ar ou mudou: confira o site
+e baixe um `.publishsettings` novo no painel.
