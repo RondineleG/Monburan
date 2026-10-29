@@ -53,7 +53,7 @@ jobs:
     # Cache do cache global do NuGet (~/.nuget/packages). A chave muda só quando os csproj ou o
     # NuGet.config mudam; o restore deixa de baixar pacotes já conhecidos entre execuções.
     - name: Cache NuGet packages
-      uses: actions/cache@v4
+      uses: actions/cache@v6
       with:
         path: ~/.nuget/packages
         key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj', 'NuGet.config') }}
@@ -157,7 +157,7 @@ jobs:
         dotnet-version: ${{ env.DOTNET_VERSION }}
 
     - name: Cache NuGet packages
-      uses: actions/cache@v4
+      uses: actions/cache@v6
       with:
         path: ~/.nuget/packages
         key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj', 'NuGet.config') }}
@@ -231,7 +231,7 @@ jobs:
 
     # Mesmo cache do build-and-test: o restore do scan de vulnerabilidades reusa os pacotes já baixados
     - name: Cache NuGet packages
-      uses: actions/cache@v4
+      uses: actions/cache@v6
       with:
         path: ~/.nuget/packages
         key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj', 'NuGet.config') }}
