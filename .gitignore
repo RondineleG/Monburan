@@ -499,5 +499,3 @@ src/Monburan.Web/App_Data/
 # Relatórios de cobertura gerados localmente
 coverage-report/
 
-# Credenciais do deploy local da homologação (infra/gearhost/deploy-dev.sh)
-infra/gearhost/dev.env

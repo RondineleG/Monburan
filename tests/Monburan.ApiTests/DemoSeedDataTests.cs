@@ -11,7 +11,7 @@ using Monburan.Web.Models;
 
 namespace Monburan.ApiTests;
 
-/// <summary>Massa de demonstração do ambiente de homologação: volume, contas e textos sem cara de teste.</summary>
+/// <summary>Massa de demonstração: volume, contas e textos sem cara de teste.</summary>
 public sealed class DemoSeedDataTests : IClassFixture<MonburanApiFactory>
 {
     private const string Password = "Homologa#2026";

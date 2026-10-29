@@ -9,7 +9,7 @@ using Monburan.Web.Models;
 namespace Monburan.Web.Data;
 
 /// <summary>
-/// Massa de dados para o ambiente público de homologação (dev): empresas, pessoas, vagas, currículos e candidaturas com
+/// Massa de dados de demonstração (apresentações, testes manuais, staging): empresas, pessoas, vagas, currículos e candidaturas com
 /// nomes e textos realistas, para testar o site como se fosse produção. Liga com <c>Seed:DemoData=true</c> e nunca roda
 /// em Production (Program.cs). As contas usam o domínio <see cref="Domain"/>, que não recebe e-mail, e a senha vem de
 /// <c>Seed:DemoPassword</c> (secret do ambiente; sem ela o seed não roda).
@@ -391,7 +391,7 @@ public static class DemoSeedData
         }
         await context.SaveChangesAsync();
 
-        // Contas de acesso (o vínculo com o perfil é o e-mail) e o administrador da homologação
+        // Contas de acesso (o vínculo com o perfil é o e-mail) e o administrador da demonstração
         foreach (var email in advertisers.Select(a => a.Email).Concat(candidates.Select(c => c.Email)))
             await EnsureUserAsync(userManager, email, password);
 

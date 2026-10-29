@@ -601,7 +601,7 @@ if (app.Environment.IsDevelopment())
     await DevelopmentIdentitySeedData.InitializeAsync(userManager, roleManager);
 }
 
-// Massa de demonstração do ambiente público de homologação (Seed:DemoData=true). Nunca em produção.
+// Massa de demonstração (Seed:DemoData=true e Seed:DemoPassword), para apresentações e testes manuais. Nunca em produção.
 if (app.Configuration.GetValue<bool>("Seed:DemoData") && !app.Environment.IsProduction())
 {
     using var scope = app.Services.CreateScope();
