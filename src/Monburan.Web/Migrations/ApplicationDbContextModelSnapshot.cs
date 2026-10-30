@@ -167,6 +167,94 @@ namespace Monburan.Web.Migrations
                     b.ToTable("UserTokens", "Identity");
                 });
 
+            modelBuilder.Entity("Monburan.Core.Entities.AccessGroup", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasMaxLength(36)
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("DeletedBy")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
+
+                    b.Property<bool>("IsDeleted")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)");
+
+                    b.Property<string>("TenantId")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("UpdatedBy")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Name")
+                        .IsUnique()
+                        .HasDatabaseName("IX_AccessGroups_Name");
+
+                    b.HasIndex("TenantId", "Id")
+                        .IsUnique();
+
+                    b.ToTable("AccessGroups", (string)null);
+
+                    b.HasData(
+                        new
+                        {
+                            Id = new Guid("a0000000-0000-0000-0000-000000000001"),
+                            CreatedAt = new DateTime(2026, 10, 29, 0, 0, 0, 0, DateTimeKind.Utc),
+                            CreatedBy = "",
+                            DeletedBy = "",
+                            Description = "Candidatos que testam funcionalidades novas antes de todos",
+                            IsDeleted = false,
+                            Name = "candidato-beta",
+                            TenantId = "default",
+                            UpdatedBy = ""
+                        },
+                        new
+                        {
+                            Id = new Guid("a0000000-0000-0000-0000-000000000002"),
+                            CreatedAt = new DateTime(2026, 10, 29, 0, 0, 0, 0, DateTimeKind.Utc),
+                            CreatedBy = "",
+                            DeletedBy = "",
+                            Description = "Empresas que testam funcionalidades novas antes de todos",
+                            IsDeleted = false,
+                            Name = "recrutador-beta",
+                            TenantId = "default",
+                            UpdatedBy = ""
+                        });
+                });
+
             modelBuilder.Entity("Monburan.Core.Entities.Address", b =>
                 {
                     b.Property<Guid>("Id")
@@ -906,6 +994,79 @@ namespace Monburan.Web.Migrations
                         .IsUnique();
 
                     b.ToTable("CareerProfiles", (string)null);
+                });
+
+            modelBuilder.Entity("Monburan.Core.Entities.FeatureFlag", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasMaxLength(36)
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("DeletedBy")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<bool>("EnabledForEveryone")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Groups")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<bool>("IsDeleted")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(60)
+                        .HasColumnType("character varying(60)");
+
+                    b.Property<DateTime?>("RemoveBy")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("TenantId")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("UpdatedBy")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Name")
+                        .IsUnique()
+                        .HasDatabaseName("IX_FeatureFlags_Name");
+
+                    b.HasIndex("TenantId", "Id")
+                        .IsUnique();
+
+                    b.ToTable("FeatureFlags", (string)null);
                 });
 
             modelBuilder.Entity("Monburan.Core.Entities.Job", b =>

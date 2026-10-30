@@ -93,6 +93,15 @@ else
                     </NavLink>
                 }
 
+                @if (isProduct && !IsAdmin)
+                {
+                    @* Equipe de produto: só a tela de funcionalidades, sem o resto da administração *@
+                    <span class="sidebar-nav__label sidebar-nav__label--spaced">Produto</span>
+                    <NavLink class="sidebar-link" href="/admin/funcionalidades" data-testid="nav-product-flags" data-label="Funcionalidades">
+                        <span class="sidebar-link__icon"><Icon Name="sparkles" /></span><span>Funcionalidades</span>
+                    </NavLink>
+                }
+
                 @if (IsAdmin)
                 {
                     <span class="sidebar-nav__label@(IsAdminOnly ? string.Empty : " sidebar-nav__label--spaced")">Administração</span>
@@ -119,6 +128,9 @@ else
                     </NavLink>
                     <NavLink class="sidebar-link" href="/admin/provedores-ia" data-testid="nav-admin-ai-providers" data-label="Provedores de IA">
                         <span class="sidebar-link__icon"><Icon Name="sparkles" /></span><span>Provedores de IA</span>
+                    </NavLink>
+                    <NavLink class="sidebar-link" href="/admin/funcionalidades" data-testid="nav-admin-flags" data-label="Funcionalidades">
+                        <span class="sidebar-link__icon"><Icon Name="sparkles" /></span><span>Funcionalidades</span>
                     </NavLink>
                     <NavLink class="sidebar-link" href="/admin/auditoria" data-testid="nav-admin-audit" data-label="Auditoria">
                         <span class="sidebar-link__icon"><Icon Name="clock" /></span><span>Auditoria</span>
@@ -255,6 +267,7 @@ else
 @code {
     private string currentUserType = string.Empty;
     private bool isAdmin;
+    private bool isProduct;
     private bool isAuthenticated;
     private string displayName = string.Empty;
     private string initials = string.Empty;
@@ -284,6 +297,7 @@ else
             isAuthenticated = user.Identity?.IsAuthenticated == true;
             currentUserType = user.FindFirst(Monburan.Web.Services.ClaimsExtensions.UserTypeClaimType)?.Value ?? string.Empty;
             isAdmin = user.IsInRole("Admin");
+            isProduct = user.IsInRole(Monburan.Core.Services.AccessGroups.ProductRole);
             displayName = user.GetDisplayName();
             initials = user.GetInitials();
         }

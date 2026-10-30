@@ -70,6 +70,12 @@ public class MonburanApiClient
     public Task<CandidateResponse> UpdateMyCandidateAsync(UpdateCandidateRequest request, CancellationToken ct = default) =>
         SendAsync<CandidateResponse>(HttpMethod.Put, "api/v1/candidates/me", request, ct);
 
+    // ---- Feature flags ----
+
+    /// <summary>Funcionalidades ligadas para a conta (anônimo recebe só as liberadas para todos).</summary>
+    public Task<FeatureListResponse> GetFeaturesAsync(CancellationToken ct = default) =>
+        SendAsync<FeatureListResponse>(HttpMethod.Get, "api/v1/features", null, ct);
+
     // ---- Conta ----
 
     /// <summary>Exclui a conta e anonimiza os dados pessoais. Senha errada vira 400 com erro no campo "password".</summary>

@@ -36,6 +36,7 @@ As rotas `/api/v1/**` exigem `Authorization: Bearer` (policy `ApiBearer`), excet
 | `PUT` | `/api/v1/applications/{id}/status` | advertiser | Atualiza o status da candidatura |
 | `GET`/`POST`/`PUT`/`DELETE` | `/api/v1/job-alerts/**` | candidate | Alertas de vagas |
 | `GET`/`PUT` | `/api/v1/candidates/me` | candidate | Perfil do candidato |
+| `GET` | `/api/v1/features` | anônimo ou bearer | Feature flags ligadas para quem chama (`{ "features": [...] }`); veja `docs/FEATURE-FLAGS.md` |
 | `POST` | `/api/v1/account/delete` | bearer | Exclui a própria conta e anonimiza os dados (`{ "password": "..." }`; senha errada → `400` com erro em `password`; sucesso → `204`). Exigência das lojas de app. |
 | `GET`/`PUT` | `/api/v1/candidates/me/career-profile` | candidate | Perfil profissional |
 | `GET` | `/api/v1/candidates/me/progress` | candidate | Progresso do perfil |

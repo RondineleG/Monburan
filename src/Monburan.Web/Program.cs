@@ -150,6 +150,10 @@ builder.Services.AddAuthorizationBuilder()
     .AddPolicy("AdminOnly", policy => policy
         .RequireRole("Admin")
         .AddRequirements(new AdminTwoFactorRequirement()))
+    // Feature flags e grupos de acesso: administradores e a equipe de produto, sempre com verificação em duas etapas
+    .AddPolicy("FeatureManagers", policy => policy
+        .RequireRole("Admin", Monburan.Core.Services.AccessGroups.ProductRole)
+        .AddRequirements(new AdminTwoFactorRequirement()))
     // Páginas por papel: o perfil vem da claim user_type emitida no login
     .AddPolicy("CandidateOnly", policy => policy
         .RequireAuthenticatedUser()
@@ -236,7 +240,9 @@ builder.Services.ConfigureApplicationCookie(options =>
     {
         var security = context.HttpContext.RequestServices.GetRequiredService<IOptionsMonitor<SecurityOptions>>().CurrentValue;
         var user = context.HttpContext.User;
-        if (security.RequireTwoFactorForAdmins && user.IsInRole("Admin") && !AdminTwoFactorHandler.HasTwoFactor(user))
+        if (security.RequireTwoFactorForAdmins
+            && (user.IsInRole("Admin") || user.IsInRole(Monburan.Core.Services.AccessGroups.ProductRole))
+            && !AdminTwoFactorHandler.HasTwoFactor(user))
         {
             context.Response.Redirect("/conta/seguranca-2fa?adminRequired=true");
             return Task.CompletedTask;
@@ -461,6 +467,10 @@ builder.Services.AddScoped<Monburan.Web.UseCases.Analytics.GetDashboardAnalytics
 
 // Registrar Background Services
 builder.Services.AddHostedService<JobExpirationBackgroundService>();
+
+// Feature flags por grupo de acesso (docs/FEATURE-FLAGS.md)
+builder.Services.AddSingleton<IFeatureFlags, FeatureFlagService>();
+builder.Services.AddScoped<FeatureFlagAdminService>();
 // Retenção das imagens de sugestões encerradas (Evidence:RetentionDays, padrão 90 dias; 0 desliga)
 builder.Services.AddHostedService<EvidenceRetentionBackgroundService>();
 

@@ -1,0 +1,28 @@
+@using Monburan.Mobile.Shared.Features
+@implements IDisposable
+@inject FeatureFlagsState Flags
+
+@* Mostra o conteúdo só se a funcionalidade estiver ligada para a conta (mesmo componente da web). *@
+@if (Flags.IsEnabled(Feature))
+{
+    @ChildContent
+}
+else
+{
+    @Disabled
+}
+
+@code {
+    [Parameter, EditorRequired] public string Feature { get; set; } = string.Empty;
+
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    /// <summary>O que mostrar quando a funcionalidade está desligada (opcional).</summary>
+    [Parameter] public RenderFragment? Disabled { get; set; }
+
+    protected override void OnInitialized() => Flags.Changed += OnChanged;
+
+    private void OnChanged() => InvokeAsync(StateHasChanged);
+
+    public void Dispose() => Flags.Changed -= OnChanged;
+}
