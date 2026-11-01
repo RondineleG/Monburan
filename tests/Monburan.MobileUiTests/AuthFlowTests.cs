@@ -52,7 +52,7 @@ public class AuthFlowTests
     }
 
     [MobileUiFact]
-    public async Task Logout_ReturnsToTheWelcomeScreen()
+    public async Task Logout_GoesToTheLoginScreen_AndTheSessionIsGone()
     {
         var email = await TestApi.RegisterCandidateAsync();
         using var app = new AppSession();
@@ -63,6 +63,9 @@ public class AuthFlowTests
         app.WaitForText("h1.page-title", "Perfil");
         app.TapText("button", "Sair da conta");
 
+        // O app leva à tela de login (Profile.LogoutAsync). Reabrir o app mostra que a sessão foi apagada
+        app.WaitForText("h1.page-title", "Entrar");
+        app.Relaunch();
         app.WaitForText("#home-title", "O trabalho certo muda tudo");
     }
 }
