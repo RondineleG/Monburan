@@ -101,28 +101,76 @@ public sealed class AppSession : IDisposable
         new(new SystemClock(), Driver, DefaultWait, TimeSpan.FromMilliseconds(300));
 
     public IWebElement WaitFor(string css) =>
-        Wait().Until(_ =>
+        Poll($"elemento '{css}'", () =>
         {
-            try
-            {
-                var element = Driver.FindElement(By.CssSelector(css));
-                return element.Displayed ? element : null;
-            }
-            catch (NoSuchElementException) { return null; }
-            catch (StaleElementReferenceException) { return null; }
+            var element = Driver.FindElement(By.CssSelector(css));
+            return element.Displayed ? element : null;
         });
 
     /// <summary>Espera o texto aparecer em algum elemento que case com o seletor.</summary>
     public IWebElement WaitForText(string css, string text) =>
-        Wait().Until(_ =>
+        Poll($"'{text}' em '{css}'", () =>
+            Driver.FindElements(By.CssSelector(css))
+                .FirstOrDefault(e => e.Displayed && e.Text.Contains(text, StringComparison.OrdinalIgnoreCase)));
+
+    /// <summary>
+    /// Repete a sonda até ela devolver algo. Elemento ainda ausente ou velho é só "tente de novo"; se o chromedriver
+    /// perder o DevTools (a WebView foi recriada), reentra na WebView e continua. Ao estourar o tempo, a mensagem
+    /// traz o que estava na tela e um screenshot é salvo em MOBILE_DIAG_DIR.
+    /// </summary>
+    private IWebElement Poll(string what, Func<IWebElement?> probe)
+    {
+        try
         {
-            try
+            return Wait().Until(_ =>
             {
-                return Driver.FindElements(By.CssSelector(css))
-                    .FirstOrDefault(e => e.Displayed && e.Text.Contains(text, StringComparison.OrdinalIgnoreCase));
-            }
-            catch (StaleElementReferenceException) { return null; }
-        });
+                try { return probe(); }
+                catch (NoSuchElementException) { return null; }
+                catch (StaleElementReferenceException) { return null; }
+                catch (WebDriverException ex) when (ex is not WebDriverTimeoutException)
+                {
+                    // "disconnected: not connected to DevTools" e semelhantes
+                    try { EnterWebView(); } catch (WebDriverTimeoutException) { }
+                    return null;
+                }
+            })!;
+        }
+        catch (WebDriverTimeoutException)
+        {
+            throw new WebDriverTimeoutException($"Não apareceu {what} em {DefaultWait.TotalSeconds:0}s. {Describe()}");
+        }
+    }
+
+    private string Describe()
+    {
+        var context = "?";
+        var url = "?";
+        var body = "?";
+        try { context = Driver.Context; } catch (WebDriverException) { }
+        try { url = Driver.Url; } catch (WebDriverException) { }
+        try
+        {
+            var text = Driver.FindElement(By.CssSelector("body")).Text.ReplaceLineEndings(" | ");
+            body = text.Length > 500 ? text[..500] : text;
+        }
+        catch (WebDriverException) { }
+        SaveScreenshot();
+        return $"Contexto: {context}; URL: {url}; Texto na tela: [{body}]";
+    }
+
+    private void SaveScreenshot()
+    {
+        try
+        {
+            var dir = Environment.GetEnvironmentVariable("MOBILE_DIAG_DIR");
+            if (string.IsNullOrEmpty(dir))
+                return;
+            Directory.CreateDirectory(dir);
+            TrySwitchToNative();
+            Driver.GetScreenshot().SaveAsFile(Path.Combine(dir, $"falha-{DateTime.UtcNow:HHmmss-fff}.png"));
+        }
+        catch (Exception) { /* diagnóstico nunca derruba o teste */ }
+    }
 
     public void Tap(string css) => Click(WaitFor(css));
 

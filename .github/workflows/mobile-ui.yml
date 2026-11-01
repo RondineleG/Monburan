@@ -126,6 +126,7 @@ jobs:
       uses: reactivecircus/android-emulator-runner@v2
       env:
         MOBILE_UI: '1'
+        MOBILE_DIAG_DIR: ${{ runner.temp }}/diag
       with:
         api-level: 34
         target: google_apis
@@ -145,5 +146,6 @@ jobs:
           app.log
           appium.log
           ${{ runner.temp }}/trx/*.trx
+          ${{ runner.temp }}/diag/*.png
         retention-days: 7
         if-no-files-found: warn
