@@ -53,7 +53,19 @@ public sealed class AppSession : IDisposable
         TrySwitchToNative();
         Driver.TerminateApp(MobileEnvironment.AppPackage);
         Driver.ActivateApp(MobileEnvironment.AppPackage);
-        EnterWebView();
+        try
+        {
+            EnterWebView();
+        }
+        catch (WebDriverTimeoutException)
+        {
+            // Na primeira abertura a frio do emulador a WebView às vezes nem sobe (já passou e já falhou com o mesmo
+            // APK): reinicia o app uma vez antes de dar o teste por perdido
+            TrySwitchToNative();
+            Driver.TerminateApp(MobileEnvironment.AppPackage);
+            Driver.ActivateApp(MobileEnvironment.AppPackage);
+            EnterWebView();
+        }
     }
 
     private void TrySwitchToNative()
