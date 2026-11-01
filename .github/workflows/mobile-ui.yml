@@ -103,7 +103,7 @@ jobs:
         # Versões fixas: o driver uiautomator2 mais novo exige o Appium 4 (beta), incompatível com o servidor 2.x
         npm install --global appium@3.9.0
         appium driver install uiautomator2@8.7.3
-        nohup appium --allow-insecure chromedriver_autodownload --log appium.log > /dev/null 2>&1 &
+        nohup appium --allow-insecure=uiautomator2:chromedriver_autodownload --log appium.log > /dev/null 2>&1 &
         for _ in $(seq 1 30); do
           if curl -fsS http://127.0.0.1:4723/status > /dev/null 2>&1; then
             echo "Appium no ar"

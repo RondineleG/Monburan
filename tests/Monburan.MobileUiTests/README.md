@@ -24,7 +24,7 @@ Requisitos: JDK 17, Android SDK com um emulador (ou aparelho com depuração USB
 # 1. Appium
 npm install --global appium@3.9.0
 appium driver install uiautomator2@8.7.3
-appium --allow-insecure chromedriver_autodownload      # deixe rodando
+appium --allow-insecure=uiautomator2:chromedriver_autodownload      # deixe rodando
 
 # 2. API local (Postgres via docker compose; Development popula a massa de demonstração)
 docker compose up -d
