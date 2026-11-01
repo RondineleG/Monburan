@@ -25,6 +25,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Monburan.Mobile.Shared", "s
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Monburan.Mobile", "src\Monburan.Mobile\Monburan.Mobile.csproj", "{EA4B1CF1-1650-43AE-9CF2-DFFFE1133809}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Monburan.MobileUiTests", "tests\Monburan.MobileUiTests\Monburan.MobileUiTests.csproj", "{51BEBE0A-54DE-4D10-AC90-447295E84F27}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -143,6 +145,18 @@ Global
 		{EA4B1CF1-1650-43AE-9CF2-DFFFE1133809}.Release|x64.Build.0 = Release|Any CPU
 		{EA4B1CF1-1650-43AE-9CF2-DFFFE1133809}.Release|x86.ActiveCfg = Release|Any CPU
 		{EA4B1CF1-1650-43AE-9CF2-DFFFE1133809}.Release|x86.Build.0 = Release|Any CPU
+		{51BEBE0A-54DE-4D10-AC90-447295E84F27}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{51BEBE0A-54DE-4D10-AC90-447295E84F27}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{51BEBE0A-54DE-4D10-AC90-447295E84F27}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{51BEBE0A-54DE-4D10-AC90-447295E84F27}.Debug|x64.Build.0 = Debug|Any CPU
+		{51BEBE0A-54DE-4D10-AC90-447295E84F27}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{51BEBE0A-54DE-4D10-AC90-447295E84F27}.Debug|x86.Build.0 = Debug|Any CPU
+		{51BEBE0A-54DE-4D10-AC90-447295E84F27}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{51BEBE0A-54DE-4D10-AC90-447295E84F27}.Release|Any CPU.Build.0 = Release|Any CPU
+		{51BEBE0A-54DE-4D10-AC90-447295E84F27}.Release|x64.ActiveCfg = Release|Any CPU
+		{51BEBE0A-54DE-4D10-AC90-447295E84F27}.Release|x64.Build.0 = Release|Any CPU
+		{51BEBE0A-54DE-4D10-AC90-447295E84F27}.Release|x86.ActiveCfg = Release|Any CPU
+		{51BEBE0A-54DE-4D10-AC90-447295E84F27}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -154,6 +168,7 @@ Global
 		{C1654169-3E78-4565-AC6F-A802A47FEA9C} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 		{1CC73A76-EAAC-4D75-8EA6-AD6BAFBA35DE} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 		{EA4B1CF1-1650-43AE-9CF2-DFFFE1133809} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
+		{51BEBE0A-54DE-4D10-AC90-447295E84F27} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {F14870D5-D87C-4CC2-A771-389C24EC493B}
