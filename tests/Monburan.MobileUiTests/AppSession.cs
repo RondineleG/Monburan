@@ -30,7 +30,11 @@ public sealed class AppSession : IDisposable
         // A WebView do app é depurável no Debug; o Appium baixa o chromedriver compatível
         options.AddAdditionalAppiumOption("chromedriverAutodownload", true);
         options.AddAdditionalAppiumOption("ensureWebviewsHavePages", true);
-        options.AddAdditionalAppiumOption("adbExecTimeout", 60000);
+        options.AddAdditionalAppiumOption("adbExecTimeout", 120000);
+        // Emulador recém-iniciado no CI é lento: o padrão de 20 s para instalar o servidor do UiAutomator2 estoura
+        options.AddAdditionalAppiumOption("uiautomator2ServerInstallTimeout", 180000);
+        options.AddAdditionalAppiumOption("uiautomator2ServerLaunchTimeout", 180000);
+        options.AddAdditionalAppiumOption("androidInstallTimeout", 300000);
         if (MobileEnvironment.DeviceName is { } device)
             options.DeviceName = device;
         if (MobileEnvironment.ApkPath is { } apk)
