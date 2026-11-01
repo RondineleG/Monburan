@@ -12,7 +12,8 @@ namespace Monburan.MobileUiTests;
 /// </summary>
 public sealed class AppSession : IDisposable
 {
-    private static readonly TimeSpan DefaultWait = TimeSpan.FromSeconds(45);
+    // A primeira abertura do app num emulador recém-iniciado (JIT do .NET + WebView) passa dos 45 s
+    private static readonly TimeSpan DefaultWait = TimeSpan.FromSeconds(90);
 
     public AndroidDriver Driver { get; }
 
@@ -48,9 +49,17 @@ public sealed class AppSession : IDisposable
     /// <summary>Fecha e abre o app de novo, mantendo os dados (simula o usuário fechando e voltando).</summary>
     public void Relaunch()
     {
+        // Larga a WebView antiga: depois de reabrir o app o chromedriver da sessão anterior fica sem DevTools
+        TrySwitchToNative();
         Driver.TerminateApp(MobileEnvironment.AppPackage);
         Driver.ActivateApp(MobileEnvironment.AppPackage);
         EnterWebView();
+    }
+
+    private void TrySwitchToNative()
+    {
+        try { Driver.Context = "NATIVE_APP"; }
+        catch (WebDriverException) { /* já estava no nativo ou a WebView sumiu */ }
     }
 
     private void ClearAppData()
@@ -61,9 +70,31 @@ public sealed class AppSession : IDisposable
 
     private void EnterWebView()
     {
-        var context = Wait().Until(_ =>
-            Driver.Contexts.FirstOrDefault(c => c.StartsWith("WEBVIEW_" + MobileEnvironment.AppPackage, StringComparison.Ordinal)));
-        Driver.Context = context;
+        // Repete até a WebView aceitar o contexto e responder: logo após abrir o app ela ainda pode estar sem DevTools
+        Wait().Until(_ =>
+        {
+            try
+            {
+                var context = Driver.Contexts.FirstOrDefault(c => c.StartsWith("WEBVIEW_" + MobileEnvironment.AppPackage, StringComparison.Ordinal));
+                if (context is null)
+                    return false;
+                Driver.Context = context;
+                Driver.FindElement(By.CssSelector("body"));
+                return true;
+            }
+            catch (WebDriverException)
+            {
+                TrySwitchToNative();
+                return false;
+            }
+        });
+    }
+
+    /// <summary>Rola o elemento para o centro antes de tocar: a barra inferior fixa cobre o rodapé da página.</summary>
+    private void Click(IWebElement element)
+    {
+        Driver.ExecuteScript("arguments[0].scrollIntoView({block: 'center'})", element);
+        element.Click();
     }
 
     private WebDriverWait Wait() =>
@@ -93,9 +124,9 @@ public sealed class AppSession : IDisposable
             catch (StaleElementReferenceException) { return null; }
         });
 
-    public void Tap(string css) => WaitFor(css).Click();
+    public void Tap(string css) => Click(WaitFor(css));
 
-    public void TapText(string css, string text) => WaitForText(css, text).Click();
+    public void TapText(string css, string text) => Click(WaitForText(css, text));
 
     public void Type(string css, string value)
     {
