@@ -37,6 +37,7 @@ Publicação e deploy conforme workflows existentes
 | `docker-ghcr.yml` | build imagem GHCR + **deploy VPS** (só com mudança em `src/**`, `infra/vps/**` ou no próprio arquivo) | não | não | não | `workflow_dispatch`, disparo pelo `rebuild-semanal` |
 | `rebuild-semanal.yml` | não | não | não | não | cron semanal (segunda 03:00 BRT); dispara o `docker-ghcr.yml` por `workflow_dispatch` |
 | `android-release.yml` / `ios-build.yml` | sim (paths de mobile) | não | não | sim (paths de mobile) | `workflow_dispatch` |
+| `mobile-ui.yml` | não | não | não | sim (testes de tela do app no emulador, Appium) | `workflow_dispatch` |
 | `infra-scripts.yml` | sim (paths de infra/vps) | não | não | sim (paths de infra/vps) | `workflow_dispatch` |
 
 Pushes em feature branches **não** disparam o `ci-cd.yml`: a validação da feature acontece
