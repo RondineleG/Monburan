@@ -213,6 +213,24 @@ public sealed class AppSession : IDisposable
         catch (Exception) { /* diagnóstico nunca derruba o teste */ }
     }
 
+    /// <summary>Espera uma condição sobre a página (ex.: todos os cartões da lista são de uma modalidade).</summary>
+    public void WaitUntil(string what, Func<bool> condition) =>
+        Poll(what, () =>
+        {
+            try { return condition() ? Driver.FindElement(By.CssSelector("body")) : null; }
+            catch (StaleElementReferenceException) { return null; }
+        });
+
+    /// <summary>Textos dos elementos visíveis que casam com o seletor.</summary>
+    public IReadOnlyList<string> TextsOf(string css) =>
+        Driver.FindElements(By.CssSelector(css)).Where(e => e.Displayed).Select(e => e.Text).ToList();
+
+    /// <summary>Atributo do primeiro elemento que casa com o seletor.</summary>
+    public string? AttributeOf(string css, string attribute) => WaitFor(css).GetAttribute(attribute);
+
+    /// <summary>Toca num item da barra inferior (Início, Vagas, Candidaturas, Avisos, Perfil).</summary>
+    public void GoTo(string label) => TapText(".bottom-nav__link", label);
+
     public void Tap(string css) => Click(WaitFor(css));
 
     public void TapText(string css, string text) => Click(WaitForText(css, text));
