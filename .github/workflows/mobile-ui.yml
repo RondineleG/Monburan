@@ -136,6 +136,10 @@ jobs:
         disable-animations: true
         script: |
           adb reverse tcp:5095 tcp:5095
+          adb install -r "$MOBILE_APK"
+          adb shell monkey -p com.monburan.app -c android.intent.category.LAUNCHER 1
+          sleep 45
+          adb shell am force-stop com.monburan.app
           dotnet test tests/Monburan.MobileUiTests/Monburan.MobileUiTests.csproj --configuration Release --no-build --verbosity normal --results-directory "$RUNNER_TEMP/trx" --logger "trx;LogFileName=Monburan.MobileUiTests.trx"
 
     # Telas do app capturadas pelos próprios testes (evidência dos passos aprovados)

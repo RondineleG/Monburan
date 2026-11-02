@@ -28,7 +28,9 @@ public class ResumeFlowTests
         app.Type("#resume-summary", "Currículo criado pelo teste de tela do aplicativo.");
         app.TapText("form button[type=submit]", "Criar currículo");
 
-        app.WaitForText("h1.page-title", "Editar currículo");
+        // Depois de criar, o app abre o detalhe do currículo novo (título dele, status e as seções vazias)
+        app.WaitForText("body", title);
+        app.WaitForText("body", "Nenhuma experiência adicionada");
         app.Capture("15-curriculo-criado");
         app.GoTo("Perfil");
         app.TapText("a", "Meus currículos");
