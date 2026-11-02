@@ -125,7 +125,7 @@ else if (_candidate is not null)
         </p>
         <div class="form-field">
             <label for="delete-password">Sua senha</label>
-            <input id="delete-password" class="input" type="password" @bind="_deletePassword" autocomplete="current-password" />
+            <PasswordInput Id="delete-password" @bind-Value="_deletePassword" Autocomplete="current-password" />
             @if (_deleteError is not null)
             {
                 <div class="field-error">@_deleteError</div>
