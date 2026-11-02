@@ -121,12 +121,12 @@ navegação, tema e filtro).
 | 13 | 41374819467 | `1e435b1` | Falhou (22 de 24) | Cadastro com senha curta: WebView não subiu na partida a frio. Currículo criado: a expectativa estava errada (o app abre o detalhe do currículo, não a edição). |
 | 14 | 41376619916 | `3b86b60` | Falhou (23 de 24) | Corrigida a expectativa do currículo e incluído aquecimento do emulador. Falhou o teste do título curto do currículo (passara na rodada anterior). Origem das imagens 11 a 18. |
 | 15 | 41378041505 | `20587a9` | Falhou (23 de 24) | Toque de enviar repetido nas validações. Falhou o teste de sair da conta: a tela mostrou "Sem conexão com o servidor". |
-| 16 | 41379609146 | `9d7cbe7` | Em andamento neste registro | O teste passou a reaplicar o `adb reverse` da API antes de cada teste. Resultado a acrescentar. |
+| 16 | 41379609146 | `9d7cbe7` | Falhou (22 de 24) | O teste passou a reaplicar o `adb reverse` da API antes de cada teste. Desta vez o teste de sair da conta passou, mas falharam o de criar currículo e o de tema. A suíte levou 23 min (as anteriores, 12 a 14 min) por quatro testes que esperaram 90 s. |
 
-Nas 12 execuções em que os testes chegaram a rodar (4 a 15), **nenhuma** passou 24 de 24 com a suíte ampliada: as três
-execuções com 24 testes tiveram 22, 23 e 23 aprovados, e o teste que falha muda a cada rodada (partida a frio,
-validação de formulário, túnel até a API). O que se pode afirmar é que **a suíte cobre as telas principais e a maior
-parte dos testes passa**, mas ela ainda não é estável em todas as execuções.
+Nas 13 execuções em que os testes chegaram a rodar (4 a 16), **nenhuma** passou 24 de 24 com a suíte ampliada: as quatro
+execuções com 24 testes tiveram 22, 23, 23 e 22 aprovados, e o teste que falha muda a cada rodada (partida a frio,
+validação de formulário, túnel até a API, criação de currículo). O que se pode afirmar é que **a suíte cobre as telas
+principais e a maior parte dos testes passa**, mas ela ainda não é estável em todas as execuções.
 
 A suíte tem, portanto, **instabilidade residual no emulador do CI**. Nas 9 execuções em que os testes chegaram a rodar
 (de 4 a 12), 3 passaram em 7 de 7 (8, 9 e 11) e 6 tiveram falha parcial (4, 5, 6, 7, 10 e 12). As falhas das
@@ -159,12 +159,20 @@ foi constatado defeito de tela do aplicativo.
 | | | `Resume_Create_AppearsInTheList` | O currículo **foi criado**; o teste esperava a tela de edição, mas o app abre o detalhe | Teste |
 | 41376619916 | 23 de 24 | `Resume_WithATooShortTitle_...` | O aviso "pelo menos 3 caracteres" não apareceu em 90 s; esse teste havia passado na rodada anterior | Instável (causa não confirmada) |
 | 41378041505 | 23 de 24 | `Logout_GoesToTheLoginScreen_...` | A tela mostrou "Sem conexão com o servidor" ao entrar | Ambiente (túnel até a API, hipótese) |
-| 41379609146 | Em andamento | A preencher | — | — |
+| 41379609146 | 22 de 24 | `Resume_Create_AppearsInTheList` | Estourou 90 s sem mensagem de elemento (duas esperas seguidas, 3 min 6 s no total); o teste passara na execução anterior | Instável (causa não confirmada) |
+| | | `ThemeToggle_SwitchesBetweenDarkAndLight` | A WebView não subiu: não achou o título das boas-vindas em 90 s (URL "?") | Ambiente |
 
-Leitura dos números: de 41360855793 em diante a tabela registra **14 falhas de teste individuais**. Delas, 9 foram
-ambiente do emulador (partida a frio, WebView ou túnel perdidos), 4 foram erro do próprio teste (já corrigidos) e 1
-ficou sem causa confirmada (`Resume_WithATooShortTitle_...`). O `Logout_GoesToTheLoginScreen_...` falhou 4 vezes
-(duas por causa do teste, duas por ambiente) e o `FirstLaunch_WithoutSession_...`, 3 vezes (sempre partida a frio).
+Leitura dos números: de 41360855793 em diante a tabela registra **16 falhas de teste individuais**. Delas, 10 foram
+ambiente do emulador (partida a frio, WebView ou túnel perdidos), 4 foram erro do próprio teste (já corrigidos) e 2
+ficaram sem causa confirmada (`Resume_WithATooShortTitle_...` e `Resume_Create_AppearsInTheList` na última execução).
+O `Logout_GoesToTheLoginScreen_...` falhou 4 vezes (duas por causa do teste, duas por ambiente), o
+`FirstLaunch_WithoutSession_...`, 3 vezes (sempre partida a frio), e o `Resume_Create_AppearsInTheList`, 2 vezes
+(uma por expectativa errada, outra sem causa confirmada).
+
+Na execução 41379609146, o que estendeu a suíte para 23 min não foi a chamada do `adb reverse` (a maioria dos testes
+levou de 14 a 31 s, como antes), e sim quatro testes que esperaram 90 s por engasgo do emulador: os dois que falharam
+e outros dois que passaram devagar (`Register_WithValidData_...` e `Login_WithValidCredentials_...`, cerca de 1 min 52 s
+cada).
 
 ## O que isso valida e o que não valida
 
