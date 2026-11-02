@@ -57,7 +57,9 @@ public class ResumeShareRepository : IResumeShareRepository
     {
         await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);
         var share = await WithResume(context.ResumeShares.AsNoTracking())
-            .FirstOrDefaultAsync(s => s.TokenHash == tokenHash && !s.IsDeleted, cancellationToken);
+            .FirstOrDefaultAsync(s => s.TokenHash == tokenHash && !s.IsDeleted
+                && s.Resume != null && !s.Resume.IsDeleted
+                && s.Resume.Candidate != null && !s.Resume.Candidate.IsDeleted, cancellationToken);
 
         return share is null
             ? RequestResult<ResumeShare>.EntityNotFound("ResumeShare", "token", "Link não encontrado.")
