@@ -52,9 +52,9 @@ public class AuthFlowTests
         app.Relaunch();
 
         app.WaitForText("h1.page-title", "Continue sua jornada");
-        // O título aparece antes dos dados: espera o painel carregar para a evidência não mostrar o spinner
+        // Sem captura de tela aqui: depois de reabrir, a tela física mostra "Carregando…" enquanto a WebView lida pelo
+        // teste já tem o painel (ver docs/evidencias/mobile-ui-etapa2.md, "Ponto em aberto")
         app.WaitFor(".progress-card");
-        app.Capture("04-sessao-mantida-ao-reabrir");
     }
 
     [MobileUiFact]
@@ -75,6 +75,5 @@ public class AuthFlowTests
         app.Capture("06-login-apos-sair");
         app.Relaunch();
         app.WaitForText("#home-title", "O trabalho certo muda tudo");
-        app.Capture("07-boas-vindas-apos-sair-e-reabrir");
     }
 }
