@@ -59,6 +59,26 @@ de Tela") são de contas criadas só para o teste; as vagas vêm da massa de dem
 | ![Detalhe da vaga](mobile-ui/09-detalhe-da-vaga.png) | `Jobs_ListsTheOpenJobs_...` | Detalhe de "Gerente de Projetos" com local, modalidade, salário, requisitos e *Candidatar-se* |
 | ![Busca sem resultado](mobile-ui/10-busca-sem-resultado.png) | `Jobs_SearchWithNoMatch_...` | Busca sem correspondência: "Nenhuma vaga encontrada" |
 
+### Imagens da segunda leva de testes (17 testes novos)
+
+A suíte foi ampliada de 7 para **24 testes**. As imagens abaixo vêm da execução 41376619916 (23 de 24 aprovados; o
+teste que falhou nessa rodada não gera imagem). As oito foram revisadas uma a uma.
+
+| Imagem | Teste | O que mostra |
+|---|---|---|
+| ![Conta criada](mobile-ui/11-conta-criada-painel.png) | `Register_WithValidData_...` | Conta criada pelo formulário: o app entra no painel e mostra "Sua conta foi criada. Boas-vindas à Monburan!" |
+| ![Cadastro com campos obrigatórios](mobile-ui/12-cadastro-campos-obrigatorios.png) | `Register_WithAnEmptyForm_...` | Formulário vazio: "Informe seu nome.", "Informe um e-mail válido." e "A senha precisa ter pelo menos 10 caracteres." |
+| ![Candidatura enviada](mobile-ui/13-candidatura-enviada.png) | `Apply_ToAnOpenJob_...` | "Candidatura enviada!" para a vaga "Gerente de Projetos", com o aviso de confirmação |
+| ![Vagas salvas](mobile-ui/14-vagas-salvas.png) | `SaveJob_FromTheList_...` | Aba *Vagas salvas* com 1 vaga, depois de salvar pela lista |
+| ![Currículo criado](mobile-ui/15-curriculo-criado.png) | `Resume_Create_AppearsInTheList` | Detalhe do currículo recém-criado (ativo, com o resumo digitado) e a mensagem "Currículo criado" |
+| ![Confirmação de exclusão de conta](mobile-ui/16-confirmacao-exclusao-de-conta.png) | `DeleteAccount_WithTheRightPassword_...` | Diálogo "Excluir sua conta?" com *Excluir conta* e *Cancelar* |
+| ![Tema claro](mobile-ui/17-tema-alternado.png) | `ThemeToggle_...` | O app em tema claro depois de tocar no botão de tema |
+| ![Filtro remoto](mobile-ui/18-filtro-remoto.png) | `Jobs_FilteredByRemote_...` | Filtro *Remoto* ativo e só a vaga remota na lista |
+
+Testes novos sem imagem própria: senhas diferentes e senha curta no cadastro, login com campos vazios, título do
+currículo vazio e curto, exclusão de conta sem senha e cancelada, lista de candidaturas vazia e navegação pela barra
+inferior.
+
 ## Ponto em aberto: tela depois de reabrir o app
 
 Os testes `Session_SurvivesClosingAndReopeningTheApp` e o final de `Logout_...` fecham e reabrem o app. Em 3 execuções
@@ -92,6 +112,21 @@ infraestrutura de teste, e não do aplicativo.
 | 10 | 41370360632 | `e91774b` | Falhou (6 de 7) | O campo de e-mail ainda não aceitava digitação logo após navegar. A digitação passou a repetir até o campo ficar interativo. |
 | 11 | 41371426060 | `b3a4a1e` | Aprovado (7 de 7) | Origem das imagens 05 e 06. |
 | 12 | 41372385996 | `411d298` | Falhou (6 de 7) | Teste de vagas perdeu a WebView em uma rodada lenta do emulador. Não corrigido. |
+
+A partir daqui a suíte tem **24 testes** (17 novos: cadastro, candidatura, vagas salvas, currículo, exclusão de conta,
+navegação, tema e filtro).
+
+| # | Execução | Commit | Resultado | Causa e correção |
+|---|---|---|---|---|
+| 13 | 41374819467 | `1e435b1` | Falhou (22 de 24) | Cadastro com senha curta: WebView não subiu na partida a frio. Currículo criado: a expectativa estava errada (o app abre o detalhe do currículo, não a edição). |
+| 14 | 41376619916 | `3b86b60` | Falhou (23 de 24) | Corrigida a expectativa do currículo e incluído aquecimento do emulador. Falhou o teste do título curto do currículo (passara na rodada anterior). Origem das imagens 11 a 18. |
+| 15 | 41378041505 | `20587a9` | Falhou (23 de 24) | Toque de enviar repetido nas validações. Falhou o teste de sair da conta: a tela mostrou "Sem conexão com o servidor". |
+| 16 | 41379609146 | `9d7cbe7` | Em andamento neste registro | O teste passou a reaplicar o `adb reverse` da API antes de cada teste. Resultado a acrescentar. |
+
+Nas 12 execuções em que os testes chegaram a rodar (4 a 15), **nenhuma** passou 24 de 24 com a suíte ampliada: as três
+execuções com 24 testes tiveram 22, 23 e 23 aprovados, e o teste que falha muda a cada rodada (partida a frio,
+validação de formulário, túnel até a API). O que se pode afirmar é que **a suíte cobre as telas principais e a maior
+parte dos testes passa**, mas ela ainda não é estável em todas as execuções.
 
 A suíte tem, portanto, **instabilidade residual no emulador do CI**. Nas 9 execuções em que os testes chegaram a rodar
 (de 4 a 12), 3 passaram em 7 de 7 (8, 9 e 11) e 6 tiveram falha parcial (4, 5, 6, 7, 10 e 12). As falhas das
