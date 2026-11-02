@@ -35,7 +35,7 @@ Feito e testado **no código** (os checkboxes abaixo continuam vazios até a val
 | §4.2 Contêiner sem root | Imagem roda como `app` (UID 1654) na porta 8080; o serviço `volume-permissions` acerta o dono dos volumes antigos. |
 | §4.2 SBOM | `sbom` e `provenance` no `docker-ghcr.yml`. **Trivy não foi adicionado** (ação de terceiro; fixar por digest antes). |
 | §10 Documentação | `IMPROVEMENTS.md`, `TEST_STRATEGY.md`, `AUDIT-REPORT.md`, `CONFIGURACAO.md`, `SEGURANCA.md`, `DOCKER.md`, `API.md`, `APP-MOBILE.md`. |
-| §11 Versão do app | 1.6.0 (build 6). |
+| §11 Versão do app | Definida no `Monburan.Mobile.csproj` (`ApplicationDisplayVersion` e `ApplicationVersion`). |
 | §11 Sessão expirada | Aviso + login com volta à mesma tela. |
 | §11.1 Exclusão de conta no app | `POST /api/v1/account/delete` + seção "Excluir conta" no Perfil. |
 

@@ -9,7 +9,7 @@
 O Monburan é uma aplicação web e um aplicativo Android para anunciar vagas, receber candidaturas e acompanhar cada etapa do processo. Está construído com **.NET 10**, **Blazor** (WebAssembly e Server) e **.NET MAUI Blazor Hybrid** para Android.
 
 - 🌐 **Site:** https://monburan.com.br
-- 📱 **Aplicativo Android:** [releases no GitHub](https://github.com/RondineleG/Monburan/releases) (última publicada: v1.5.0; o código já está na 1.6.0, que sai com a próxima promoção para a `main`)
+- 📱 **Aplicativo Android:** [última versão publicada](https://github.com/RondineleG/Monburan/releases/latest) (APK assinado; todas as versões estão em [releases](https://github.com/RondineleG/Monburan/releases))
 - 📖 **Wiki:** https://github.com/RondineleG/Monburan/wiki (visão do produto, arquitetura, regras de negócio, API, como rodar, testes, CI/CD e produção)
 - 📋 **Board de gestão:** https://github.com/users/RondineleG/projects/14
 
