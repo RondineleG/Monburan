@@ -134,6 +134,38 @@ execuções 6 e 7 já foram corrigidas (expectativa errada e partida a frio). As
 do emulador, e não foi constatado defeito de tela do aplicativo nelas. Para o relatório, a afirmação sustentada é
 "os 7 testes passam, mas a suíte ainda não é estável em todas as execuções".
 
+## Testes que falharam em cada execução
+
+Levantado dos logs de cada execução. "Tipo" separa o que era erro do **teste** (expectativa ou seletor errado) do que
+foi do **ambiente** do emulador no CI (partida a frio, WebView perdida, túnel até a API). Em nenhum dos casos abaixo
+foi constatado defeito de tela do aplicativo.
+
+| Execução | Resultado | Teste que falhou | O que o log mostrou | Tipo |
+|---|---|---|---|---|
+| 41359021036, 41359474062 | Nenhum teste rodou | — | O Appium não instalou (driver incompatível) e depois não iniciou (flag sem escopo) | Configuração do CI |
+| 41360056082 | Sessões não abriram | Todos os que chegaram a rodar | Instalação do servidor UiAutomator2 passou do limite de 20 s | Ambiente |
+| 41360855793 | 4 de 7 | `FirstLaunch_WithoutSession_...` | Estourou 45 s na primeira abertura a frio | Ambiente |
+| | | `Session_SurvivesClosingAndReopeningTheApp` | "not connected to DevTools" depois de reabrir o app | Ambiente |
+| | | `Logout_GoesToTheLoginScreen_...` | Clique interceptado: a barra inferior cobria o botão | Teste |
+| 41361761623 | 4 de 7 | `Jobs_SearchWithNoMatch_...` | "not connected to DevTools" | Ambiente |
+| | | `FirstLaunch_WithoutSession_...` | Estourou 90 s na primeira abertura a frio | Ambiente |
+| | | `Logout_GoesToTheLoginScreen_...` | Estourou 90 s | Ambiente |
+| 41362801913 | 6 de 7 | `Logout_GoesToTheLoginScreen_...` | O teste esperava a tela de boas-vindas, mas o app vai ao login | Teste |
+| 41363679411 | 6 de 7 | `FirstLaunch_WithoutSession_...` | A WebView não subiu em 90 s na partida a frio | Ambiente |
+| 41364600639, 41369620671, 41371426060 | 7 de 7 | — | — | — |
+| 41370360632 | 6 de 7 | `Session_SurvivesClosingAndReopeningTheApp` | "element not interactable" ao digitar no login logo depois de navegar | Teste |
+| 41372385996 | 6 de 7 | `Jobs_ListsTheOpenJobs_AndOpensTheDetails` | WebView perdida (URL "?"); não achou o botão *Entrar* em 90 s | Ambiente |
+| 41374819467 | 22 de 24 | `Register_WithAShortPassword_ShowsThePolicyError` | WebView perdida na partida a frio; não achou *Criar conta gratuita* em 90 s | Ambiente |
+| | | `Resume_Create_AppearsInTheList` | O currículo **foi criado**; o teste esperava a tela de edição, mas o app abre o detalhe | Teste |
+| 41376619916 | 23 de 24 | `Resume_WithATooShortTitle_...` | O aviso "pelo menos 3 caracteres" não apareceu em 90 s; esse teste havia passado na rodada anterior | Instável (causa não confirmada) |
+| 41378041505 | 23 de 24 | `Logout_GoesToTheLoginScreen_...` | A tela mostrou "Sem conexão com o servidor" ao entrar | Ambiente (túnel até a API, hipótese) |
+| 41379609146 | Em andamento | A preencher | — | — |
+
+Leitura dos números: de 41360855793 em diante a tabela registra **14 falhas de teste individuais**. Delas, 9 foram
+ambiente do emulador (partida a frio, WebView ou túnel perdidos), 4 foram erro do próprio teste (já corrigidos) e 1
+ficou sem causa confirmada (`Resume_WithATooShortTitle_...`). O `Logout_GoesToTheLoginScreen_...` falhou 4 vezes
+(duas por causa do teste, duas por ambiente) e o `FirstLaunch_WithoutSession_...`, 3 vezes (sempre partida a frio).
+
 ## O que isso valida e o que não valida
 
 - **Valida:** o APK instala e abre num Android 14; boas-vindas, login (com erro e com sucesso), sessão guardada,
