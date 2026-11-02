@@ -75,8 +75,9 @@ public sealed class AdminChangeJobStatusUseCase : IUseCase<AdminChangeJobStatusR
 
         if (request.NewStatus == EJobStatus.Active)
         {
-            var advertiser = await _advertisers.GetByIdAsync(job.AdvertiserId, cancellationToken);
-            if (advertiser.Data?.Status == EAdvertiserStatus.Blocked)
+            // Vaga externa (sem anunciante) não depende do status de nenhuma conta
+            var advertiser = job.AdvertiserId is null ? null : await _advertisers.GetByIdAsync(job.AdvertiserId, cancellationToken);
+            if (advertiser?.Data?.Status == EAdvertiserStatus.Blocked)
                 return RequestResult<AdminJobResponse>.WithDomainError("A conta da empresa está inativa: reative a conta antes de ativar as vagas dela.");
 
             if (job.ExpirationDate.Date < today)
@@ -129,6 +130,9 @@ public sealed class AdminChangeJobStatusUseCase : IUseCase<AdminChangeJobStatusR
     /// <summary>Aviso dentro da plataforma para a empresa. Se falhar, a moderação já foi feita e vale.</summary>
     private async Task NotifyAsync(Job job, EJobStatus status, string? reason, CancellationToken cancellationToken = default)
     {
+        if (job.AdvertiserId is null)
+            return; // vaga externa: não há anunciante para avisar
+
         var (title, message) = status switch
         {
             EJobStatus.Hidden => ("Sua vaga foi ocultada pela moderação",

@@ -1,4 +1,4 @@
-﻿@page "/Account/Manage/ResetAuthenticator"
+﻿@page "/conta/redefinir-autenticador"
 
 @using Microsoft.AspNetCore.Identity
 @using Monburan.Web.Models
@@ -44,7 +44,7 @@
         await SignInManager.RefreshSignInAsync(user);
 
         RedirectManager.RedirectToWithStatus(
-            "Account/Manage/EnableAuthenticator",
+            "/conta/ativar-autenticador",
             "A chave do autenticador foi redefinida. Configure o aplicativo com a nova chave.",
             HttpContext);
     }

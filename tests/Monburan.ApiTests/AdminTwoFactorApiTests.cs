@@ -76,11 +76,11 @@ public class AdminTwoFactorApiTests : IClassFixture<TwoFactorRequiredApiFactory>
         using var client = Client(_required);
         await CookieAuth.LoginAsync(client, "admin@monburan.com.br", Password);
 
-        var response = await client.GetAsync("/admin/ai-providers");
+        var response = await client.GetAsync("/admin/provedores-ia");
 
         response.StatusCode.Should().Be(HttpStatusCode.Redirect);
         var location = response.Headers.Location!.ToString();
-        location.Should().Contain("/Account/Manage/TwoFactorAuthentication").And.Contain("adminRequired=true");
+        location.Should().Contain("/conta/seguranca-2fa").And.Contain("adminRequired=true");
     }
 
     [Fact]
@@ -89,7 +89,7 @@ public class AdminTwoFactorApiTests : IClassFixture<TwoFactorRequiredApiFactory>
         using var client = Client(_required);
         await CookieAuth.LoginAsync(client, "admin@monburan.com.br", Password);
 
-        var html = await client.GetStringAsync("/Account/Manage/TwoFactorAuthentication?adminRequired=true");
+        var html = await client.GetStringAsync("/conta/seguranca-2fa?adminRequired=true");
 
         html.Should().Contain("admin-2fa-required").And.Contain("Para usar as áreas de administração, ative a verificação em duas etapas");
     }
@@ -100,10 +100,10 @@ public class AdminTwoFactorApiTests : IClassFixture<TwoFactorRequiredApiFactory>
         using var client = Client(_required);
         await CookieAuth.LoginAsync(client, "joao.silva@email.com", Password);
 
-        var response = await client.GetAsync("/admin/ai-providers");
+        var response = await client.GetAsync("/admin/provedores-ia");
 
         response.StatusCode.Should().Be(HttpStatusCode.Redirect);
-        response.Headers.Location!.ToString().Should().Contain("/Account/AccessDenied");
+        response.Headers.Location!.ToString().Should().Contain("/acesso-negado");
     }
 
     [Fact]
@@ -112,7 +112,7 @@ public class AdminTwoFactorApiTests : IClassFixture<TwoFactorRequiredApiFactory>
         using var client = Client(_development);
         await CookieAuth.LoginAsync(client, "admin@monburan.com.br", Password);
 
-        var response = await client.GetAsync("/admin/ai-providers");
+        var response = await client.GetAsync("/admin/provedores-ia");
 
         response.StatusCode.Should().Be(HttpStatusCode.OK);
     }

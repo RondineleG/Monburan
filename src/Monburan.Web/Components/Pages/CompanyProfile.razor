@@ -1,4 +1,4 @@
-@page "/companies/{advertiserId:guid}"
+@page "/empresas/{advertiserId:guid}"
 @* Página pública renderizada no servidor (como a da vaga): indexável e com 404 de verdade para empresa inexistente *@
 @using Monburan.Core.DTOs.Request
 @using Monburan.Core.DTOs.Response
@@ -30,7 +30,7 @@
     {
         <ErrorState Title="Não foi possível carregar a empresa" HeadingLevel="1"
                     Message="Tivemos um problema ao abrir este perfil. Tente novamente em instantes."
-                    RetryHref="@($"/companies/{AdvertiserId}")" />
+                    RetryHref="@($"/empresas/{AdvertiserId}")" />
     }
     else if (advertiser is null)
     {
@@ -52,7 +52,7 @@
         {
             <ErrorState Title="Não foi possível carregar as vagas"
                         Message="Tivemos um problema ao buscar as vagas desta empresa. Tente novamente em instantes."
-                        RetryHref="@($"/companies/{AdvertiserId}")" />
+                        RetryHref="@($"/empresas/{AdvertiserId}")" />
         }
         else if (jobs.TotalCount > jobs.Jobs.Count())
         {
@@ -74,7 +74,7 @@
         else if (!jobsLoadFailed && jobs.TotalCount > 0)
         {
             <EmptyState Icon="search" Title="Página não encontrada" Message="Esta página da lista não existe. Volte às vagas mais recentes.">
-                <a class="btn btn-outline-secondary" href="@($"/companies/{AdvertiserId}")">Ver vagas mais recentes</a>
+                <a class="btn btn-outline-secondary" href="@($"/empresas/{AdvertiserId}")">Ver vagas mais recentes</a>
             </EmptyState>
         }
         else if (!jobsLoadFailed)
@@ -144,5 +144,5 @@
     }
 
     private string PageUrl(int page) =>
-        page <= 1 ? $"/companies/{AdvertiserId}" : $"/companies/{AdvertiserId}?pagina={page}";
+        page <= 1 ? $"/empresas/{AdvertiserId}" : $"/empresas/{AdvertiserId}?pagina={page}";
 }

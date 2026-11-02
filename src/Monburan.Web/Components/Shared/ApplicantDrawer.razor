@@ -93,8 +93,8 @@
                         <p class="small mb-2"><a href="@SafeLinkedIn" target="_blank" rel="noopener noreferrer">LinkedIn do candidato</a></p>
                     }
                     <div class="d-flex flex-wrap gap-2 mt-2">
-                        <a class="btn btn-outline-secondary btn-sm" href="@($"/resumes/{Application.ResumeId}")" data-testid="applicant-resume">Ver currículo completo</a>
-                        <a class="btn btn-outline-secondary btn-sm" href="@($"/resumes/{Application.ResumeId}/cv")" data-testid="applicant-resume-cv">Visualizar CV</a>
+                        <a class="btn btn-outline-secondary btn-sm" href="@($"/curriculos/{Application.ResumeId}")" data-testid="applicant-resume">Ver currículo completo</a>
+                        <a class="btn btn-outline-secondary btn-sm" href="@($"/curriculos/{Application.ResumeId}/cv")" data-testid="applicant-resume-cv">Visualizar CV</a>
                     </div>
                 }
                 else if (resumeLoadFailed)

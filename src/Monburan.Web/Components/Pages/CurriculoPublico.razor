@@ -1,0 +1,114 @@
+@page "/curriculo/{Token}"
+@using Monburan.Core.DTOs.Response
+@using Monburan.Core.UseCases.ResumeShares
+@inject GetPublicResumeUseCase GetPublic
+
+<PageTitle>Currículo compartilhado - Monburan</PageTitle>
+<HeadContent>
+    <meta name="robots" content="noindex, nofollow, noarchive" />
+</HeadContent>
+
+<div class="container public-resume-page">
+    @if (view is null)
+    {
+        <section class="card" data-testid="public-resume-unavailable">
+            <h1 class="h4">Link indisponível</h1>
+            <p>@message</p>
+            <a class="btn btn-outline-secondary" href="/">Voltar ao início</a>
+        </section>
+    }
+    else
+    {
+        <article class="card" data-testid="public-resume">
+            <div class="card-body">
+            <h1 class="h3">@view.Title</h1>
+            @if (!string.IsNullOrWhiteSpace(view.Name))
+            {
+                <p class="public-resume__name">@view.Name</p>
+            }
+
+            @if (!string.IsNullOrWhiteSpace(view.Summary))
+            {
+                <section>
+                    <h2 class="h6">Resumo</h2>
+                    <p>@view.Summary</p>
+                </section>
+            }
+
+            @if (view.Experiences.Count > 0)
+            {
+                <section>
+                    <h2 class="h6">Experiência</h2>
+                    <ul class="list-unstyled">
+                        @foreach (var experience in view.Experiences)
+                        {
+                            <li class="mb-2">
+                                <strong>@experience.Position</strong> · @experience.Company
+                                <small class="d-block">@experience.StartDate.ToString("MM/yyyy") – @(experience.IsCurrent ? "atual" : experience.EndDate?.ToString("MM/yyyy") ?? "")</small>
+                                @if (!string.IsNullOrWhiteSpace(experience.Description))
+                                {
+                                    <p class="mb-0">@experience.Description</p>
+                                }
+                            </li>
+                        }
+                    </ul>
+                </section>
+            }
+
+            @if (view.Education.Count > 0)
+            {
+                <section>
+                    <h2 class="h6">Formação</h2>
+                    <ul class="list-unstyled">
+                        @foreach (var education in view.Education)
+                        {
+                            <li class="mb-2">
+                                <strong>@education.Course</strong> · @education.Institution
+                                <small class="d-block">@education.Level · @education.Status</small>
+                            </li>
+                        }
+                    </ul>
+                </section>
+            }
+
+            @if (view.Skills.Count > 0)
+            {
+                <section>
+                    <h2 class="h6">Habilidades</h2>
+                    <p>@string.Join(", ", view.Skills)</p>
+                </section>
+            }
+
+            @if (view.Languages.Count > 0)
+            {
+                <section>
+                    <h2 class="h6">Idiomas</h2>
+                    <p>@string.Join(", ", view.Languages)</p>
+                </section>
+            }
+
+            <p class="small text-muted mt-4 mb-0">
+                Currículo compartilhado pelo próprio candidato, com apenas as informações que ele escolheu mostrar.
+                A Monburan não garante a veracidade do conteúdo.
+            </p>
+            </div>
+        </article>
+    }
+</div>
+
+@code {
+    [Parameter]
+    public string Token { get; set; } = string.Empty;
+
+    private PublicResumeView? view;
+    private string message = "Este link não está disponível. Ele pode ter sido desativado ou expirado.";
+
+    protected override async Task OnInitializedAsync()
+    {
+        var result = await GetPublic.ExecuteAsync(Token);
+        if (result.Status == Monburan.Core.Enums.EResultStatus.Success && result.Data is not null)
+            view = result.Data;
+        else
+            message = "Este link não está disponível. Ele pode ter sido desativado ou expirado.";
+    }
+}

@@ -56,10 +56,11 @@ public sealed partial class OpenAiProtocol : IAiProtocol
 
     public static Dictionary<string, object?> BuildPayload(AiProviderSettings provider, AiCompletionRequest request)
     {
+        AiMessageContent.EnsureVisionIfNeeded(provider, request);
         var payload = new Dictionary<string, object?>
         {
             ["model"] = provider.Model.Trim(),
-            ["messages"] = request.Messages.Select(message => new { role = message.Role, content = message.Content }).ToArray()
+            ["messages"] = request.Messages.Select(AiMessageContent.OpenAi).ToArray()
         };
 
         if (provider.SendTemperature)

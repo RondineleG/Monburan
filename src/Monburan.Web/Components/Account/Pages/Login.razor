@@ -1,4 +1,4 @@
-@page "/Account/Login"
+@page "/entrar"
 
 @using System.ComponentModel.DataAnnotations
 @using Microsoft.AspNetCore.Authentication
@@ -44,9 +44,9 @@
                 </div>
                 <div>
                     <div class="auth-form-links">
-                        <a href="Account/ForgotPassword">Esqueci minha senha</a>
-                        <a href="@(NavigationManager.GetUriWithQueryParameters("Account/Register", new Dictionary<string, object?> { ["ReturnUrl"] = ReturnUrl }))">Criar uma nova conta</a>
-                        <a href="Account/ResendEmailConfirmation">Reenviar confirmação</a>
+                        <a href="/esqueci-senha">Esqueci minha senha</a>
+                        <a href="@(NavigationManager.GetUriWithQueryParameters("/criar-conta", new Dictionary<string, object?> { ["ReturnUrl"] = ReturnUrl }))">Criar uma nova conta</a>
+                        <a href="/reenviar-confirmacao">Reenviar confirmação</a>
                     </div>
                 </div>
             </EditForm>
@@ -93,13 +93,13 @@
         else if (result.RequiresTwoFactor)
         {
             RedirectManager.RedirectTo(
-                "Account/LoginWith2fa",
+                "/entrar/2fa",
                 new() { ["returnUrl"] = ReturnUrl, ["rememberMe"] = Input.RememberMe });
         }
         else if (result.IsLockedOut)
         {
             Logger.LogWarning("User account locked out.");
-            RedirectManager.RedirectTo("Account/Lockout");
+            RedirectManager.RedirectTo("/conta-bloqueada");
         }
         else if (result.IsNotAllowed)
         {

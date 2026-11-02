@@ -117,7 +117,7 @@ public abstract class E2ETestBase : IAsyncLifetime
 
     protected async Task<bool> TryLoginAsync(string email, string password)
     {
-        await GotoAsync("/Account/Login");
+        await GotoAsync("/entrar");
         await Page.GetByTestId("login-email").WaitForAsync();
         await Page.GetByTestId("login-email").FillAsync(email);
         await Page.GetByTestId("login-password").FillAsync(password);
@@ -127,7 +127,7 @@ public abstract class E2ETestBase : IAsyncLifetime
                   !!document.querySelector('[data-testid="account-status"]')
             """);
 
-        return !Page.Url.Contains("/Account/Login", StringComparison.OrdinalIgnoreCase);
+        return !Page.Url.Contains("/entrar", StringComparison.OrdinalIgnoreCase);
     }
 
     protected async Task<bool> TryRegisterAsync(
@@ -136,7 +136,7 @@ public abstract class E2ETestBase : IAsyncLifetime
         string? confirmationPassword = null,
         string accountType = "candidate")
     {
-        await GotoAsync("/Account/Register");
+        await GotoAsync("/criar-conta");
         await Page.GetByTestId("register-email").WaitForAsync();
         await Page.GetByTestId("register-name").FillAsync("Pessoa Teste E2E");
         await Page.GetByTestId(accountType == "advertiser" ? "register-role-advertiser" : "register-role-candidate")
@@ -152,13 +152,13 @@ public abstract class E2ETestBase : IAsyncLifetime
                   !!document.querySelector('[data-testid="register-confirm-password-error"]')?.textContent?.trim()
             """);
 
-        return !Page.Url.Contains("/Account/Register", StringComparison.OrdinalIgnoreCase);
+        return !Page.Url.Contains("/criar-conta", StringComparison.OrdinalIgnoreCase);
     }
 
     private async Task<bool> IsAuthenticatedAsync()
     {
-        if (!Page.Url.Contains("/Account/Login", StringComparison.OrdinalIgnoreCase) &&
-            !Page.Url.Contains("/Account/Register", StringComparison.OrdinalIgnoreCase))
+        if (!Page.Url.Contains("/entrar", StringComparison.OrdinalIgnoreCase) &&
+            !Page.Url.Contains("/criar-conta", StringComparison.OrdinalIgnoreCase))
             return true;
 
         var cookies = await Context.CookiesAsync();
@@ -180,15 +180,15 @@ public abstract class E2ETestBase : IAsyncLifetime
 
     protected async Task AssertLoggedInAsync()
     {
-        await GotoAsync("/Account/Manage");
+        await GotoAsync("/conta");
         await Page.GetByTestId("account-manage-page").WaitForAsync();
-        Assert.DoesNotContain("/Account/Login", Page.Url, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("/entrar", Page.Url, StringComparison.OrdinalIgnoreCase);
     }
 
     protected async Task AssertLoggedOutAsync()
     {
-        await GotoAsync("/Account/Manage");
+        await GotoAsync("/conta");
         await Page.GetByTestId("login-email").WaitForAsync();
-        Assert.Contains("/Account/Login", Page.Url, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("/entrar", Page.Url, StringComparison.OrdinalIgnoreCase);
     }
 }

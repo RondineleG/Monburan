@@ -1,4 +1,4 @@
-@page "/admin/ai-providers"
+@page "/admin/provedores-ia"
 @rendermode InteractiveServer
 @attribute [Microsoft.AspNetCore.Authorization.Authorize(Policy = "AdminOnly")]
 @implements IDisposable
@@ -264,6 +264,10 @@
                                         <label class="form-check">
                                             <InputCheckbox @bind-Value="form.UseJsonResponseFormat" class="form-check-input" id="ai-form-json" />
                                             <span class="form-check-label">Pedir resposta em JSON (<code>response_format</code>; desmarque se o servidor recusar)</span>
+                                        </label>
+                                        <label class="form-check">
+                                            <InputCheckbox @bind-Value="form.SupportsVision" class="form-check-input" id="ai-form-vision" />
+                                            <span class="form-check-label">Aceita imagens (multimodal). Só marque se o modelo realmente lê imagens; sem isso, as sugestões de vaga não enviam imagens a este provedor.</span>
                                         </label>
                                         <label class="form-check">
                                             <InputCheckbox @bind-Value="form.UseMaxCompletionTokens" class="form-check-input" id="ai-form-maxcompletion" />
@@ -602,6 +606,7 @@
         public bool SendTemperature { get; set; } = true;
 
         public bool UseJsonResponseFormat { get; set; } = true;
+        public bool SupportsVision { get; set; }
 
         public bool UseMaxCompletionTokens { get; set; }
 
@@ -623,6 +628,7 @@
             Temperature = provider.Temperature,
             SendTemperature = provider.SendTemperature,
             UseJsonResponseFormat = provider.UseJsonResponseFormat,
+            SupportsVision = provider.SupportsVision,
             UseMaxCompletionTokens = provider.UseMaxCompletionTokens
         };
 
@@ -646,6 +652,7 @@
                 Temperature = Temperature,
                 SendTemperature = SendTemperature,
                 UseJsonResponseFormat = UseJsonResponseFormat,
+                SupportsVision = SupportsVision,
                 UseMaxCompletionTokens = UseMaxCompletionTokens,
                 UpdatedBy = updatedBy
             };

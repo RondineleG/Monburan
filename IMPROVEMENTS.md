@@ -8,6 +8,10 @@ Este documento detalha todas as melhorias implementadas no projeto Monburan para
 ## 🎯 Objetivo
 Transformar o projeto Monburan de um MVP funcional (~70% completude) para uma aplicação production-ready (~98% completude).
 
+> **Atualização 2026-10-29:** o "~98%" abaixo mede só os itens desta lista de melhorias, não a prontidão para produção.
+> A auditoria (`docs/AUDIT-REPORT.md`) e o checklist de pré-produção (`docs/pre-prod.md`) mostram o que ainda falta
+> antes do lançamento (cobrança dos planos, backup remoto, monitoramento, revisão jurídica, entre outros).
+
 ---
 
 ## 🔒 Segurança Crítica (100% Implementado)
@@ -425,7 +429,7 @@ Transformar o projeto Monburan de um MVP funcional (~70% completude) para uma ap
 ### Curto Prazo (1-2 semanas):
 1. **Implementar testes automatizados** (unitários e integração)
 2. **Configurar secrets do GitHub** para CI/CD
-3. **Configurar Azure Web App** para deploy
+3. **Deploy**: a produção é a VPS (imagem do GHCR); não há deploy em Azure
 4. **Implementar monitoramento avançado** (Application Insights)
 5. **Configurar domínio e SSL** para produção
 
@@ -498,5 +502,5 @@ Desde a data original deste documento, as seguintes entregas foram implementadas
 - Renovação do design system (dark) da web (`wwwroot/ui.css`) e do app mobile (`wwwroot/app.css`), novos ícones/splash, remoção das side-stripes
 
 ### ⚠️ Correções sobre este documento
-- Os health checks registrados são básicos (`AddHealthChecks()` + `/health`) — **não** há checks de banco/SendGrid como sugerido na seção 14
+- Atualização: além do `/health` básico, hoje existem `/health/live` e `/health/ready`, este com check do banco (`AddDbContextCheck`); o check do SendGrid continua não existindo
 - As seções de testes (17–19) refletem o estado de maio/2026 — ver `TEST_STRATEGY.md` para os números atuais

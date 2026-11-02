@@ -40,7 +40,8 @@ public class UpdateApplicationStatusUseCase : IUseCase<UpdateApplicationStatusRe
 
         var application = result.Data!;
 
-        if (application.Job == null || application.Job.AdvertiserId.Value != request.AdvertiserId)
+        // Vaga externa (sem anunciante) não tem dono que possa mudar o status
+        if (application.Job?.AdvertiserId is null || application.Job.AdvertiserId.Value != request.AdvertiserId)
             return RequestResult<ApplicationResponse>.EntityNotFound("Application", request.ApplicationId, "Candidatura não encontrada.");
 
         var oldStatus = application.Status;

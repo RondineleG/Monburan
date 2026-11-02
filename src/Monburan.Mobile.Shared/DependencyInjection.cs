@@ -44,6 +44,7 @@ public static class DependencyInjection
         services.AddSingleton<AuthApiClient>();
         services.AddSingleton<IToastService, ToastService>();
         services.AddSingleton<NotificationBadgeState>();
+        services.AddSingleton<Features.FeatureFlagsState>();
 
         return services;
     }

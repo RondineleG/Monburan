@@ -80,10 +80,11 @@ docker compose up -d postgres
 
 ### Aplicação Monburan
 - **Build**: Multi-stage build (SDK + Runtime) — `src/Monburan.Web/Dockerfile`
-- **Porta**: 8080 → 80 (HTTP)
-- **Volume Uploads**: `app_uploads` (`/app/wwwroot/uploads`)
-- **Health Check**: endpoint `/health`
-- **Migrations**: aplicadas no boot quando `APPLY_MIGRATIONS=true`
+- **Porta**: 8080 → 8080 (HTTP; a imagem roda sem root, como o usuário `app`)
+- **Volumes**: `app_uploads` (`/app/wwwroot/uploads`), `app_keys` (`/app/keys`), `app_evidence` (`/app/App_Data/evidencias`) e, em produção, `app_logs` (`/app/logs`)
+- **Volumes antigos (criados quando o app rodava como root)**: em produção o serviço `volume-permissions` acerta o dono sozinho; no compose local, se o app não conseguir gravar, rode `docker compose down -v` (apaga os dados locais) ou `docker run --rm -v <volume>:/d alpine chown -R 1654:1654 /d`
+- **Health Check**: a aplicação expõe `/health` (vivo, sem consultar o banco) e `/health/ready` (consulta o banco), mas o Dockerfile e os compose **não** definem `HEALTHCHECK` para o contêiner do app; só o Postgres tem
+- **Migrations**: aplicadas no boot quando `APPLY_MIGRATIONS=true`. Os compose da raiz e `docker-compose.dev.yml` **não** definem essa variável (só o compose de produção da VPS, em `infra/vps`): para criar o esquema localmente, defina-a no `environment` do app
 
 ## 🔧 Configuração
 
@@ -212,7 +213,7 @@ infra/vps/
 
 ### Fluxo de publicação
 
-1. **CI/CD**: a cada push na `main` (e toda segunda, pelo `rebuild-semanal.yml`) o workflow
+1. **CI/CD**: a cada push na `main` com mudança em `src/**` ou `infra/vps/**` (e toda segunda, pelo `rebuild-semanal.yml`) o workflow
    `.github/workflows/docker-ghcr.yml` constrói e publica `ghcr.io/rondineleg/monburan:latest`
    (e a tag do commit); em seguida o job `deploy-vps` envia `infra/vps` para `/opt/monburan` e
    roda o `deploy.sh` na VPS. Só a `main` publica e faz deploy.
@@ -232,12 +233,12 @@ Passo a passo e rollback em [docs/CI-CD.md](docs/CI-CD.md) e [docs/SEGURANCA.md]
 
 ```
 Internet → nginx (host, :443 TLS certbot)
-            └── proxy → 127.0.0.1:8080 → container monburan-app (:80)
+            └── proxy → 127.0.0.1:8080 → container monburan-app (:8080, sem root)
                                              └── postgres (rede interna)
 ```
 
 - O app **não** expõe porta pública — só `127.0.0.1:8080`.
-- Uploads persistem no volume `app_uploads`; banco no volume `postgres_data`.
+- Uploads persistem no volume `app_uploads`, imagens das sugestões em `app_evidence`, logs em `app_logs`; banco no volume `postgres_data`.
 - `APPLY_MIGRATIONS=true` aplica migrations no boot.
 - E-mail sai via SMTP (Resend) usando as variáveis `Smtp__*`.
 

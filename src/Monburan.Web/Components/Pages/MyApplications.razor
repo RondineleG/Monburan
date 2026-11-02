@@ -1,4 +1,4 @@
-@page "/my-applications"
+@page "/minhas-candidaturas"
 @rendermode InteractiveServer
 @attribute [Microsoft.AspNetCore.Authorization.Authorize(Policy = "CandidateOnly")]
 @using Monburan.Core.Catalogs
@@ -35,15 +35,15 @@
 
     <nav class="journey-tabs" aria-label="Seções de Minhas candidaturas">
         <a class="journey-tab@(Tab == "candidaturas" ? " journey-tab--active" : string.Empty)"
-           href="/my-applications?aba=candidaturas"
+           href="/minhas-candidaturas?aba=candidaturas"
            aria-current="@(Tab == "candidaturas" ? "page" : null)"
            data-testid="tab-candidaturas">Candidaturas @if (!applicationsLoadFailed) { <span class="journey-tab__count">@applications.Count</span> }</a>
         <a class="journey-tab@(Tab == "salvas" ? " journey-tab--active" : string.Empty)"
-           href="/my-applications?aba=salvas"
+           href="/minhas-candidaturas?aba=salvas"
            aria-current="@(Tab == "salvas" ? "page" : null)"
            data-testid="tab-salvas">Vagas salvas @if (!savedJobsLoadFailed) { <span class="journey-tab__count">@savedJobs.Count</span> }</a>
         <a class="journey-tab@(Tab == "alertas" ? " journey-tab--active" : string.Empty)"
-           href="/my-applications?aba=alertas"
+           href="/minhas-candidaturas?aba=alertas"
            aria-current="@(Tab == "alertas" ? "page" : null)"
            data-testid="tab-alertas">Alertas @if (!alertsLoadFailed) { <span class="journey-tab__count">@alerts.Count</span> }</a>
     </nav>
@@ -103,7 +103,7 @@
                         <div class="saved-jobs-list__actions">
                             @if (applications.Any(app => app.JobId == job.Id))
                             {
-                                <a class="btn btn-outline-secondary btn-sm" href="/my-applications?aba=candidaturas" data-testid="saved-job-track">Acompanhar</a>
+                                <a class="btn btn-outline-secondary btn-sm" href="/minhas-candidaturas?aba=candidaturas" data-testid="saved-job-track">Acompanhar</a>
                             }
                             else
                             {
@@ -273,7 +273,7 @@
                     <p class="applications-list__next">@ApplicationJourneyRules.NextStep(app.Status)</p>
                     @if (app.ResumeId.HasValue)
                     {
-                        <a class="applications-list__resume small" href="/resumes/@app.ResumeId" data-testid="application-resume-link">Ver currículo enviado</a>
+                        <a class="applications-list__resume small" href="/curriculos/@app.ResumeId" data-testid="application-resume-link">Ver currículo enviado</a>
                     }
                     <button type="button"
                             class="btn btn-link applications-list__toggle"
@@ -297,7 +297,7 @@
                         Title="Nenhuma candidatura nesta situação"
                         Message="Tente outro filtro para ver suas outras candidaturas."
                         TestId="applications-filtered-empty">
-                <a class="btn btn-outline-secondary" href="/my-applications?aba=candidaturas">Limpar filtros</a>
+                <a class="btn btn-outline-secondary" href="/minhas-candidaturas?aba=candidaturas">Limpar filtros</a>
             </EmptyState>
         }
         else
@@ -430,7 +430,7 @@
         applications.Count(app => ApplicationJourneyRules.Matches(app.Status, filter));
 
     private string FilterUrl(string value) =>
-        value == "todas" ? "/my-applications?aba=candidaturas" : $"/my-applications?aba=candidaturas&situacao={value}";
+        value == "todas" ? "/minhas-candidaturas?aba=candidaturas" : $"/minhas-candidaturas?aba=candidaturas&situacao={value}";
 
     private async Task ToggleTimelineAsync(ApplicationResponse app)
     {

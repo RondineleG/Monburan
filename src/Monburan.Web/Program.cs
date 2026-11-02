@@ -24,6 +24,8 @@ using Monburan.Core.Interfaces.UseCases;
 using Monburan.Core.Interfaces.Validations;
 using Monburan.Core.UseCases.Ai;
 using Monburan.Core.UseCases.Jobs;
+using Monburan.Core.UseCases.Submissions;
+using Monburan.Core.UseCases.ResumeShares;
 using Monburan.Core.UseCases.JobAlerts;
 using Monburan.Core.UseCases.Applications;
 using Monburan.Core.UseCases.Candidates;
@@ -64,7 +66,7 @@ builder.Services.AddRazorComponents()
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
-    c.SwaggerDoc("v1", new Microsoft.OpenApi.Models.OpenApiInfo
+    c.SwaggerDoc("v1", new Microsoft.OpenApi.OpenApiInfo
     {
         Title = "Monburan API",
         Version = "v1",
@@ -148,6 +150,10 @@ builder.Services.AddAuthorizationBuilder()
     .AddPolicy("AdminOnly", policy => policy
         .RequireRole("Admin")
         .AddRequirements(new AdminTwoFactorRequirement()))
+    // Feature flags e grupos de acesso: administradores e a equipe de produto, sempre com verificação em duas etapas
+    .AddPolicy("FeatureManagers", policy => policy
+        .RequireRole("Admin", Monburan.Core.Services.AccessGroups.ProductRole)
+        .AddRequirements(new AdminTwoFactorRequirement()))
     // Páginas por papel: o perfil vem da claim user_type emitida no login
     .AddPolicy("CandidateOnly", policy => policy
         .RequireAuthenticatedUser()
@@ -227,14 +233,18 @@ builder.Services.AddSingleton<IConfigureOptions<KeyManagementOptions>>(services 
 // Administrador sem 2FA que tenta abrir uma área de administração não vê "acesso negado": vai para a tela de configuração
 builder.Services.ConfigureApplicationCookie(options =>
 {
+    options.LoginPath = "/entrar";
+    options.AccessDeniedPath = "/acesso-negado";
     var accessDenied = options.Events.OnRedirectToAccessDenied;
     options.Events.OnRedirectToAccessDenied = context =>
     {
         var security = context.HttpContext.RequestServices.GetRequiredService<IOptionsMonitor<SecurityOptions>>().CurrentValue;
         var user = context.HttpContext.User;
-        if (security.RequireTwoFactorForAdmins && user.IsInRole("Admin") && !AdminTwoFactorHandler.HasTwoFactor(user))
+        if (security.RequireTwoFactorForAdmins
+            && (user.IsInRole("Admin") || user.IsInRole(Monburan.Core.Services.AccessGroups.ProductRole))
+            && !AdminTwoFactorHandler.HasTwoFactor(user))
         {
-            context.Response.Redirect("/Account/Manage/TwoFactorAuthentication?adminRequired=true");
+            context.Response.Redirect("/conta/seguranca-2fa?adminRequired=true");
             return Task.CompletedTask;
         }
 
@@ -300,6 +310,12 @@ builder.Services.AddSingleton<IAiTextClient, AiTextClient>();
 
 // Registrar Repositórios
 builder.Services.AddScoped<IJobRepository, JobRepository>();
+builder.Services.AddScoped<IJobSubmissionRepository, JobSubmissionRepository>();
+builder.Services.AddScoped<IResumeShareRepository, ResumeShareRepository>();
+builder.Services.AddScoped<CreateResumeShareUseCase>();
+builder.Services.AddScoped<RevokeResumeShareUseCase>();
+builder.Services.AddScoped<ListResumeSharesUseCase>();
+builder.Services.AddScoped<GetPublicResumeUseCase>();
 builder.Services.AddScoped<IBaseRepository<Job>, JobRepository>(); // Para UseCases que usam IBaseRepository
 builder.Services.AddScoped<IBaseRepository<Candidate>, CandidateRepository>();
 builder.Services.AddScoped<ICandidateRepository, CandidateRepository>();
@@ -421,6 +437,7 @@ builder.Services.AddScoped<Monburan.Core.UseCases.Notifications.PasswordResetUse
 
 // Registrar Use Cases de Assinatura
 builder.Services.AddScoped<GetAvailablePlansUseCase>();
+builder.Services.AddSingleton<IBillingPolicy, BillingPolicy>();
 builder.Services.AddScoped<UpgradePlanUseCase>();
 builder.Services.AddScoped<CancelSubscriptionUseCase>();
 builder.Services.AddScoped<CheckJobLimitUseCase>();
@@ -430,6 +447,14 @@ builder.Services.AddScoped<IStorageProvider, LocalStorageProvider>();
 
 // Registrar Use Case de Upload
 builder.Services.AddScoped<UploadFileUseCase>();
+
+// Sugestões anônimas de vaga: evidência privada, limite de envios e moderação humana
+builder.Services.AddSingleton<IEvidenceStorage, LocalEvidenceStorage>();
+builder.Services.AddSingleton<ISubmissionRateLimiter, SubmissionRateLimiter>();
+builder.Services.AddSingleton<ISubmitterKeyHasher, HmacSubmitterKeyHasher>();
+builder.Services.AddScoped<SubmitJobSuggestionUseCase>();
+builder.Services.AddScoped<ModerateJobSubmissionUseCase>();
+builder.Services.AddScoped<ExtractJobDraftUseCase>();
 
 // Registrar CurrentUserHelper
 builder.Services.AddHttpContextAccessor();
@@ -445,10 +470,24 @@ builder.Services.AddScoped<Monburan.Web.UseCases.Analytics.GetDashboardAnalytics
 // Registrar Background Services
 builder.Services.AddHostedService<JobExpirationBackgroundService>();
 
+// Feature flags por grupo de acesso (docs/FEATURE-FLAGS.md)
+builder.Services.AddSingleton<IFeatureFlags, FeatureFlagService>();
+builder.Services.AddScoped<FeatureFlagAdminService>();
+// Retenção das imagens de sugestões encerradas (Evidence:RetentionDays, padrão 90 dias; 0 desliga)
+builder.Services.AddHostedService<EvidenceRetentionBackgroundService>();
+
 // Serviços existentes
 builder.Services.AddScoped<AddressRepository>();
 builder.Services.AddScoped<AddressService>();
 var app = builder.Build();
+
+// Links públicos de currículo: a página e o cabeçalho impedem indexação
+app.Use(async (context, next) =>
+{
+    if (context.Request.Path.StartsWithSegments("/curriculo", StringComparison.OrdinalIgnoreCase))
+        context.Response.Headers["X-Robots-Tag"] = "noindex, nofollow, noarchive";
+    await next();
+});
 
 // Antes de tudo (HSTS, redirecionamento para https, autenticação, limites): esquema e IP reais do cliente
 app.UseForwardedHeaders();
@@ -493,6 +532,7 @@ app.UseRequestLocalization(new RequestLocalizationOptions()
     .SetDefaultCulture("pt-BR")
     .AddSupportedCultures("pt-BR")
     .AddSupportedUICultures("pt-BR"));
+app.UseLegacyRouteRedirects();
 app.UseRateLimiter();
 app.UseSecurityHeaders();
 // Rota inexistente no site chega ao navegador com a página /404 renderizada. A re-execução precisa ficar no pipeline
@@ -527,6 +567,7 @@ app.MapRazorComponents<App>()
     .AddAdditionalAssemblies(typeof(Monburan.Web.Client._Imports).Assembly);
 
 app.MapAdditionalIdentityEndpoints();
+app.MapEvidenceEndpoints();
 
 // API REST consumida pelo app mobile
 app.MapApiEndpoints();
@@ -571,6 +612,18 @@ if (app.Environment.IsDevelopment())
     var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
     var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole<Guid>>>();
     await DevelopmentIdentitySeedData.InitializeAsync(userManager, roleManager);
+}
+
+// Massa de demonstração (Seed:DemoData=true e Seed:DemoPassword), para apresentações e testes manuais. Nunca em produção.
+if (app.Configuration.GetValue<bool>("Seed:DemoData") && !app.Environment.IsProduction())
+{
+    using var scope = app.Services.CreateScope();
+    await DemoSeedData.InitializeAsync(
+        scope.ServiceProvider.GetRequiredService<ApplicationDbContext>(),
+        scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>(),
+        scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole<Guid>>>(),
+        app.Configuration,
+        app.Logger);
 }
 
 // Provedores de IA: cadastra os modelos iniciais na primeira execução e carrega o catálogo em memória. Uma falha aqui

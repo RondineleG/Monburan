@@ -1,5 +1,5 @@
 @page "/"
-@page "/dashboard"
+@page "/painel"
 @rendermode InteractiveServer
 @using Monburan.Core.Catalogs
 @using Monburan.Core.DTOs.Request
@@ -65,7 +65,7 @@
                         <li><strong>Candidate-se</strong> em poucos passos, com ou sem currículo anexado.</li>
                         <li><strong>Acompanhe</strong> cada etapa do processo em Minhas candidaturas.</li>
                     </ol>
-                    <a class="btn btn-primary" href="/Account/Register">Criar conta gratuita</a>
+                    <a class="btn btn-primary" href="/criar-conta">Criar conta gratuita</a>
                 </article>
                 <article class="landing-path">
                     <h3><Icon Name="building" Size="20" />Para empresas</h3>
@@ -74,7 +74,7 @@
                         <li><strong>Receba</strong> as candidaturas organizadas por vaga e situação.</li>
                         <li><strong>Selecione</strong> com o perfil e o currículo de cada pessoa à mão.</li>
                     </ol>
-                    <a class="btn btn-outline-secondary" href="/Account/Register?AccountType=advertiser">Cadastrar minha empresa</a>
+                    <a class="btn btn-outline-secondary" href="/criar-conta?AccountType=advertiser">Cadastrar minha empresa</a>
                 </article>
             </div>
         </section>
@@ -94,23 +94,23 @@
         @* Administrador sem perfil de candidato ou empresa: visão própria, sem o convite "Criar conta / Entrar" *@
         <PageHeader Title="Visão geral" Description="Modere contas e vagas, acompanhe a auditoria e configure os provedores de IA.">
             <Actions>
-                <a class="btn btn-primary" href="/admin/jobs" data-testid="dashboard-primary">Moderar vagas</a>
+                <a class="btn btn-primary" href="/admin/vagas" data-testid="dashboard-primary">Moderar vagas</a>
             </Actions>
         </PageHeader>
         <nav class="admin-overview" aria-label="Áreas de administração">
-            <a class="admin-overview__item" href="/admin/accounts">
+            <a class="admin-overview__item" href="/admin/contas">
                 <strong>Contas</strong>
                 <span>Ative, inative e desbloqueie contas de candidatos, empresas e administradores.</span>
             </a>
-            <a class="admin-overview__item" href="/admin/jobs">
+            <a class="admin-overview__item" href="/admin/vagas">
                 <strong>Vagas</strong>
                 <span>Revise, oculte ou reprove vagas de todas as empresas.</span>
             </a>
-            <a class="admin-overview__item" href="/admin/audit">
+            <a class="admin-overview__item" href="/admin/auditoria">
                 <strong>Auditoria</strong>
                 <span>Veja quem fez cada ação de administração e quando.</span>
             </a>
-            <a class="admin-overview__item" href="/admin/ai-providers">
+            <a class="admin-overview__item" href="/admin/provedores-ia">
                 <strong>Provedores de IA</strong>
                 <span>Cadastre, teste e escolha o provedor usado nas sugestões de currículo.</span>
             </a>
@@ -121,7 +121,7 @@
         @* A ação "Publicar vaga" fica na barra superior em todas as telas da empresa *@
         <PageHeader Title="Visão geral" Description="Acompanhe suas vagas e as candidaturas recebidas em um só lugar.">
             <Actions>
-                <a class="btn btn-outline-secondary" href="/received-applications" data-testid="dashboard-primary">Ver candidaturas recebidas</a>
+                <a class="btn btn-outline-secondary" href="/candidaturas-recebidas" data-testid="dashboard-primary">Ver candidaturas recebidas</a>
             </Actions>
         </PageHeader>
     }
@@ -158,19 +158,19 @@
         <section class="mb-4" aria-labelledby="metrics-title">
             <h2 id="metrics-title" class="visually-hidden">Indicadores de recrutamento</h2>
             <div class="dashboard-summary dashboard-summary--four">
-                <a class="dashboard-summary__cell" href="/my-jobs">
+                <a class="dashboard-summary__cell" href="/minhas-vagas">
                     <strong>@analytics.TotalJobs</strong>
                     <span>Total de vagas</span>
                 </a>
-                <a class="dashboard-summary__cell" href="/my-jobs">
+                <a class="dashboard-summary__cell" href="/minhas-vagas">
                     <strong>@analytics.ActiveJobs</strong>
                     <span>Vagas ativas</span>
                 </a>
-                <a class="dashboard-summary__cell" href="/received-applications">
+                <a class="dashboard-summary__cell" href="/candidaturas-recebidas">
                     <strong>@analytics.TotalCandidates</strong>
                     <span>Candidatos</span>
                 </a>
-                <a class="dashboard-summary__cell" href="/received-applications">
+                <a class="dashboard-summary__cell" href="/candidaturas-recebidas">
                     <strong>@analytics.TotalApplications</strong>
                     <span>Candidaturas</span>
                 </a>
@@ -259,20 +259,20 @@
                     </div>
                 </article>
                 <nav class="dashboard-summary" aria-label="Resumo das suas candidaturas">
-                    <a class="dashboard-summary__cell" href="/my-applications?aba=candidaturas">
+                    <a class="dashboard-summary__cell" href="/minhas-candidaturas?aba=candidaturas">
                         <strong>@progress.Applications.Total</strong>
                         <span>Candidaturas</span>
                         <small>@InProgressApplications em andamento</small>
                     </a>
-                    <a class="dashboard-summary__cell" href="/my-applications?aba=candidaturas">
+                    <a class="dashboard-summary__cell" href="/minhas-candidaturas?aba=candidaturas">
                         <strong>@progress.Applications.Selected</strong>
                         <span>Selecionadas</span>
                     </a>
-                    <a class="dashboard-summary__cell" href="/my-applications?aba=salvas">
+                    <a class="dashboard-summary__cell" href="/minhas-candidaturas?aba=salvas">
                         <strong>@progress.SavedJobs</strong>
                         <span>Vagas salvas</span>
                     </a>
-                    <a class="dashboard-summary__cell" href="/my-applications?aba=alertas">
+                    <a class="dashboard-summary__cell" href="/minhas-candidaturas?aba=alertas">
                         <strong>@progress.ActiveAlerts</strong>
                         <span>Alertas ativos</span>
                     </a>
@@ -288,7 +288,7 @@
                 <p class="promo-strip__title">Receba vagas que combinam com você</p>
                 <p class="promo-strip__text">Conte o cargo, a cidade e a modalidade que procura no perfil de carreira.</p>
             </div>
-            <a class="btn btn-outline-secondary" href="/career-profile">Completar perfil de carreira</a>
+            <a class="btn btn-outline-secondary" href="/perfil-profissional">Completar perfil de carreira</a>
         </aside>
     }
 
@@ -320,7 +320,7 @@
                             TestId="dashboard-jobs-empty">
                     @if (isAdvertiser)
                     {
-                        <a class="btn btn-primary" href="/jobs/create">Publicar vaga</a>
+                        <a class="btn btn-primary" href="/vagas/nova">Publicar vaga</a>
                     }
                 </EmptyState>
             }

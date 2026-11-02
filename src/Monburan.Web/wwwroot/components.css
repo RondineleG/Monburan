@@ -469,3 +469,12 @@
         .page-link[aria-current="page"] { border: 2px solid Highlight; }
     }
 }
+
+/* Campo-isca do formulário público de sugestão: fora da tela e fora da navegação por teclado (robôs preenchem, pessoas não veem) */
+.suggest-hp {
+    position: absolute;
+    left: -10000px;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+}

@@ -4,21 +4,21 @@
 
 | Workflow | Quando roda | O que faz |
 |---|---|---|
-| `ci-cd.yml` | push e PR em `main`/`dev`, manual | build Release da solução (inclui o app Android), testes unitários, de integração e de API com coverage, **E2E** (Playwright contra o app em Development + Postgres de serviço, com 1 retentativa), scan de segredos, auditoria de pacotes NuGet vulneráveis e `dotnet publish` da web como artefato |
+| `ci-cd.yml` | push e PR em `main`/`dev`, manual | build Release da solução (inclui o app Android), testes unitários, de integração e de API com coverage, **E2E** (Playwright contra o app em Development + Postgres de serviço, com 1 retentativa; **só em PR para a `main`** e disparo manual), scan de segredos, auditoria de pacotes NuGet vulneráveis e `dotnet publish` da web como artefato |
 | `docker-ghcr.yml` | push na `main` com mudança em `src/**` ou `infra/vps/**`, rebuild semanal, manual | constrói a imagem Docker (baixando as imagens base de novo) e, na `main`, publica em `ghcr.io/rondineleg/monburan` (`latest` + tag com o sha do commit) e faz o deploy na VPS (job `deploy-vps`, environment `prod`, que só aceita a `main`); em disparo manual de outra branch só constrói, sem enviar |
 | `rebuild-semanal.yml` | toda segunda às 03:00 de Brasília, manual | dispara o `docker-ghcr.yml` na `main` para a imagem receber os patches das imagens base (.NET e Postgres) mesmo sem mudança no código. Roda na branch padrão (`dev`), mas não constrói nada a partir dela |
 | `android-release.yml` | push na `main` com mudança no app/Core, PR para a `main`, manual | compila, assina e confere o APK; na `main`, publica a release `v<versão>` com o APK |
 | `ios-build.yml` | push na `main` com mudança no app/Core, PR para a `main`, manual | em macOS: compila o app para o simulador, abre e tira print; gera o `.ipa` sem assinatura (anexado à release na `main`) |
 | `codeql.yml` | push e PR em `main`/`dev`, toda segunda-feira, manual | análise estática de segurança (C#, JavaScript e os próprios workflows); alertas em *Security → Code scanning*. Não publica nada |
 | `main-only-from-dev.yml` | PR para a `main` | reprova o PR que não vem da `dev` (a `main` só recebe a promoção); o nome da branch chega por variável de ambiente, nunca interpolado no script. Não publica nada |
-| `infra-scripts.yml` | push e PR em `main`/`dev` que mudam `infra/vps/**`, manual | ShellCheck e testes de verdade, em contêineres, do endurecimento da VPS, do backup com restauração e do `nginx.conf` (`infra/vps/tests`). Não publica nada |
+| `infra-scripts.yml` | push e PR **só na `main`** que mudam `infra/vps/**`, manual | ShellCheck e testes de verdade, em contêineres, do endurecimento da VPS, do backup com restauração e do `nginx.conf` (`infra/vps/tests`). Não publica nada |
+| `mobile-ui.yml` | PR para a `main`, manual | testes de tela do app Android em emulador (Appium + UiAutomator2): sobe Postgres, a API em Development com seed, o APK Debug, o Appium e um emulador Android 14. Sobe logs, TRX e capturas de tela como artefatos. Não publica nada. A suíte ainda é instável no emulador do CI; veja [evidencias/mobile-ui-etapa2.md](evidencias/mobile-ui-etapa2.md) |
 
-O job `deploy-production` (Azure Web App, só na `main`) roda quando existe a variável de repositório
-`AZURE_RESOURCE_GROUP` (mais os secrets do Azure). A produção atual é a VPS (abaixo), então eles ficam ignorados.
+O `ci-cd.yml` só valida. A produção é a VPS (abaixo); o deploy no Azure Web App foi removido porque o projeto não usa Azure.
 
 ## Lançar uma nova versão do app (APK)
 
-1. Num PR para a `dev`, suba `ApplicationDisplayVersion` (nome, ex.: `1.5.0`) e `ApplicationVersion` (versionCode,
+1. Num PR para a `dev`, suba `ApplicationDisplayVersion` (nome, no formato `X.Y.Z`) e `ApplicationVersion` (versionCode,
    inteiro que só cresce) em `src/Monburan.Mobile/Monburan.Mobile.csproj`.
 2. O PR de promoção `dev` → `main` roda o `android-release.yml` em modo ensaio (os PRs para a `dev` não rodam o
    workflow): compila, assina, confere versão e assinatura, mostra as notas no resumo do run e deixa o APK como
@@ -87,8 +87,8 @@ para o público.
 **Quando houver conta Apple Developer** (US$ 99/ano), a próxima fase é assinar na esteira e enviar ao TestFlight. Seriam
 necessários: certificado de distribuição (`.p12` e senha), perfil de provisionamento do `com.monburan.app` e a chave da
 API do App Store Connect (Issuer ID, Key ID e `.p8`), além de um número de build que cresça a cada envio (a Apple
-recusa repetidos). Para a App Store, faltam ainda a exclusão de conta dentro do app, o manifesto de privacidade
-(`PrivacyInfo.xcprivacy`), ícones e capturas de tela.
+recusa repetidos). Para a App Store, faltam ainda o manifesto de privacidade (`PrivacyInfo.xcprivacy`), ícones e
+capturas de tela (a exclusão de conta dentro do app já existe).
 
 ## Publicar a web (VPS)
 
@@ -142,7 +142,10 @@ administração e os ajustes de segurança do app: [SEGURANCA.md](SEGURANCA.md).
 
 ## Testes
 
-- **Unitários, integração e API** rodam no job `build-and-test` (EF InMemory, sem dependências externas).
+- **Unitários, integração e API** rodam no job `build-and-test`. Os de integração usam PostgreSQL 16 real em contêiner
+  (Testcontainers; o runner `ubuntu-latest` já traz o Docker), e os de API usam EF InMemory.
+- **Telas do app** (`tests/Monburan.MobileUiTests`, Appium) rodam no workflow `mobile-ui.yml`, em emulador. Como rodar
+  localmente: [tests/Monburan.MobileUiTests/README.md](../tests/Monburan.MobileUiTests/README.md).
 - **E2E** (`tests/Monburan.E2ETests`) precisa do app no ar com Postgres e dos usuários do seed de Development. Local:
 
   ```bash

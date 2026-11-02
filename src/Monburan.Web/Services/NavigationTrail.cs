@@ -25,61 +25,61 @@ public static class NavigationTrail
 
         TrailItem[] T(params TrailItem[] items) => items;
         var jobs = new TrailItem("Vagas", "/jobs");
-        var resumes = new TrailItem("Meus currículos", "/resumes");
-        var myJobs = new TrailItem("Minhas vagas", "/my-jobs");
-        var received = new TrailItem("Candidaturas recebidas", "/received-applications");
-        var account = new TrailItem("Conta e segurança", "/Account/Manage");
-        var addresses = new TrailItem("Endereços", "/address/list");
-        var companyProfile = new TrailItem("Perfil da empresa", "/profile/advertiser");
+        var resumes = new TrailItem("Meus currículos", "/curriculos");
+        var myJobs = new TrailItem("Minhas vagas", "/minhas-vagas");
+        var received = new TrailItem("Candidaturas recebidas", "/candidaturas-recebidas");
+        var account = new TrailItem("Conta e segurança", "/conta");
+        var addresses = new TrailItem("Endereços", "/enderecos");
+        var companyProfile = new TrailItem("Perfil da empresa", "/perfil/empresa");
 
         return p.ToLowerInvariant() switch
         {
-            "/" or "/dashboard" => T(new TrailItem(role is NavRole.Candidate or NavRole.Visitor ? "Início" : "Visão geral")),
+            "/" or "/painel" => T(new TrailItem(role is NavRole.Candidate or NavRole.Visitor ? "Início" : "Visão geral")),
 
             "/jobs" => T(new TrailItem("Vagas")),
-            "/jobs/create" => T(myJobs, new TrailItem("Publicar vaga")),
-            _ when Is(segments, "jobs", "edit", null) => T(myJobs, new TrailItem("Editar vaga")),
-            _ when Is(segments, "jobs", null, "applications") => T(received, new TrailItem("Por vaga")),
+            "/vagas/nova" => T(myJobs, new TrailItem("Publicar vaga")),
+            _ when Is(segments, "vagas", null, "editar") => T(myJobs, new TrailItem("Editar vaga")),
+            _ when Is(segments, "vagas", null, "candidaturas") => T(received, new TrailItem("Por vaga")),
             _ when Is(segments, "jobs", null) => T(jobs, new TrailItem("Vaga")),
-            _ when Is(segments, "apply", null) => T(jobs, new TrailItem("Candidatura")),
-            _ when Is(segments, "companies", null) => T(jobs, new TrailItem("Empresa")),
+            _ when Is(segments, "candidatar", null) => T(jobs, new TrailItem("Candidatura")),
+            _ when Is(segments, "empresas", null) => T(jobs, new TrailItem("Empresa")),
 
-            "/my-applications" => T(new TrailItem("Minhas candidaturas")),
-            "/career-profile" => T(new TrailItem("Perfil de carreira")),
-            "/resumes" => T(new TrailItem("Meus currículos")),
-            "/resumes/new" or "/resumes/wizard" => T(resumes, new TrailItem("Novo currículo")),
-            "/resumes/upload" => T(resumes, new TrailItem("Importar PDF")),
-            _ when Is(segments, "resumes", null, "edit") => T(resumes, new TrailItem("Editar currículo")),
-            _ when Is(segments, "resumes", null, "wizard") => T(resumes, new TrailItem("Revisar currículo")),
-            _ when Is(segments, "resumes", null, "cv") => T(resumes, new TrailItem("Ver CV")),
-            _ when Is(segments, "resumes", null) => T(resumes, new TrailItem("Currículo")),
+            "/minhas-candidaturas" => T(new TrailItem("Minhas candidaturas")),
+            "/perfil-profissional" => T(new TrailItem("Perfil de carreira")),
+            "/curriculos" => T(new TrailItem("Meus currículos")),
+            "/curriculos/novo" or "/curriculos/assistente" => T(resumes, new TrailItem("Novo currículo")),
+            "/curriculos/upload" => T(resumes, new TrailItem("Importar PDF")),
+            _ when Is(segments, "curriculos", null, "editar") => T(resumes, new TrailItem("Editar currículo")),
+            _ when Is(segments, "curriculos", null, "assistente") => T(resumes, new TrailItem("Revisar currículo")),
+            _ when Is(segments, "curriculos", null, "cv") => T(resumes, new TrailItem("Ver CV")),
+            _ when Is(segments, "curriculos", null) => T(resumes, new TrailItem("Currículo")),
 
-            "/my-jobs" => T(new TrailItem("Minhas vagas")),
-            "/received-applications" => T(new TrailItem("Candidaturas recebidas")),
-            "/my-subscription" => T(new TrailItem("Plano e assinatura")),
-            "/profile/advertiser" => T(new TrailItem("Perfil da empresa")),
-            "/advertiser/upload-logo" => T(companyProfile, new TrailItem("Logo")),
-            "/profile/candidate" => T(new TrailItem("Meu perfil")),
+            "/minhas-vagas" => T(new TrailItem("Minhas vagas")),
+            "/candidaturas-recebidas" => T(new TrailItem("Candidaturas recebidas")),
+            "/minha-assinatura" => T(new TrailItem("Plano e assinatura")),
+            "/perfil/empresa" => T(new TrailItem("Perfil da empresa")),
+            "/empresa/logo" => T(companyProfile, new TrailItem("Logo")),
+            "/perfil/candidato" => T(new TrailItem("Meu perfil")),
 
             "/notifications" => T(new TrailItem("Notificações")),
             "/plans" => T(new TrailItem("Planos")),
-            "/terms" => T(new TrailItem("Termos de uso")),
-            "/privacy" => T(new TrailItem("Política de privacidade")),
+            "/termos" => T(new TrailItem("Termos de uso")),
+            "/privacidade" => T(new TrailItem("Política de privacidade")),
 
-            "/address/list" => T(new TrailItem("Endereços")),
-            "/address/create" => T(addresses, new TrailItem("Novo endereço")),
-            _ when Is(segments, "address", "edit", null) => T(addresses, new TrailItem("Editar endereço")),
-            _ when Is(segments, "address", "delete", null) => T(addresses, new TrailItem("Remover endereço")),
+            "/enderecos" => T(new TrailItem("Endereços")),
+            "/enderecos/novo" => T(addresses, new TrailItem("Novo endereço")),
+            _ when Is(segments, "enderecos", null, "editar") => T(addresses, new TrailItem("Editar endereço")),
+            _ when Is(segments, "enderecos", null, "excluir") => T(addresses, new TrailItem("Remover endereço")),
 
-            "/account/manage" => T(new TrailItem("Conta e segurança")),
-            _ when p.StartsWith("/account/manage/", StringComparison.OrdinalIgnoreCase) => T(account, new(ManagePage(segments[^1]))),
+            "/conta" => T(new TrailItem("Conta e segurança")),
+            _ when p.StartsWith("/conta/", StringComparison.OrdinalIgnoreCase) => T(account, new(ManagePage(segments[^1]))),
 
-            "/admin/accounts" => T(new TrailItem("Administração", "/"), new TrailItem("Contas")),
-            "/admin/jobs" => T(new TrailItem("Administração", "/"), new TrailItem("Vagas")),
-            "/admin/candidates" => T(new TrailItem("Administração", "/"), new TrailItem("Candidatos")),
-            "/admin/advertisers" => T(new TrailItem("Administração", "/"), new TrailItem("Empresas")),
-            "/admin/ai-providers" => T(new TrailItem("Administração", "/"), new TrailItem("Provedores de IA")),
-            "/admin/audit" => T(new TrailItem("Administração", "/"), new TrailItem("Auditoria")),
+            "/admin/contas" => T(new TrailItem("Administração", "/"), new TrailItem("Contas")),
+            "/admin/vagas" => T(new TrailItem("Administração", "/"), new TrailItem("Vagas")),
+            "/admin/candidatos" => T(new TrailItem("Administração", "/"), new TrailItem("Candidatos")),
+            "/admin/empresas" => T(new TrailItem("Administração", "/"), new TrailItem("Empresas")),
+            "/admin/provedores-ia" => T(new TrailItem("Administração", "/"), new TrailItem("Provedores de IA")),
+            "/admin/auditoria" => T(new TrailItem("Administração", "/"), new TrailItem("Auditoria")),
 
             _ => T(new TrailItem("Monburan"))
         };
@@ -93,16 +93,16 @@ public static class NavigationTrail
     private static string ManagePage(string page) => page.ToLowerInvariant() switch
     {
         "email" => "E-mail",
-        "changepassword" => "Alterar senha",
-        "setpassword" => "Definir senha",
-        "twofactorauthentication" => "Verificação em duas etapas",
-        "enableauthenticator" => "Aplicativo autenticador",
-        "resetauthenticator" => "Redefinir autenticador",
-        "disable2fa" => "Desativar verificação",
-        "generaterecoverycodes" => "Códigos de recuperação",
-        "personaldata" => "Dados pessoais",
-        "deletepersonaldata" => "Excluir conta",
-        "externallogins" => "Contas conectadas",
+        "alterar-senha" => "Alterar senha",
+        "definir-senha" => "Definir senha",
+        "seguranca-2fa" => "Verificação em duas etapas",
+        "ativar-autenticador" => "Aplicativo autenticador",
+        "redefinir-autenticador" => "Redefinir autenticador",
+        "desativar-2fa" => "Desativar verificação",
+        "codigos-recuperacao" => "Códigos de recuperação",
+        "dados-pessoais" => "Dados pessoais",
+        "excluir-dados" => "Excluir conta",
+        "logins-externos" => "Contas conectadas",
         _ => "Configurações"
     };
 }

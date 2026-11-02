@@ -4,8 +4,9 @@
 #
 # Restaura o backup do banco em um PostgreSQL DESCARTÁVEL (contêiner novo, sem portas publicadas, dados em memória) e confere
 # que os dados estão lá. Não toca no banco de produção. Um backup que nunca foi restaurado é só uma esperança: rode isto
-# todo mês e depois de qualquer mudança no backup. Se o backup dos uploads (monburan-uploads-*.tar.gz.age) do mesmo dia
-# estiver ao lado do arquivo, ou no remoto, o script também confere que ele abre.
+# todo mês e depois de qualquer mudança no backup. Se o backup dos uploads (monburan-uploads-*.tar.gz.age) ou das evidências
+# de sugestões (monburan-evidencias-*.tar.gz.age) do mesmo dia estiver ao lado do arquivo, ou no remoto, o script também
+# confere que ele abre.
 #
 # Precisa da chave PRIVADA do age (a que fica fora da VPS): copie-a para um lugar temporário, rode e apague.
 #
@@ -64,15 +65,17 @@ cleanup() {
 }
 trap cleanup EXIT
 
-# monburan-db-<data>.dump.age  ->  monburan-uploads-<data>.tar.gz.age
-uploads_name_for() {
+# monburan-db-<data>.dump.age  ->  monburan-<tipo>-<data>.tar.gz.age (tipo: uploads ou evidencias)
+archive_name_for() {
     local name
     name="$(basename "$1")"
-    name="${name/monburan-db-/monburan-uploads-}"
+    name="${name/monburan-db-/monburan-$2-}"
     echo "${name/.dump.age/.tar.gz.age}"
 }
+uploads_name_for() { archive_name_for "$1" uploads; }
 
 has_uploads=0
+has_evidence=0
 if [[ "$SOURCE" == "--latest-remote" ]]; then
     command -v rclone >/dev/null || fail "rclone não está instalado"
     [[ -n "${BACKUP_REMOTE:-}" ]] || fail "defina BACKUP_REMOTE em $CONFIG"
@@ -86,6 +89,11 @@ if [[ "$SOURCE" == "--latest-remote" ]]; then
         rclone copyto "$BACKUP_REMOTE/$uploads_name" "$workdir/uploads.tar.gz.age"
         has_uploads=1
     fi
+    evidence_name="$(archive_name_for "$latest" evidencias)"
+    if grep -qx "$evidence_name" <<<"$remote_files"; then
+        rclone copyto "$BACKUP_REMOTE/$evidence_name" "$workdir/evidencias.tar.gz.age"
+        has_evidence=1
+    fi
 else
     [[ -f "$SOURCE" ]] || fail "arquivo não encontrado: $SOURCE"
     cp "$SOURCE" "$workdir/backup.dump.age"
@@ -93,6 +101,11 @@ else
     if [[ -f "$uploads_path" ]]; then
         cp "$uploads_path" "$workdir/uploads.tar.gz.age"
         has_uploads=1
+    fi
+    evidence_path="$(dirname "$SOURCE")/$(archive_name_for "$SOURCE" evidencias)"
+    if [[ -f "$evidence_path" ]]; then
+        cp "$evidence_path" "$workdir/evidencias.tar.gz.age"
+        has_evidence=1
     fi
 fi
 
@@ -106,6 +119,16 @@ if [[ $has_uploads -eq 1 ]]; then
     log "Uploads: o arquivo abre e tem ${uploaded_files} arquivo(s)"
 else
     log "Uploads: nenhum backup de uploads do mesmo dia encontrado (conferência pulada)"
+fi
+
+if [[ $has_evidence -eq 1 ]]; then
+    # A pasta pode estar vazia (nenhuma sugestão ainda): basta o arquivo abrir e ser um tar válido
+    age --decrypt --identity "$IDENTITY" "$workdir/evidencias.tar.gz.age" | tar -tz > "$workdir/evidencias.list" \
+        || fail "o backup das evidências não abre"
+    evidence_files="$(grep -vc '/$' "$workdir/evidencias.list" || true)"
+    log "Evidências: o arquivo abre e tem ${evidence_files:-0} arquivo(s)"
+else
+    log "Evidências: nenhum backup de evidências do mesmo dia encontrado (conferência pulada)"
 fi
 
 log "Subindo um PostgreSQL descartável ($POSTGRES_IMAGE)"

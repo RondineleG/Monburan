@@ -1,4 +1,4 @@
-@page "/address/edit/{Id:guid}"
+@page "/enderecos/{Id:guid}/editar"
 @rendermode InteractiveServer
 @attribute [Microsoft.AspNetCore.Authorization.Authorize]
 
@@ -21,13 +21,13 @@
     else if (address == null)
     {
         <EmptyState Icon="search" Title="Endereço não encontrado" HeadingLevel="1" Message="O endereço solicitado não existe ou já foi removido.">
-            <a class="btn btn-primary" href="/address/list">Voltar para a lista</a>
+            <a class="btn btn-primary" href="/enderecos">Voltar para a lista</a>
         </EmptyState>
     }
     else
     {
         <PageHeader Title="Editar endereço" Description="Atualize os dados do endereço vinculado ao perfil."
-                    BackHref="/address/list" BackText="Voltar a endereços" />
+                    BackHref="/enderecos" BackText="Voltar a endereços" />
         <div class="card page-form-card">
             <div class="card-body">
                 <EditForm Model="form" OnValidSubmit="HandleValidSubmit" Context="editContext">
@@ -93,7 +93,7 @@
             form.ApplyTo(address);
             await AddressService.UpdateAsync(address);
             Toast.ShowSuccess("Endereço atualizado.");
-            Navigation.NavigateTo("/address/list");
+            Navigation.NavigateTo("/enderecos");
         }
         catch (Exception ex) when (ex is DbException or DbUpdateException or InvalidOperationException)
         {
@@ -106,5 +106,5 @@
         }
     }
 
-    private void Cancel() => Navigation.NavigateTo("/address/list");
+    private void Cancel() => Navigation.NavigateTo("/enderecos");
 }

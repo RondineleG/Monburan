@@ -8,6 +8,7 @@
 @inject IToastService Toast
 @inject ILogger<MainLayout> Logger
 @inject NotificationBadgeState Badge
+@inject Monburan.Mobile.Shared.Features.FeatureFlagsState Features
 
 <div class="app-shell">
     @if (!IsAuthPage)
@@ -89,6 +90,8 @@
             // A próxima tela tenta de novo (a inicialização que falha não fica guardada)
             Logger.LogError(ex, "Falha inesperada ao carregar a sessão");
         }
+        // Visitante também tem flags (as liberadas para todos); com conta, o Auth.Changed recarrega depois de entrar
+        await Features.RefreshAsync();
         await RefreshUnreadAsync();
     }
 
@@ -118,7 +121,11 @@
         _unread = 0;
         Toast.ShowWarning("Sua sessão expirou. Entre novamente para continuar.");
         if (!IsAuthPage)
-            Nav.NavigateTo("/login");
+        {
+            // Volta para a mesma tela depois de entrar de novo
+            var current = Nav.ToBaseRelativePath(Nav.Uri);
+            Nav.NavigateTo(string.IsNullOrEmpty(current) ? "/login" : $"/login?returnUrl={Uri.EscapeDataString("/" + current)}");
+        }
         StateHasChanged();
     });
 

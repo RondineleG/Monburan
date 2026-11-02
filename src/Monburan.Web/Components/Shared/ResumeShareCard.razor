@@ -1,0 +1,214 @@
+@rendermode InteractiveServer
+@using Monburan.Core.Services
+@using Monburan.Core.UseCases.ResumeShares
+@using Monburan.Core.Enums
+@inject CreateResumeShareUseCase CreateShare
+@inject RevokeResumeShareUseCase RevokeShare
+@inject ListResumeSharesUseCase ListShares
+@inject ICurrentUserHelper CurrentUserHelper
+@inject NavigationManager Navigation
+@inject ILogger<ResumeShareCard> Logger
+
+<section class="card resume-share-card" data-testid="resume-share-card" aria-labelledby="resume-share-title">
+    <h2 id="resume-share-title" class="h5">Compartilhar este currículo</h2>
+    <p class="small">
+        Crie um link público e individual. Só aparecem os campos que você marcar. Você pode revogar o link quando quiser,
+        sem apagar o currículo. Não é publicado o arquivo PDF original.
+    </p>
+
+    @if (message is not null)
+    {
+        <p class="alert @(messageIsError ? "alert-danger" : "alert-success")" role="status" data-testid="resume-share-message">@message</p>
+    }
+
+    @if (newLink is not null)
+    {
+        <div class="alert alert-success" data-testid="resume-share-new-link">
+            <p class="mb-2"><strong>Link criado.</strong> Copie agora: por segurança, ele não é mostrado de novo.</p>
+            <input class="form-control" readonly value="@newLink" aria-label="Link público do currículo" onclick="this.select()" />
+        </div>
+    }
+
+    <div class="row">
+        <div class="col-md-6 mb-3">
+            <label class="form-label" for="share-label">Rótulo (para você identificar)</label>
+            <input id="share-label" class="form-control" @bind="form.Label" maxlength="100" placeholder="Ex.: Vaga de motorista" />
+        </div>
+        <div class="col-md-6 mb-3">
+            <label class="form-label" for="share-expires">Validade (opcional)</label>
+            <input id="share-expires" class="form-control" type="date" @bind="form.ExpiresAt" />
+        </div>
+    </div>
+
+    <fieldset class="mb-3">
+        <legend class="form-label">O que aparece no link</legend>
+        <div class="form-check"><input class="form-check-input" id="share-name" type="checkbox" @bind="form.ShowName" /><label class="form-check-label" for="share-name">Meu nome</label></div>
+        <div class="form-check"><input class="form-check-input" id="share-summary" type="checkbox" @bind="form.ShowSummary" /><label class="form-check-label" for="share-summary">Resumo profissional</label></div>
+        <div class="form-check"><input class="form-check-input" id="share-experience" type="checkbox" @bind="form.ShowExperience" /><label class="form-check-label" for="share-experience">Experiências</label></div>
+        <div class="form-check"><input class="form-check-input" id="share-education" type="checkbox" @bind="form.ShowEducation" /><label class="form-check-label" for="share-education">Formação</label></div>
+        <div class="form-check"><input class="form-check-input" id="share-skills" type="checkbox" @bind="form.ShowSkills" /><label class="form-check-label" for="share-skills">Habilidades</label></div>
+        <div class="form-check"><input class="form-check-input" id="share-languages" type="checkbox" @bind="form.ShowLanguages" /><label class="form-check-label" for="share-languages">Idiomas</label></div>
+    </fieldset>
+
+    <button type="button" class="btn btn-primary" @onclick="CreateAsync" disabled="@busy" data-testid="resume-share-create">Criar link</button>
+
+    <h3 class="h6 mt-4">Links deste currículo</h3>
+    @if (loading)
+    {
+        <p>Carregando…</p>
+    }
+    else if (shares.Count == 0)
+    {
+        <p class="small mb-0">Nenhum link criado ainda.</p>
+    }
+    else
+    {
+        <ul class="list-group" data-testid="resume-share-list">
+            @foreach (var share in shares)
+            {
+                <li class="list-group-item d-flex justify-content-between align-items-center flex-wrap gap-2">
+                    <span>
+                        <strong>@(share.Label ?? "Sem rótulo")</strong>
+                        <small class="d-block">Criado em @share.CreatedAt.ToLocalTime().ToString("dd/MM/yyyy") · @Situation(share)</small>
+                    </span>
+                    @if (share.Status == "Ativo")
+                    {
+                        <button type="button" class="btn btn-sm btn-outline-danger" @onclick="() => RevokeAsync(share.Id)" disabled="@busy" data-testid="resume-share-revoke">Revogar</button>
+                    }
+                </li>
+            }
+        </ul>
+    }
+</section>
+
+@code {
+    [Parameter, EditorRequired]
+    public Guid ResumeId { get; set; }
+
+    private ShareForm form = new();
+    private List<ResumeShareSummary> shares = [];
+    private string? newLink;
+    private string? message;
+    private bool messageIsError;
+    private bool loading = true;
+    private bool busy;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        loading = true;
+        var candidateId = CurrentUserHelper.GetCandidateId();
+        if (candidateId is null)
+        {
+            shares = [];
+            loading = false;
+            return;
+        }
+
+        var result = await ListShares.ExecuteAsync(candidateId.Value, ResumeId);
+        shares = result.Status == EResultStatus.Success && result.Data is not null ? result.Data.ToList() : [];
+        loading = false;
+    }
+
+    private async Task CreateAsync()
+    {
+        if (busy)
+            return;
+
+        busy = true;
+        message = null;
+        newLink = null;
+        try
+        {
+            var candidateId = CurrentUserHelper.GetCandidateId();
+            if (candidateId is null)
+            {
+                Show("Entre como candidato para compartilhar o currículo.", true);
+                return;
+            }
+
+            var expires = form.ExpiresAt is { } day ? day.ToDateTime(TimeOnly.MaxValue) : (DateTime?)null;
+            var options = new ResumeShareOptions(form.Label, form.ShowName, form.ShowSummary, form.ShowExperience,
+                form.ShowEducation, form.ShowSkills, form.ShowLanguages, expires);
+
+            var result = await CreateShare.ExecuteAsync(candidateId.Value, ResumeId, options);
+            if (result.Status == EResultStatus.Success && result.Data is not null)
+            {
+                newLink = Navigation.ToAbsoluteUri($"/curriculo/{result.Data.Token}").ToString();
+                form = new ShareForm();
+                await LoadAsync();
+                return;
+            }
+
+            Show(result.Status == EResultStatus.HasValidation ? result.ValidationResult.ErrorMessage : result.Message, true);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            Logger.LogError(ex, "Falha ao criar link de currículo");
+            Show("Não foi possível criar o link agora. Tente novamente.", true);
+        }
+        finally
+        {
+            busy = false;
+        }
+    }
+
+    private async Task RevokeAsync(Guid shareId)
+    {
+        if (busy)
+            return;
+
+        busy = true;
+        try
+        {
+            var candidateId = CurrentUserHelper.GetCandidateId();
+            if (candidateId is null)
+                return;
+
+            var result = await RevokeShare.ExecuteAsync(candidateId.Value, shareId);
+            if (result.Status == EResultStatus.Success)
+            {
+                Show("Link revogado. Ele deixa de funcionar imediatamente.", false);
+                await LoadAsync();
+            }
+            else
+            {
+                Show(result.Message, true);
+            }
+        }
+        finally
+        {
+            busy = false;
+        }
+    }
+
+    private void Show(string text, bool isError)
+    {
+        message = text;
+        messageIsError = isError;
+    }
+
+    private static string Situation(ResumeShareSummary share) => share.Status switch
+    {
+        "Ativo" when share.ExpiresAt is { } expires => $"ativo até {expires.ToLocalTime():dd/MM/yyyy}",
+        "Ativo" => "ativo",
+        "Revogado" when share.RevokedAt is { } at => $"revogado em {at.ToLocalTime():dd/MM/yyyy}",
+        _ => share.Status.ToLowerInvariant()
+    };
+
+    private sealed class ShareForm
+    {
+        public string? Label { get; set; }
+        public bool ShowName { get; set; }
+        public bool ShowSummary { get; set; } = true;
+        public bool ShowExperience { get; set; }
+        public bool ShowEducation { get; set; }
+        public bool ShowSkills { get; set; }
+        public bool ShowLanguages { get; set; }
+        public DateOnly? ExpiresAt { get; set; }
+    }
+}

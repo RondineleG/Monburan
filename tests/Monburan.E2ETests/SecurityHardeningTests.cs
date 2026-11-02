@@ -13,7 +13,7 @@ public class SecurityHardeningTests : E2ETestBase
 
     private async Task SubmitLoginAsync(IPage page, string email, string password)
     {
-        await page.GotoAsync(BaseUrl + "/Account/Login", new PageGotoOptions { WaitUntil = WaitUntilState.DOMContentLoaded });
+        await page.GotoAsync(BaseUrl + "/entrar", new PageGotoOptions { WaitUntil = WaitUntilState.DOMContentLoaded });
         await page.GetByTestId("login-email").WaitForAsync();
         await page.GetByTestId("login-email").FillAsync(email);
         await page.GetByTestId("login-password").FillAsync(password);
@@ -39,16 +39,16 @@ public class SecurityHardeningTests : E2ETestBase
         for (var attempt = 1; attempt <= 4; attempt++)
         {
             await SubmitLoginAsync(page, email, "senha-errada-" + attempt);
-            Assert.Contains("/Account/Login", page.Url, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("/entrar", page.Url, StringComparison.OrdinalIgnoreCase);
         }
 
         await SubmitLoginAsync(page, email, "senha-errada-5");
-        Assert.Contains("/Account/Lockout", page.Url, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("/conta-bloqueada", page.Url, StringComparison.OrdinalIgnoreCase);
 
         // Com a conta bloqueada nem a senha certa entra
         await SubmitLoginAsync(page, email, GoodPassword);
 
-        Assert.Contains("/Account/Lockout", page.Url, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("/conta-bloqueada", page.Url, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("temporariamente bloqueado", await page.Locator("body").InnerTextAsync());
     }
 
@@ -67,7 +67,7 @@ public class SecurityHardeningTests : E2ETestBase
     [Fact]
     public async Task Register_NineCharacterPassword_IsRefusedWithTheNewMinimum()
     {
-        await GotoAsync("/Account/Register");
+        await GotoAsync("/criar-conta");
         await Page.GetByTestId("register-email").WaitForAsync();
         await Page.GetByTestId("register-name").FillAsync("Pessoa Teste");
         await Page.GetByTestId("register-role-candidate").CheckAsync();
@@ -77,13 +77,13 @@ public class SecurityHardeningTests : E2ETestBase
         await Page.GetByTestId("register-submit").ClickAsync();
 
         await Page.WaitForFunctionAsync("() => document.body.innerText.includes('pelo menos 10 caracteres')");
-        Assert.Contains("/Account/Register", Page.Url, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("/criar-conta", Page.Url, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
     public async Task Register_CommonPassword_IsRefusedByTheServer()
     {
-        await GotoAsync("/Account/Register");
+        await GotoAsync("/criar-conta");
         await Page.GetByTestId("register-email").WaitForAsync();
         await Page.GetByTestId("register-name").FillAsync("Pessoa Teste");
         await Page.GetByTestId("register-role-candidate").CheckAsync();
@@ -93,6 +93,6 @@ public class SecurityHardeningTests : E2ETestBase
         await Page.GetByTestId("register-submit").ClickAsync();
 
         await Page.WaitForFunctionAsync("() => document.body.innerText.includes('muito comum')");
-        Assert.Contains("/Account/Register", Page.Url, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("/criar-conta", Page.Url, StringComparison.OrdinalIgnoreCase);
     }
 }

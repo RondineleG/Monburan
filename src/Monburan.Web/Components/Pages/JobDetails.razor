@@ -72,7 +72,7 @@
                         }
                         else if (isAdmin)
                         {
-                            <p>Esta vaga está <strong>@UiLabels.JobStatus(job.Status).ToLowerInvariant()</strong> e não aparece para os candidatos; você a vê como administrador. <a href="/admin/jobs">Voltar à moderação</a></p>
+                            <p>Esta vaga está <strong>@UiLabels.JobStatus(job.Status).ToLowerInvariant()</strong> e não aparece para os candidatos; você a vê como administrador. <a href="/admin/vagas">Voltar à moderação</a></p>
                         }
                         else
                         {
@@ -87,7 +87,7 @@
 
                 <header class="job-hero">
                     <span class="job-logo job-logo--lg" aria-hidden="true">
-                        @JobDisplay.Initial(job.AdvertiserName)
+                        @JobDisplay.Initial(JobChannel.CompanyName(job))
                         @if (!string.IsNullOrWhiteSpace(job.AdvertiserLogoUrl))
                         {
                             <img src="@job.AdvertiserLogoUrl" alt="" decoding="async" onerror="this.hidden=true" />
@@ -95,9 +95,9 @@
                     </span>
                     <div class="job-hero__text">
                         <h1 id="job-title" tabindex="-1" data-testid="job-detail-title">@job.Title</h1>
-                        @if (!string.IsNullOrWhiteSpace(job.AdvertiserName))
+                        @if (!string.IsNullOrWhiteSpace(JobChannel.CompanyName(job)))
                         {
-                            <p class="job-hero__company">@job.AdvertiserName</p>
+                            <p class="job-hero__company">@JobChannel.CompanyName(job)</p>
                         }
                     </div>
                 </header>
@@ -168,20 +168,40 @@
                             <div><dt>Vagas</dt><dd>@job.NumberOfOpenings</dd></div>
                         </dl>
                         <div class="aside-card__actions">
-                            <a class="btn btn-primary btn-cta" href="@($"/jobs/{job.Id}/applications")">Ver candidaturas</a>
-                            <a class="btn btn-outline-secondary" href="@($"/jobs/edit/{job.Id}")">Editar vaga</a>
+                            <a class="btn btn-primary btn-cta" href="@($"/vagas/{job.Id}/candidaturas")">Ver candidaturas</a>
+                            <a class="btn btn-outline-secondary" href="@($"/vagas/{job.Id}/editar")">Editar vaga</a>
                         </div>
                     </section>
                 }
                 else if (job.Status == "Active")
                 {
-                    <section class="aside-card job-apply-card" data-testid="job-apply-card">
+                    <section class="aside-card job-apply-card" id="candidatura" data-testid="job-apply-card">
                         <h2 class="aside-card__title">Interessado nesta vaga?</h2>
-                        @if (existingApplication is not null)
+                        @if (JobChannel.IsExternal(job))
+                        {
+                            <p data-testid="job-external-notice">@JobChannel.Notice(job)</p>
+                            @if (JobChannel.ExternalHref(job) is { } externalLink)
+                            {
+                                <a class="btn btn-primary btn-cta" href="@externalLink" target="@(externalLink.StartsWith("http", StringComparison.Ordinal) ? "_blank" : null)" rel="noopener noreferrer" data-testid="job-apply-external">@JobChannel.CtaLabel(job)</a>
+                            }
+                            else
+                            {
+                                <p class="job-apply-onsite-label"><strong>@JobChannel.CtaLabel(job)</strong></p>
+                                <p class="job-apply-onsite" data-testid="job-apply-onsite">@job.ApplicationInstructions</p>
+                            }
+                            <p class="job-apply-source">
+                                Fonte: @(job.SourceName ?? job.SourceUrl ?? "não informada")
+                                @if (job.LastVerifiedAt is { } verifiedAt)
+                                {
+                                    <span> · verificada em @UiLabels.FormatDate(verifiedAt)</span>
+                                }
+                            </p>
+                        }
+                        else if (existingApplication is not null)
                         {
                             <p>Você já se candidatou a esta vaga.</p>
                             <p class="mb-3">Situação: <StatusBadge Kind="StatusKind.Application" Value="@existingApplication.Status" /></p>
-                            <a class="btn btn-primary btn-cta" href="/my-applications?aba=candidaturas" data-testid="job-track-application">Acompanhar candidatura</a>
+                            <a class="btn btn-primary btn-cta" href="/minhas-candidaturas?aba=candidaturas" data-testid="job-track-application">Acompanhar candidatura</a>
                         }
                         else if (applicationLookupFailed)
                         {
@@ -225,21 +245,21 @@
                     </div>
                 </section>
 
-                @if (!string.IsNullOrWhiteSpace(job.AdvertiserName))
+                @if (!string.IsNullOrWhiteSpace(JobChannel.CompanyName(job)))
                 {
                     <section class="aside-card job-company-card">
                         <h2 class="aside-card__title">Sobre a empresa</h2>
                         <div class="job-company-card__row">
                             <span class="job-logo" aria-hidden="true">
-                                @JobDisplay.Initial(job.AdvertiserName)
+                                @JobDisplay.Initial(JobChannel.CompanyName(job))
                                 @if (!string.IsNullOrWhiteSpace(job.AdvertiserLogoUrl))
                                 {
                                     <img src="@job.AdvertiserLogoUrl" alt="" loading="lazy" decoding="async" onerror="this.hidden=true" />
                                 }
                             </span>
-                            <strong>@job.AdvertiserName</strong>
+                            <strong>@JobChannel.CompanyName(job)</strong>
                         </div>
-                        <a class="btn btn-outline-secondary btn-sm mt-2" href="/companies/@job.AdvertiserId">
+                        <a class="btn btn-outline-secondary btn-sm mt-2" href="/empresas/@job.AdvertiserId">
                             Ver vagas da empresa
                         </a>
                     </section>
@@ -267,9 +287,13 @@
                         data-title="@job.Title" data-url="@canonicalUrl" aria-label="Compartilhar vaga">
                     <Icon Name="share" Size="18" />
                 </button>
-                @if (existingApplication is not null)
+                @if (JobChannel.IsExternal(job))
                 {
-                    <a class="btn btn-primary btn-cta" href="/my-applications?aba=candidaturas" data-testid="job-track-application-mobile">
+                    <a class="btn btn-primary btn-cta" href="@(JobChannel.ExternalHref(job) ?? "#candidatura")" target="@(JobChannel.ExternalHref(job) is null ? null : "_blank")" rel="noopener noreferrer" data-testid="job-apply-mobile">@JobChannel.CtaLabel(job)</a>
+                }
+                else if (existingApplication is not null)
+                {
+                    <a class="btn btn-primary btn-cta" href="/minhas-candidaturas?aba=candidaturas" data-testid="job-track-application-mobile">
                         Acompanhar candidatura
                     </a>
                 }
@@ -307,18 +331,18 @@
     private string structuredData = string.Empty;
 
     // Link para o botão de candidatura: depois do login a pessoa volta direto para o formulário
-    private string applyUrl => $"/apply/{JobId}";
-    private string loginUrl => $"/Account/Login?ReturnUrl={Uri.EscapeDataString(applyUrl)}";
-    private string registerUrl => $"/Account/Register?AccountType=candidate&ReturnUrl={Uri.EscapeDataString(applyUrl)}";
+    private string applyUrl => $"/candidatar/{JobId}";
+    private string loginUrl => $"/entrar?ReturnUrl={Uri.EscapeDataString(applyUrl)}";
+    private string registerUrl => $"/criar-conta?AccountType=candidate&ReturnUrl={Uri.EscapeDataString(applyUrl)}";
 
     // Candidato e visitante recebem a barra de candidatura fixa no celular; a empresa dona e outros perfis não
     private bool showStickyCta => job is { Status: "Active" } && !isOwner && (isCandidate || !isAuthenticated);
 
     private string TitleText => job is null
         ? "Vaga não encontrada - Monburan"
-        : string.IsNullOrWhiteSpace(job.AdvertiserName)
+        : string.IsNullOrWhiteSpace(JobChannel.CompanyName(job))
             ? $"{job.Title} - Monburan"
-            : $"{job.Title} - {job.AdvertiserName} - Monburan";
+            : $"{job.Title} - {JobChannel.CompanyName(job)} - Monburan";
 
     private string MetaDescription
     {
@@ -328,7 +352,7 @@
                 return string.Empty;
 
             var where = JobDisplay.Location(job);
-            var company = string.IsNullOrWhiteSpace(job.AdvertiserName) ? "empresa confidencial" : job.AdvertiserName;
+            var company = string.IsNullOrWhiteSpace(JobChannel.CompanyName(job)) ? "empresa confidencial" : JobChannel.CompanyName(job)!;
             var excerpt = JobDisplay.Excerpt(job.Description, 110);
             return $"Vaga de {job.Title} em {where} ({company}). {excerpt}".Trim();
         }

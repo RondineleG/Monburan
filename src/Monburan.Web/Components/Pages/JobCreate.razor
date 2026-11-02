@@ -1,4 +1,4 @@
-@page "/jobs/create"
+@page "/vagas/nova"
 @rendermode InteractiveServer
 @attribute [Microsoft.AspNetCore.Authorization.Authorize(Policy = "AdvertiserOnly")]
 @using Monburan.Core.DTOs.Request
@@ -22,7 +22,7 @@
 <div class="container page-form-shell">
     <PageHeader Title="Publicar vaga"
                 Description="Compartilhe uma descrição clara para atrair pessoas alinhadas à oportunidade."
-                BackHref="/my-jobs"
+                BackHref="/minhas-vagas"
                 BackText="Minhas vagas" />
     <div class="row">
         <div class="col-12">
@@ -32,7 +32,7 @@
                 <div class="alert alert-warning" role="status" data-testid="job-limit-reached">
                     <strong>Você atingiu o limite do plano @UiLabels.PlanName(jobLimit.PlanName).</strong>
                     Ele permite até @jobLimit.MaxJobs vagas ativas ao mesmo tempo.
-                    Encerre uma vaga em <a href="/my-jobs">Minhas vagas</a> ou <a href="/plans">mude de plano</a> para publicar outra.
+                    Encerre uma vaga em <a href="/minhas-vagas">Minhas vagas</a> ou <a href="/plans">mude de plano</a> para publicar outra.
                 </div>
             }
 
@@ -137,6 +137,6 @@ else
 
     private void Cancel()
     {
-        Navigation.NavigateTo("/my-jobs");
+        Navigation.NavigateTo("/minhas-vagas");
     }
 }

@@ -26,9 +26,9 @@ else if (_job is not null)
     var mode = Formatters.JobMode(_job);
     <div class="detail-hero">
         <h1 tabindex="-1">@_job.Title</h1>
-        @if (!string.IsNullOrEmpty(_job.AdvertiserName))
+        @if (JobChannel.CompanyName(_job) is { } companyName)
         {
-            <div class="text-dim">@_job.AdvertiserName</div>
+            <div class="text-dim">@companyName</div>
         }
         <div class="card-meta">
             @if (!string.IsNullOrEmpty(_job.City))
@@ -80,7 +80,7 @@ else if (_job is not null)
         </div>
     }
 
-    @if (!string.IsNullOrEmpty(_job.ApplicationInstructions))
+    @if (!JobChannel.IsExternal(_job) && !string.IsNullOrEmpty(_job.ApplicationInstructions))
     {
         <div class="detail-section">
             <h2>Como se candidatar</h2>
@@ -103,6 +103,10 @@ else if (_job is not null)
     {
         <div class="alert alert-info">Esta vaga não está mais recebendo candidaturas.</div>
         <a class="btn btn-secondary btn-block" href="/jobs">Ver outras vagas</a>
+    }
+    else if (JobChannel.IsExternal(_job))
+    {
+        <ExternalJobApplication Job="_job" />
     }
     else
     {
@@ -145,7 +149,7 @@ else if (_job is not null)
     private async Task CheckAlreadyAppliedAsync()
     {
         await Auth.InitializeAsync();
-        if (!Auth.IsAuthenticated)
+        if (!Auth.IsAuthenticated || (_job is not null && JobChannel.IsExternal(_job)))
             return;
 
         try

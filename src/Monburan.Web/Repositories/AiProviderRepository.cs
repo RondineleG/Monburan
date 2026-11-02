@@ -82,6 +82,7 @@ public class AiProviderRepository : IAiProviderRepository
         provider.Temperature = entity.Temperature;
         provider.SendTemperature = entity.SendTemperature;
         provider.UseJsonResponseFormat = entity.UseJsonResponseFormat;
+        provider.SupportsVision = entity.SupportsVision;
         provider.UseMaxCompletionTokens = entity.UseMaxCompletionTokens;
         provider.MarkUpdated(entity.UpdatedBy);
 

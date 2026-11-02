@@ -47,7 +47,17 @@ public class JobResponse
     public bool IsSaved { get; set; }
     
     // Advertiser
-    public Guid AdvertiserId { get; set; }
+    public Guid? AdvertiserId { get; set; }
+
+    public string PublicationType { get; set; } = "Direct";
+    public string ApplicationChannel { get; set; } = "InternalPlatform";
+    public string? ApplicationUrl { get; set; }
+    public string? ApplicationContact { get; set; }
+    public string? CompanyName { get; set; }
+    public string? SourceName { get; set; }
+    public string? SourceUrl { get; set; }
+    public DateTime? LastVerifiedAt { get; set; }
+    public string? CboCode { get; set; }
     public string? AdvertiserName { get; set; }
     public string? AdvertiserLogoUrl { get; set; }
     

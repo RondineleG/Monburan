@@ -1,4 +1,4 @@
-﻿@page "/Account/Manage/Disable2fa"
+﻿@page "/conta/desativar-2fa"
 
 @using Microsoft.AspNetCore.Identity
 @using Monburan.Web.Models
@@ -20,7 +20,7 @@
     </p>
     <p>
         A chave cadastrada no aplicativo autenticador continua a mesma. Para trocá-la,
-        <a href="Account/Manage/ResetAuthenticator">redefina a chave do autenticador</a>.
+        <a href="/conta/redefinir-autenticador">redefina a chave do autenticador</a>.
     </p>
 </div>
 
@@ -45,7 +45,7 @@
         {
             // Acesso direto pela URL sem 2FA ativa: volta para a tela de 2FA em vez de dar erro 500
             RedirectManager.RedirectToWithStatus(
-                "Account/Manage/TwoFactorAuthentication",
+                "/conta/seguranca-2fa",
                 "A verificação em duas etapas já está desativada.",
                 HttpContext);
         }
@@ -58,7 +58,7 @@
         {
             Logger.LogError("Falha ao desativar a 2FA: {Errors}", string.Join(", ", disable2faResult.Errors.Select(e => e.Code)));
             RedirectManager.RedirectToWithStatus(
-                "Account/Manage/TwoFactorAuthentication",
+                "/conta/seguranca-2fa",
                 "Erro: não foi possível desativar a verificação em duas etapas. Tente novamente.",
                 HttpContext);
         }
@@ -67,7 +67,7 @@
         var userId = await UserManager.GetUserIdAsync(user);
         Logger.LogInformation("User with ID '{UserId}' has disabled 2fa.", userId);
         RedirectManager.RedirectToWithStatus(
-            "Account/Manage/TwoFactorAuthentication",
+            "/conta/seguranca-2fa",
             "Verificação em duas etapas desativada. Você pode reativá-la configurando um aplicativo autenticador.",
             HttpContext);
     }

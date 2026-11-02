@@ -109,7 +109,7 @@ public sealed class AccountProfileService
             candidate.DeletedAt = now;
 
             var resumes = await context.Resumes
-                .Where(r => r.CandidateId == candidateId && !r.IsDeleted)
+                .Where(r => r.CandidateId == candidateId)
                 .ToListAsync();
             foreach (var resume in resumes)
             {
@@ -117,6 +117,12 @@ public sealed class AccountProfileService
                 resume.IsDeleted = true;
                 resume.DeletedAt = now;
             }
+
+            var shares = await context.ResumeShares
+                .Where(s => s.Resume != null && s.Resume.CandidateId == candidateId && s.RevokedAt == null)
+                .ToListAsync();
+            foreach (var share in shares)
+                share.RevokedAt = now;
         }
 
         var advertisers = await context.Advertisers

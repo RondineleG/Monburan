@@ -95,7 +95,7 @@ public class CareerProfileProgressApiTests : IClassFixture<MonburanApiFactory>
         progress!.Checklist.Should().HaveCount(6);
         progress.Checklist.Select(item => item.Key).Should().ContainInOrder("name", "phone", "resume", "careerProfile", "linkedin", "address");
         progress.Checklist.Single(item => item.Key == "name").Done.Should().BeTrue();
-        progress.Checklist.Single(item => item.Key == "resume").ActionUrl.Should().Be("/resumes");
+        progress.Checklist.Single(item => item.Key == "resume").ActionUrl.Should().Be("/curriculos");
         progress.CompletenessPercent.Should().Be(17);
     }
 

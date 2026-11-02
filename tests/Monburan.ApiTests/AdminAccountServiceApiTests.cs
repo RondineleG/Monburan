@@ -330,13 +330,13 @@ public class AdminAccountServiceApiTests : IClassFixture<ImmediateRevalidationAp
         var user = await CreateUserAsync("sessao");
         using var client = NewClient();
         await CookieAuth.LoginAsync(client, user.Email!, Password);
-        (await client.GetAsync("/Account/Manage")).StatusCode.Should().Be(HttpStatusCode.OK);
+        (await client.GetAsync("/conta")).StatusCode.Should().Be(HttpStatusCode.OK);
 
         await RunAsync(service => service.DeactivateAsync(user.Id, "sessão aberta", Moderator));
 
-        var after = await client.GetAsync("/Account/Manage");
+        var after = await client.GetAsync("/conta");
         after.StatusCode.Should().Be(HttpStatusCode.Redirect);
-        after.Headers.Location!.ToString().Should().Contain("/Account/Login");
+        after.Headers.Location!.ToString().Should().Contain("/entrar");
     }
 
     // ---------------------------------------------------------------- demais ações

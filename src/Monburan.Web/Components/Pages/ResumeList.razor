@@ -1,4 +1,4 @@
-@page "/resumes"
+@page "/curriculos"
 @rendermode InteractiveServer
 @attribute [Microsoft.AspNetCore.Authorization.Authorize(Policy = "CandidateOnly")]
 @using Monburan.Core.DTOs.Request
@@ -17,8 +17,8 @@
 <div class="container resumes-page">
     <PageHeader Title="Meus currículos" Description="Mantenha seu perfil profissional atualizado para cada oportunidade.">
         <Actions>
-            <a class="btn btn-primary" href="/resumes/wizard" data-testid="resume-new"><Icon Name="plus" Size="16" />Novo currículo</a>
-            <a class="btn btn-outline-secondary" href="/resumes/upload" data-testid="resume-import"><Icon Name="upload" Size="16" />Importar PDF</a>
+            <a class="btn btn-primary" href="/curriculos/assistente" data-testid="resume-new"><Icon Name="plus" Size="16" />Novo currículo</a>
+            <a class="btn btn-outline-secondary" href="/curriculos/upload" data-testid="resume-import"><Icon Name="upload" Size="16" />Importar PDF</a>
         </Actions>
     </PageHeader>
 
@@ -44,7 +44,7 @@
                 <article class="resume-row">
                     <span class="resume-row__icon" aria-hidden="true"><Icon Name="file" Size="20" /></span>
                     <div class="resume-row__body">
-                        <h2 class="resume-row__title"><a href="@($"/resumes/{resume.Id}")">@resume.Title</a>
+                        <h2 class="resume-row__title"><a href="@($"/curriculos/{resume.Id}")">@resume.Title</a>
                             <StatusBadge Text="@(resume.IsActive ? "Ativo" : "Inativo")" Tone="@(resume.IsActive ? StatusTone.Ok : StatusTone.Neutral)" />
                         </h2>
                         @if (!string.IsNullOrEmpty(resume.Summary))
@@ -58,9 +58,9 @@
                     </div>
                     <div class="resume-row__actions">
                         @* Nome acessível com o título: vários "Editar" iguais na lista não dizem qual currículo *@
-                        <a class="btn btn-outline-secondary btn-sm" href="/resumes/@resume.Id/edit" aria-label="@($"Editar o currículo {resume.Title}")">Editar</a>
-                        <a class="btn btn-outline-secondary btn-sm" href="/resumes/@resume.Id/cv" aria-label="@($"Ver CV do currículo {resume.Title}")">Ver CV</a>
-                        <a class="btn btn-outline-secondary btn-sm" href="/resumes/@resume.Id?melhorar=true" aria-label="@($"Melhorar o currículo {resume.Title}")">Melhorar</a>
+                        <a class="btn btn-outline-secondary btn-sm" href="/curriculos/@resume.Id/edit" aria-label="@($"Editar o currículo {resume.Title}")">Editar</a>
+                        <a class="btn btn-outline-secondary btn-sm" href="/curriculos/@resume.Id/cv" aria-label="@($"Ver CV do currículo {resume.Title}")">Ver CV</a>
+                        <a class="btn btn-outline-secondary btn-sm" href="/curriculos/@resume.Id?melhorar=true" aria-label="@($"Melhorar o currículo {resume.Title}")">Melhorar</a>
                     </div>
                 </article>
             }
@@ -72,8 +72,8 @@
                     Title="Nenhum currículo criado"
                     Message="Crie seu primeiro currículo para se candidatar às vagas com mais chances."
                     TestId="resumes-empty">
-            <a class="btn btn-primary" href="/resumes/wizard">Novo currículo</a>
-            <a class="btn btn-outline-secondary" href="/resumes/upload">Importar PDF</a>
+            <a class="btn btn-primary" href="/curriculos/assistente">Novo currículo</a>
+            <a class="btn btn-outline-secondary" href="/curriculos/upload">Importar PDF</a>
         </EmptyState>
     }
 </div>

@@ -1,4 +1,4 @@
-@page "/Account/Manage/DeletePersonalData"
+@page "/conta/excluir-dados"
 
 @using System.ComponentModel.DataAnnotations
 @using Microsoft.AspNetCore.Identity
@@ -67,14 +67,44 @@
 
     private async Task OnValidSubmitAsync()
     {
-        if (requirePassword && !await UserManager.CheckPasswordAsync(user, Input.Password))
+        if (requirePassword)
         {
-            message = "Erro: senha incorreta.";
-            return;
+            // lockoutOnFailure: a senha errada conta como tentativa e bloqueia a conta pelas regras do Identity
+            // (5 erros, 15 minutos); CheckPasswordAsync não contava nada
+            var check = await SignInManager.CheckPasswordSignInAsync(user, Input.Password, lockoutOnFailure: true);
+            if (check.IsLockedOut)
+            {
+                message = "Erro: muitas tentativas com senha incorreta. Tente de novo em alguns minutos.";
+                return;
+            }
+
+            if (!check.Succeeded)
+            {
+                message = "Erro: senha incorreta.";
+                return;
+            }
         }
 
         var email = user.Email;
         var userId = await UserManager.GetUserIdAsync(user);
+
+        // Perfil de candidato/anunciante guarda os dados pessoais exibidos no site. A anonimização vem ANTES de apagar o
+        // usuário: na ordem inversa, uma falha deixava nome, telefone e currículos no banco sem dono (LGPD). Agora, se ela
+        // falhar, nada foi apagado e a pessoa pode tentar de novo.
+        if (!string.IsNullOrWhiteSpace(email))
+        {
+            try
+            {
+                await AccountProfiles.AnonymizeProfilesAsync(email);
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError(ex, "Falha ao anonimizar o perfil da conta {UserId}; a exclusão foi interrompida", userId);
+                message = "Erro: não foi possível excluir sua conta agora. Tente novamente em instantes.";
+                return;
+            }
+        }
+
         var result = await UserManager.DeleteAsync(user);
         if (!result.Succeeded)
         {
@@ -84,24 +114,10 @@
             return;
         }
 
-        // Perfil de candidato/anunciante guarda os dados pessoais exibidos no site —
-        // sem anonimizar, nome/telefone/currículos continuavam no banco após a exclusão
-        if (!string.IsNullOrWhiteSpace(email))
-        {
-            try
-            {
-                await AccountProfiles.AnonymizeProfilesAsync(email);
-            }
-            catch (Exception ex)
-            {
-                Logger.LogError(ex, "Conta {UserId} excluída, mas a anonimização do perfil falhou", userId);
-            }
-        }
-
         await SignInManager.SignOutAsync();
         Logger.LogInformation("Usuário {UserId} excluiu a própria conta.", userId);
 
-        RedirectManager.RedirectToWithStatus("Account/Login", "Sua conta e seus dados pessoais foram excluídos.", HttpContext);
+        RedirectManager.RedirectToWithStatus("/entrar", "Sua conta e seus dados pessoais foram excluídos.", HttpContext);
     }
 
     private sealed class InputModel

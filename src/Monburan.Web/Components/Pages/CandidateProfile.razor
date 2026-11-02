@@ -1,4 +1,4 @@
-@page "/profile/candidate"
+@page "/perfil/candidato"
 @rendermode InteractiveServer
 @using System.ComponentModel.DataAnnotations
 @attribute [Microsoft.AspNetCore.Authorization.Authorize(Policy = "CandidateOnly")]
@@ -59,7 +59,7 @@
                             <div class="mb-3 col-span-2">
                                 <label class="form-label" for="candidate-email">E-mail</label>
                                 <InputText @bind-Value="_editModel.Email" type="email" class="form-control" id="candidate-email" autocomplete="email" disabled aria-describedby="candidate-email-help" />
-                                <small class="form-text" id="candidate-email-help">Para trocar o e-mail de acesso, use <a href="/Account/Manage/Email">Conta e segurança</a>.</small>
+                                <small class="form-text" id="candidate-email-help">Para trocar o e-mail de acesso, use <a href="/conta/email">Conta e segurança</a>.</small>
                             </div>
 
                             <div class="mb-3">
@@ -105,17 +105,17 @@
                     @if (_mainResume is not null)
                     {
                         <p class="small"><strong>@_mainResume.Title</strong></p>
-                        <a class="btn btn-outline-secondary btn-sm" href="/resumes/@_mainResume.Id/edit">Editar currículo</a>
-                        <a class="btn btn-outline-secondary btn-sm" href="/resumes/@_mainResume.Id/cv">Ver CV</a>
+                        <a class="btn btn-outline-secondary btn-sm" href="/curriculos/@_mainResume.Id/edit">Editar currículo</a>
+                        <a class="btn btn-outline-secondary btn-sm" href="/curriculos/@_mainResume.Id/cv">Ver CV</a>
                     }
-                    <a class="btn btn-outline-secondary btn-sm" href="/resumes">Meus currículos</a>
+                    <a class="btn btn-outline-secondary btn-sm" href="/curriculos">Meus currículos</a>
                 </div>
                 <div class="settings-group">
                     <h3>Conta</h3>
                     <p class="small"><StatusBadge Text="@UiLabels.AccountStatus(_candidate.Status)" Tone="@UiLabels.AccountStatusTone(_candidate.Status)" />
                         <span class="text-muted"> desde @UiLabels.FormatMomentDate(_candidate.CreatedAt)</span></p>
-                    <a class="btn btn-outline-secondary btn-sm" href="/address/list">Meu endereço</a>
-                    <a class="btn btn-outline-secondary btn-sm" href="/Account/Manage">Senha e segurança</a>
+                    <a class="btn btn-outline-secondary btn-sm" href="/enderecos">Meu endereço</a>
+                    <a class="btn btn-outline-secondary btn-sm" href="/conta">Senha e segurança</a>
                 </div>
             </aside>
         </div>
@@ -123,7 +123,7 @@
     else
     {
         <EmptyState Icon="alert" Title="Perfil de candidato não encontrado" Message="Esta área é exclusiva para contas de candidato.">
-            <a class="btn btn-primary" href="/dashboard">Voltar ao início</a>
+            <a class="btn btn-primary" href="/painel">Voltar ao início</a>
         </EmptyState>
     }
 </div>

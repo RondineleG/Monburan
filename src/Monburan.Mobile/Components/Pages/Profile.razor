@@ -114,6 +114,31 @@ else if (_candidate is not null)
     </div>
 }
 
+@if (_candidate is not null)
+{
+    @* Exigência das lojas: a conta pode ser excluída de dentro do app, não só pelo site *@
+    <h2 class="section-title">Excluir conta</h2>
+    <form class="card" @onsubmit="DeleteAccountAsync" novalidate>
+        <p class="text-dim">
+            Apaga sua conta e seus dados pessoais (perfil e currículos). Suas candidaturas ficam anônimas no histórico das
+            empresas. Não dá para desfazer.
+        </p>
+        <div class="form-field">
+            <label for="delete-password">Sua senha</label>
+            <input id="delete-password" class="input" type="password" @bind="_deletePassword" autocomplete="current-password" />
+            @if (_deleteError is not null)
+            {
+                <div class="field-error">@_deleteError</div>
+            }
+        </div>
+        <button type="submit" class="btn btn-danger btn-block" disabled="@_deleting">
+            <Icon Name="trash" /> @(_deleting ? "Excluindo…" : "Excluir minha conta")
+        </button>
+    </form>
+}
+
+<ConfirmDialog @ref="_confirm" />
+
 @code {
     private CandidateResponse? _candidate;
     private string _name = "";
@@ -126,6 +151,10 @@ else if (_candidate is not null)
     // Contagens vêm do progresso e da lista de currículos: os campos de contagem de candidates/me chegam zerados
     private int? _resumesCount;
     private int? _applicationsCount;
+    private ConfirmDialog _confirm = default!;
+    private string _deletePassword = string.Empty;
+    private string? _deleteError;
+    private bool _deleting;
 
     protected override async Task OnInitializedAsync()
     {
@@ -210,6 +239,47 @@ else if (_candidate is not null)
         finally
         {
             _busy = false;
+        }
+    }
+
+    private async Task DeleteAccountAsync()
+    {
+        if (_deleting)
+            return;
+
+        _deleteError = null;
+        if (string.IsNullOrEmpty(_deletePassword))
+        {
+            _deleteError = "Informe sua senha para confirmar.";
+            return;
+        }
+
+        var confirmed = await _confirm.ShowAsync(new ConfirmOptions
+        {
+            Title = "Excluir sua conta?",
+            Message = "Sua conta e seus dados pessoais serão apagados. Esta ação não pode ser desfeita.",
+            ConfirmText = "Excluir conta",
+            Destructive = true
+        });
+        if (!confirmed)
+            return;
+
+        _deleting = true;
+        try
+        {
+            await Api.DeleteMyAccountAsync(_deletePassword);
+            await Auth.SignOutAsync();
+            Toast.ShowSuccess("Sua conta e seus dados pessoais foram excluídos.", "Conta excluída");
+            Nav.NavigateTo("/", replace: true);
+        }
+        catch (ApiException ex)
+        {
+            _deleteError = ex.FieldError("password") ?? ex.Message;
+        }
+        finally
+        {
+            _deletePassword = string.Empty;
+            _deleting = false;
         }
     }
 

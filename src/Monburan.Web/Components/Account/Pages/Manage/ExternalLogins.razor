@@ -1,4 +1,4 @@
-﻿@page "/Account/Manage/ExternalLogins"
+﻿@page "/conta/logins-externos"
 
 @using Microsoft.AspNetCore.Authentication
 @using Microsoft.AspNetCore.Identity
@@ -57,7 +57,7 @@
 @if (otherLogins?.Count > 0)
 {
     <h3>Adicionar outro serviço de login</h3>
-    <form action="Account/Manage/LinkExternalLogin" method="post">
+    <form action="/Account/Manage/LinkExternalLogin" method="post">
         <AntiforgeryToken />
         <div>
             <p>

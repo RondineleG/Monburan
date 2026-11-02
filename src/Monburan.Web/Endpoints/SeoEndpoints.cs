@@ -23,6 +23,13 @@ public static class SeoEndpoints
                 .AppendLine("Disallow: /api/")
                 .AppendLine("Disallow: /admin/")
                 .AppendLine("Disallow: /Account/")
+                .AppendLine("Disallow: /entrar")
+                .AppendLine("Disallow: /criar-conta")
+                .AppendLine("Disallow: /esqueci-senha")
+                .AppendLine("Disallow: /redefinir-senha")
+                .AppendLine("Disallow: /confirmar-email")
+                .AppendLine("Disallow: /reenviar-confirmacao")
+                .AppendLine("Disallow: /conta")
                 .AppendLine()
                 .Append("Sitemap: ").Append(PublicUrls.Absolute(configuration, baseUri, "/sitemap.xml"))
                 .ToString();

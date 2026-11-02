@@ -1,4 +1,4 @@
-@page "/advertiser/upload-logo"
+@page "/empresa/logo"
 @rendermode InteractiveServer
 @attribute [Microsoft.AspNetCore.Authorization.Authorize(Policy = "AdvertiserOnly")]
 @using Monburan.Core.DTOs.Request
@@ -16,7 +16,7 @@
 <div class="container page-form-shell upload-page">
     <PageHeader Title="Atualizar logo da empresa"
                 Description="Escolha uma imagem nítida que represente sua organização."
-                BackHref="/profile/advertiser"
+                BackHref="/perfil/empresa"
                 BackText="Perfil da empresa" />
     <div class="row">
         <div class="col-lg-6 mx-auto">
@@ -214,6 +214,6 @@
 
     private void Cancel()
     {
-        Navigation.NavigateTo("/profile/advertiser");
+        Navigation.NavigateTo("/perfil/empresa");
     }
 }

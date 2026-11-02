@@ -16,12 +16,14 @@ public static class ApiEndpoints
         api.MapJobAlertEndpoints();
         api.MapApplicationEndpoints();
         api.MapCandidateEndpoints();
+        api.MapAccountEndpoints();
         api.MapAdvertiserEndpoints();
         api.MapResumeEndpoints();
         api.MapFileEndpoints();
         api.MapNotificationEndpoints();
         api.MapSubscriptionEndpoints();
         api.MapDashboardEndpoints();
+        api.MapFeatureEndpoints();
 
         return app;
     }

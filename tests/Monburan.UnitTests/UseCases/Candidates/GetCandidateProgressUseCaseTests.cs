@@ -134,9 +134,9 @@ public class GetCandidateProgressUseCaseTests
         result.Data.Applications.Archived.Should().Be(0);
         result.Data.SavedJobs.Should().Be(4);
         result.Data.ActiveAlerts.Should().Be(2);
-        result.Data.Checklist.Single(item => item.Key == "resume").ActionUrl.Should().Be("/resumes");
-        result.Data.Checklist.Single(item => item.Key == "careerProfile").ActionUrl.Should().Be("/career-profile");
-        result.Data.Checklist.Where(item => item.ActionUrl == "/profile/candidate")
+        result.Data.Checklist.Single(item => item.Key == "resume").ActionUrl.Should().Be("/curriculos");
+        result.Data.Checklist.Single(item => item.Key == "careerProfile").ActionUrl.Should().Be("/perfil-profissional");
+        result.Data.Checklist.Where(item => item.ActionUrl == "/perfil/candidato")
             .Should().HaveCount(4);
     }
 }

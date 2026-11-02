@@ -25,6 +25,10 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
 
     public DbSet<AiProvider> AiProviders => Set<AiProvider>();
 
+    public DbSet<FeatureFlag> FeatureFlags => Set<FeatureFlag>();
+
+    public DbSet<AccessGroup> AccessGroups => Set<AccessGroup>();
+
     public DbSet<Advertiser> Advertisers => Set<Advertiser>();
 
     public DbSet<Application> Applications => Set<Application>();
@@ -38,6 +42,14 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
     public DbSet<Job> Jobs => Set<Job>();
 
     public DbSet<JobAlert> JobAlerts => Set<JobAlert>();
+
+    public DbSet<JobSubmission> JobSubmissions => Set<JobSubmission>();
+
+    public DbSet<JobSubmissionEvidence> JobSubmissionEvidences => Set<JobSubmissionEvidence>();
+
+    public DbSet<JobSubmissionHistory> JobSubmissionHistories => Set<JobSubmissionHistory>();
+
+    public DbSet<ResumeShare> ResumeShares => Set<ResumeShare>();
 
     public DbSet<Notification> Notifications => Set<Notification>();
 

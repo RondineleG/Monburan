@@ -21,13 +21,17 @@ public static class JobDisplay
         var min = job.SalaryMin is { } low ? Money(low) : null;
         var max = job.SalaryMax is { } high ? Money(high) : null;
 
-        return (min, max) switch
+        var range = (min, max) switch
         {
             (not null, not null) when job.SalaryMin == job.SalaryMax => $"{symbol} {min}",
             (not null, not null) => $"{symbol} {min} – {max}",
             (not null, null) => $"A partir de {symbol} {min}",
             _ => $"Até {symbol} {max}"
         };
+
+        // O período acompanha a faixa ("R$ 8.000 – 12.000 por mês") em todas as telas
+        var period = UiLabels.SalaryPeriod(job.SalaryPeriod);
+        return period.Length > 0 ? $"{range} {period}" : range;
     }
 
     /// <summary>
@@ -118,7 +122,23 @@ public static class JobDisplay
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .Where(tag => !string.Equals(tag, exclude?.Trim(), StringComparison.OrdinalIgnoreCase))
                 .Take(max)
+                .Select(TagLabel)
                 .ToList();
+
+    /// <summary>Rótulo legível da tag ("social-media" vira "Social media"). A tag guardada não muda.</summary>
+    public static string TagLabel(string tag)
+    {
+        var trimmed = tag.Trim();
+        if (trimmed.Contains('-') || trimmed.Contains('_'))
+        {
+            var words = string.Join(" ", trimmed.Replace('-', ' ').Replace('_', ' ').Split(' ', StringSplitOptions.RemoveEmptyEntries));
+            return words.Length == 0 ? trimmed : char.ToUpperInvariant(words[0]) + words[1..].ToLowerInvariant();
+        }
+
+        // Só minúsculas simples ganham maiúscula inicial; siglas e nomes com símbolos (SEO, .NET, C#) ficam como foram escritos
+        var onlyLetters = trimmed.Length >= 2 && trimmed.All(char.IsLetter) && trimmed.All(char.IsLower);
+        return onlyLetters ? char.ToUpperInvariant(trimmed[0]) + trimmed[1..] : trimmed;
+    }
 
     /// <summary>Trecho de texto em uma linha, cortado no fim de uma palavra.</summary>
     public static string Excerpt(string? text, int maxLength)

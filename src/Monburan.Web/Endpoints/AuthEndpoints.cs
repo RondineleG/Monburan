@@ -185,7 +185,7 @@ public static class AuthEndpoints
             var userId = await userManager.GetUserIdAsync(user);
             var code = await userManager.GenerateEmailConfirmationTokenAsync(user);
             code = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(code));
-            var callbackUrl = $"{PublicBaseUri(httpContext, configuration)}/Account/ConfirmEmail?userId={Uri.EscapeDataString(userId)}&code={Uri.EscapeDataString(code)}";
+            var callbackUrl = $"{PublicBaseUri(httpContext, configuration)}/confirmar-email?userId={Uri.EscapeDataString(userId)}&code={Uri.EscapeDataString(code)}";
 
             await emailConfirmationUseCase.ExecuteAsync(new EmailConfirmationRequest
             {
@@ -242,7 +242,7 @@ public static class AuthEndpoints
 
         var token = await userManager.GeneratePasswordResetTokenAsync(user);
         var encoded = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(token));
-        var resetLink = $"{PublicBaseUri(httpContext, configuration)}/Account/ResetPassword?code={Uri.EscapeDataString(encoded)}";
+        var resetLink = $"{PublicBaseUri(httpContext, configuration)}/redefinir-senha?code={Uri.EscapeDataString(encoded)}";
 
         await passwordResetUseCase.ExecuteAsync(new PasswordResetRequest
         {

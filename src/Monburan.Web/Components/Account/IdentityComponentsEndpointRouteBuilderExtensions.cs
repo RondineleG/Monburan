@@ -28,7 +28,7 @@ namespace Monburan.Web.Components.Account
 
                 var redirectUrl = UriHelper.BuildRelative(
                     context.Request.PathBase,
-                    "/Account/ExternalLogin",
+                    "/entrar/externo",
                     QueryString.Create(query));
 
                 var properties = signInManager.ConfigureExternalAuthenticationProperties(provider, redirectUrl);
@@ -66,7 +66,7 @@ namespace Monburan.Web.Components.Account
                 var signInManager = context.RequestServices.GetRequiredService<SignInManager<ApplicationUser>>();
                 var redirectUrl = UriHelper.BuildRelative(
                     context.Request.PathBase,
-                    "/Account/Manage/ExternalLogins",
+                    "/conta/logins-externos",
                     QueryString.Create("Action", ExternalLogins.LinkLoginCallbackAction));
 
                 var properties = signInManager.ConfigureExternalAuthenticationProperties(

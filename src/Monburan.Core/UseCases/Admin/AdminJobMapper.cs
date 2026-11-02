@@ -9,7 +9,7 @@ internal static class AdminJobMapper
     {
         Id = job.Id.Value,
         Title = job.Title,
-        AdvertiserId = job.AdvertiserId.Value,
+        AdvertiserId = job.AdvertiserId?.Value,
         AdvertiserName = job.Advertiser?.Name,
         AdvertiserEmail = job.Advertiser?.Email,
         Status = job.Status.ToString(),

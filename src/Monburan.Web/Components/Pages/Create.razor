@@ -1,4 +1,4 @@
-@page "/address/create"
+@page "/enderecos/novo"
 @rendermode InteractiveServer
 @attribute [Microsoft.AspNetCore.Authorization.Authorize]
 
@@ -14,7 +14,7 @@
 
 <div class="container page-form-shell address-form-page">
     <PageHeader Title="Novo endereço" Description="Informe os dados para adicionar um endereço ao perfil."
-                BackHref="/address/list" BackText="Voltar a endereços" />
+                BackHref="/enderecos" BackText="Voltar a endereços" />
     <div class="card page-form-card">
         <div class="card-body">
             <EditForm Model="form" OnValidSubmit="HandleValidSubmit" Context="editContext">
@@ -63,7 +63,7 @@
                 CurrentUserHelper.GetAdvertiserId());
 
             Toast.ShowSuccess("Endereço adicionado ao seu perfil.");
-            Navigation.NavigateTo("/address/list");
+            Navigation.NavigateTo("/enderecos");
         }
         catch (Exception ex) when (ex is DbException or DbUpdateException or InvalidOperationException)
         {
@@ -77,5 +77,5 @@
         }
     }
 
-    private void Cancel() => Navigation.NavigateTo("/address/list");
+    private void Cancel() => Navigation.NavigateTo("/enderecos");
 }

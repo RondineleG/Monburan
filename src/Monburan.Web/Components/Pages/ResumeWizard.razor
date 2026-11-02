@@ -1,5 +1,5 @@
-@page "/resumes/wizard"
-@page "/resumes/{resumeId:guid}/wizard"
+@page "/curriculos/assistente"
+@page "/curriculos/{resumeId:guid}/assistente"
 @rendermode InteractiveServer
 @attribute [Microsoft.AspNetCore.Authorization.Authorize(Policy = "CandidateOnly")]
 @using Monburan.Core.DTOs.Request
@@ -22,7 +22,7 @@
 <div class="container page-form-shell resume-wizard-page">
     <PageHeader Title="@(ResumeId.HasValue ? "Revisar currículo importado" : "Montar currículo")"
                 Description="@HeaderDescription"
-                BackHref="/resumes" BackText="Meus currículos" />
+                BackHref="/curriculos" BackText="Meus currículos" />
     <div class="row">
         <div class="col-lg-9 mx-auto">
 
@@ -38,7 +38,7 @@
             else if (!isOwner)
             {
                 <EmptyState Icon="alert" Title="Currículo não disponível" Message="Ele não existe mais ou pertence a outra pessoa.">
-                    <a class="btn btn-primary" href="/resumes">Voltar para meus currículos</a>
+                    <a class="btn btn-primary" href="/curriculos">Voltar para meus currículos</a>
                 </EmptyState>
             }
             else
@@ -512,7 +512,7 @@
         {
             Toast.ShowSuccess("Currículo salvo.", "Pronto!");
             saved = true;
-            Navigation.NavigateTo($"/resumes/{result.Data.Id}");
+            Navigation.NavigateTo($"/curriculos/{result.Data.Id}");
             return;
         }
 

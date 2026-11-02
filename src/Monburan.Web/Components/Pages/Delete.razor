@@ -1,4 +1,4 @@
-@page "/address/delete/{Id:guid}"
+@page "/enderecos/{Id:guid}/excluir"
 @rendermode InteractiveServer
 @attribute [Microsoft.AspNetCore.Authorization.Authorize]
 
@@ -21,13 +21,13 @@
     else if (address == null)
     {
         <EmptyState Icon="search" Title="Endereço não encontrado" HeadingLevel="1" Message="O endereço solicitado não existe ou já foi removido.">
-            <a class="btn btn-primary" href="/address/list">Voltar para a lista</a>
+            <a class="btn btn-primary" href="/enderecos">Voltar para a lista</a>
         </EmptyState>
     }
     else
     {
         <PageHeader Title="Excluir endereço" Description="Confirme se deseja excluir este endereço do perfil."
-                    BackHref="/address/list" BackText="Voltar a endereços" />
+                    BackHref="/enderecos" BackText="Voltar a endereços" />
         <section class="card address-delete-card">
             <div class="card-body">
                 <span class="address-delete-card__icon" aria-hidden="true"><Icon Name="alert" Size="20" /></span>
@@ -96,7 +96,7 @@
             await AddressService.UnlinkFromOwnerAsync(address.Id);
             await AddressService.DeleteAsync(Id);
             Toast.ShowSuccess("Endereço removido.");
-            Navigation.NavigateTo("/address/list");
+            Navigation.NavigateTo("/enderecos");
         }
         catch (Exception ex) when (ex is DbException or DbUpdateException or InvalidOperationException)
         {
@@ -109,5 +109,5 @@
         }
     }
 
-    private void Cancel() => Navigation.NavigateTo("/address/list");
+    private void Cancel() => Navigation.NavigateTo("/enderecos");
 }

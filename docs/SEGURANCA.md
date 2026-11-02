@@ -77,14 +77,14 @@ local). Em produção:
 4. No primeiro acesso, ligue o 2FA (veja abaixo).
 
 **Verificação em duas etapas (2FA) obrigatória.** Quem é administrador só abre a administração com o 2FA ligado na conta;
-sem ele vê um aviso com o botão para a configuração (`/Account/Manage/TwoFactorAuthentication`). Perdeu o aparelho e os
+sem ele vê um aviso com o botão para a configuração (`/conta/seguranca-2fa`). Perdeu o aparelho e os
 códigos de recuperação:
 
 1. Outro administrador abre **Contas**, escolhe a pessoa e usa **Redefinir 2FA**; ou
 2. se for o único administrador, `REQUIRE_ADMIN_2FA=false` no `.env` da VPS e `docker compose up -d --force-recreate app`
    reabre o acesso até a pessoa reconfigurar. Volte para `true` em seguida.
 
-### Contas (`/admin/accounts`)
+### Contas (`/admin/contas`)
 
 Busca por nome ou e-mail, filtros por tipo (candidato, empresa, administrador) e por situação (ativa, inativa, bloqueada por
 tentativas, e-mail não confirmado), e um painel por conta com:
@@ -102,7 +102,7 @@ tentativas, e-mail não confirmado), e um painel por conta com:
 Travas: ninguém inativa a si mesmo nem remove o próprio papel; o último administrador ativo não sai; quem está em
 `ADMIN_EMAILS` não perde o papel pela tela (tire o e-mail da lista).
 
-### Vagas (`/admin/jobs`)
+### Vagas (`/admin/vagas`)
 
 Todas as vagas de todas as empresas, com contadores por situação, busca (título, categoria ou empresa) e filtro por
 situação. Para cada vaga: **Aprovar e ativar** ou
@@ -111,7 +111,7 @@ situação. Para cada vaga: **Aprovar e ativar** ou
 reprovada some da busca, da página pública e da API pública (só a empresa dona e a administração a veem). O administrador não
 edita o texto da vaga de outra empresa: a moderação é por situação, para o conteúdo continuar sendo da empresa.
 
-### Auditoria (`/admin/audit`)
+### Auditoria (`/admin/auditoria`)
 
 Toda ação administrativa (contas, vagas e provedores de IA) grava quem fez, em quem, quando, o motivo e o que mudou. Há
 busca (quem fez, alvo ou motivo) e filtros por ação e por tipo de alvo. A trilha é só de inclusão: não há tela nem rota para apagar ou editar registros.
@@ -204,7 +204,7 @@ Recomendado em seguida: criar um usuário próprio com `sudo`, copiar a chave pa
 
 ### 4. Backup criptografado fora do servidor
 
-O que vai: o banco (`pg_dump`) e a pasta de uploads, criptografados com [age](https://github.com/FiloSottile/age) antes de
+O que vai: o banco (`pg_dump`), a pasta de uploads e as imagens das sugestões de vaga (`App_Data/evidencias`), criptografados com [age](https://github.com/FiloSottile/age) antes de
 tocar o disco e enviados com [rclone](https://rclone.org). Quem invadir a VPS ou o armazenamento remoto só encontra
 arquivos que não consegue abrir, porque a **chave privada não fica na VPS**.
 
@@ -241,7 +241,7 @@ BACKUP_REMOTE=<nome-do-rclone>:monburan-backups/vps1 \
 ```
 
 Rodar fora da VPS mantém a chave privada longe dela. O script baixa o backup mais recente, descriptografa, restaura em um PostgreSQL descartável (sem portas publicadas, dados em
-memória), confere contas, vagas, empresas, candidatos e migrations e confere que o backup dos uploads abre. Não toca em
+memória), confere contas, vagas, empresas, candidatos e migrations e confere que os backups dos uploads e das evidências abrem. Não toca em
 produção.
 
 **Restauração de verdade** (servidor novo ou banco perdido):
@@ -251,6 +251,7 @@ age -d -i monburan-backup-key.txt monburan-db-<data>.dump.age > monburan.dump
 docker compose up -d postgres                       # banco novo e vazio
 docker exec -i monburan-postgres sh -c 'pg_restore -U "$POSTGRES_USER" -d "$POSTGRES_DB" --no-owner' < monburan.dump
 age -d -i monburan-backup-key.txt monburan-uploads-<data>.tar.gz.age | docker exec -i monburan-app tar -xzf - -C /app/wwwroot
+age -d -i monburan-backup-key.txt monburan-evidencias-<data>.tar.gz.age | docker exec -i monburan-app tar -xzf - -C /app/App_Data
 docker compose up -d app
 ```
 
@@ -354,7 +355,8 @@ docker exec monburan-postgres sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" 
   `archive.debian.org`: kernel, OpenSSH, OpenSSL e o resto não recebem mais correção. O firewall, o SSH só por chave e o
   fail2ban reduzem a exposição, mas não substituem trocar para uma versão suportada (Debian 12 ou 13, Ubuntu LTS), de
   preferência em um servidor novo restaurado a partir do backup desta página. Confira com `cat /etc/os-release`.
-- **Contêiner sem root:** o app roda como root dentro do contêiner. Mudar exige ajustar o dono dos volumes que já existem.
+- ~~**Contêiner sem root**~~: resolvido. A imagem roda como o usuário `app` (UID 1654) e escuta na 8080; o serviço
+  `volume-permissions` do `docker-compose.prod.yml` acerta o dono dos volumes antigos antes de o app subir.
 - **WAF ou CDN** (por exemplo Cloudflare) na frente: o nginx e os limites tratam abuso simples, não ataque volumétrico. Se
   colocar um proxy na frente, o `nginx.conf` e a confiança em `X-Forwarded-For` precisam ser revistos.
 - **CAPTCHA** no cadastro e no login: hoje a defesa é bloqueio de conta, limite por IP e 2FA (obrigatório só para
@@ -362,3 +364,10 @@ docker exec monburan-postgres sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" 
 - **Monitoramento:** não há alerta de queda do site nem de erro em produção além do `HEALTHCHECK_URL` do backup.
 - **Varredura da imagem Docker** (por exemplo Trivy) e inventário de componentes (SBOM) na esteira.
 - **Revisão externa:** teste de invasão e revisão jurídica da política de privacidade (LGPD).
+
+## Links públicos de currículo e logs
+
+O token do link público (`/curriculo/{token}`) abre o currículo de quem o tiver, então **não fica em log**: o nginx usa o
+formato `monburan_masked` (troca o token por `***` no log de acesso) e o log do app mascara o caminho
+(`RateLimiting.PathForLog`). O banco guarda só o hash SHA-256 do token. Token revogado, expirado, inválido ou de outro
+currículo recebem a mesma resposta ("Link indisponível"), e a página sai com `X-Robots-Tag: noindex` e fora do `sitemap`.

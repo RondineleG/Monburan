@@ -48,11 +48,11 @@ static class NotificationChecks
         });
         var page = await context.NewPageAsync();
         var baseUrl = client.BaseAddress!.ToString().TrimEnd('/');
-        await page.GotoAsync(baseUrl + "/Account/Login");
+        await page.GotoAsync(baseUrl + "/entrar");
         await page.GetByTestId("login-email").FillAsync("joao.silva@email.com");
         await page.GetByTestId("login-password").FillAsync("Monburan123");
         await page.GetByTestId("login-submit").ClickAsync();
-        await page.WaitForURLAsync(url => !url.Contains("/Account/Login"));
+        await page.WaitForURLAsync(url => !url.Contains("/entrar"));
         var metricsJs = await File.ReadAllTextAsync(Path.Combine(root, "tests", "ux-smoke", "Capture", "metrics.js"));
         var results = new List<object>();
         foreach (var theme in new[] { "light", "dark" })

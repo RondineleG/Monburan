@@ -66,6 +66,7 @@ public sealed class AnthropicProtocol : IAiProtocol
 
     public static Dictionary<string, object?> BuildPayload(AiProviderSettings provider, AiCompletionRequest request)
     {
+        AiMessageContent.EnsureVisionIfNeeded(provider, request);
         // O protocolo não tem papel "system" nas mensagens: as instruções vão no campo "system"
         var system = string.Join("\n\n", request.Messages
             .Where(message => message.Role == "system" && !string.IsNullOrWhiteSpace(message.Content))
@@ -77,7 +78,7 @@ public sealed class AnthropicProtocol : IAiProtocol
             ["max_tokens"] = Math.Clamp(provider.MaxOutputTokens, 256, 32000),
             ["messages"] = request.Messages
                 .Where(message => message.Role != "system")
-                .Select(message => new { role = message.Role, content = message.Content })
+                .Select(AiMessageContent.Anthropic)
                 .ToArray()
         };
 

@@ -13,7 +13,11 @@ As páginas públicas (`/`, `/jobs`, `/jobs/{id}`) funcionam sem login. As área
 | `POST` | `/api/auth/register` | `{accountType: candidate\|advertiser, name, email, password, confirmPassword}` → tokens |
 | `POST` | `/api/auth/forgot-password` | `{email}` → e-mail de reset |
 
-Claims emitidas: `sub`, `candidate_id`/`advertiser_id`, `user_type`.
+Claims do *access token*: `sub`, `email`, `jti`, `iat`, `token_use=access`, os papéis (`role`), `candidate_id` ou `advertiser_id` e `user_type`. O *refresh token* leva `token_use=refresh` e o `security_stamp` (trocar a senha o revoga). Validade: 1 hora e 30 dias.
+
+**2FA:** a API não suporta verificação em duas etapas. Se a conta tem 2FA, o login responde 401 pedindo que a pessoa entre pelo site.
+
+Fora de `/api`, também anônimos: `GET /robots.txt`, `GET /sitemap.xml`, `GET /health` e `/health/live` (sem consultar o banco) e `GET /health/ready` (com o banco).
 
 As rotas `/api/v1/**` exigem `Authorization: Bearer` (policy `ApiBearer`), exceto as marcadas como anônimas na tabela abaixo. `/api/auth/*` é anônimo. As respostas são ProblemDetails; a API nunca redireciona para login em cookie.
 
@@ -36,16 +40,18 @@ As rotas `/api/v1/**` exigem `Authorization: Bearer` (policy `ApiBearer`), excet
 | `PUT` | `/api/v1/applications/{id}/status` | advertiser | Atualiza o status da candidatura |
 | `GET`/`POST`/`PUT`/`DELETE` | `/api/v1/job-alerts/**` | candidate | Alertas de vagas |
 | `GET`/`PUT` | `/api/v1/candidates/me` | candidate | Perfil do candidato |
+| `GET` | `/api/v1/features` | anônimo ou bearer | Feature flags ligadas para quem chama (`{ "features": [...] }`); veja `docs/FEATURE-FLAGS.md` |
+| `POST` | `/api/v1/account/delete` | bearer | Exclui a própria conta e anonimiza os dados (`{ "password": "..." }`; senha errada → `400` com erro em `password`; sucesso → `204`). Exigência das lojas de app. |
 | `GET`/`PUT` | `/api/v1/candidates/me/career-profile` | candidate | Perfil profissional |
 | `GET` | `/api/v1/candidates/me/progress` | candidate | Progresso do perfil |
 | `GET`/`POST`/`PUT`/`DELETE` | `/api/v1/resumes/**` | candidate | Currículos (`/mine`, `/{id}`) |
 | `GET` | `/api/v1/resumes/improvements/availability` | candidate | Se as sugestões de IA estão disponíveis ao candidato |
 | `POST` | `/api/v1/resumes/{id}/improvements` | candidate | Sugestões de melhoria com IA (plano Premium) |
 | `POST` | `/api/v1/files/upload?fileType=Pdf` | bearer | Multipart `file` → `fileUrl` (imagem ≤5MB, PDF ≤10MB) |
-| `GET` | `/api/v1/notifications/mine` | bearer | Notificações |
-| `PUT` | `/api/v1/notifications/mine/read-all` | bearer | Marca todas como lidas |
-| `PUT` | `/api/v1/notifications/{id}/read` | bearer | Marca uma como lida |
-| `GET` | `/api/v1/notifications/mine/unread-count` | bearer | Contagem de não lidas (badge) |
+| `GET` | `/api/v1/notifications/mine` | candidate ou advertiser (403 sem perfil) | Notificações |
+| `PUT` | `/api/v1/notifications/mine/read-all` | candidate ou advertiser | Marca todas como lidas |
+| `PUT` | `/api/v1/notifications/{id}/read` | candidate ou advertiser | Marca uma como lida |
+| `GET` | `/api/v1/notifications/mine/unread-count` | candidate ou advertiser | Contagem de não lidas (badge) |
 | `GET`/`PUT` | `/api/v1/advertisers/me` | advertiser | Perfil da empresa |
 | `POST` | `/api/v1/advertisers/logo` | advertiser | Upload de logo (multipart `file`) + atualiza perfil |
 | `GET` | `/api/v1/dashboard` | advertiser | Métricas |

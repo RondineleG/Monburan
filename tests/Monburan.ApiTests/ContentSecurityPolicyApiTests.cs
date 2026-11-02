@@ -12,7 +12,7 @@ public partial class ContentSecurityPolicyApiTests : IClassFixture<MonburanApiFa
 
     public ContentSecurityPolicyApiTests(MonburanApiFactory factory) => _client = factory.CreateClient();
 
-    public static TheoryData<string> Pages() => new() { "/", "/jobs", "/Account/Login", "/Account/Register", "/privacy", "/plans" };
+    public static TheoryData<string> Pages() => new() { "/", "/jobs", "/entrar", "/criar-conta", "/privacidade", "/plans" };
 
     [Theory]
     [MemberData(nameof(Pages))]

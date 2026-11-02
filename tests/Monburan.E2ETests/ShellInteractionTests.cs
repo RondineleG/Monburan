@@ -20,7 +20,7 @@ public class ShellInteractionTests : E2ETestBase
             await dialog.DismissAsync();
         };
         await LoginOrRegisterAsync(CandidateEmail, TestPassword);
-        await GotoAsync("/address/create");
+        await GotoAsync("/enderecos/novo");
         await WaitForBlazorAsync();
 
         await Page.Locator("#street").FillAsync("Rua alterada para testar o aviso");
@@ -29,14 +29,14 @@ public class ShellInteractionTests : E2ETestBase
         await Page.GetByTestId("page-back").ClickAsync();
 
         await browserWarning.Task.WaitAsync(TimeSpan.FromSeconds(5));
-        Assert.EndsWith("/address/create", Page.Url);
+        Assert.EndsWith("/enderecos/novo", Page.Url);
         Assert.Equal("Rua alterada para testar o aviso", await Page.Locator("#street").InputValueAsync());
 
         // "Cancelar" navega pelo Blazor: o aviso aqui é o diálogo do próprio site
         await Page.GetByRole(AriaRole.Button, new() { Name = "Cancelar" }).ClickAsync();
         await Assertions.Expect(Page.GetByTestId("confirm-dialog")).ToBeVisibleAsync();
         await Page.GetByTestId("confirm-accept").ClickAsync();
-        await Page.WaitForURLAsync(url => url.EndsWith("/address/list", StringComparison.OrdinalIgnoreCase));
+        await Page.WaitForURLAsync(url => url.EndsWith("/enderecos", StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]
@@ -50,7 +50,7 @@ public class ShellInteractionTests : E2ETestBase
         Assert.Contains("Premium", body, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("Usuário não identificado", body, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("Erro interno", body, StringComparison.OrdinalIgnoreCase);
-        Assert.True(await Page.Locator("a[href*='Account/Register']").CountAsync() > 0,
+        Assert.True(await Page.Locator("a[href*='criar-conta']").CountAsync() > 0,
             "Anônimo deveria ver CTA para criar conta de empresa");
     }
 
@@ -138,14 +138,14 @@ public class ShellInteractionTests : E2ETestBase
     public async Task Logout_Button_ShouldSignOut()
     {
         await LoginOrRegisterAsync(CandidateEmail, TestPassword);
-        await GotoAsync("/dashboard");
+        await GotoAsync("/painel");
         await WaitForBlazorAsync();
 
         var logout = Page.GetByTestId("nav-logout");
         await logout.WaitForAsync();
         await logout.ClickAsync();
 
-        await Page.WaitForURLAsync(url => !url.Contains("/dashboard"));
+        await Page.WaitForURLAsync(url => !url.Contains("/painel"));
         await WaitForBlazorAsync();
 
         var body = await Page.Locator("body").InnerTextAsync();

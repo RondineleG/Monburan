@@ -139,7 +139,7 @@ try
     await page.SetViewportSizeAsync(1440, 900);
 
     // login candidato seedado (mesmas credenciais de desenvolvimento dos testes E2E)
-    await page.GotoAsync(baseUrl + "/Account/Login");
+    await page.GotoAsync(baseUrl + "/entrar");
     await page.WaitForTimeoutAsync(3000);
     await page.Locator("[data-testid=login-email]").FillAsync("joao.silva@email.com");
     await page.Locator("[data-testid=login-password]").FillAsync("Monburan123");
@@ -148,7 +148,7 @@ try
     Console.WriteLine($"LOGIN_URL={page.Url}");
 
     // gera uma vez; o rascunho vira arquivo no navegador
-    await page.GotoAsync($"{baseUrl}/resumes/{resumeId}?melhorar=true");
+    await page.GotoAsync($"{baseUrl}/curriculos/{resumeId}?melhorar=true");
     await page.WaitForLoadStateAsync(LoadState.DOMContentLoaded);
     await page.WaitForTimeoutAsync(3000);
     await page.ScreenshotAsync(new() { Path = Path.Combine(outputDir, "detail-panel.png"), FullPage = true });
@@ -163,7 +163,7 @@ try
     await page.ScreenshotAsync(new() { Path = Path.Combine(outputDir, "draft-created.png"), FullPage = true });
 
     // recarrega: rascunho restaura sem nova chamada de IA
-    await page.GotoAsync($"{baseUrl}/resumes/{resumeId}?melhorar=true");
+    await page.GotoAsync($"{baseUrl}/curriculos/{resumeId}?melhorar=true");
     await page.WaitForLoadStateAsync(LoadState.DOMContentLoaded);
     await page.WaitForTimeoutAsync(3000);
     await page.GetByTestId("resume-ai-review").WaitForAsync();
@@ -173,7 +173,7 @@ try
 
     // IA desligada agora: o rascunho salvo continua revisável (sem nova chamada)
     fakeAi.IsConfigured = false;
-    await page.GotoAsync($"{baseUrl}/resumes/{resumeId}?melhorar=true");
+    await page.GotoAsync($"{baseUrl}/curriculos/{resumeId}?melhorar=true");
     await page.WaitForTimeoutAsync(3000);
     await page.GetByTestId("resume-ai-review").WaitForAsync();
     Check(fakeAi.Requests.Count == 1, "SMOKE=AI_OFF_REVIEWABLE");
@@ -202,7 +202,7 @@ try
     Console.WriteLine("SMOKE=SAVED_LIVE");
 
     // recarrega sem blur: rascunho restaura com a edição
-    await page.GotoAsync($"{baseUrl}/resumes/{resumeId}?melhorar=true");
+    await page.GotoAsync($"{baseUrl}/curriculos/{resumeId}?melhorar=true");
     await page.WaitForTimeoutAsync(3000);
     await page.GetByTestId("resume-ai-review").ClickAsync();
     await page.GetByTestId("ai-edit-summary-text").WaitForAsync();
@@ -238,7 +238,7 @@ try
     await page.WaitForTimeoutAsync(300);
 
     // impressão: CV isolado e PDF com conteúdo
-    await page.GotoAsync($"{baseUrl}/resumes/{resumeId}/cv");
+    await page.GotoAsync($"{baseUrl}/curriculos/{resumeId}/cv");
     await page.WaitForTimeoutAsync(3000);
     await page.EmulateMediaAsync(new() { Media = Media.Print });
     await page.WaitForFunctionAsync("""
@@ -276,14 +276,14 @@ try
     await ctx2.RouteAsync("**/*", LoopbackOnly);
     var rec = await ctx2.NewPageAsync();
     rec.SetDefaultTimeout(45000);
-    await rec.GotoAsync(baseUrl + "/Account/Login");
+    await rec.GotoAsync(baseUrl + "/entrar");
     await rec.WaitForTimeoutAsync(2500);
     await rec.Locator("[data-testid=login-email]").FillAsync("contato@techsolutions.com");
     await rec.Locator("[data-testid=login-password]").FillAsync("Monburan123");
     await rec.Locator("[data-testid=login-submit]").ClickAsync();
     await rec.WaitForTimeoutAsync(3000);
 
-    await rec.GotoAsync($"{baseUrl}/resumes/{resumeId}");
+    await rec.GotoAsync($"{baseUrl}/curriculos/{resumeId}");
     await rec.WaitForTimeoutAsync(3000);
     var recDetail = await rec.ContentAsync();
     Check(recDetail.Contains("Currículo E2E"), "RECRUITER_VIEW");
@@ -293,7 +293,7 @@ try
     await rec.ScreenshotAsync(new() { Path = Path.Combine(outputDir, "recruiter-resume-390.png"), FullPage = true });
     await rec.SetViewportSizeAsync(1440, 900);
 
-    await rec.GotoAsync($"{baseUrl}/resumes/{resumeId}/cv");
+    await rec.GotoAsync($"{baseUrl}/curriculos/{resumeId}/cv");
     await rec.WaitForTimeoutAsync(3000);
     var recCv = await rec.ContentAsync();
     Check(recCv.Contains("cv-sheet"), "RECRUITER_CV");
@@ -301,7 +301,7 @@ try
     Check(recCv.Contains("Imprimir"), "PRINT");
     await rec.ScreenshotAsync(new() { Path = Path.Combine(outputDir, "recruiter-cv.png"), FullPage = true });
 
-    await rec.GotoAsync($"{baseUrl}/resumes/{otherResumeId}");
+    await rec.GotoAsync($"{baseUrl}/curriculos/{otherResumeId}");
     await rec.WaitForTimeoutAsync(3000);
     var denied = await rec.ContentAsync();
     Check(denied.Contains("não encontrado") || denied.Contains("Currículo não encontrado"), "RECRUITER_IDOR_DENIED");
@@ -319,7 +319,7 @@ try
             await db4.SaveChangesAsync();
         }
     }
-    await page.GotoAsync(baseUrl + "/profile/candidate");
+    await page.GotoAsync(baseUrl + "/perfil/candidato");
     await page.WaitForTimeoutAsync(3000);
     await page.ScreenshotAsync(new() { Path = Path.Combine(outputDir, "profile.png"), FullPage = true });
     await page.GetByTestId("candidate-profile-name").FillAsync("João Silva Editado");
@@ -354,7 +354,7 @@ try
         Check(detailHtml.Contains("Acompanhar candidatura"), "DUP_DETAIL_TRACK");
         Check(applyCount == 0, "NO_APPLY");
 
-        await page.GotoAsync($"{baseUrl}/apply/{jobId}");
+        await page.GotoAsync($"{baseUrl}/candidatar/{jobId}");
         await page.WaitForTimeoutAsync(3000);
         var applyHtml = await page.ContentAsync();
         var submitCount = await page.GetByTestId("application-submit").CountAsync();
@@ -381,7 +381,7 @@ try
         });
         await db7.SaveChangesAsync();
 
-        await page.GotoAsync($"{baseUrl}/resumes/{resumeId}/cv");
+        await page.GotoAsync($"{baseUrl}/curriculos/{resumeId}/cv");
         await page.WaitForTimeoutAsync(3000);
         await page.EmulateMediaAsync(new() { Media = Media.Print });
         await page.WaitForFunctionAsync("""

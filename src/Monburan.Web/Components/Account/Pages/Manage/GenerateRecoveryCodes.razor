@@ -1,4 +1,4 @@
-﻿@page "/Account/Manage/GenerateRecoveryCodes"
+﻿@page "/conta/codigos-recuperacao"
 
 @using Microsoft.AspNetCore.Identity
 @using Monburan.Web.Models
@@ -26,7 +26,7 @@ else
         </p>
         <p>
             Gerar novos códigos não altera a chave do aplicativo autenticador. Para trocá-la,
-            <a href="Account/Manage/ResetAuthenticator">redefina a chave do autenticador</a>.
+            <a href="/conta/redefinir-autenticador">redefina a chave do autenticador</a>.
         </p>
     </div>
     <div>
@@ -53,7 +53,7 @@ else
         if (!isTwoFactorEnabled)
         {
             RedirectManager.RedirectToWithStatus(
-                "Account/Manage/TwoFactorAuthentication",
+                "/conta/seguranca-2fa",
                 "Erro: ative a verificação em duas etapas antes de gerar códigos de recuperação.",
                 HttpContext);
         }

@@ -47,7 +47,7 @@ else
     private bool isWorking;
 
     private string LoginUrl =>
-        $"/Account/Login?returnUrl={Uri.EscapeDataString(string.IsNullOrWhiteSpace(ReturnUrl) ? "/" : ReturnUrl)}";
+        $"/entrar?returnUrl={Uri.EscapeDataString(string.IsNullOrWhiteSpace(ReturnUrl) ? "/" : ReturnUrl)}";
 
     private async Task ToggleAsync()
     {

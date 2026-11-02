@@ -1,0 +1,400 @@
+@page "/admin/funcionalidades"
+@rendermode InteractiveServer
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Policy = "FeatureManagers")]
+@using Monburan.Core.Entities
+@using Monburan.Core.Interfaces.Services
+@using Monburan.Core.Services
+@inject FeatureFlagAdminService Admin
+@inject AuthenticationStateProvider AuthenticationState
+@inject IToastService Toast
+@inject ILogger<AdminFuncionalidades> Logger
+
+<PageTitle>Funcionalidades - Monburan</PageTitle>
+
+@* Feature flags por grupo de acesso. Funcionalidade nova entra desligada e é liberada por grupo (time, beta, todos); depois
+   de liberada para todos, a flag sai do código. Guia: docs/FEATURE-FLAGS.md *@
+<div class="container admin-flags-page">
+    <PageHeader Title="Funcionalidades"
+                Description="Libere funcionalidades novas por grupo de acesso antes de abrir para todos.">
+        <Actions>
+            <button type="button" class="btn btn-primary" @onclick="NewFlag" disabled="@(form is not null)" data-testid="flag-new">
+                <Icon Name="plus" Size="16" />Nova funcionalidade
+            </button>
+        </Actions>
+    </PageHeader>
+
+    @if (isLoading)
+    {
+        <LoadingState Message="Carregando funcionalidades…" />
+    }
+    else if (loadFailed)
+    {
+        <ErrorState Title="Não foi possível carregar" Message="Tivemos um problema ao buscar as funcionalidades. Tente novamente em instantes." OnRetry="LoadAsync" />
+    }
+    else
+    {
+        @if (form is not null)
+        {
+            <form class="card mb-4" @onsubmit="SaveFlagAsync" data-testid="flag-form">
+                <div class="card-body">
+                    <h2 class="h5">@(form.Id is null ? "Nova funcionalidade" : $"Editar {form.Name}")</h2>
+                    <div class="mb-3">
+                        <label class="form-label" for="flag-name">Nome no código</label>
+                        <input id="flag-name" class="form-control" @bind="form.Name" disabled="@(form.Id is not null)" placeholder="nova-busca-de-vagas" maxlength="60" data-testid="flag-name" />
+                        <small class="form-text">Minúsculas, números e hífen. Não muda depois de criado.</small>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label" for="flag-description">Descrição</label>
+                        <textarea id="flag-description" class="form-control" rows="2" maxlength="500" @bind="form.Description" data-testid="flag-description"></textarea>
+                    </div>
+                    <fieldset class="mb-3">
+                        <legend class="form-label">Liberada para</legend>
+                        <div class="form-check">
+                            <input id="flag-everyone" class="form-check-input" type="checkbox" @bind="form.EnabledForEveryone" data-testid="flag-everyone" />
+                            <label class="form-check-label" for="flag-everyone"><strong>Todos</strong>, inclusive visitantes (último passo antes de tirar a flag do código)</label>
+                        </div>
+                        @foreach (var group in groups)
+                        {
+                            var id = $"flag-group-{group.Name}";
+                            <div class="form-check">
+                                <input id="@id" class="form-check-input" type="checkbox" checked="@form.Groups.Contains(group.Name)"
+                                       disabled="@form.EnabledForEveryone" @onchange="e => ToggleGroup(group.Name, e)" data-testid="flag-group" data-group="@group.Name" />
+                                <label class="form-check-label" for="@id"><code>@group.Name</code> · @group.Description</label>
+                            </div>
+                        }
+                    </fieldset>
+                    <div class="mb-3">
+                        <label class="form-label" for="flag-remove-by">Remover do código até</label>
+                        <input id="flag-remove-by" class="form-control" type="date" @bind="form.RemoveBy" />
+                        <small class="form-text">Flag é temporária: depois de liberada para todos, o código sai e a flag é apagada.</small>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary" disabled="@busy" data-testid="flag-save">@(busy ? "Salvando…" : "Salvar")</button>
+                        <button type="button" class="btn btn-outline-secondary" @onclick="() => form = null">Cancelar</button>
+                    </div>
+                </div>
+            </form>
+        }
+
+        <section class="mb-5" aria-label="Funcionalidades">
+            @if (flags.Count == 0)
+            {
+                <EmptyState Icon="sparkles" Title="Nenhuma funcionalidade atrás de flag" Message="Quando uma funcionalidade nova for para produção desligada, cadastre-a aqui." TestId="flags-empty" />
+            }
+            else
+            {
+                <div class="table-responsive">
+                    <table class="table align-middle" data-testid="flags-table">
+                        <thead><tr><th>Nome</th><th>Liberada para</th><th>Remover até</th><th></th></tr></thead>
+                        <tbody>
+                            @foreach (var flag in flags)
+                            {
+                                <tr data-testid="flag-row" data-flag="@flag.Name">
+                                    <td><code>@flag.Name</code><div class="text-muted small">@flag.Description</div></td>
+                                    <td>
+                                        @if (flag.EnabledForEveryone)
+                                        {
+                                            <span class="badge text-bg-success">Todos</span>
+                                        }
+                                        else if (flag.GroupList.Count == 0)
+                                        {
+                                            <span class="badge text-bg-secondary">Desligada</span>
+                                        }
+                                        else
+                                        {
+                                            @foreach (var group in flag.GroupList)
+                                            {
+                                                <span class="badge text-bg-light me-1">@group</span>
+                                            }
+                                        }
+                                    </td>
+                                    <td>
+                                        @if (flag.RemoveBy is { } removeBy)
+                                        {
+                                            <span class="@(removeBy.Date < DateTime.UtcNow.Date ? "text-danger fw-semibold" : string.Empty)">@removeBy.ToString("dd/MM/yyyy")</span>
+                                        }
+                                    </td>
+                                    <td class="text-end">
+                                        <button type="button" class="btn btn-outline-secondary btn-sm" @onclick="() => EditFlag(flag)" disabled="@(form is not null)" data-testid="flag-edit">Editar</button>
+                                        <button type="button" class="btn btn-outline-danger btn-sm" @onclick="() => DeleteFlagAsync(flag)" data-testid="flag-delete">Excluir</button>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </section>
+
+        <section class="mb-5" aria-labelledby="groups-title">
+            <h2 id="groups-title" class="h4">Grupos de acesso</h2>
+            <p class="text-muted">Os grupos automáticos vêm do papel e do perfil da conta. Os demais você monta: inclua contas pelo e-mail.</p>
+
+            <form class="row g-2 mb-3" @onsubmit="CreateGroupAsync" data-testid="group-form">
+                <div class="col-md-3"><input class="form-control" placeholder="nome-do-grupo" @bind="newGroupName" maxlength="40" aria-label="Nome do grupo" data-testid="group-name" /></div>
+                <div class="col-md-6"><input class="form-control" placeholder="Quem faz parte" @bind="newGroupDescription" maxlength="300" aria-label="Descrição do grupo" data-testid="group-description" /></div>
+                <div class="col-md-3"><button type="submit" class="btn btn-outline-primary w-100" disabled="@busy">Criar grupo</button></div>
+            </form>
+
+            <div class="table-responsive">
+                <table class="table align-middle" data-testid="groups-table">
+                    <thead><tr><th>Grupo</th><th>Quem faz parte</th><th>Contas</th><th></th></tr></thead>
+                    <tbody>
+                        @foreach (var group in groups)
+                        {
+                            <tr data-group="@group.Name">
+                                <td><code>@group.Name</code></td>
+                                <td>@group.Description</td>
+                                <td>@(group.IsImplicit ? "automático" : group.Members.ToString())</td>
+                                <td class="text-end">
+                                    @if (!group.IsImplicit)
+                                    {
+                                        <button type="button" class="btn btn-outline-secondary btn-sm" @onclick="() => OpenMembersAsync(group.Name)" data-testid="group-members">Contas</button>
+                                        <button type="button" class="btn btn-outline-danger btn-sm" @onclick="() => DeleteGroupAsync(group)">Excluir</button>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            @if (openGroup is not null)
+            {
+                <div class="card" data-testid="group-members-card">
+                    <div class="card-body">
+                        <h3 class="h6">Contas em <code>@openGroup</code></h3>
+                        <form class="row g-2 mb-3" @onsubmit="AddMemberAsync">
+                            <div class="col-md-8"><input class="form-control" type="email" placeholder="e-mail da conta" @bind="memberEmail" aria-label="E-mail da conta" data-testid="member-email" /></div>
+                            <div class="col-md-4"><button type="submit" class="btn btn-outline-primary w-100" disabled="@busy" data-testid="member-add">Incluir</button></div>
+                        </form>
+                        @if (members.Count == 0)
+                        {
+                            <p class="text-muted mb-0">Nenhuma conta neste grupo.</p>
+                        }
+                        else
+                        {
+                            <ul class="list-unstyled mb-0">
+                                @foreach (var member in members)
+                                {
+                                    <li class="d-flex justify-content-between align-items-center py-1">
+                                        <span>@member.Email</span>
+                                        <button type="button" class="btn btn-link btn-sm text-danger" @onclick="() => RemoveMemberAsync(member)">Retirar</button>
+                                    </li>
+                                }
+                            </ul>
+                        }
+                    </div>
+                </div>
+            }
+        </section>
+
+        @if (isAdmin)
+        {
+            <section aria-labelledby="product-title">
+                <h2 id="product-title" class="h4">Equipe de produto</h2>
+                <p class="text-muted">Quem tem o papel de produto gerencia esta tela, sem acesso ao resto da administração. Só administradores mudam esta lista.</p>
+                <form class="row g-2 mb-3" @onsubmit="GrantProductAsync">
+                    <div class="col-md-8"><input class="form-control" type="email" placeholder="e-mail da conta" @bind="productEmail" aria-label="E-mail da pessoa de produto" data-testid="product-email" /></div>
+                    <div class="col-md-4"><button type="submit" class="btn btn-outline-primary w-100" disabled="@busy">Dar papel de produto</button></div>
+                </form>
+                <ul class="list-unstyled">
+                    @foreach (var member in productTeam)
+                    {
+                        <li class="d-flex justify-content-between align-items-center py-1">
+                            <span>@member.Email</span>
+                            <button type="button" class="btn btn-link btn-sm text-danger" @onclick="() => RevokeProductAsync(member)">Retirar papel</button>
+                        </li>
+                    }
+                </ul>
+            </section>
+        }
+    }
+</div>
+
+<ConfirmDialog @ref="confirmDialog" />
+
+@code {
+    private sealed class FlagForm
+    {
+        public Guid? Id { get; init; }
+        public string Name { get; set; } = string.Empty;
+        public string Description { get; set; } = string.Empty;
+        public bool EnabledForEveryone { get; set; }
+        public HashSet<string> Groups { get; init; } = new(StringComparer.Ordinal);
+        public DateTime? RemoveBy { get; set; }
+    }
+
+    private IReadOnlyList<FeatureFlag> flags = [];
+    private IReadOnlyList<AccessGroupRow> groups = [];
+    private IReadOnlyList<AccessGroupMember> members = [];
+    private IReadOnlyList<AccessGroupMember> productTeam = [];
+    private FlagForm? form;
+    private string? openGroup;
+    private string newGroupName = string.Empty;
+    private string newGroupDescription = string.Empty;
+    private string memberEmail = string.Empty;
+    private string productEmail = string.Empty;
+    private bool isLoading = true;
+    private bool loadFailed;
+    private bool busy;
+    private bool isAdmin;
+    private AdminActor actor = new(string.Empty, string.Empty);
+    private ConfirmDialog confirmDialog = default!;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var state = await AuthenticationState.GetAuthenticationStateAsync();
+        actor = state.User.ToAdminActor();
+        isAdmin = state.User.IsInRole("Admin");
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        isLoading = true;
+        loadFailed = false;
+        try
+        {
+            flags = await Admin.ListFlagsAsync();
+            groups = await Admin.ListGroupsAsync();
+            if (isAdmin)
+                productTeam = await Admin.ListProductTeamAsync();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Falha ao carregar as funcionalidades");
+            loadFailed = true;
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void NewFlag() => form = new FlagForm { RemoveBy = DateTime.UtcNow.Date.AddDays(60) };
+
+    private void EditFlag(FeatureFlag flag) => form = new FlagForm
+    {
+        Id = flag.Id.Value,
+        Name = flag.Name,
+        Description = flag.Description,
+        EnabledForEveryone = flag.EnabledForEveryone,
+        Groups = new HashSet<string>(flag.GroupList, StringComparer.Ordinal),
+        RemoveBy = flag.RemoveBy
+    };
+
+    private void ToggleGroup(string group, ChangeEventArgs args)
+    {
+        if (form is null)
+            return;
+        if (args.Value is true)
+            form.Groups.Add(group);
+        else
+            form.Groups.Remove(group);
+    }
+
+    private async Task SaveFlagAsync()
+    {
+        if (form is null || busy)
+            return;
+
+        await RunAsync(() => Admin.SaveFlagAsync(
+                new FeatureFlagInput(form.Id, form.Name, form.Description, form.EnabledForEveryone, form.Groups, form.RemoveBy), actor),
+            $"Funcionalidade “{form.Name}” salva.", "Não foi possível salvar a funcionalidade.",
+            onSuccess: () => form = null);
+    }
+
+    private async Task DeleteFlagAsync(FeatureFlag flag)
+    {
+        var confirmed = await confirmDialog.ShowAsync(new ConfirmOptions
+        {
+            Title = "Excluir funcionalidade?",
+            Message = $"“{flag.Name}” passa a contar como desligada para todos. Exclua só depois de tirar a flag do código.",
+            ConfirmText = "Excluir",
+            Destructive = true
+        });
+        if (confirmed)
+            await RunAsync(() => Admin.DeleteFlagAsync(flag.Id.Value, actor), $"“{flag.Name}” excluída.", "Não foi possível excluir.");
+    }
+
+    private async Task CreateGroupAsync()
+    {
+        await RunAsync(() => Admin.CreateGroupAsync(newGroupName, newGroupDescription, actor),
+            $"Grupo “{newGroupName.Trim()}” criado.", "Não foi possível criar o grupo.",
+            onSuccess: () => { newGroupName = string.Empty; newGroupDescription = string.Empty; });
+    }
+
+    private async Task DeleteGroupAsync(AccessGroupRow group)
+    {
+        var confirmed = await confirmDialog.ShowAsync(new ConfirmOptions
+        {
+            Title = "Excluir grupo?",
+            Message = $"As {group.Members} conta(s) saem de “{group.Name}”. O grupo não pode estar liberando nenhuma funcionalidade.",
+            ConfirmText = "Excluir grupo",
+            Destructive = true
+        });
+        if (confirmed)
+            await RunAsync(() => Admin.DeleteGroupAsync(group.Id, actor), $"Grupo “{group.Name}” excluído.", "Não foi possível excluir o grupo.",
+                onSuccess: () => { if (openGroup == group.Name) openGroup = null; });
+    }
+
+    private async Task OpenMembersAsync(string group)
+    {
+        openGroup = group;
+        memberEmail = string.Empty;
+        members = await Admin.ListMembersAsync(group);
+    }
+
+    private async Task AddMemberAsync()
+    {
+        if (openGroup is not { } group)
+            return;
+        await RunAsync(() => Admin.AddMemberAsync(group, memberEmail, actor), "Conta incluída no grupo.", "Não foi possível incluir a conta.",
+            onSuccess: () => memberEmail = string.Empty);
+        members = await Admin.ListMembersAsync(group);
+    }
+
+    private async Task RemoveMemberAsync(AccessGroupMember member)
+    {
+        if (openGroup is not { } group)
+            return;
+        await RunAsync(() => Admin.RemoveMemberAsync(group, member.UserId, actor), $"{member.Email} saiu do grupo.", "Não foi possível retirar a conta.");
+        members = await Admin.ListMembersAsync(group);
+    }
+
+    private Task GrantProductAsync() =>
+        RunAsync(() => Admin.SetProductRoleAsync(productEmail, grant: true, actor, isAdmin), "Papel de produto concedido.", "Não foi possível conceder o papel.",
+            onSuccess: () => productEmail = string.Empty);
+
+    private Task RevokeProductAsync(AccessGroupMember member) =>
+        RunAsync(() => Admin.SetProductRoleAsync(member.Email, grant: false, actor, isAdmin), "Papel de produto retirado.", "Não foi possível retirar o papel.");
+
+    private async Task RunAsync(Func<Task<Monburan.Core.Requests.RequestResult>> action, string success, string fallback, Action? onSuccess = null)
+    {
+        busy = true;
+        try
+        {
+            var result = await action();
+            if (result.Status == Monburan.Core.Enums.EResultStatus.Success)
+            {
+                Toast.ShowSuccess(success);
+                onSuccess?.Invoke();
+                await LoadAsync();
+            }
+            else
+            {
+                Toast.ShowError(ResultMessages.ToUserMessage(result, fallback));
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Falha na administração de funcionalidades");
+            Toast.ShowError(fallback);
+        }
+        finally
+        {
+            busy = false;
+        }
+    }
+}

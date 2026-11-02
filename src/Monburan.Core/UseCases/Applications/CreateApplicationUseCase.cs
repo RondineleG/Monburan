@@ -49,6 +49,10 @@ public class CreateApplicationUseCase : IUseCase<CreateApplicationRequest, Appli
         if (job.Status != EJobStatus.Active)
             return RequestResult<ApplicationResponse>.WithDomainError("Vaga não está mais ativa.");
 
+        // Vaga externa recebe candidatura no canal da fonte (site, WhatsApp, e-mail ou presencial), nunca na Monburan
+        if (job.PublicationType == EPublicationType.External)
+            return RequestResult<ApplicationResponse>.WithDomainError("Esta vaga recebe candidaturas fora da Monburan. Use o canal indicado na vaga.");
+
         // Currículo anexado deve existir e pertencer ao candidato
         if (request.ResumeId.HasValue)
         {

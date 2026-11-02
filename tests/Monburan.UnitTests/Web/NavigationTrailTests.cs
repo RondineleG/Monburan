@@ -8,14 +8,14 @@ public class NavigationTrailTests
 {
     [Theory]
     [InlineData("/", NavRole.Candidate, "Início")]
-    [InlineData("/dashboard", NavRole.Advertiser, "Visão geral")]
+    [InlineData("/painel", NavRole.Advertiser, "Visão geral")]
     [InlineData("/", NavRole.Admin, "Visão geral")]
     [InlineData("/jobs", NavRole.Candidate, "Vagas")]
     [InlineData("/jobs?q=dev&modo=remoto", NavRole.Visitor, "Vagas")]
-    [InlineData("/my-applications", NavRole.Candidate, "Minhas candidaturas")]
-    [InlineData("/my-jobs", NavRole.Advertiser, "Minhas vagas")]
-    [InlineData("/received-applications", NavRole.Advertiser, "Candidaturas recebidas")]
-    [InlineData("/Account/Manage", NavRole.Candidate, "Conta e segurança")]
+    [InlineData("/minhas-candidaturas", NavRole.Candidate, "Minhas candidaturas")]
+    [InlineData("/minhas-vagas", NavRole.Advertiser, "Minhas vagas")]
+    [InlineData("/candidaturas-recebidas", NavRole.Advertiser, "Candidaturas recebidas")]
+    [InlineData("/conta", NavRole.Candidate, "Conta e segurança")]
     [InlineData("/rota-que-nao-existe", NavRole.Candidate, "Monburan")]
     public void SectionPages_HaveASingleItem_TheCurrentPage(string path, NavRole role, string label)
     {
@@ -25,17 +25,17 @@ public class NavigationTrailTests
     }
 
     [Theory]
-    [InlineData("/jobs/create", "Minhas vagas", "/my-jobs", "Publicar vaga")]
-    [InlineData("/jobs/edit/2b1c6e0e-6a3a-4f2b-9a51-0b8f2d0b4c11", "Minhas vagas", "/my-jobs", "Editar vaga")]
-    [InlineData("/jobs/2b1c6e0e-6a3a-4f2b-9a51-0b8f2d0b4c11/applications", "Candidaturas recebidas", "/received-applications", "Por vaga")]
+    [InlineData("/vagas/nova", "Minhas vagas", "/minhas-vagas", "Publicar vaga")]
+    [InlineData("/vagas/2b1c6e0e-6a3a-4f2b-9a51-0b8f2d0b4c11/editar", "Minhas vagas", "/minhas-vagas", "Editar vaga")]
+    [InlineData("/vagas/2b1c6e0e-6a3a-4f2b-9a51-0b8f2d0b4c11/candidaturas", "Candidaturas recebidas", "/candidaturas-recebidas", "Por vaga")]
     [InlineData("/jobs/2b1c6e0e-6a3a-4f2b-9a51-0b8f2d0b4c11", "Vagas", "/jobs", "Vaga")]
-    [InlineData("/apply/2b1c6e0e-6a3a-4f2b-9a51-0b8f2d0b4c11", "Vagas", "/jobs", "Candidatura")]
-    [InlineData("/resumes/2b1c6e0e-6a3a-4f2b-9a51-0b8f2d0b4c11/edit", "Meus currículos", "/resumes", "Editar currículo")]
-    [InlineData("/resumes/2b1c6e0e-6a3a-4f2b-9a51-0b8f2d0b4c11", "Meus currículos", "/resumes", "Currículo")]
-    [InlineData("/address/edit/2b1c6e0e-6a3a-4f2b-9a51-0b8f2d0b4c11", "Endereços", "/address/list", "Editar endereço")]
-    [InlineData("/Account/Manage/ChangePassword", "Conta e segurança", "/Account/Manage", "Alterar senha")]
-    [InlineData("/admin/audit", "Administração", "/", "Auditoria")]
-    [InlineData("/advertiser/upload-logo", "Perfil da empresa", "/profile/advertiser", "Logo")]
+    [InlineData("/candidatar/2b1c6e0e-6a3a-4f2b-9a51-0b8f2d0b4c11", "Vagas", "/jobs", "Candidatura")]
+    [InlineData("/curriculos/2b1c6e0e-6a3a-4f2b-9a51-0b8f2d0b4c11/editar", "Meus currículos", "/curriculos", "Editar currículo")]
+    [InlineData("/curriculos/2b1c6e0e-6a3a-4f2b-9a51-0b8f2d0b4c11", "Meus currículos", "/curriculos", "Currículo")]
+    [InlineData("/enderecos/2b1c6e0e-6a3a-4f2b-9a51-0b8f2d0b4c11/editar", "Endereços", "/enderecos", "Editar endereço")]
+    [InlineData("/conta/alterar-senha", "Conta e segurança", "/conta", "Alterar senha")]
+    [InlineData("/admin/auditoria", "Administração", "/", "Auditoria")]
+    [InlineData("/empresa/logo", "Perfil da empresa", "/perfil/empresa", "Logo")]
     public void Subpages_LinkOneLevelUp_AndEndOnTheCurrentPage(string path, string parent, string parentHref, string current)
     {
         var trail = NavigationTrail.For(path, NavRole.Candidate);
@@ -48,7 +48,7 @@ public class NavigationTrailTests
     [Fact]
     public void LastItem_IsNeverALink()
     {
-        foreach (var path in new[] { "/", "/jobs/create", "/Account/Manage/Email", "/admin/jobs", "/address/list" })
+        foreach (var path in new[] { "/", "/vagas/nova", "/conta/email", "/admin/vagas", "/enderecos" })
             NavigationTrail.For(path, NavRole.Advertiser)[^1].Href.Should().BeNull(path);
     }
 }

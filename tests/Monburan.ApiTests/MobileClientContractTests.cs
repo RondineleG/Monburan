@@ -4,6 +4,8 @@ using System.Text;
 
 using FluentAssertions;
 
+using Microsoft.Extensions.DependencyInjection;
+
 using Monburan.Core.DTOs.Request;
 using Monburan.Core.DTOs.Response;
 using Monburan.Mobile.Shared.Api;
@@ -167,6 +169,32 @@ public class MobileClientContractTests : IClassFixture<MonburanApiFactory>
     }
 
     [Fact]
+    public async Task DeleteAccount_ThroughMobileClient_ChecksThePassword_ThenDeletes()
+    {
+        var app = MobileApp.Create(_factory);
+        var email = $"exclui-app-{Guid.NewGuid():N}@teste.com";
+        var registered = await app.AuthApi.RegisterAsync(new RegisterRequest
+        {
+            AccountType = "candidate",
+            Name = "Pessoa do App",
+            Email = email,
+            Password = Password,
+            ConfirmPassword = Password
+        });
+        await app.Auth.SignInAsync(registered);
+
+        var wrong = async () => await app.Api.DeleteMyAccountAsync("senha-errada");
+        var error = (await wrong.Should().ThrowAsync<ApiException>()).Which;
+        error.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        error.FieldError("password").Should().Be("Senha incorreta.");
+
+        await app.Api.DeleteMyAccountAsync(Password);
+
+        var login = async () => await app.AuthApi.LoginAsync(email, Password);
+        await login.Should().ThrowAsync<ApiException>();
+    }
+
+    [Fact]
     public async Task Register_WithWeakPassword_ReturnsPortugueseMessages()
     {
         var app = MobileApp.Create(_factory);
@@ -197,6 +225,28 @@ public class MobileClientContractTests : IClassFixture<MonburanApiFactory>
         var error = (await login.Should().ThrowAsync<ApiException>()).Which;
         error.IsUnauthorized.Should().BeTrue();
         error.Message.Should().Be("E-mail ou senha incorretos.");
+    }
+
+    [Fact]
+    public async Task FeatureFlags_ReachTheApp_AndFollowTheSignedInAccount()
+    {
+        var flag = "app-" + Guid.NewGuid().ToString("N")[..10];
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var admin = scope.ServiceProvider.GetRequiredService<Monburan.Web.Services.FeatureFlagAdminService>();
+            await admin.SaveFlagAsync(new Monburan.Web.Services.FeatureFlagInput(null, flag, "Funcionalidade nova do app", false, ["candidato"], null),
+                new Monburan.Core.Interfaces.Services.AdminActor(Guid.NewGuid().ToString(), "admin@monburan.com.br"));
+        }
+
+        var app = MobileApp.Create(_factory);
+        var flags = new Monburan.Mobile.Shared.Features.FeatureFlagsState(app.Api, app.Auth);
+
+        await flags.RefreshAsync();
+        flags.IsEnabled(flag).Should().BeFalse("visitante não está no grupo candidato");
+
+        await app.SignInAsync(CandidateEmail);
+        await flags.RefreshAsync();
+        flags.IsEnabled(flag).Should().BeTrue();
     }
 
     [Fact]

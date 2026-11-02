@@ -1,0 +1,34 @@
+@using Monburan.Core.Interfaces.Services
+@inject IFeatureFlags Flags
+
+@* Mostra o conteúdo só se a funcionalidade estiver ligada para a conta. Esconder não protege: o endpoint ou o caso de uso
+   também precisa conferir (RequireFeature ou IFeatureFlags). *@
+@if (enabled)
+{
+    @ChildContent
+}
+else if (checkedOnce)
+{
+    @Disabled
+}
+
+@code {
+    [CascadingParameter] private Task<AuthenticationState>? AuthenticationStateTask { get; set; }
+
+    [Parameter, EditorRequired] public string Feature { get; set; } = string.Empty;
+
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    /// <summary>O que mostrar quando a funcionalidade está desligada (opcional; normalmente o comportamento antigo).</summary>
+    [Parameter] public RenderFragment? Disabled { get; set; }
+
+    private bool enabled;
+    private bool checkedOnce;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        var user = AuthenticationStateTask is null ? null : (await AuthenticationStateTask).User;
+        enabled = await Flags.IsEnabledAsync(Feature, user);
+        checkedOnce = true;
+    }
+}

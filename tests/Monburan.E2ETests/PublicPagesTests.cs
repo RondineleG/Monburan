@@ -145,8 +145,8 @@ public class PublicPagesTests : E2ETestBase
     }
 
     [Theory]
-    [InlineData("/Account/Login")]
-    [InlineData("/Account/Register")]
+    [InlineData("/entrar")]
+    [InlineData("/criar-conta")]
     public async Task AccountPages_Mobile_ShouldFitViewport(string path)
     {
         await Page.SetViewportSizeAsync(390, 844);
@@ -186,12 +186,12 @@ public class PublicPagesTests : E2ETestBase
 
         await Page.GetByTestId("job-apply").ClickAsync();
         await Page.WaitForFunctionAsync(
-            "() => location.pathname === '/Account/Login'",
+            "() => location.pathname === '/entrar'",
             null,
             new PageWaitForFunctionOptions { Timeout = 30000 });
 
         // Depois do login a pessoa volta direto para o formulário de candidatura
-        Assert.Contains($"ReturnUrl=%2Fapply%2F{jobId}", Page.Url, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains($"ReturnUrl=%2Fcandidatar%2F{jobId}", Page.Url, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -202,7 +202,7 @@ public class PublicPagesTests : E2ETestBase
         await Page.GetByTestId("job-card").First.ClickAsync();
         await Page.GetByTestId("job-apply").ClickAsync();
         await Page.WaitForFunctionAsync(
-            "() => location.pathname === '/Account/Login'",
+            "() => location.pathname === '/entrar'",
             null,
             new PageWaitForFunctionOptions { Timeout = 30000 });
 
@@ -211,7 +211,7 @@ public class PublicPagesTests : E2ETestBase
         await Page.GetByTestId("login-submit").ClickAsync();
 
         await Page.WaitForFunctionAsync(
-            "() => location.pathname.startsWith('/apply/')",
+            "() => location.pathname.startsWith('/candidatar/')",
             null,
             new PageWaitForFunctionOptions { Timeout = 45000 });
         await WaitForBlazorAsync();
@@ -244,9 +244,9 @@ public class PublicPagesTests : E2ETestBase
     }
 
     [Theory]
-    [InlineData("/privacy")]
-    [InlineData("/terms")]
-    [InlineData("/address/list")]
+    [InlineData("/privacidade")]
+    [InlineData("/termos")]
+    [InlineData("/enderecos")]
     public async Task StaticPages_ShouldReturnOk(string path)
     {
         var response = await GotoAsync(path);

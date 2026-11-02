@@ -43,6 +43,9 @@ public class AiProvider : BaseEntity
     /// <summary>Envia <c>max_completion_tokens</c> no lugar de <c>max_tokens</c> (modelos novos da OpenAI).</summary>
     public bool UseMaxCompletionTokens { get; set; }
 
+    /// <summary>Aceita imagens nas mensagens (multimodal). Desligado por padrão: sem isso, imagens nunca são enviadas.</summary>
+    public bool SupportsVision { get; set; }
+
     public void MarkUpdated(string updatedBy)
     {
         UpdatedBy = updatedBy;

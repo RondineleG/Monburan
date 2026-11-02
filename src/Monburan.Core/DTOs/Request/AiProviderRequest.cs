@@ -33,6 +33,7 @@ public class AiProviderRequest
     public bool SendTemperature { get; set; } = true;
 
     public bool UseJsonResponseFormat { get; set; } = true;
+    public bool SupportsVision { get; set; }
 
     public bool UseMaxCompletionTokens { get; set; }
 

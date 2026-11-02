@@ -32,18 +32,22 @@ RUN dotnet publish "Monburan.Web.csproj" -c Release -o /app/publish \
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
 WORKDIR /app
 
-# Criar diretório para uploads e a pasta das chaves do DataProtection (volume em produção; só o dono acessa)
-RUN mkdir -p /app/wwwroot/uploads /app/keys && chmod 700 /app/keys
-
 # Copiar published output do stage de build
 COPY --from=build /app/publish .
 
-# Expor portas
-EXPOSE 80
-EXPOSE 443
+# Pastas graváveis (volumes em produção): uploads, chaves do DataProtection, evidências das sugestões e logs. Pertencem ao
+# usuário sem privilégios da imagem (app, UID 1654); chaves e evidências só o dono lê.
+RUN mkdir -p /app/wwwroot/uploads /app/keys /app/App_Data/evidencias /app/logs \
+    && chown -R "$APP_UID":"$APP_UID" /app/wwwroot/uploads /app/keys /app/App_Data /app/logs \
+    && chmod 700 /app/keys /app/App_Data/evidencias
+
+# A aplicação roda sem root. Usuário sem privilégio não abre porta abaixo de 1024, então o Kestrel escuta na 8080.
+USER $APP_UID
+
+EXPOSE 8080
 
 # Variáveis de ambiente padrão
-ENV ASPNETCORE_URLS=http://+:80
+ENV ASPNETCORE_URLS=http://+:8080
 ENV ASPNETCORE_ENVIRONMENT=Production
 
 # Entry point

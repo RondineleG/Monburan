@@ -11,9 +11,9 @@ namespace Monburan.Core.UseCases.Candidates;
 /// <summary>Progresso do candidato: completude do perfil (itens de peso igual), candidaturas por situação, vagas salvas e alertas ativos.</summary>
 public class GetCandidateProgressUseCase : IUseCase<Guid, CandidateProgressResponse>
 {
-    private const string ProfileActionUrl = "/profile/candidate";
-    private const string ResumeActionUrl = "/resumes";
-    private const string CareerProfileActionUrl = "/career-profile";
+    private const string ProfileActionUrl = "/perfil/candidato";
+    private const string ResumeActionUrl = "/curriculos";
+    private const string CareerProfileActionUrl = "/perfil-profissional";
 
     private readonly ICandidateRepository _candidates;
     private readonly IResumeRepository _resumes;
