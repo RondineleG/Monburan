@@ -3,6 +3,7 @@ using Monburan.Core.DTOs.Response;
 using Monburan.Core.Entities;
 using Monburan.Core.Enums;
 using Monburan.Core.Interfaces.Repositories;
+using Monburan.Core.Interfaces.Services;
 using Monburan.Core.Interfaces.Repositories.Base;
 using Monburan.Core.Interfaces.UseCases;
 using Monburan.Core.Requests;
@@ -15,15 +16,18 @@ public sealed class UpgradePlanUseCase : IUseCase<UpgradePlanRequest, Subscripti
     private readonly IBaseRepository<Advertiser> _advertiserRepository;
     private readonly IBaseRepository<SubscriptionPlan> _planRepository;
     private readonly ISubscriptionRepository _subscriptionRepository;
+    private readonly IBillingPolicy _billing;
 
     public UpgradePlanUseCase(
         IBaseRepository<Advertiser> advertiserRepository,
         IBaseRepository<SubscriptionPlan> planRepository,
-        ISubscriptionRepository subscriptionRepository)
+        ISubscriptionRepository subscriptionRepository,
+        IBillingPolicy billing)
     {
         _advertiserRepository = advertiserRepository;
         _planRepository = planRepository;
         _subscriptionRepository = subscriptionRepository;
+        _billing = billing;
     }
 
     public async Task<RequestResult<SubscriptionResponse>> ExecuteAsync(UpgradePlanRequest request, CancellationToken cancellationToken = default)
@@ -45,6 +49,12 @@ public sealed class UpgradePlanUseCase : IUseCase<UpgradePlanRequest, Subscripti
         // Plano de candidato não pode ser assinado por empresa (e vice-versa)
         if (plan.Audience != EPlanAudience.Advertiser)
             return RequestResult<SubscriptionResponse>.WithDomainError("O plano selecionado não é válido para esta conta.");
+
+        // Sem cobrança, plano pago não é ativado pelo próprio anunciante. A regra fica aqui, no servidor, e vale para o
+        // site e para a API: esconder o botão na tela não impediria chamar o endpoint
+        if (plan.Price > 0 && !_billing.AllowsSelfServicePaidPlans)
+            return RequestResult<SubscriptionResponse>.WithDomainError(
+                "Os planos pagos ainda não estão disponíveis para contratação. Avisaremos quando a cobrança estiver ativa.");
 
         // Cancelar assinatura anterior se existir (consulta direta — a busca antiga
         // varria só as 100 primeiras assinaturas da plataforma e podia deixar duas ativas)

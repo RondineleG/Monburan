@@ -437,6 +437,7 @@ builder.Services.AddScoped<Monburan.Core.UseCases.Notifications.PasswordResetUse
 
 // Registrar Use Cases de Assinatura
 builder.Services.AddScoped<GetAvailablePlansUseCase>();
+builder.Services.AddSingleton<IBillingPolicy, BillingPolicy>();
 builder.Services.AddScoped<UpgradePlanUseCase>();
 builder.Services.AddScoped<CancelSubscriptionUseCase>();
 builder.Services.AddScoped<CheckJobLimitUseCase>();
