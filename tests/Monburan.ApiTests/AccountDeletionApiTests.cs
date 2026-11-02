@@ -101,8 +101,10 @@ public sealed class AccountDeletionApiTests : IClassFixture<MonburanApiFactory>
         var (email, tokens) = await RegisterCandidateAsync();
 
         // Identity: 5 erros bloqueiam a conta por 15 minutos
-        for (var i = 0; i < 5; i++)
+        for (var i = 0; i < 4; i++)
             (await DeleteAsync(tokens.AccessToken, "senha-errada")).StatusCode.Should().Be(HttpStatusCode.BadRequest);
+
+        (await DeleteAsync(tokens.AccessToken, "senha-errada")).StatusCode.Should().Be(HttpStatusCode.TooManyRequests);
 
         var blocked = await DeleteAsync(tokens.AccessToken, Password);
 

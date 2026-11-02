@@ -45,7 +45,7 @@ public class SubmissionRateLimiterTests
         using var limiter = new SubmissionRateLimiter(5, TimeSpan.FromHours(1));
 
         var results = await Task.WhenAll(Enumerable.Range(0, 50)
-            .Select(_ => Task.Run(() => limiter.TryAcquire("a", out _))));
+            .Select(index => Task.Run(() => limiter.TryAcquire("a", out _))));
 
         results.Count(r => r).Should().Be(5);
     }
