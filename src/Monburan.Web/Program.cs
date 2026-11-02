@@ -566,6 +566,7 @@ app.MapRazorComponents<App>()
     .AddAdditionalAssemblies(typeof(Monburan.Web.Client._Imports).Assembly);
 
 app.MapAdditionalIdentityEndpoints();
+app.MapEvidenceEndpoints();
 
 // API REST consumida pelo app mobile
 app.MapApiEndpoints();
