@@ -4,7 +4,7 @@ Quem administra o Monburan cadastra, pela tela **Administração → Provedores 
 serviços de IA que a aplicação pode usar, escolhe qual é o **padrão** e diz em qual **variável de ambiente** está a
 chave de cada um. Trocar de provedor, de modelo ou de endereço não exige deploy nem mudança de código.
 
-Os recursos de IA (hoje, as [sugestões de melhoria de currículo](IA-CURRICULO.md)) usam sempre o provedor padrão. Sem
+Os recursos de IA (a [melhoria de currículo](IA-CURRICULO.md), a importação de currículo em PDF e o rascunho de vaga a partir das imagens de uma sugestão) usam sempre o provedor padrão. Sem
 provedor padrão ativo, ou sem a chave dele no servidor, os recursos de IA ficam desligados e nada aparece no site nem no app.
 
 ## O que fica onde

@@ -5,7 +5,7 @@ O aplicativo fica em `src/Monburan.Mobile`, com a camada compartilhada em `src/M
 ## Estrutura
 
 - `src/Monburan.Mobile.Shared`: `MonburanApiClient`, `AuthApiClient`, `TokenService` (refresh transparente em 401), `AuthHeaderHandler`, `AuthStateService` e `ITokenStore`.
-- `src/Monburan.Mobile`: app MAUI Blazor Hybrid. `SecureStorageTokenStore` persiste a sessão. `network_security_config.xml` libera cleartext só para localhost e emulador.
+- `src/Monburan.Mobile`: app MAUI Blazor Hybrid. `SecureStorageTokenStore` persiste a sessão. `network_security_config.xml` libera cleartext só para localhost e emulador, e **só nos builds Debug** (`AndroidManifest.Debug.xml`); o manifesto de Release não o referencia.
 
 ## Como rodar
 
@@ -40,7 +40,7 @@ dotnet publish src/Monburan.Mobile -f net10.0-android -c Release -p:AndroidPacka
 
 ## Testes
 
-Os testes de API ficam em `tests/Monburan.ApiTests` (WebApplicationFactory com EF InMemory). A pré-visualização das telas do app para revisão de interface fica em `tests/ux-mobile-preview`.
+Os testes de API ficam em `tests/Monburan.ApiTests` (WebApplicationFactory com EF InMemory), inclusive o contrato que o app consome. Os **testes de tela em emulador** (Appium + UiAutomator2, 24 testes) ficam em `tests/Monburan.MobileUiTests`: veja o [README deles](../tests/Monburan.MobileUiTests/README.md) e o registro em `docs/evidencias/`. A pré-visualização das telas do app para revisão de interface fica em `tests/ux-mobile-preview`.
 
 ## Exclusão de conta
 

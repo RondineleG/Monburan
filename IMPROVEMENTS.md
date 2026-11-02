@@ -502,5 +502,5 @@ Desde a data original deste documento, as seguintes entregas foram implementadas
 - Renovação do design system (dark) da web (`wwwroot/ui.css`) e do app mobile (`wwwroot/app.css`), novos ícones/splash, remoção das side-stripes
 
 ### ⚠️ Correções sobre este documento
-- Os health checks registrados são básicos (`AddHealthChecks()` + `/health`) — **não** há checks de banco/SendGrid como sugerido na seção 14
+- Atualização: além do `/health` básico, hoje existem `/health/live` e `/health/ready`, este com check do banco (`AddDbContextCheck`); o check do SendGrid continua não existindo
 - As seções de testes (17–19) refletem o estado de maio/2026 — ver `TEST_STRATEGY.md` para os números atuais

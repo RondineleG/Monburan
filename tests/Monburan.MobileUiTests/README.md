@@ -6,8 +6,12 @@ e usa seletores CSS (como o Playwright da web).
 
 | Teste | O que cobre |
 |---|---|
-| `AuthFlowTests` | Boas-vindas sem sessão, login com senha errada, login válido e barra inferior, sessão que sobrevive a fechar e abrir o app, sair da conta |
-| `JobsFlowTests` | Lista de vagas, abrir o detalhe, busca sem resultado |
+| `AuthFlowTests` (5) | Boas-vindas sem sessão, login com senha errada, login válido e barra inferior, sessão que sobrevive a fechar e abrir o app, sair da conta |
+| `RegisterFlowTests` (5) | Criar conta, senhas diferentes, formulário vazio, senha curta, login com campos vazios |
+| `AccountFlowTests` (6) | Excluir conta (com a senha, sem senha, cancelando), navegação inferior, tema, filtro por modalidade |
+| `ApplyFlowTests` (3) | Candidatar-se e conferir na lista, vagas salvas, lista de candidaturas |
+| `ResumeFlowTests` (3) | Criar currículo, título vazio, título curto |
+| `JobsFlowTests` (2) | Lista de vagas, abrir o detalhe, busca sem resultado |
 
 Sem `MOBILE_UI=1` os testes são **pulados**; `dotnet test` da solução continua verde em máquinas sem Android.
 
