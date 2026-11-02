@@ -35,6 +35,9 @@ public class JobSubmissionRepository : IJobSubmissionRepository
             .AsNoTracking()
             .Include(s => s.Evidences)
             .Include(s => s.History)
+            // Duas coleções no mesmo Include geram um produto cartesiano (evidências x histórico) em um único SELECT;
+            // em consultas separadas, cada linha vem uma vez
+            .AsSplitQuery()
             .FirstOrDefaultAsync(s => s.Id == id && !s.IsDeleted, cancellationToken);
 
         return submission is null
