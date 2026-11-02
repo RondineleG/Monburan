@@ -11,10 +11,12 @@
 services:
   # Roda uma vez antes do app, como root, e passa os volumes para o usuário sem privilégios da imagem (UID 1654). Volumes
   # criados quando o app ainda rodava como root ficaram com dono root; sem isto o app não grava uploads, chaves nem evidências.
+  # O find só toca no que ainda não é do app: o chown -R anterior percorria e reescrevia todos os arquivos de uploads e
+  # evidências a cada deploy, e o volume só cresce. Com os donos já certos, o custo é uma varredura de leitura.
   volume-permissions:
     image: ghcr.io/rondineleg/monburan:latest
     user: "0:0"
-    entrypoint: ["sh", "-c", "chown -R 1654:1654 /app/wwwroot/uploads /app/keys /app/App_Data/evidencias /app/logs && chmod 700 /app/keys /app/App_Data/evidencias"]
+    entrypoint: ["sh", "-c", "find /app/wwwroot/uploads /app/keys /app/App_Data/evidencias /app/logs ! -user 1654 -exec chown 1654:1654 {} + && chmod 700 /app/keys /app/App_Data/evidencias"]
     volumes:
       - app_uploads:/app/wwwroot/uploads
       - app_keys:/app/keys
