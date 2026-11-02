@@ -52,6 +52,8 @@ public class AuthFlowTests
         app.Relaunch();
 
         app.WaitForText("h1.page-title", "Continue sua jornada");
+        // O título aparece antes dos dados: espera o painel carregar para a evidência não mostrar o spinner
+        app.WaitFor(".progress-card");
         app.Capture("04-sessao-mantida-ao-reabrir");
     }
 
