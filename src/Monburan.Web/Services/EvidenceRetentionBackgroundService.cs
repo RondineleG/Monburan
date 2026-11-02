@@ -10,6 +10,14 @@ namespace Monburan.Web.Services;
 /// <c>Evidence:RetentionDays</c> dias (padrão 90). O registro da evidência continua (nome, tamanho e hash, que servem para
 /// achar duplicadas); só o arquivo some. Sugestões pendentes e aprovadas não são tocadas.
 /// </summary>
+/// <remarks>
+/// A passagem é incremental: guarda em memória até onde já conferiu (<c>_purgedUpTo</c>, o limite de data da última
+/// passada que terminou sem erro) e a seguinte só consulta o intervalo novo. Sem isso, a consulta e os N
+/// <c>File.Exists</c>/<c>Delete</c> cresciam para sempre, todo dia, repetindo as mesmas sugestões antigas. A marca fica
+/// em memória de propósito, para não criar uma migration só para isso: após um reinício a primeira passada confere tudo
+/// uma vez (apagar um arquivo que já não existe não faz nada) e volta a ser incremental. <c>ModeratedAt</c> é regravado
+/// em cada decisão, então uma sugestão que muda de situação entra de novo no intervalo seguinte.
+/// </remarks>
 public sealed class EvidenceRetentionBackgroundService : BackgroundService
 {
     private const int DefaultRetentionDays = 90;
@@ -20,6 +28,9 @@ public sealed class EvidenceRetentionBackgroundService : BackgroundService
     private readonly IConfiguration _configuration;
     private readonly TimeProvider _time;
     private readonly ILogger<EvidenceRetentionBackgroundService> _logger;
+
+    // Tudo com ModeratedAt abaixo deste instante já foi conferido por uma passada que terminou sem erro
+    private DateTime? _purgedUpTo;
 
     public EvidenceRetentionBackgroundService(
         IServiceProvider serviceProvider,
@@ -66,14 +77,23 @@ public sealed class EvidenceRetentionBackgroundService : BackgroundService
         var storage = scope.ServiceProvider.GetRequiredService<IEvidenceStorage>();
 
         await using var context = await factory.CreateDbContextAsync(cancellationToken);
-        var keys = await context.JobSubmissions.AsNoTracking()
-            .Where(s => Closed.Contains(s.Status) && s.ModeratedAt != null && s.ModeratedAt < cutoff)
+        var query = context.JobSubmissions.AsNoTracking()
+            .Where(s => Closed.Contains(s.Status) && s.ModeratedAt != null && s.ModeratedAt < cutoff);
+        if (_purgedUpTo is { } from)
+            query = query.Where(s => s.ModeratedAt >= from);
+
+        var keys = await query
             .SelectMany(s => s.Evidences.Select(e => e.StorageKey))
             .ToListAsync(cancellationToken);
 
-        // Apagar um arquivo que já não existe não faz nada: as passadas seguintes repetem a lista sem custo
+        // Apagar um arquivo que já não existe não faz nada, então repetir uma passada interrompida é seguro
         foreach (var key in keys)
             await storage.DeleteAsync(key, cancellationToken);
+
+        // A marca só avança depois de a passada inteira terminar: uma falha no meio faz a próxima repetir o intervalo.
+        // Nunca recua (se a retenção for aumentada, o limite novo fica antes da marca e nada novo entra)
+        if (_purgedUpTo is null || cutoff > _purgedUpTo)
+            _purgedUpTo = cutoff;
 
         _logger.LogDebug("Retenção: {Quantidade} imagem(ns) de sugestões encerradas há mais de {Dias} dias conferida(s)", keys.Count, days);
         return keys.Count;

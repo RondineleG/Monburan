@@ -83,6 +83,40 @@ public sealed class PreProdHardeningTests : IClassFixture<MonburanApiFactory>
         (await storage.ReadAsync(pending)).Should().NotBeNull();
     }
 
+    private sealed class ControlledClock(DateTimeOffset now) : TimeProvider
+    {
+        public DateTimeOffset Now { get; set; } = now;
+
+        public override DateTimeOffset GetUtcNow() => Now;
+    }
+
+    [Fact]
+    public async Task Retention_IsIncremental_EachPassOnlyLooksAtTheIntervalThatBecameDue()
+    {
+        var clock = new ControlledClock(DateTimeOffset.UtcNow);
+        var service = new EvidenceRetentionBackgroundService(
+            _factory.Services,
+            new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?> { ["Evidence:RetentionDays"] = "90" }).Build(),
+            clock,
+            NullLogger<EvidenceRetentionBackgroundService>.Instance);
+        var storage = _factory.Services.GetRequiredService<IEvidenceStorage>();
+
+        var overdue = await AddSubmissionAsync(ESubmissionStatus.Rejected, clock.Now.UtcDateTime.AddDays(-120));
+        var notDueYet = await AddSubmissionAsync(ESubmissionStatus.Duplicate, clock.Now.UtcDateTime.AddDays(-80));
+
+        (await service.PurgeAsync(CancellationToken.None)).Should().BeGreaterThanOrEqualTo(1);
+        (await storage.ReadAsync(overdue)).Should().BeNull();
+        (await storage.ReadAsync(notDueYet)).Should().NotBeNull();
+
+        // Nada novo venceu: a segunda passada não reconsulta o que já foi conferido (o -120d não volta à lista)
+        (await service.PurgeAsync(CancellationToken.None)).Should().Be(0);
+
+        // Quinze dias depois a sugestão de -80d passa de 90 dias e é a única do intervalo novo
+        clock.Now = clock.Now.AddDays(15);
+        (await service.PurgeAsync(CancellationToken.None)).Should().Be(1);
+        (await storage.ReadAsync(notDueYet)).Should().BeNull();
+    }
+
     [Fact]
     public async Task ResumeShareRepository_RefusesLinkAboveActiveLimit()
     {

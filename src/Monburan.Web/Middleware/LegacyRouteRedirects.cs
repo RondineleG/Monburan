@@ -7,7 +7,7 @@ namespace Monburan.Web.Middleware;
 /// (sair, login externo, vincular login, exportar dados) continuam nos caminhos atuais. Links já enviados por
 /// e-mail (confirmação e redefinição de senha) e favoritos seguem funcionando.
 /// </summary>
-public static class LegacyRouteRedirects
+public static partial class LegacyRouteRedirects
 {
     private static readonly Dictionary<string, string> Exact = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -66,33 +66,89 @@ public static class LegacyRouteRedirects
         ["/terms"] = "/termos"
     };
 
-    private static readonly (Regex Pattern, string Replacement)[] Patterns =
+    // Rotas com parâmetro. [GeneratedRegex] compila no build: sem custo de construção nem de JIT na primeira requisição, e
+    // a correspondência é mais rápida que a do Regex interpretado. Cada regra captura o trecho variável no grupo "v";
+    // o destino é prefixo + v + sufixo, montado a partir de um único Match (antes eram IsMatch seguido de Replace, duas
+    // varreduras do mesmo texto).
+    [GeneratedRegex("^/jobs/edit/(?<v>[^/]+)$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    private static partial Regex JobEdit();
+
+    [GeneratedRegex("^/jobs/(?<v>[^/]+)/applications$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    private static partial Regex JobApplications();
+
+    [GeneratedRegex("^/address/edit/(?<v>[^/]+)$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    private static partial Regex AddressEdit();
+
+    [GeneratedRegex("^/address/delete/(?<v>[^/]+)$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    private static partial Regex AddressDelete();
+
+    [GeneratedRegex("^/resumes/(?<v>[^/]+)/wizard$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    private static partial Regex ResumeWizard();
+
+    [GeneratedRegex("^/resumes/(?<v>[^/]+)/edit$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    private static partial Regex ResumeEdit();
+
+    [GeneratedRegex("^/resumes/(?<v>[^/]+)/cv$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    private static partial Regex ResumeCv();
+
+    [GeneratedRegex("^/resumes/(?<v>.+)$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    private static partial Regex ResumeRest();
+
+    [GeneratedRegex("^/companies/(?<v>.+)$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    private static partial Regex CompanyRest();
+
+    [GeneratedRegex("^/apply/(?<v>.+)$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    private static partial Regex ApplyRest();
+
+    // A ordem importa: as regras específicas de /resumes vêm antes da genérica
+    private static readonly (Regex Pattern, string Prefix, string Suffix)[] Patterns =
     [
-        (new Regex("^/jobs/edit/(?<id>[^/]+)$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant), "/vagas/${id}/editar"),
-        (new Regex("^/jobs/(?<id>[^/]+)/applications$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant), "/vagas/${id}/candidaturas"),
-        (new Regex("^/address/edit/(?<id>[^/]+)$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant), "/enderecos/${id}/editar"),
-        (new Regex("^/address/delete/(?<id>[^/]+)$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant), "/enderecos/${id}/excluir"),
-        (new Regex("^/resumes/(?<id>[^/]+)/wizard$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant), "/curriculos/${id}/assistente"),
-        (new Regex("^/resumes/(?<id>[^/]+)/edit$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant), "/curriculos/${id}/editar"),
-        (new Regex("^/resumes/(?<id>[^/]+)/cv$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant), "/curriculos/${id}/cv"),
-        (new Regex("^/resumes/(?<rest>.+)$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant), "/curriculos/${rest}"),
-        (new Regex("^/companies/(?<rest>.+)$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant), "/empresas/${rest}"),
-        (new Regex("^/apply/(?<rest>.+)$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant), "/candidatar/${rest}")
+        (JobEdit(), "/vagas/", "/editar"),
+        (JobApplications(), "/vagas/", "/candidaturas"),
+        (AddressEdit(), "/enderecos/", "/editar"),
+        (AddressDelete(), "/enderecos/", "/excluir"),
+        (ResumeWizard(), "/curriculos/", "/assistente"),
+        (ResumeEdit(), "/curriculos/", "/editar"),
+        (ResumeCv(), "/curriculos/", "/cv"),
+        (ResumeRest(), "/curriculos/", string.Empty),
+        (CompanyRest(), "/empresas/", string.Empty),
+        (ApplyRest(), "/candidatar/", string.Empty)
     ];
 
-    /// <summary>Caminho novo para uma URL antiga, ou null quando a URL não mudou.</summary>
+    /// <summary>Caminho novo para uma URL antiga, ou null quando a URL não mudou. O caminho vem decodificado.</summary>
     public static string? TargetFor(string path)
     {
         if (Exact.TryGetValue(path, out var exact))
             return exact;
 
-        foreach (var (pattern, replacement) in Patterns)
+        // Só 5 primeiros segmentos têm rota com parâmetro. Todo o resto (CSS, JS, imagens, Blazor, API) sai aqui, sem
+        // passar por nenhuma regex: este código roda em toda requisição, antes dos arquivos estáticos
+        if (!MayHaveParameterizedRoute(path))
+            return null;
+
+        foreach (var (pattern, prefix, suffix) in Patterns)
         {
-            if (pattern.IsMatch(path))
-                return pattern.Replace(path, replacement);
+            var match = pattern.Match(path);
+            if (match.Success)
+                return string.Concat(prefix, match.Groups["v"].ValueSpan, suffix);
         }
 
         return null;
+    }
+
+    private static bool MayHaveParameterizedRoute(string path)
+    {
+        if (path.Length < 2 || path[0] != '/')
+            return false;
+
+        var span = path.AsSpan(1);
+        var slash = span.IndexOf('/');
+        var first = slash < 0 ? span : span[..slash];
+        return first.Equals("jobs", StringComparison.OrdinalIgnoreCase)
+            || first.Equals("address", StringComparison.OrdinalIgnoreCase)
+            || first.Equals("resumes", StringComparison.OrdinalIgnoreCase)
+            || first.Equals("companies", StringComparison.OrdinalIgnoreCase)
+            || first.Equals("apply", StringComparison.OrdinalIgnoreCase);
     }
 }
 
@@ -106,7 +162,10 @@ public sealed class LegacyRouteRedirectMiddleware(RequestDelegate next)
             var target = LegacyRouteRedirects.TargetFor(context.Request.Path.Value ?? string.Empty);
             if (target is not null)
             {
-                context.Response.Redirect(target + context.Request.QueryString.Value, permanent: true);
+                // Request.Path chega decodificado: um %3F virava "?" e mudava a URL de destino. ToUriComponent() codifica
+                // de novo o que precisa (?, #, %, espaço), e a query string original segue intacta
+                var location = new PathString(target).ToUriComponent() + context.Request.QueryString.Value;
+                context.Response.Redirect(location, permanent: true);
                 return Task.CompletedTask;
             }
         }

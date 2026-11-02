@@ -4,6 +4,7 @@ using Monburan.Core.Entities;
 using Monburan.Core.Enums;
 using Monburan.Core.Interfaces.Repositories;
 using Monburan.Core.Requests;
+using Monburan.Core.Services;
 using Monburan.Core.ValueObjects;
 using Monburan.Web.Data;
 
@@ -35,6 +36,9 @@ public class JobSubmissionRepository : IJobSubmissionRepository
             .AsNoTracking()
             .Include(s => s.Evidences)
             .Include(s => s.History)
+            // Duas coleções no mesmo Include geram um produto cartesiano (evidências x histórico) em um único SELECT;
+            // em consultas separadas, cada linha vem uma vez
+            .AsSplitQuery()
             .FirstOrDefaultAsync(s => s.Id == id && !s.IsDeleted, cancellationToken);
 
         return submission is null
@@ -49,12 +53,23 @@ public class JobSubmissionRepository : IJobSubmissionRepository
     public async Task<RequestResult<JobSubmission>> UpdateAsync(JobSubmission submission, CancellationToken cancellationToken = default)
     {
         await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);
+        // Serializa decisões da mesma sugestão: uma segunda aprovação precisa ler a primeira antes de decidir.
+        await using var transaction = context.Database.IsNpgsql()
+            ? await context.Database.BeginTransactionAsync(cancellationToken)
+            : null;
+        if (transaction is not null)
+            await context.Database.ExecuteSqlInterpolatedAsync(
+                $"SELECT 1 FROM \"JobSubmissions\" WHERE \"Id\" = {submission.Id.Value} FOR UPDATE", cancellationToken);
+
         var tracked = await context.JobSubmissions
             .Include(s => s.History)
-            .FirstOrDefaultAsync(s => s.Id == submission.Id, cancellationToken);
+            .FirstOrDefaultAsync(s => s.Id == submission.Id && !s.IsDeleted, cancellationToken);
 
         if (tracked is null)
             return RequestResult<JobSubmission>.EntityNotFound("JobSubmission", submission.Id.Value, "Sugestão não encontrada.");
+
+        if (!JobSubmissionRules.CanTransition(tracked.Status, submission.Status))
+            return RequestResult<JobSubmission>.WithDomainError("Esta sugestão já foi decidida ou alterada. Atualize a lista antes de tentar de novo.");
 
         tracked.Status = submission.Status;
         tracked.ModerationNote = submission.ModerationNote;
@@ -63,10 +78,6 @@ public class JobSubmissionRepository : IJobSubmissionRepository
         tracked.ApprovedJobId = submission.ApprovedJobId;
         tracked.DuplicateOfJobId = submission.DuplicateOfJobId;
         tracked.DuplicateOfSubmissionId = submission.DuplicateOfSubmissionId;
-        tracked.AiDraftJson = submission.AiDraftJson;
-        tracked.AiDraftEvidenceHash = submission.AiDraftEvidenceHash;
-        tracked.AiDraftProvider = submission.AiDraftProvider;
-        tracked.AiDraftAt = submission.AiDraftAt;
 
         var known = tracked.History.Select(h => h.Id).ToHashSet();
         foreach (var entry in submission.History.Where(h => !known.Contains(h.Id)))
@@ -75,6 +86,24 @@ public class JobSubmissionRepository : IJobSubmissionRepository
             context.JobSubmissionHistories.Add(entry);
         }
 
+        await context.SaveChangesAsync(cancellationToken);
+        if (transaction is not null)
+            await transaction.CommitAsync(cancellationToken);
+        return RequestResult<JobSubmission>.Success(tracked);
+    }
+
+    public async Task<RequestResult<JobSubmission>> SaveAiDraftAsync(JobSubmission submission, CancellationToken cancellationToken = default)
+    {
+        await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);
+        var tracked = await context.JobSubmissions
+            .FirstOrDefaultAsync(s => s.Id == submission.Id && !s.IsDeleted, cancellationToken);
+        if (tracked is null)
+            return RequestResult<JobSubmission>.EntityNotFound("JobSubmission", submission.Id.Value, "Sugestão não encontrada.");
+
+        tracked.AiDraftJson = submission.AiDraftJson;
+        tracked.AiDraftEvidenceHash = submission.AiDraftEvidenceHash;
+        tracked.AiDraftProvider = submission.AiDraftProvider;
+        tracked.AiDraftAt = submission.AiDraftAt;
         await context.SaveChangesAsync(cancellationToken);
         return RequestResult<JobSubmission>.Success(tracked);
     }

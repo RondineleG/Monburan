@@ -34,6 +34,12 @@ public class ResumeRepository : IResumeRepository
         resume.IsDeleted = true;
         resume.DeletedAt = DateTime.UtcNow;
 
+        var shares = await context.ResumeShares
+            .Where(s => s.ResumeId == id && s.RevokedAt == null)
+            .ToListAsync(cancellationToken);
+        foreach (var share in shares)
+            share.RevokedAt = resume.DeletedAt;
+
         context.Resumes.Update(resume);
         await context.SaveChangesAsync(cancellationToken);
         return RequestResult<Resume>.Success(resume);

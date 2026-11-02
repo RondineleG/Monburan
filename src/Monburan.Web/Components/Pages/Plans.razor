@@ -6,6 +6,7 @@
 @inject GetAvailablePlansUseCase GetAvailablePlansUseCase
 @inject UpgradePlanUseCase UpgradePlanUseCase
 @inject ICurrentUserHelper CurrentUserHelper
+@inject Monburan.Core.Interfaces.Services.IBillingPolicy Billing
 @inject NavigationManager Navigation
 @inject IToastService Toast
 @inject ILogger<Plans> Logger
@@ -111,6 +112,10 @@
                                     <button type="button" class="btn btn-outline-secondary w-100" disabled>
                                         Plano atual
                                     </button>
+                                }
+                                else if (plan.Price > 0 && !Billing.AllowsSelfServicePaidPlans)
+                                {
+                                    <span class="plan-card__note" data-testid="plan-paid-unavailable">Em breve: contratação ainda não disponível</span>
                                 }
                                 else
                                 {

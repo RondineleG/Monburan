@@ -178,7 +178,8 @@ public sealed class GetPublicResumeUseCase
             return RequestResult<PublicResumeView>.EntityNotFound("ResumeShare", "token", unavailable);
 
         var share = found.Data;
-        if (!share.IsAvailableAt(_time.GetUtcNow().UtcDateTime))
+        if (share.IsDeleted || share.Resume.IsDeleted || share.Resume.Candidate is null || share.Resume.Candidate.IsDeleted
+            || !share.IsAvailableAt(_time.GetUtcNow().UtcDateTime))
             return RequestResult<PublicResumeView>.EntityNotFound("ResumeShare", "token", unavailable);
 
         return RequestResult<PublicResumeView>.Success(ResumeShareRules.Project(share.Resume!, share));

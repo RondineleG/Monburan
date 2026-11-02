@@ -14,7 +14,6 @@
 @using System.Text.Json
 @using Monburan.Core.Services
 @inject IJobSubmissionRepository Submissions
-@inject IEvidenceStorage Evidence
 @inject ModerateJobSubmissionUseCase Moderate
 @inject AuthenticationStateProvider AuthenticationState
 @inject ILogger<AdminSugestoes> Logger
@@ -273,13 +272,9 @@
         selected = found.Data;
         form.CompanyName = selected.CompanyName;
         form.Description = selected.Description;
+        // Só as URLs vão para a tela: o navegador baixa cada imagem por HTTP (EvidenceEndpoints), fora do circuito
         evidenceImages.Clear();
-        foreach (var evidence in selected.Evidences)
-        {
-            var bytes = await Evidence.ReadAsync(evidence.StorageKey);
-            if (bytes is not null)
-                evidenceImages.Add($"data:{evidence.ContentType};base64,{Convert.ToBase64String(bytes)}");
-        }
+        evidenceImages.AddRange(selected.Evidences.Select(e => Monburan.Web.Endpoints.EvidenceEndpoints.UrlFor(e.Id.Value)));
 
         var hashes = selected.Evidences.Select(e => e.Sha256).ToList();
         var found2 = await Submissions.FindDuplicatesAsync(selected.Title, selected.CompanyName, selected.City, selected.SourceUrl, hashes, selected.Id);

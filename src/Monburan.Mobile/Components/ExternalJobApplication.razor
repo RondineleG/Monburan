@@ -1,0 +1,22 @@
+<section class="detail-section" data-testid="external-job-application">
+    <h2>Como se candidatar</h2>
+    <p class="alert alert-info">@JobChannel.Notice(Job)</p>
+    @if (!string.IsNullOrWhiteSpace(Job.ApplicationInstructions))
+    {
+        <p class="body-text">@Job.ApplicationInstructions</p>
+    }
+    @if (JobChannel.ExternalHref(Job) is { } href)
+    {
+        <a class="btn btn-primary btn-block" href="@href" target="_blank" rel="noopener noreferrer" data-testid="external-job-link">
+            @JobChannel.CtaLabel(Job)
+        </a>
+    }
+    else if (Job.ApplicationChannel != JobChannel.OnSite)
+    {
+        <p>O canal de candidatura não está disponível. Confira as instruções da publicação.</p>
+    }
+</section>
+
+@code {
+    [Parameter, EditorRequired] public JobResponse Job { get; set; } = default!;
+}

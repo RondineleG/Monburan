@@ -11,5 +11,11 @@ public interface IEvidenceStorage
 
     Task<byte[]?> ReadAsync(string storageKey, CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Abre o arquivo para leitura em fluxo (sem carregar tudo na memória), ou null se ele não existe. Quem chama
+    /// descarta o fluxo.
+    /// </summary>
+    Stream? OpenRead(string storageKey);
+
     Task DeleteAsync(string storageKey, CancellationToken cancellationToken = default);
 }

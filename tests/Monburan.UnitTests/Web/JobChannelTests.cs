@@ -1,6 +1,6 @@
 using FluentAssertions;
 using Monburan.Core.DTOs.Response;
-using Monburan.Web.Services;
+using Monburan.Core.Services;
 using Xunit;
 
 namespace Monburan.UnitTests.Web;

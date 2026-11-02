@@ -38,7 +38,7 @@ public class ExtractJobDraftUseCaseTests
         _submission = Submission("aaa111", "bbb222");
         _submissions.GetByIdAsync(Arg.Any<Id>(), Arg.Any<CancellationToken>())
             .Returns(_ => RequestResult<JobSubmission>.Success(_submission));
-        _submissions.UpdateAsync(Arg.Any<JobSubmission>(), Arg.Any<CancellationToken>())
+        _submissions.SaveAiDraftAsync(Arg.Any<JobSubmission>(), Arg.Any<CancellationToken>())
             .Returns(call => RequestResult<JobSubmission>.Success(call.Arg<JobSubmission>()));
         _evidence.ReadAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(call => new byte[] { 0xFF, 0xD8, 0xFF, 1, 2, 3 });

@@ -94,4 +94,23 @@ public sealed class AccountDeletionApiTests : IClassFixture<MonburanApiFactory>
         var refresh = await _client.PostAsJsonAsync("/api/auth/refresh", new RefreshTokenRequest { RefreshToken = tokens.RefreshToken! });
         refresh.IsSuccessStatusCode.Should().BeFalse();
     }
+
+    [Fact]
+    public async Task Delete_WithRepeatedWrongPasswords_LocksTheAccount_EvenForTheRightPassword()
+    {
+        var (email, tokens) = await RegisterCandidateAsync();
+
+        // Identity: 5 erros bloqueiam a conta por 15 minutos
+        for (var i = 0; i < 4; i++)
+            (await DeleteAsync(tokens.AccessToken, "senha-errada")).StatusCode.Should().Be(HttpStatusCode.BadRequest);
+
+        (await DeleteAsync(tokens.AccessToken, "senha-errada")).StatusCode.Should().Be(HttpStatusCode.TooManyRequests);
+
+        var blocked = await DeleteAsync(tokens.AccessToken, Password);
+
+        blocked.StatusCode.Should().Be(HttpStatusCode.TooManyRequests);
+        using var scope = _factory.Services.CreateScope();
+        var users = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+        (await users.FindByEmailAsync(email)).Should().NotBeNull();
+    }
 }

@@ -116,7 +116,7 @@ public sealed class ExtractJobDraftUseCase : IUseCase<ExtractJobDraftRequest, Ai
         submission.AiDraftProvider = _ai.ProviderName;
         submission.AiDraftAt = DateTime.UtcNow;
 
-        var saved = await _submissions.UpdateAsync(submission, cancellationToken);
+        var saved = await _submissions.SaveAiDraftAsync(submission, cancellationToken);
         if (saved.Status != EResultStatus.Success)
             return RequestResult<AiJobDraft>.FromResult(saved);
 

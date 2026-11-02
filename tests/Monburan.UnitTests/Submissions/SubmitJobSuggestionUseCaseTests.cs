@@ -20,6 +20,7 @@ public class SubmitJobSuggestionUseCaseTests
     private readonly IJobSubmissionRepository _submissions = Substitute.For<IJobSubmissionRepository>();
     private readonly IEvidenceStorage _evidence = Substitute.For<IEvidenceStorage>();
     private readonly ISubmissionRateLimiter _limiter = Substitute.For<ISubmissionRateLimiter>();
+    private readonly ISubmitterKeyHasher _hasher = Substitute.For<ISubmitterKeyHasher>();
     private readonly SubmitJobSuggestionUseCase _useCase;
 
     public SubmitJobSuggestionUseCaseTests()
@@ -29,12 +30,13 @@ public class SubmitJobSuggestionUseCaseTests
             callInfo[1] = TimeSpan.Zero;
             return true;
         });
+        _hasher.Hash(Arg.Any<string>()).Returns(call => $"hmac-{call.Arg<string>().Length}");
         _evidence.SaveAsync(Arg.Any<byte[]>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(call => $"chave-{Guid.NewGuid():N}");
         _submissions.CreateAsync(Arg.Any<JobSubmission>(), Arg.Any<CancellationToken>())
             .Returns(call => RequestResult<JobSubmission>.Success(call.Arg<JobSubmission>()));
 
-        _useCase = new SubmitJobSuggestionUseCase(_submissions, _evidence, _limiter, Substitute.For<ILogger<SubmitJobSuggestionUseCase>>());
+        _useCase = new SubmitJobSuggestionUseCase(_submissions, _evidence, _limiter, _hasher, Substitute.For<ILogger<SubmitJobSuggestionUseCase>>());
     }
 
     [Fact]
@@ -59,6 +61,7 @@ public class SubmitJobSuggestionUseCaseTests
 
         await _submissions.Received(1).CreateAsync(Arg.Is<JobSubmission>(s =>
             s.SubmitterKeyHash != null && !s.SubmitterKeyHash.Contains("203.0.113.7")), Arg.Any<CancellationToken>());
+        _hasher.Received(1).Hash("203.0.113.7");
     }
 
     [Fact]
@@ -147,6 +150,35 @@ public class SubmitJobSuggestionUseCaseTests
 
         result.Status.Should().Be(EResultStatus.DomainError);
         await _evidence.DidNotReceive().SaveAsync(Arg.Any<byte[]>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task InvalidSuggestion_DoesNotConsumeTheRateLimit()
+    {
+        var request = Valid();
+        request.Title = "";
+
+        var result = await _useCase.ExecuteAsync(request);
+
+        result.Status.Should().Be(EResultStatus.HasValidation);
+        _limiter.DidNotReceive().TryAcquire(Arg.Any<string>(), out Arg.Any<TimeSpan>());
+    }
+
+    [Fact]
+    public void RateLimitMessage_IsNullWhileTheSenderStillHasQuota_AndDoesNotConsumeIt()
+    {
+        _limiter.IsExhausted(Arg.Any<string>()).Returns(false);
+
+        _useCase.RateLimitMessage("203.0.113.7").Should().BeNull();
+        _limiter.DidNotReceive().TryAcquire(Arg.Any<string>(), out Arg.Any<TimeSpan>());
+    }
+
+    [Fact]
+    public void RateLimitMessage_ExplainsWhenTheLimitIsExhausted()
+    {
+        _limiter.IsExhausted(Arg.Any<string>()).Returns(true);
+
+        _useCase.RateLimitMessage("203.0.113.7").Should().Contain("muitas sugestões");
     }
 
     [Fact]

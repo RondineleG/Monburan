@@ -46,6 +46,28 @@ public sealed class LocalEvidenceStorage : IEvidenceStorage
         return File.Exists(path) ? await File.ReadAllBytesAsync(path, cancellationToken) : null;
     }
 
+    public Stream? OpenRead(string storageKey)
+    {
+        var path = ResolvePath(storageKey);
+        if (!File.Exists(path))
+            return null;
+
+        try
+        {
+            return new FileStream(path, new FileStreamOptions
+            {
+                Mode = FileMode.Open,
+                Access = FileAccess.Read,
+                Share = FileShare.Read | FileShare.Delete,
+                Options = FileOptions.Asynchronous | FileOptions.SequentialScan
+            });
+        }
+        catch (FileNotFoundException)
+        {
+            return null; // a retenção apagou o arquivo entre a conferência e a abertura
+        }
+    }
+
     public Task DeleteAsync(string storageKey, CancellationToken cancellationToken = default)
     {
         var path = ResolvePath(storageKey);

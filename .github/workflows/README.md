@@ -31,7 +31,7 @@ Publicação e deploy conforme workflows existentes
 
 | Workflow | push main | push dev | PR para dev | PR para main | Outros |
 |---|---|---|---|---|---|
-| `ci-cd.yml` | build+testes+scan (deploy Azure de produção, se configurado), sem E2E | build+testes+scan, **sem E2E** | build+testes+scan, **sem E2E** | build+testes+scan+**E2E** | `workflow_dispatch` (com E2E) |
+| `ci-cd.yml` | build+testes+scan, **sem E2E** | build+testes+scan, **sem E2E** | build+testes+scan, **sem E2E** | build+testes+scan+**E2E** | `workflow_dispatch` (com E2E) |
 | `main-only-from-dev.yml` | — | — | — | reprova PR que não venha da dev | — |
 | `codeql.yml` | sim | sim | sim | sim | agenda semanal |
 | `docker-ghcr.yml` | build imagem GHCR + **deploy VPS** (só com mudança em `src/**`, `infra/vps/**` ou no próprio arquivo) | não | não | não | `workflow_dispatch`, disparo pelo `rebuild-semanal` |
@@ -59,9 +59,7 @@ de integração sem validação.
 
 ## Pontos de segurança garantidos no código dos workflows
 
-- Deploy **nunca** roda a partir de PR: `deploy-production` exige `github.event_name == 'push'`.
-- `deploy-production` (Azure) exige `github.ref == 'refs/heads/main'` (push na main) e a
-  variável `vars.AZURE_RESOURCE_GROUP`. Push na dev e PR para main não satisfazem a condição.
+- O `ci-cd.yml` só valida e não publica nada. Deploy **nunca** roda a partir de PR.
 - Não há job de deploy na dev: nada é publicado a partir da `dev` (ver `AGENTS.md`). O deploy
   de produção hoje é a VPS (`docker-ghcr.yml` → `deploy-vps`).
 - O deploy na VPS (`docker-ghcr.yml` → `deploy-vps`) só roda na main, com `environment: prod`
@@ -75,10 +73,9 @@ de integração sem validação.
 
 | Job | Quando roda | Papel |
 |---|---|---|
-| `build-and-test` | push main/dev, PR dev/main, dispatch | restore, build da solução, testes unit, integração (Testcontainers/Postgres) e de API; publica o artefato `monburan-app` e os relatórios de cobertura/TRX |
+| `build-and-test` | push main/dev, PR dev/main, dispatch | restore, build da solução, testes unit, integração (Testcontainers/Postgres) e de API; publica os relatórios de cobertura/TRX |
 | `e2e` | **PR para main** e dispatch | suíte Playwright completa (app + Postgres de serviço + Chromium) |
 | `security-scan` | push main/dev, PR dev/main, dispatch | varredura de segredos versionados + pacotes NuGet vulneráveis |
-| `deploy-production` | push na main com Azure configurado | só roda depois de `build-and-test` + `security-scan` verdes; nunca em PR |
 
 Falhas sempre propagam: nenhum job de teste usa `continue-on-error`; os únicos
 `continue-on-error` são geração/upload do relatório de cobertura (diagnóstico auxiliar).

@@ -1,6 +1,9 @@
 # Aplicativo Android (MAUI Blazor Hybrid)
 
-O aplicativo fica em `src/Monburan.Mobile`, com a camada compartilhada em `src/Monburan.Mobile.Shared`. O pacote é `com.monburan.app`. A versão no código é a 1.6.0 (build 6), publicada quando a `dev` for promovida para a `main`; a última release publicada é a [v1.5.0](https://github.com/RondineleG/Monburan/releases/tag/v1.5.0).
+Vagas externas oferecem o site, WhatsApp ou e-mail informado pela fonte, ou as instruções para candidatura presencial.
+Esses canais estão disponíveis no detalhe da vaga e na tela de candidatura; não enviam candidatura interna à Monburan.
+
+O aplicativo fica em `src/Monburan.Mobile`, com a camada compartilhada em `src/Monburan.Mobile.Shared`. O pacote é `com.monburan.app`. A versão vem de `ApplicationDisplayVersion` e `ApplicationVersion` no `Monburan.Mobile.csproj` e é publicada quando a `dev` é promovida para a `main`; o APK da [última versão](https://github.com/RondineleG/Monburan/releases/latest) fica nas releases.
 
 ## Estrutura
 

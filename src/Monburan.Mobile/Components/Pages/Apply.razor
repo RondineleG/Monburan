@@ -18,7 +18,7 @@ else if (_job is not null)
 {
     <div class="card">
         <h2 class="card-title">@_job.Title</h2>
-        <div class="text-dim">@_job.AdvertiserName</div>
+        <div class="text-dim">@JobChannel.CompanyName(_job)</div>
     </div>
 
     @if (_success)
@@ -34,6 +34,10 @@ else if (_job is not null)
         <EmptyState IconName="alert" Title="Vaga encerrada" Message="Esta vaga não está mais recebendo candidaturas.">
             <a class="btn btn-primary" href="/jobs">Ver outras vagas</a>
         </EmptyState>
+    }
+    else if (JobChannel.IsExternal(_job))
+    {
+        <ExternalJobApplication Job="_job" />
     }
     else
     {
@@ -109,11 +113,10 @@ else if (_job is not null)
         _loadError = null;
         try
         {
-            var jobTask = Api.GetJobAsync(Id);
-            var resumesTask = Api.GetMyResumesAsync();
-            await Task.WhenAll(jobTask, resumesTask);
-            _job = await jobTask;
-            _resumes = await resumesTask;
+            _job = await Api.GetJobAsync(Id);
+            if (JobChannel.IsExternal(_job))
+                return;
+            _resumes = await Api.GetMyResumesAsync();
             // Mesmo comportamento do site: o currículo ativo vem selecionado
             _resumeId ??= _resumes.FirstOrDefault(r => r.IsActive)?.Id;
         }
@@ -129,7 +132,7 @@ else if (_job is not null)
 
     private async Task Submit()
     {
-        if (_busy)
+        if (_busy || _job is null || JobChannel.IsExternal(_job))
             return;
 
         _busy = true;

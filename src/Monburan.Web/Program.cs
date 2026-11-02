@@ -437,6 +437,7 @@ builder.Services.AddScoped<Monburan.Core.UseCases.Notifications.PasswordResetUse
 
 // Registrar Use Cases de Assinatura
 builder.Services.AddScoped<GetAvailablePlansUseCase>();
+builder.Services.AddSingleton<IBillingPolicy, BillingPolicy>();
 builder.Services.AddScoped<UpgradePlanUseCase>();
 builder.Services.AddScoped<CancelSubscriptionUseCase>();
 builder.Services.AddScoped<CheckJobLimitUseCase>();
@@ -450,6 +451,7 @@ builder.Services.AddScoped<UploadFileUseCase>();
 // Sugestões anônimas de vaga: evidência privada, limite de envios e moderação humana
 builder.Services.AddSingleton<IEvidenceStorage, LocalEvidenceStorage>();
 builder.Services.AddSingleton<ISubmissionRateLimiter, SubmissionRateLimiter>();
+builder.Services.AddSingleton<ISubmitterKeyHasher, HmacSubmitterKeyHasher>();
 builder.Services.AddScoped<SubmitJobSuggestionUseCase>();
 builder.Services.AddScoped<ModerateJobSubmissionUseCase>();
 builder.Services.AddScoped<ExtractJobDraftUseCase>();
@@ -565,6 +567,7 @@ app.MapRazorComponents<App>()
     .AddAdditionalAssemblies(typeof(Monburan.Web.Client._Imports).Assembly);
 
 app.MapAdditionalIdentityEndpoints();
+app.MapEvidenceEndpoints();
 
 // API REST consumida pelo app mobile
 app.MapApiEndpoints();

@@ -28,10 +28,12 @@ public static class RateLimiting
         "/esqueci-senha",
         "/reenviar-confirmacao",
         "/redefinir-senha",
+        "/conta/excluir-dados",
         "/api/auth/login",
         "/api/auth/register",
         "/api/auth/refresh",
-        "/api/auth/forgot-password"
+        "/api/auth/forgot-password",
+        "/api/v1/account/delete"
     };
 
     public static void Configure(RateLimiterOptions options, IOptionsMonitor<SecurityOptions> security)

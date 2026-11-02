@@ -429,7 +429,7 @@ Transformar o projeto Monburan de um MVP funcional (~70% completude) para uma ap
 ### Curto Prazo (1-2 semanas):
 1. **Implementar testes automatizados** (unitários e integração)
 2. **Configurar secrets do GitHub** para CI/CD
-3. **Configurar Azure Web App** para deploy
+3. **Deploy**: a produção é a VPS (imagem do GHCR); não há deploy em Azure
 4. **Implementar monitoramento avançado** (Application Insights)
 5. **Configurar domínio e SSL** para produção
 

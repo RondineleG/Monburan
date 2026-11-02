@@ -35,7 +35,7 @@ Feito e testado **no código** (os checkboxes abaixo continuam vazios até a val
 | §4.2 Contêiner sem root | Imagem roda como `app` (UID 1654) na porta 8080; o serviço `volume-permissions` acerta o dono dos volumes antigos. |
 | §4.2 SBOM | `sbom` e `provenance` no `docker-ghcr.yml`. **Trivy não foi adicionado** (ação de terceiro; fixar por digest antes). |
 | §10 Documentação | `IMPROVEMENTS.md`, `TEST_STRATEGY.md`, `AUDIT-REPORT.md`, `CONFIGURACAO.md`, `SEGURANCA.md`, `DOCKER.md`, `API.md`, `APP-MOBILE.md`. |
-| §11 Versão do app | 1.6.0 (build 6). |
+| §11 Versão do app | Definida no `Monburan.Mobile.csproj` (`ApplicationDisplayVersion` e `ApplicationVersion`). |
 | §11 Sessão expirada | Aviso + login com volta à mesma tela. |
 | §11.1 Exclusão de conta no app | `POST /api/v1/account/delete` + seção "Excluir conta" no Perfil. |
 
@@ -54,7 +54,11 @@ telas foram compiladas pelo `tests/ux-mobile-preview`). O CI roda os três.
       Escolher e registrar uma opção:
   - [ ] integrar gateway de pagamento (ex.: Mercado Pago, Asaas ou Stripe);
   - [ ] ativação manual pelo administrador;
-  - [ ] ocultar os planos pagos até a cobrança existir.
+  - [x] ocultar os planos pagos até a cobrança existir. **Medida provisória aplicada:** o servidor recusa a ativação de
+        plano pago pelo próprio anunciante, no site e em `POST /api/v1/subscriptions/upgrade`
+        (`Billing:SelfServicePaidPlans`, desligado fora de Development), e a tela mostra "Em breve" no lugar do botão.
+        Para voltar atrás, ligue a chave (`Billing__SelfServicePaidPlans=true`). **O item continua aberto até existir
+        cobrança de verdade.**
       **Evidência:** decisão registrada em `PRODUCT.md`.
 - [ ] 🟠 **Boost, destaque e analytics por plano.** Implementar ou remover do catálogo (`AUDIT-REPORT.md` §5.2).
 - [ ] 🟠 **Limite de vagas ativas.** Comunicar aos anunciantes que quem excede o limite não publica nem reativa vagas
@@ -116,6 +120,12 @@ telas foram compiladas pelo `tests/ux-mobile-preview`). O CI roda os três.
 
 - [ ] 🟠 **Limite de sugestões por rede IPv6.** O limite de 5 por hora usa o IP completo (`SubmissionRateLimiter`). Aplicar
       o bloco `/64` como o restante do projeto (`RateLimiting.ClientKey`).
+- [ ] 🟠 **Chave `SUBMITTER_HASH_KEY` definida no `.env` de produção** (`openssl rand -base64 48`). Ela é a chave do HMAC
+      que pseudonimiza o IP de quem sugere vagas (`Submissions:HashKey`); o `deploy.sh` a gera ao criar um `.env` novo,
+      mas um `.env` que já existia precisa receber a variável à mão. Sem ela o app usa uma chave aleatória por processo:
+      continua seguro, só não correlaciona o mesmo remetente entre reinícios. Trocar a chave não apaga dado nenhum, apenas
+      deixa de casar os hashes antigos com os novos. Guarde-a como as outras chaves: quem a tiver, com acesso ao banco,
+      volta a conseguir testar IPs.
 - [ ] 🟠 **Proteção contra spam no formulário público** (CAPTCHA ou honeypot), já que não há login.
 - [ ] 🟡 **Limite de tamanho da requisição** para o upload de até 15 MB por envio: revisar o limite do Kestrel e do nginx.
 - [ ] 🟡 **Condição de corrida no limite de links ativos** (5 por currículo): a checagem e a gravação não são atômicas.
@@ -203,7 +213,14 @@ telas foram compiladas pelo `tests/ux-mobile-preview`). O CI roda os três.
       ao GitHub Actions.
 - [ ] 🔴 **Ensaio de rollback:** tag `rollback-<data>` criada, `docker tag ... latest` testado e `docker compose up -d app`.
       Lembrar que o rollback não desfaz migrations (restaurar backup, se necessário).
+      **O rollback do banco é restaurar o backup, não rodar `Down`.** O `Down` de `PublicacaoExternaECanais` volta
+      `Jobs.AdvertiserId` para `NOT NULL` e falha se já existir vaga externa (sem anunciante). Por isso o backup antes do
+      deploy (item 3.5) é obrigatório, e o ensaio de restauração (item 4.4) vale como ensaio de rollback.
 - [ ] 🟠 **Janela de deploy** combinada e comunicada, com backup feito antes.
+- [ ] 🟠 **Ordem de publicação entre APK e servidor.** O APK novo chama endpoints que só existem no servidor novo, então o
+      `android-release.yml` só cria a release depois que o `deploy-vps` do mesmo commit termina com sucesso (e espera até
+      35 minutos). Se o deploy falhar, a release não sai: corrija o deploy e rode o workflow de novo (`workflow_dispatch`,
+      que não espera). O servidor novo continua atendendo o app anterior.
 - [ ] 🟡 `docker-compose.prod.yml` atualizado no servidor (Docker Compose 2.24 ou mais novo).
 
 ## 5. Observabilidade e operação

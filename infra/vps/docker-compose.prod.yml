@@ -11,10 +11,12 @@
 services:
   # Roda uma vez antes do app, como root, e passa os volumes para o usuário sem privilégios da imagem (UID 1654). Volumes
   # criados quando o app ainda rodava como root ficaram com dono root; sem isto o app não grava uploads, chaves nem evidências.
+  # O find só toca no que ainda não é do app: o chown -R anterior percorria e reescrevia todos os arquivos de uploads e
+  # evidências a cada deploy, e o volume só cresce. Com os donos já certos, o custo é uma varredura de leitura.
   volume-permissions:
     image: ghcr.io/rondineleg/monburan:latest
     user: "0:0"
-    entrypoint: ["sh", "-c", "chown -R 1654:1654 /app/wwwroot/uploads /app/keys /app/App_Data/evidencias /app/logs && chmod 700 /app/keys /app/App_Data/evidencias"]
+    entrypoint: ["sh", "-c", "find /app/wwwroot/uploads /app/keys /app/App_Data/evidencias /app/logs ! -user 1654 -exec chown 1654:1654 {} + && chmod 700 /app/keys /app/App_Data/evidencias"]
     volumes:
       - app_uploads:/app/wwwroot/uploads
       - app_keys:/app/keys
@@ -40,6 +42,8 @@ services:
       - APPLY_MIGRATIONS=true
       # JWT — obrigatório, a app falha no boot sem chave de assinatura
       - "Jwt__SigningKey=${JWT_SIGNING_KEY:?Defina JWT_SIGNING_KEY no .env — gere com: openssl rand -base64 48}"
+      # Chave do HMAC que pseudonimiza o IP de quem sugere vagas. Sem ela o app usa uma chave aleatória por processo
+      - "Submissions__HashKey=${SUBMITTER_HASH_KEY:-}"
       # Base pública usada em links de e-mail (confirmação/reset)
       - "App__PublicBaseUrl=${APP_PUBLIC_BASE_URL:-https://monburan.com.br}"
       # E-mail via SMTP (Resend). Se Smtp:Host vazio, cai no SendGrid.
