@@ -37,7 +37,7 @@
 >
 > Feito desde o resumo acima:
 >
-> - **App 1.6.0 (build 6):** telas de candidato completas (início com vagas
+> - **Telas e recursos do app (versão em `ApplicationDisplayVersion`):** telas de candidato completas (início com vagas
 >   recomendadas, vagas salvas, alertas de vaga, perfil de carreira, editor de
 >   currículo, sugestões de IA no currículo, histórico da candidatura, planos),
 >   tema claro/escuro (`NativeTheme`), estados de carregando/vazio/erro com

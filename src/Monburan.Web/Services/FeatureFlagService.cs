@@ -13,13 +13,16 @@ namespace Monburan.Web.Services;
 
 /// <summary>
 /// Avalia as flags para a conta. As flags ficam em cache por 30 segundos e os grupos atribuídos de cada conta por 1
-/// minuto: a participação é lida do banco (claims do Identity), então incluir alguém num grupo vale sem novo login, no site
+/// minuto (uma falha de leitura do banco, por 5 segundos): a participação é lida do banco (claims do Identity), então incluir alguém num grupo vale sem novo login, no site
 /// e no app. Mudanças pela tela de administração descartam o cache na hora.
 /// </summary>
 public sealed class FeatureFlagService : IFeatureFlags
 {
     private static readonly TimeSpan FlagsTtl = TimeSpan.FromSeconds(30);
     private static readonly TimeSpan GroupsTtl = TimeSpan.FromMinutes(1);
+    // Falha de leitura também vai para o cache, por pouco tempo: com o banco fora do ar, sem isso cada requisição tentava
+    // o banco e esperava o timeout de conexão, amplificando a latência do site inteiro durante a queda
+    private static readonly TimeSpan FailureTtl = TimeSpan.FromSeconds(5);
     private const string FlagsKey = "feature-flags:all";
 
     private readonly IDbContextFactory<ApplicationDbContext> _contextFactory;
@@ -88,8 +91,10 @@ public sealed class FeatureFlagService : IFeatureFlags
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
             // Banco fora do ar: tudo que está atrás de flag fica desligado, o resto do site continua
-            _logger.LogWarning(ex, "Feature flags: não foi possível ler as flags; todas ficam desligadas até a próxima leitura");
-            return new Dictionary<string, FeatureFlag>();
+            _logger.LogWarning(ex, "Feature flags: não foi possível ler as flags; todas ficam desligadas por {Segundos}s", FailureTtl.TotalSeconds);
+            var empty = new Dictionary<string, FeatureFlag>();
+            _cache.Set(FlagsKey, (IReadOnlyDictionary<string, FeatureFlag>)empty, FailureTtl);
+            return empty;
         }
     }
 
@@ -113,8 +118,9 @@ public sealed class FeatureFlagService : IFeatureFlags
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
-                _logger.LogWarning(ex, "Feature flags: não foi possível ler os grupos da conta; valem só os implícitos");
+                _logger.LogWarning(ex, "Feature flags: não foi possível ler os grupos da conta; valem só os implícitos por {Segundos}s", FailureTtl.TotalSeconds);
                 assigned = [];
+                _cache.Set(key, assigned, FailureTtl);
             }
         }
 

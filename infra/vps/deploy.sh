@@ -75,10 +75,11 @@ ensure_env() {
         install -m 600 "$INSTALL_DIR/env.example" "$env_file"
         set_env_value "$env_file" DB_PASSWORD "$(openssl rand -hex 24)"
         set_env_value "$env_file" JWT_SIGNING_KEY "$(openssl rand -base64 48 | tr -d '\n')"
+        set_env_value "$env_file" SUBMITTER_HASH_KEY "$(openssl rand -base64 48 | tr -d '\n')"
         set_env_value "$env_file" ALLOWED_HOSTS "$DOMAIN;www.$DOMAIN;127.0.0.1"
         set_env_value "$env_file" APP_PUBLIC_BASE_URL "https://$DOMAIN"
         chmod 600 "$env_file"
-        log ".env criado com a senha do banco e a chave JWT novas (não são exibidas)"
+        log ".env criado com a senha do banco e as chaves JWT e do hash de remetente novas (não são exibidas)"
         warn "preencha SMTP_PASSWORD no .env (sem ele o app não envia e-mail) e reinicie o app: docker compose up -d --force-recreate app"
     fi
 

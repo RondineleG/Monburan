@@ -18,7 +18,7 @@ export Smtp__User="resend"
 export Smtp__Password="sua-api-key-resend"
 ```
 
-Em produção, a stack da VPS lê esses valores do `.env` (chmod 600), gerado a partir de `infra/vps/env.example`. Em Azure App Service, o app setting `Jwt__SigningKey` precisa existir; o job `deploy-production` do CI exige `AZURE_CREDENTIALS` e `AZURE_RESOURCE_GROUP`.
+Em produção, a stack da VPS lê esses valores do `.env` (chmod 600), gerado a partir de `infra/vps/env.example`.
 
 `App__PublicBaseUrl` (ex.: `https://monburan.com.br`) é opcional, mas recomendado: os links de confirmação de e-mail e de reset de senha usam essa base. Sem ela, a aplicação usa `scheme://host` da requisição, e atrás de proxy TLS sem `ForwardedHeaders` os links saem como `http://interno`.
 
@@ -72,9 +72,16 @@ Sem provedor padrão e chave, o recurso fica desligado. Guia da tela, segurança
 | Chave | Padrão | Para quê |
 |---|---|---|
 | `Evidence:StoragePath` | `App_Data/evidencias` (dentro da pasta do app) | Pasta privada das imagens enviadas em `/sugerir-vaga`. Em produção é o volume `app_evidence` (`/app/App_Data/evidencias`), incluído no backup. |
-| `Evidence:RetentionDays` | `90` | Dias, depois da moderação, até apagar as imagens de sugestões rejeitadas ou duplicadas. `0` desliga a limpeza. |
+| `Evidence:RetentionDays` | `90` | Dias, depois da moderação, até apagar as imagens de sugestões rejeitadas ou duplicadas. `0` desliga a limpeza. A passada diária é incremental (só confere o intervalo que venceu desde a anterior); a marca fica em memória, então o primeiro ciclo depois de um reinício confere tudo uma vez. |
+| `Submissions:HashKey` (`Submissions__HashKey`; no Compose, `SUBMITTER_HASH_KEY`) | vazio | Chave secreta do HMAC-SHA256 que pseudonimiza o IP de quem sugere. Gere com `openssl rand -base64 48`. Vazia, o app usa uma chave aleatória por processo (seguro, mas o hash muda a cada reinício). |
 
-O limite de envios é de 5 por hora por IPv4 ou por bloco IPv6 `/64`, em memória (reiniciar zera o contador). O formulário tem um campo-isca contra robôs.
+O limite de envios é de 5 por hora por IPv4 ou por bloco IPv6 `/64`, em memória (reiniciar zera o contador). O formulário tem um campo-isca contra robôs. As imagens da moderação saem por `GET /admin/sugestoes/evidencias/{id}`, restrito à política `AdminOnly`, e não pelo circuito do Blazor.
+
+## Cobrança dos planos
+
+| Chave | Padrão | Para quê |
+|---|---|---|
+| `Billing:SelfServicePaidPlans` | `false` (`true` só em Development) | Permite ao anunciante ativar sozinho um plano com preço maior que zero. Desligada, o servidor recusa a ativação no site e na API, e a tela mostra "Em breve". Mantenha desligada até existir cobrança (`docs/pre-prod.md`, item 1). |
 
 ## User Secrets (desenvolvimento)
 

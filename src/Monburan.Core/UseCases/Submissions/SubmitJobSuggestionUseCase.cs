@@ -1,6 +1,5 @@
 using System.Net.Mail;
 using System.Security.Cryptography;
-using System.Text;
 using Microsoft.Extensions.Logging;
 using Monburan.Core.DTOs.Request;
 using Monburan.Core.Entities;
@@ -29,34 +28,40 @@ public sealed class SubmitJobSuggestionUseCase : IUseCase<SubmitJobSuggestionReq
     private readonly IJobSubmissionRepository _submissions;
     private readonly IEvidenceStorage _evidence;
     private readonly ISubmissionRateLimiter _limiter;
+    private readonly ISubmitterKeyHasher _hasher;
     private readonly ILogger<SubmitJobSuggestionUseCase> _logger;
 
     public SubmitJobSuggestionUseCase(
         IJobSubmissionRepository submissions,
         IEvidenceStorage evidence,
         ISubmissionRateLimiter limiter,
+        ISubmitterKeyHasher hasher,
         ILogger<SubmitJobSuggestionUseCase> logger)
     {
         _submissions = submissions;
         _evidence = evidence;
         _limiter = limiter;
+        _hasher = hasher;
         _logger = logger;
     }
 
+    /// <summary>
+    /// Mensagem de recusa quando o remetente já esgotou o limite, ou null. Não consome permissão: a tela chama antes de
+    /// transferir as imagens, para quem já estourou o limite não gastar banda e memória do servidor.
+    /// </summary>
+    public string? RateLimitMessage(string? submitterKey) =>
+        _limiter.IsExhausted(HashKey(submitterKey)) ? TooManyMessage(null) : null;
+
     public async Task<RequestResult<Guid>> ExecuteAsync(SubmitJobSuggestionRequest request, CancellationToken cancellationToken = default)
     {
-        var submitterHash = Hash(string.IsNullOrWhiteSpace(request.SubmitterKey) ? "anonimo" : request.SubmitterKey);
-
-        if (!_limiter.TryAcquire(submitterHash, out var retryAfter))
-        {
-            var minutes = Math.Max(1, (int)Math.Ceiling(retryAfter.TotalMinutes));
-            return RequestResult<Guid>.WithDomainError(
-                $"Você enviou muitas sugestões em pouco tempo. Tente de novo em {minutes} {(minutes == 1 ? "minuto" : "minutos")}.");
-        }
-
+        // Valida antes de consumir o limite: um envio recusado por campo inválido não gasta uma das 5 tentativas da hora
         var problem = FirstProblem(request);
         if (problem is not null)
             return RequestResult<Guid>.WithValidationError(problem.Value.Message, problem.Value.Field);
+
+        var submitterHash = HashKey(request.SubmitterKey);
+        if (!_limiter.TryAcquire(submitterHash, out var retryAfter))
+            return RequestResult<Guid>.WithDomainError(TooManyMessage(retryAfter));
 
         var stored = new List<string>();
         var evidences = new List<JobSubmissionEvidence>();
@@ -188,7 +193,17 @@ public sealed class SubmitJobSuggestionUseCase : IUseCase<SubmitJobSuggestionReq
 
     private static string? Clean(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 
-    private static string Hash(string value) => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(value))).ToLowerInvariant();
+    private string HashKey(string? submitterKey) =>
+        _hasher.Hash(string.IsNullOrWhiteSpace(submitterKey) ? "anonimo" : submitterKey);
+
+    private static string TooManyMessage(TimeSpan? retryAfter)
+    {
+        if (retryAfter is null)
+            return "Você enviou muitas sugestões em pouco tempo. Tente de novo mais tarde.";
+
+        var minutes = Math.Max(1, (int)Math.Ceiling(retryAfter.Value.TotalMinutes));
+        return $"Você enviou muitas sugestões em pouco tempo. Tente de novo em {minutes} {(minutes == 1 ? "minuto" : "minutos")}.";
+    }
 
     internal static string Sha256Hex(byte[] content) => Convert.ToHexString(SHA256.HashData(content)).ToLowerInvariant();
 }

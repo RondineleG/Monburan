@@ -203,6 +203,7 @@ expect ".env criado só para o dono (600)" test "$(stat -c %a "$DIR/.env")" = 60
 expect ".env sem valores de exemplo" bash -c "! grep -q TROQUE '$DIR/.env'"
 expect "senha do banco gerada (48 caracteres hexadecimais)" bash -c "grep -qE '^DB_PASSWORD=[0-9a-f]{48}\$' '$DIR/.env'"
 expect "chave JWT gerada (60 caracteres ou mais)" bash -c "test \$(awk -F= '/^JWT_SIGNING_KEY=/ { print length(\$0) - 16 }' '$DIR/.env') -ge 60"
+expect "chave do hash de remetente gerada (60 caracteres ou mais)" bash -c "test \$(awk -F= '/^SUBMITTER_HASH_KEY=/ { print length(\$0) - 19 }' '$DIR/.env') -ge 60"
 expect "hosts permitidos restritos ao domínio" grep -q '^ALLOWED_HOSTS=monburan.com.br;www.monburan.com.br;127.0.0.1$' "$DIR/.env"
 expect "ADMIN_EMAILS definido" grep -q '^ADMIN_EMAILS=adm@example.com$' "$DIR/.env"
 expect "os segredos gerados não aparecem na saída" bash -c "! grep -qF \"\$(awk -F= '/^DB_PASSWORD=/ { print \$2 }' '$DIR/.env')\" $OUT"
