@@ -33,22 +33,28 @@ EOF
 printf '#!/usr/bin/env bash\nexit 0\n' > "$fixture/bin/sleep"
 chmod +x "$fixture/bin/"*
 
-for failures in 0 1 3; do
-  rm -f "$fixture/sdk/count" "$fixture/sdk/.temp/partial.zip"
-  result=0
-  PATH="$fixture/bin:$PATH" ANDROID_HOME="$fixture/sdk" FAILURES="$failures" \
-    bash "$script" > "$fixture/output" 2>&1 || result=$?
-  expected_attempts=$((failures + 1))
-  expected_result=0
-  if [[ "$failures" == 3 ]]; then
-    expected_attempts=3
-    expected_result=1
+for location in path sdk; do
+  if [[ "$location" == sdk ]]; then
+    mkdir -p "$fixture/sdk/cmdline-tools/latest/bin"
+    mv "$fixture/bin/sdkmanager" "$fixture/sdk/cmdline-tools/latest/bin/sdkmanager"
   fi
-  read -r attempts < "$fixture/sdk/count"
-  if [[ "$result" != "$expected_result" || "$attempts" != "$expected_attempts" ]]; then
-    cat "$fixture/output"
-    echo "FAIL: failures=$failures (exit=$result, attempts=$attempts)" >&2
-    exit 1
-  fi
-  echo "PASS: failures=$failures, attempts=$attempts, exit=$result"
+  for failures in 0 1 3; do
+    rm -f "$fixture/sdk/count" "$fixture/sdk/.temp/partial.zip"
+    result=0
+    PATH="$fixture/bin:$PATH" ANDROID_HOME="$fixture/sdk" FAILURES="$failures" \
+      bash "$script" > "$fixture/output" 2>&1 || result=$?
+    expected_attempts=$((failures + 1))
+    expected_result=0
+    if [[ "$failures" == 3 ]]; then
+      expected_attempts=3
+      expected_result=1
+    fi
+    read -r attempts < "$fixture/sdk/count"
+    if [[ "$result" != "$expected_result" || "$attempts" != "$expected_attempts" ]]; then
+      cat "$fixture/output"
+      echo "FAIL: failures=$failures (exit=$result, attempts=$attempts)" >&2
+      exit 1
+    fi
+    echo "PASS: location=$location, failures=$failures, attempts=$attempts, exit=$result"
+  done
 done
