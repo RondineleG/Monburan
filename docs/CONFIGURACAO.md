@@ -18,7 +18,7 @@ export Smtp__User="resend"
 export Smtp__Password="sua-api-key-resend"
 ```
 
-Em produção, a stack da VPS lê esses valores do `.env` (chmod 600), gerado a partir de `infra/vps/env.example`. Em Azure App Service, o app setting `Jwt__SigningKey` precisa existir; o job `deploy-production` do CI exige `AZURE_CREDENTIALS` e `AZURE_RESOURCE_GROUP`.
+Em produção, a stack da VPS lê esses valores do `.env` (chmod 600), gerado a partir de `infra/vps/env.example`.
 
 `App__PublicBaseUrl` (ex.: `https://monburan.com.br`) é opcional, mas recomendado: os links de confirmação de e-mail e de reset de senha usam essa base. Sem ela, a aplicação usa `scheme://host` da requisição, e atrás de proxy TLS sem `ForwardedHeaders` os links saem como `http://interno`.
 

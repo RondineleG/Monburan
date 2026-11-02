@@ -14,8 +14,7 @@
 | `infra-scripts.yml` | push e PR **só na `main`** que mudam `infra/vps/**`, manual | ShellCheck e testes de verdade, em contêineres, do endurecimento da VPS, do backup com restauração e do `nginx.conf` (`infra/vps/tests`). Não publica nada |
 | `mobile-ui.yml` | PR para a `main`, manual | testes de tela do app Android em emulador (Appium + UiAutomator2): sobe Postgres, a API em Development com seed, o APK Debug, o Appium e um emulador Android 14. Sobe logs, TRX e capturas de tela como artefatos. Não publica nada. A suíte ainda é instável no emulador do CI; veja [evidencias/mobile-ui-etapa2.md](evidencias/mobile-ui-etapa2.md) |
 
-O job `deploy-production` (Azure Web App, só na `main`) roda quando existe a variável de repositório
-`AZURE_RESOURCE_GROUP` (mais os secrets do Azure). A produção atual é a VPS (abaixo), então eles ficam ignorados.
+O `ci-cd.yml` só valida. A produção é a VPS (abaixo); o deploy no Azure Web App foi removido porque o projeto não usa Azure.
 
 ## Lançar uma nova versão do app (APK)
 
