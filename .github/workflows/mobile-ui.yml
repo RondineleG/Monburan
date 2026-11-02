@@ -122,8 +122,35 @@ jobs:
         sudo udevadm control --reload-rules
         sudo udevadm trigger --name-match=kvm
 
+    # Snapshot do AVD em cache: a primeira execução cria o emulador e salva o estado já iniciado; as seguintes restauram o
+    # snapshot e pulam a partida a frio, que era a causa de parte da instabilidade (22 a 23 de 24 testes passando, com o
+    # teste que falha mudando a cada rodada). Padrão documentado pela própria action.
+    - name: Cache do AVD
+      uses: actions/cache@v6
+      id: avd-cache
+      with:
+        path: |
+          ~/.android/avd/*
+          ~/.android/adb*
+        key: avd-api34-google_apis-x86_64-pixel_6-v1
+
+    - name: Criar o AVD e gerar o snapshot para o cache
+      if: steps.avd-cache.outputs.cache-hit != 'true'
+      uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2.38.0
+      with:
+        api-level: 34
+        target: google_apis
+        arch: x86_64
+        profile: pixel_6
+        force-avd-creation: false
+        emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+        disable-animations: false
+        script: echo "Snapshot do AVD gerado para o cache."
+
     - name: Run UI tests on the emulator
-      uses: reactivecircus/android-emulator-runner@v2
+      # Fixada pelo commit da v2.38.0 (jul/2026), e não pela tag v2: uma tag pode ser movida, e este job roda com o
+      # código do PR. Para atualizar, troque o SHA e o comentário juntos.
+      uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2.38.0
       env:
         MOBILE_UI: '1'
         MOBILE_DIAG_DIR: ${{ runner.temp }}/diag
@@ -133,6 +160,9 @@ jobs:
         target: google_apis
         arch: x86_64
         profile: pixel_6
+        force-avd-creation: false
+        # -no-snapshot-save: usa o snapshot do cache, sem regravá-lo a cada execução
+        emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -no-snapshot-save
         disable-animations: true
         script: |
           adb reverse tcp:5095 tcp:5095
