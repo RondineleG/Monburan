@@ -30,7 +30,7 @@ Feito e testado **no código** (os checkboxes abaixo continuam vazios até a val
 | §3.3 Corrida no limite de links | `ResumeShareRepository.CreateAsync` conta e grava na mesma transação, com `FOR UPDATE` na linha do currículo. |
 | §3.4 Token nos logs | nginx com `log_format monburan_masked`; log do app com `RateLimiting.PathForLog`. Acesso indevido já testado (`PublicLookup_ForRevokedOrExpiredOrUnknownToken_AnswersTheSameWay`); `X-Robots-Tag` e `sitemap` conferidos. |
 | §3.5 `Jobs.AdvertiserId` nulo | Consultas revisadas; 4 pontos que assumiam valor corrigidos. |
-| §3.6 Rotas em inglês | Documentado como **pendente de decisão** (proposta em `docs/refactor-rotas-ptbr.md`), junto com a diferença `/curriculo` × `/curriculos`. |
+| §3.6 Rotas em inglês | **Aplicado:** endereços em português, com redirecionamento das rotas antigas (`docs/refactor-rotas-ptbr.md`). A nota anterior de "pendente de decisão" está superada. |
 | §4.2 Logs | Volume `app_logs` (`/app/logs`). |
 | §4.2 Contêiner sem root | Imagem roda como `app` (UID 1654) na porta 8080; o serviço `volume-permissions` acerta o dono dos volumes antigos. |
 | §4.2 SBOM | `sbom` e `provenance` no `docker-ghcr.yml`. **Trivy não foi adicionado** (ação de terceiro; fixar por digest antes). |
@@ -164,12 +164,13 @@ telas foram compiladas pelo `tests/ux-mobile-preview`). O CI roda os três.
 
 ### 4.2 Contêiner e imagem
 
-- [ ] 🟠 **Volume para os logs.** Só `app_uploads` e `app_keys` estão montados. O Serilog grava em `logs/` dentro do
-      contêiner, então os logs somem a cada recriação. Montar um volume ou confiar só na saída do console coletada.
-- [ ] 🟠 **Health checks.** Confirmar que `/health/ready` verifica o PostgreSQL (o README diz que sim; o `IMPROVEMENTS.md`
-      diz que os checks são básicos). Testar com o banco parado.
-- [ ] 🟡 **Contêiner sem root.** Hoje a aplicação roda como root (`docs/SEGURANCA.md`, "O que ainda não está coberto").
-- [ ] 🟡 **Varredura da imagem** com Trivy e geração de SBOM na esteira.
+- [ ] 🟠 **Volume para os logs.** Resolvido no código: o volume `app_logs` (`/app/logs`) está no compose de produção
+      (ver "Status no código"). Falta confirmar no servidor que os logs sobrevivem à recriação do contêiner.
+- [ ] 🟠 **Health checks.** O `/health/ready` verifica o PostgreSQL (`AddDbContextCheck` no `Program.cs`); o trecho do
+      `IMPROVEMENTS.md` que diz o contrário é antigo. Falta testar com o banco parado.
+- [ ] 🟡 **Contêiner sem root.** Resolvido no código: a imagem roda como `app` (UID 1654). Falta confirmar no servidor,
+      inclusive nos volumes antigos criados quando o app rodava como root.
+- [ ] 🟡 **Varredura da imagem** com Trivy. O SBOM já é gerado na esteira; o Trivy não foi adicionado.
 - [ ] 🟡 Imagem base atualizada (rebuild semanal ativo e funcionando).
 
 ### 4.3 Servidor

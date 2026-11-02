@@ -6,7 +6,7 @@ Este documento descreve a estratégia de testes implementada para o projeto Monb
 
 ## Estrutura de Testes
 
-O projeto está organizado em quatro camadas de testes (números de 2026-10-29 na seção "Métricas Atuais"):
+O projeto está organizado em cinco projetos de teste na solução (números de 2026-11-01 na seção "Métricas Atuais"), mais duas ferramentas de apoio fora da solução: `tests/ux-smoke` (Playwright que captura todas as telas, por papel e tema, e mede contraste, texto pequeno e overflow) e `tests/ux-mobile-preview` (roda as telas do app no navegador, com a API ou com dados falsos):
 
 ### 1. Testes Unitários (Monburan.UnitTests)
 
@@ -36,17 +36,18 @@ O projeto está organizado em quatro camadas de testes (números de 2026-10-29 n
 
 **Localização:** `tests/Monburan.IntegrationTests/`
 
-**Framework:** xUnit + Entity Framework Core InMemory
+**Framework:** xUnit + Testcontainers (PostgreSQL 16 real)
 
 **Cobertura:**
 - **Repositories:** Testes para repositórios de dados
   - JobRepositoryTests
+- Migrations e serviços que dependem do banco real
 
 **Total:** 57 métodos de teste
 
 **Observações:**
-- Utiliza banco de dados em memória para isolamento
-- Testa operações CRUD completas
+- Cada classe de teste sobe o próprio PostgreSQL 16 em contêiner: o Docker precisa estar disponível (o runner `ubuntu-latest` do CI já o traz)
+- Testa operações CRUD completas e comportamentos que o banco em memória não reproduz
 
 ### 3. Testes de API (Monburan.ApiTests)
 
@@ -88,6 +89,28 @@ O projeto está organizado em quatro camadas de testes (números de 2026-10-29 n
 - `E2ETestBase` — infraestrutura compartilhada (browser, base URL)
 
 **Total:** 99 métodos de teste
+
+### 5. Testes de tela do aplicativo (Monburan.MobileUiTests)
+
+**Objetivo:** Validar o aplicativo Android de verdade, em emulador ou aparelho.
+
+**Localização:** `tests/Monburan.MobileUiTests/`
+
+**Framework:** xUnit + Appium 3 (UiAutomator2) com o cliente `Appium.WebDriver` em C#. A tela do app é uma WebView do Blazor Hybrid: o teste entra no contexto `WEBVIEW_com.monburan.app` e usa seletores CSS, como o Playwright da web.
+
+**Cobertura (24 testes):**
+- `AuthFlowTests` (5) — boas-vindas, login com senha errada e correta, sessão ao reabrir o app, sair da conta
+- `RegisterFlowTests` (5) — criar conta, senhas diferentes, formulário vazio, senha curta, login com campos vazios
+- `AccountFlowTests` (6) — exclusão de conta (com senha, sem senha, cancelando), navegação inferior, tema, filtro por modalidade
+- `ApplyFlowTests` (3) — candidatar-se e conferir na lista, vagas salvas, lista de candidaturas
+- `ResumeFlowTests` (3) — criar currículo, título vazio, título curto
+- `JobsFlowTests` (2) — lista e detalhe de vagas, busca sem resultado
+
+**Observações:**
+- Sem `MOBILE_UI=1` os testes são **pulados**, então `dotnet test` da solução continua verde em máquinas sem Android
+- Só funcionam com o APK **Debug** (a WebView só é depurável nele); cada teste apaga os dados do app e cria uma conta nova pela API
+- No CI rodam no workflow `mobile-ui.yml` (PR para a `main` e disparo manual). **A suíte ainda é instável no emulador do CI** (22 ou 23 de 24 por execução); o histórico e as capturas estão em `docs/evidencias/`
+- Como rodar: [tests/Monburan.MobileUiTests/README.md](tests/Monburan.MobileUiTests/README.md)
 
 ## Ferramentas Utilizadas
 
@@ -188,8 +211,9 @@ public void MetodoTestado_ComVariosInputs_RetornaEsperado(string input, bool exp
 ## Próximos Passos
 
 ### Curto Prazo
-1. Executar os testes E2E no pipeline de CI (issue #3)
-2. Aumentar cobertura de testes unitários para outros Use Cases
+1. Fechar a issue #3: o E2E já roda no pipeline (job `e2e`, em PR para a `main`); faltam o trace do Playwright como artefato e ajustar o tempo limite
+2. Estabilizar os testes de tela do aplicativo no emulador do CI
+3. Aumentar cobertura de testes unitários para outros Use Cases
 
 ### Médio Prazo
 1. Investigar a causa da falha intermitente em `FullSweepTests.Sweep_Advertiser_AllRoutes` (hoje mascarada pela retentativa do job E2E)
@@ -205,14 +229,15 @@ public void MetodoTestado_ComVariosInputs_RetornaEsperado(string input, bool exp
 
 | Projeto | Testes | Framework principal |
 |---|---|---|
-| Monburan.UnitTests | 1276 | xUnit + NSubstitute |
+| Monburan.UnitTests | 1286 | xUnit + NSubstitute |
 | Monburan.IntegrationTests | 57 métodos | xUnit + Testcontainers (PostgreSQL 16) |
-| Monburan.ApiTests | 256 | WebApplicationFactory + EF InMemory |
+| Monburan.ApiTests | 266 | WebApplicationFactory + EF InMemory |
 | Monburan.E2ETests | 99 métodos | Playwright |
-| **Total** | **~1700** | unitários e de API contados por execução; integração e E2E por método `[Fact]`/`[Theory]` |
+| Monburan.MobileUiTests | 24 | Appium + UiAutomator2 (pulados sem `MOBILE_UI=1`) |
+| **Total** | **~1730** | unitários e de API contados por execução (medidos em 2026-11-01); integração, E2E e telas do app por método |
 
-- **Cobertura de Código:** Coletada no CI (Coverlet + ReportGenerator, artefato `coverage-report`)
-- **Tempo de Execução:** < 1 segundo para testes unitários
+- **Cobertura de Código:** Coletada no CI (Coverlet + ReportGenerator, artefato `coverage-report`). O `tests/coverlet.runsettings` inclui só o `Monburan.Core`: Web, Mobile.Shared e Mobile não entram, e o percentual não está registrado
+- **Tempo de Execução:** poucos segundos para os testes unitários (cerca de 2 s na última medição)
 
 ## Melhores Práticas
 

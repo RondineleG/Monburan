@@ -4,14 +4,15 @@
 
 | Workflow | Quando roda | O que faz |
 |---|---|---|
-| `ci-cd.yml` | push e PR em `main`/`dev`, manual | build Release da solução (inclui o app Android), testes unitários, de integração e de API com coverage, **E2E** (Playwright contra o app em Development + Postgres de serviço, com 1 retentativa), scan de segredos, auditoria de pacotes NuGet vulneráveis e `dotnet publish` da web como artefato |
+| `ci-cd.yml` | push e PR em `main`/`dev`, manual | build Release da solução (inclui o app Android), testes unitários, de integração e de API com coverage, **E2E** (Playwright contra o app em Development + Postgres de serviço, com 1 retentativa; **só em PR para a `main`** e disparo manual), scan de segredos, auditoria de pacotes NuGet vulneráveis e `dotnet publish` da web como artefato |
 | `docker-ghcr.yml` | push na `main` com mudança em `src/**` ou `infra/vps/**`, rebuild semanal, manual | constrói a imagem Docker (baixando as imagens base de novo) e, na `main`, publica em `ghcr.io/rondineleg/monburan` (`latest` + tag com o sha do commit) e faz o deploy na VPS (job `deploy-vps`, environment `prod`, que só aceita a `main`); em disparo manual de outra branch só constrói, sem enviar |
 | `rebuild-semanal.yml` | toda segunda às 03:00 de Brasília, manual | dispara o `docker-ghcr.yml` na `main` para a imagem receber os patches das imagens base (.NET e Postgres) mesmo sem mudança no código. Roda na branch padrão (`dev`), mas não constrói nada a partir dela |
 | `android-release.yml` | push na `main` com mudança no app/Core, PR para a `main`, manual | compila, assina e confere o APK; na `main`, publica a release `v<versão>` com o APK |
 | `ios-build.yml` | push na `main` com mudança no app/Core, PR para a `main`, manual | em macOS: compila o app para o simulador, abre e tira print; gera o `.ipa` sem assinatura (anexado à release na `main`) |
 | `codeql.yml` | push e PR em `main`/`dev`, toda segunda-feira, manual | análise estática de segurança (C#, JavaScript e os próprios workflows); alertas em *Security → Code scanning*. Não publica nada |
 | `main-only-from-dev.yml` | PR para a `main` | reprova o PR que não vem da `dev` (a `main` só recebe a promoção); o nome da branch chega por variável de ambiente, nunca interpolado no script. Não publica nada |
-| `infra-scripts.yml` | push e PR em `main`/`dev` que mudam `infra/vps/**`, manual | ShellCheck e testes de verdade, em contêineres, do endurecimento da VPS, do backup com restauração e do `nginx.conf` (`infra/vps/tests`). Não publica nada |
+| `infra-scripts.yml` | push e PR **só na `main`** que mudam `infra/vps/**`, manual | ShellCheck e testes de verdade, em contêineres, do endurecimento da VPS, do backup com restauração e do `nginx.conf` (`infra/vps/tests`). Não publica nada |
+| `mobile-ui.yml` | PR para a `main`, manual | testes de tela do app Android em emulador (Appium + UiAutomator2): sobe Postgres, a API em Development com seed, o APK Debug, o Appium e um emulador Android 14. Sobe logs, TRX e capturas de tela como artefatos. Não publica nada. A suíte ainda é instável no emulador do CI; veja [evidencias/mobile-ui-etapa2.md](evidencias/mobile-ui-etapa2.md) |
 
 O job `deploy-production` (Azure Web App, só na `main`) roda quando existe a variável de repositório
 `AZURE_RESOURCE_GROUP` (mais os secrets do Azure). A produção atual é a VPS (abaixo), então eles ficam ignorados.
@@ -142,7 +143,10 @@ administração e os ajustes de segurança do app: [SEGURANCA.md](SEGURANCA.md).
 
 ## Testes
 
-- **Unitários, integração e API** rodam no job `build-and-test` (EF InMemory, sem dependências externas).
+- **Unitários, integração e API** rodam no job `build-and-test`. Os de integração usam PostgreSQL 16 real em contêiner
+  (Testcontainers; o runner `ubuntu-latest` já traz o Docker), e os de API usam EF InMemory.
+- **Telas do app** (`tests/Monburan.MobileUiTests`, Appium) rodam no workflow `mobile-ui.yml`, em emulador. Como rodar
+  localmente: [tests/Monburan.MobileUiTests/README.md](../tests/Monburan.MobileUiTests/README.md).
 - **E2E** (`tests/Monburan.E2ETests`) precisa do app no ar com Postgres e dos usuários do seed de Development. Local:
 
   ```bash

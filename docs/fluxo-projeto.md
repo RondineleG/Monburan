@@ -22,15 +22,15 @@ flowchart TD
     ACOMP --> NOTIF[Recebe notificações]
 
     CAND -->|Empresa| PUB[Publica vaga]
-    PUB --> MOD{Moderação}
-    MOD -->|Aprovada| ATIVA[Vaga ativa na busca]
-    MOD -->|Rejeitada| REJ[Empresa é avisada]
+    PUB --> ATIVA[Vaga ativa na busca]
+    ATIVA -.moderação posterior.-> MOD{Administração}
+    MOD -->|Oculta ou reprova, com motivo| REJ[Empresa é avisada]
     ATIVA --> RECEB[Recebe candidaturas]
     RECEB --> SIT[Move a situação de cada candidatura]
     SIT --> NOTIF
 
-    PLANO[Planos e assinaturas] -.limites de vagas e de IA.-> PUB
-    PLANO -.limites de IA.-> CR
+    PLANO[Planos e assinaturas] -.limite de vagas ativas.-> PUB
+    PLANO -.assistente de IA só no Premium.-> CR
 ```
 
 ## 2. Arquitetura
@@ -45,7 +45,7 @@ flowchart LR
     REPO --> DB[(PostgreSQL)]
     UC --> MAIL[E-mail<br/>SMTP / Resend]
     UC --> FILES[Arquivos<br/>uploads locais]
-    UC --> IA[Sugestões com IA<br/>provedor configurado]
+    UC --> IA[IA: melhoria de currículo,<br/>importação de PDF e rascunho de vaga<br/>provedor configurado]
     API --> HEALTH["Health checks: /health e /health/ready"]
     NGINX[nginx + TLS] --> WEB
 ```
