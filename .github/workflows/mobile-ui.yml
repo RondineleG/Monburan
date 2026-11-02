@@ -127,6 +127,7 @@ jobs:
       env:
         MOBILE_UI: '1'
         MOBILE_DIAG_DIR: ${{ runner.temp }}/diag
+        MOBILE_SHOTS_DIR: ${{ runner.temp }}/shots
       with:
         api-level: 34
         target: google_apis
@@ -136,6 +137,16 @@ jobs:
         script: |
           adb reverse tcp:5095 tcp:5095
           dotnet test tests/Monburan.MobileUiTests/Monburan.MobileUiTests.csproj --configuration Release --no-build --verbosity normal --results-directory "$RUNNER_TEMP/trx" --logger "trx;LogFileName=Monburan.MobileUiTests.trx"
+
+    # Telas do app capturadas pelos próprios testes (evidência dos passos aprovados)
+    - name: Upload screenshots
+      if: always()
+      uses: actions/upload-artifact@v7
+      with:
+        name: mobile-ui-screenshots
+        path: ${{ runner.temp }}/shots/*.png
+        retention-days: 14
+        if-no-files-found: warn
 
     - name: Upload logs and test results
       if: always()

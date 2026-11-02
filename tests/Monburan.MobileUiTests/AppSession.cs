@@ -170,6 +170,35 @@ public sealed class AppSession : IDisposable
         return $"Contexto: {context}; URL: {url}; Texto na tela: [{body}]";
     }
 
+    /// <summary>
+    /// Registra a tela inteira do aparelho (com barra de status) como evidência do passo, quando MOBILE_SHOTS_DIR
+    /// está definida. Chamar com o estado já visível na tela, depois do WaitFor. Nunca derruba o teste.
+    /// </summary>
+    public void Capture(string name)
+    {
+        var dir = Environment.GetEnvironmentVariable("MOBILE_SHOTS_DIR");
+        if (string.IsNullOrEmpty(dir))
+            return;
+        string? webView = null;
+        try
+        {
+            Thread.Sleep(700); // deixa terminar a animação de entrada da tela
+            Directory.CreateDirectory(dir);
+            webView = Driver.Context;
+            Driver.Context = "NATIVE_APP";
+            Driver.GetScreenshot().SaveAsFile(Path.Combine(dir, $"{name}.png"));
+        }
+        catch (Exception) { /* evidência nunca derruba o teste */ }
+        finally
+        {
+            if (webView is not null && webView != "NATIVE_APP")
+            {
+                try { Driver.Context = webView; }
+                catch (WebDriverException) { try { EnterWebView(); } catch (WebDriverTimeoutException) { } }
+            }
+        }
+    }
+
     private void SaveScreenshot()
     {
         try
