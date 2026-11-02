@@ -195,7 +195,7 @@ public class AdminJobsTests : E2ETestBase
 
         await company.GotoAsync(BaseUrl + JobsPath);
 
-        Assert.Contains("AccessDenied", company.Url, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("/acesso-negado", company.Url, StringComparison.OrdinalIgnoreCase);
         Assert.Equal(0, await company.GetByTestId("job-row").CountAsync());
     }
 

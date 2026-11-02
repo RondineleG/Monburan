@@ -191,7 +191,7 @@ public class PublicPagesTests : E2ETestBase
             new PageWaitForFunctionOptions { Timeout = 30000 });
 
         // Depois do login a pessoa volta direto para o formulário de candidatura
-        Assert.Contains($"ReturnUrl=%2Fapply%2F{jobId}", Page.Url, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains($"ReturnUrl=%2Fcandidatar%2F{jobId}", Page.Url, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]

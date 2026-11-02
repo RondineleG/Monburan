@@ -170,7 +170,7 @@ public class AdminAccountsTests : E2ETestBase
 
         await candidate.GotoAsync(BaseUrl + AccountsPath);
 
-        Assert.Contains("AccessDenied", candidate.Url, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("/acesso-negado", candidate.Url, StringComparison.OrdinalIgnoreCase);
         Assert.Equal(0, await candidate.GetByTestId("acct-row").CountAsync());
     }
 
