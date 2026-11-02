@@ -182,7 +182,11 @@ public sealed class AppSession : IDisposable
         string? webView = null;
         try
         {
-            Thread.Sleep(700); // deixa terminar a animação de entrada da tela
+            // Depois de reabrir o app, o emulador às vezes entrega um quadro velho da WebView (spinner) mesmo com a
+            // página já pronta: uma rolagem de 1 px e de volta força um novo quadro antes do screenshot
+            try { Driver.ExecuteScript("window.scrollBy(0, 1); window.scrollBy(0, -1);"); }
+            catch (WebDriverException) { }
+            Thread.Sleep(1500); // deixa terminar a animação de entrada e o repaint
             Directory.CreateDirectory(dir);
             webView = Driver.Context;
             Driver.Context = "NATIVE_APP";
