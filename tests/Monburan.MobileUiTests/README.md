@@ -1,7 +1,7 @@
 # Testes de tela do app Android (Appium)
 
 Testes de interface do app MAUI Blazor Hybrid (`com.monburan.app`) rodando em emulador ou aparelho, com
-**Appium 2 + UiAutomator2 + xUnit**. A tela do app é uma WebView: o teste entra no contexto `WEBVIEW_com.monburan.app`
+**Appium 3 + UiAutomator2 + xUnit**. A tela do app é uma WebView: o teste entra no contexto `WEBVIEW_com.monburan.app`
 e usa seletores CSS (como o Playwright da web).
 
 | Teste | O que cobre |
@@ -22,9 +22,9 @@ Requisitos: JDK 17, Android SDK com um emulador (ou aparelho com depuração USB
 
 ```bash
 # 1. Appium
-npm install --global appium@2
-appium driver install uiautomator2
-appium --allow-insecure chromedriver_autodownload      # deixe rodando
+npm install --global appium@3.9.0
+appium driver install uiautomator2@8.7.3
+appium --allow-insecure=uiautomator2:chromedriver_autodownload      # deixe rodando
 
 # 2. API local (Postgres via docker compose; Development popula a massa de demonstração)
 docker compose up -d

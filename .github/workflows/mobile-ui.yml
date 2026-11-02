@@ -100,9 +100,10 @@ jobs:
 
     - name: Start Appium
       run: |
-        npm install --global appium@2
-        appium driver install uiautomator2
-        nohup appium --allow-insecure chromedriver_autodownload --log appium.log > /dev/null 2>&1 &
+        # Versões fixas: o driver uiautomator2 mais novo exige o Appium 4 (beta), incompatível com o servidor 2.x
+        npm install --global appium@3.9.0
+        appium driver install uiautomator2@8.7.3
+        nohup appium --allow-insecure=uiautomator2:chromedriver_autodownload --log appium.log > /dev/null 2>&1 &
         for _ in $(seq 1 30); do
           if curl -fsS http://127.0.0.1:4723/status > /dev/null 2>&1; then
             echo "Appium no ar"
@@ -125,6 +126,8 @@ jobs:
       uses: reactivecircus/android-emulator-runner@v2
       env:
         MOBILE_UI: '1'
+        MOBILE_DIAG_DIR: ${{ runner.temp }}/diag
+        MOBILE_SHOTS_DIR: ${{ runner.temp }}/shots
       with:
         api-level: 34
         target: google_apis
@@ -135,6 +138,16 @@ jobs:
           adb reverse tcp:5095 tcp:5095
           dotnet test tests/Monburan.MobileUiTests/Monburan.MobileUiTests.csproj --configuration Release --no-build --verbosity normal --results-directory "$RUNNER_TEMP/trx" --logger "trx;LogFileName=Monburan.MobileUiTests.trx"
 
+    # Telas do app capturadas pelos próprios testes (evidência dos passos aprovados)
+    - name: Upload screenshots
+      if: always()
+      uses: actions/upload-artifact@v7
+      with:
+        name: mobile-ui-screenshots
+        path: ${{ runner.temp }}/shots/*.png
+        retention-days: 14
+        if-no-files-found: warn
+
     - name: Upload logs and test results
       if: always()
       uses: actions/upload-artifact@v7
@@ -144,5 +157,6 @@ jobs:
           app.log
           appium.log
           ${{ runner.temp }}/trx/*.trx
+          ${{ runner.temp }}/diag/*.png
         retention-days: 7
         if-no-files-found: warn

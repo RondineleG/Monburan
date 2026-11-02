@@ -11,6 +11,7 @@ public class AuthFlowTests
         app.WaitForText("#home-title", "O trabalho certo muda tudo");
         app.WaitForText("a.btn", "Entrar");
         app.WaitForText("a.btn", "Criar conta gratuita");
+        app.Capture("01-boas-vindas");
     }
 
     [MobileUiFact]
@@ -23,6 +24,7 @@ public class AuthFlowTests
 
         app.WaitForText(".alert-danger", "incorretos");
         app.WaitForText("h1.page-title", "Entrar");
+        app.Capture("02-login-senha-errada");
     }
 
     [MobileUiFact]
@@ -36,6 +38,7 @@ public class AuthFlowTests
         app.WaitForText("h1.page-title", "Continue sua jornada");
         foreach (var label in new[] { "Início", "Vagas", "Candidaturas", "Avisos", "Perfil" })
             app.WaitForText(".bottom-nav__label", label);
+        app.Capture("03-painel-apos-login");
     }
 
     [MobileUiFact]
@@ -49,10 +52,13 @@ public class AuthFlowTests
         app.Relaunch();
 
         app.WaitForText("h1.page-title", "Continue sua jornada");
+        // Sem captura de tela aqui: depois de reabrir, a tela física mostra "Carregando…" enquanto a WebView lida pelo
+        // teste já tem o painel (ver docs/evidencias/mobile-ui-etapa2.md, "Ponto em aberto")
+        app.WaitFor(".progress-card");
     }
 
     [MobileUiFact]
-    public async Task Logout_ReturnsToTheWelcomeScreen()
+    public async Task Logout_GoesToTheLoginScreen_AndTheSessionIsGone()
     {
         var email = await TestApi.RegisterCandidateAsync();
         using var app = new AppSession();
@@ -61,8 +67,13 @@ public class AuthFlowTests
 
         app.TapText(".bottom-nav__link", "Perfil");
         app.WaitForText("h1.page-title", "Perfil");
+        app.Capture("05-perfil");
         app.TapText("button", "Sair da conta");
 
+        // O app leva à tela de login (Profile.LogoutAsync). Reabrir o app mostra que a sessão foi apagada
+        app.WaitForText("h1.page-title", "Entrar");
+        app.Capture("06-login-apos-sair");
+        app.Relaunch();
         app.WaitForText("#home-title", "O trabalho certo muda tudo");
     }
 }

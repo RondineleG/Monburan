@@ -1,0 +1,70 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TestRun id="22decaad-1732-4d98-8990-c4391fb045c5" name="@runnervm48cm3 2026-11-02 00:03:43" xmlns="http://microsoft.com/schemas/VisualStudio/TeamTest/2010">
+  <Times creation="2026-11-02T00:03:43.2169575+00:00" queuing="2026-11-02T00:03:43.2169576+00:00" start="2026-11-02T00:02:56.6697689+00:00" finish="2026-11-02T00:06:14.6757667+00:00" />
+  <TestSettings name="default" id="01fb7914-2612-4fb1-a904-c5de4df71f73">
+    <Deployment runDeploymentRoot="_runnervm48cm3_2026-11-02_00_03_43" />
+  </TestSettings>
+  <Results>
+    <UnitTestResult executionId="f3ddf584-489a-4c15-b3ab-2f66ff0e9d64" testId="9b75d1ea-e5e5-3b56-4209-b0d73dbc9eb4" testName="Monburan.MobileUiTests.AuthFlowTests.Login_WithAWrongPassword_ShowsTheError_AndStaysOnLogin" computerName="runnervm48cm3" duration="00:00:15.1818109" startTime="2026-11-02T00:05:21.1240447+00:00" endTime="2026-11-02T00:05:36.3123921+00:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="f3ddf584-489a-4c15-b3ab-2f66ff0e9d64" />
+    <UnitTestResult executionId="875c056e-71dd-4a8d-b45c-7dcefdbfd077" testId="f295bc89-c144-e632-aa56-edf85266643f" testName="Monburan.MobileUiTests.AuthFlowTests.Login_WithValidCredentials_OpensTheDashboard_WithTheBottomNavigation" computerName="runnervm48cm3" duration="00:00:19.7178614" startTime="2026-11-02T00:05:01.3980895+00:00" endTime="2026-11-02T00:05:21.1234749+00:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="875c056e-71dd-4a8d-b45c-7dcefdbfd077" />
+    <UnitTestResult executionId="f9cbdf55-e113-45b1-b787-87c274158659" testId="2ae3cf5a-fcaf-90c6-1ef7-b9fcd50fac08" testName="Monburan.MobileUiTests.AuthFlowTests.Session_SurvivesClosingAndReopeningTheApp" computerName="runnervm48cm3" duration="00:00:42.9925434" startTime="2026-11-02T00:03:43.2070389+00:00" endTime="2026-11-02T00:04:26.1885496+00:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="f9cbdf55-e113-45b1-b787-87c274158659" />
+    <UnitTestResult executionId="074577de-d276-4aef-8d34-b568bf74c6af" testId="321808bc-b31c-b278-534a-3a3d6744f735" testName="Monburan.MobileUiTests.JobsFlowTests.Jobs_ListsTheOpenJobs_AndOpensTheDetails" computerName="runnervm48cm3" duration="00:00:17.9122993" startTime="2026-11-02T00:05:56.6726572+00:00" endTime="2026-11-02T00:06:14.5928070+00:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="074577de-d276-4aef-8d34-b568bf74c6af" />
+    <UnitTestResult executionId="682ebc14-f7dd-4177-942a-d4941cce0a07" testId="016fddd2-250e-5d64-a79c-58b17cb5f7f9" testName="Monburan.MobileUiTests.AuthFlowTests.FirstLaunch_WithoutSession_ShowsTheWelcomeScreen" computerName="runnervm48cm3" duration="00:00:45.3558329" startTime="2026-11-02T00:02:57.8059642+00:00" endTime="2026-11-02T00:03:43.1749731+00:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="682ebc14-f7dd-4177-942a-d4941cce0a07" />
+    <UnitTestResult executionId="7056b731-6e92-4ad6-a6cf-3dc3ba19127f" testId="a196be6e-f7e5-25e0-319c-2f257bc5bb42" testName="Monburan.MobileUiTests.AuthFlowTests.Logout_GoesToTheLoginScreen_AndTheSessionIsGone" computerName="runnervm48cm3" duration="00:00:35.1936364" startTime="2026-11-02T00:04:26.1957191+00:00" endTime="2026-11-02T00:05:01.3975924+00:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="7056b731-6e92-4ad6-a6cf-3dc3ba19127f" />
+    <UnitTestResult executionId="462ad609-0cf2-4bcd-a57b-35eec460389b" testId="52559699-3707-637e-ae59-a90c9fcbe4c9" testName="Monburan.MobileUiTests.JobsFlowTests.Jobs_SearchWithNoMatch_ShowsTheEmptyState" computerName="runnervm48cm3" duration="00:00:20.3486572" startTime="2026-11-02T00:05:36.3205719+00:00" endTime="2026-11-02T00:05:56.6721263+00:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="462ad609-0cf2-4bcd-a57b-35eec460389b" />
+  </Results>
+  <TestDefinitions>
+    <UnitTest name="Monburan.MobileUiTests.JobsFlowTests.Jobs_ListsTheOpenJobs_AndOpensTheDetails" storage="/home/runner/work/monburan/monburan/tests/monburan.mobileuitests/bin/release/net10.0/monburan.mobileuitests.dll" id="321808bc-b31c-b278-534a-3a3d6744f735">
+      <Execution id="074577de-d276-4aef-8d34-b568bf74c6af" />
+      <TestMethod codeBase="/home/runner/work/Monburan/Monburan/tests/Monburan.MobileUiTests/bin/Release/net10.0/Monburan.MobileUiTests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="Monburan.MobileUiTests.JobsFlowTests" name="Jobs_ListsTheOpenJobs_AndOpensTheDetails" />
+    </UnitTest>
+    <UnitTest name="Monburan.MobileUiTests.AuthFlowTests.Logout_GoesToTheLoginScreen_AndTheSessionIsGone" storage="/home/runner/work/monburan/monburan/tests/monburan.mobileuitests/bin/release/net10.0/monburan.mobileuitests.dll" id="a196be6e-f7e5-25e0-319c-2f257bc5bb42">
+      <Execution id="7056b731-6e92-4ad6-a6cf-3dc3ba19127f" />
+      <TestMethod codeBase="/home/runner/work/Monburan/Monburan/tests/Monburan.MobileUiTests/bin/Release/net10.0/Monburan.MobileUiTests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="Monburan.MobileUiTests.AuthFlowTests" name="Logout_GoesToTheLoginScreen_AndTheSessionIsGone" />
+    </UnitTest>
+    <UnitTest name="Monburan.MobileUiTests.JobsFlowTests.Jobs_SearchWithNoMatch_ShowsTheEmptyState" storage="/home/runner/work/monburan/monburan/tests/monburan.mobileuitests/bin/release/net10.0/monburan.mobileuitests.dll" id="52559699-3707-637e-ae59-a90c9fcbe4c9">
+      <Execution id="462ad609-0cf2-4bcd-a57b-35eec460389b" />
+      <TestMethod codeBase="/home/runner/work/Monburan/Monburan/tests/Monburan.MobileUiTests/bin/Release/net10.0/Monburan.MobileUiTests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="Monburan.MobileUiTests.JobsFlowTests" name="Jobs_SearchWithNoMatch_ShowsTheEmptyState" />
+    </UnitTest>
+    <UnitTest name="Monburan.MobileUiTests.AuthFlowTests.Login_WithValidCredentials_OpensTheDashboard_WithTheBottomNavigation" storage="/home/runner/work/monburan/monburan/tests/monburan.mobileuitests/bin/release/net10.0/monburan.mobileuitests.dll" id="f295bc89-c144-e632-aa56-edf85266643f">
+      <Execution id="875c056e-71dd-4a8d-b45c-7dcefdbfd077" />
+      <TestMethod codeBase="/home/runner/work/Monburan/Monburan/tests/Monburan.MobileUiTests/bin/Release/net10.0/Monburan.MobileUiTests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="Monburan.MobileUiTests.AuthFlowTests" name="Login_WithValidCredentials_OpensTheDashboard_WithTheBottomNavigation" />
+    </UnitTest>
+    <UnitTest name="Monburan.MobileUiTests.AuthFlowTests.Login_WithAWrongPassword_ShowsTheError_AndStaysOnLogin" storage="/home/runner/work/monburan/monburan/tests/monburan.mobileuitests/bin/release/net10.0/monburan.mobileuitests.dll" id="9b75d1ea-e5e5-3b56-4209-b0d73dbc9eb4">
+      <Execution id="f3ddf584-489a-4c15-b3ab-2f66ff0e9d64" />
+      <TestMethod codeBase="/home/runner/work/Monburan/Monburan/tests/Monburan.MobileUiTests/bin/Release/net10.0/Monburan.MobileUiTests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="Monburan.MobileUiTests.AuthFlowTests" name="Login_WithAWrongPassword_ShowsTheError_AndStaysOnLogin" />
+    </UnitTest>
+    <UnitTest name="Monburan.MobileUiTests.AuthFlowTests.FirstLaunch_WithoutSession_ShowsTheWelcomeScreen" storage="/home/runner/work/monburan/monburan/tests/monburan.mobileuitests/bin/release/net10.0/monburan.mobileuitests.dll" id="016fddd2-250e-5d64-a79c-58b17cb5f7f9">
+      <Execution id="682ebc14-f7dd-4177-942a-d4941cce0a07" />
+      <TestMethod codeBase="/home/runner/work/Monburan/Monburan/tests/Monburan.MobileUiTests/bin/Release/net10.0/Monburan.MobileUiTests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="Monburan.MobileUiTests.AuthFlowTests" name="FirstLaunch_WithoutSession_ShowsTheWelcomeScreen" />
+    </UnitTest>
+    <UnitTest name="Monburan.MobileUiTests.AuthFlowTests.Session_SurvivesClosingAndReopeningTheApp" storage="/home/runner/work/monburan/monburan/tests/monburan.mobileuitests/bin/release/net10.0/monburan.mobileuitests.dll" id="2ae3cf5a-fcaf-90c6-1ef7-b9fcd50fac08">
+      <Execution id="f9cbdf55-e113-45b1-b787-87c274158659" />
+      <TestMethod codeBase="/home/runner/work/Monburan/Monburan/tests/Monburan.MobileUiTests/bin/Release/net10.0/Monburan.MobileUiTests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="Monburan.MobileUiTests.AuthFlowTests" name="Session_SurvivesClosingAndReopeningTheApp" />
+    </UnitTest>
+  </TestDefinitions>
+  <TestEntries>
+    <TestEntry testId="9b75d1ea-e5e5-3b56-4209-b0d73dbc9eb4" executionId="f3ddf584-489a-4c15-b3ab-2f66ff0e9d64" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="f295bc89-c144-e632-aa56-edf85266643f" executionId="875c056e-71dd-4a8d-b45c-7dcefdbfd077" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="2ae3cf5a-fcaf-90c6-1ef7-b9fcd50fac08" executionId="f9cbdf55-e113-45b1-b787-87c274158659" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="321808bc-b31c-b278-534a-3a3d6744f735" executionId="074577de-d276-4aef-8d34-b568bf74c6af" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="016fddd2-250e-5d64-a79c-58b17cb5f7f9" executionId="682ebc14-f7dd-4177-942a-d4941cce0a07" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="a196be6e-f7e5-25e0-319c-2f257bc5bb42" executionId="7056b731-6e92-4ad6-a6cf-3dc3ba19127f" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="52559699-3707-637e-ae59-a90c9fcbe4c9" executionId="462ad609-0cf2-4bcd-a57b-35eec460389b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+  </TestEntries>
+  <TestLists>
+    <TestList name="Results Not in a List" id="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestList name="All Loaded Results" id="19431567-8539-422a-85d7-44ee4e166bda" />
+  </TestLists>
+  <ResultSummary outcome="Completed">
+    <Counters total="7" executed="7" passed="7" failed="0" error="0" timeout="0" aborted="0" inconclusive="0" passedButRunAborted="0" notRunnable="0" notExecuted="0" disconnected="0" warning="0" completed="0" inProgress="0" pending="0" />
+    <Output>
+      <StdOut>[xUnit.net 00:00:00.00] xUnit.net VSTest Adapter v3.1.5+1b188a7b0a (64-bit .NET 10.0.14)
+[xUnit.net 00:00:00.14]   Discovering: Monburan.MobileUiTests
+[xUnit.net 00:00:00.19]   Discovered:  Monburan.MobileUiTests
+[xUnit.net 00:00:00.22]   Starting:    Monburan.MobileUiTests
+[xUnit.net 00:03:17.05]   Finished:    Monburan.MobileUiTests
+</StdOut>
+    </Output>
+  </ResultSummary>
+</TestRun>
