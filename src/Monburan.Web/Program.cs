@@ -450,6 +450,7 @@ builder.Services.AddScoped<UploadFileUseCase>();
 // Sugestões anônimas de vaga: evidência privada, limite de envios e moderação humana
 builder.Services.AddSingleton<IEvidenceStorage, LocalEvidenceStorage>();
 builder.Services.AddSingleton<ISubmissionRateLimiter, SubmissionRateLimiter>();
+builder.Services.AddSingleton<ISubmitterKeyHasher, HmacSubmitterKeyHasher>();
 builder.Services.AddScoped<SubmitJobSuggestionUseCase>();
 builder.Services.AddScoped<ModerateJobSubmissionUseCase>();
 builder.Services.AddScoped<ExtractJobDraftUseCase>();
