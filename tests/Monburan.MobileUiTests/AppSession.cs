@@ -42,8 +42,29 @@ public sealed class AppSession : IDisposable
             options.App = apk;
 
         Driver = new AndroidDriver(MobileEnvironment.AppiumUrl, options, TimeSpan.FromMinutes(3));
+        EnsureApiTunnel();
         ClearAppData();
         Relaunch();
+    }
+
+    /// <summary>
+    /// Reaplica o `adb reverse` da API antes de cada teste. Numa rodada o app mostrou "Sem conexão com o servidor" no
+    /// meio da suíte, sinal de que o túnel do emulador para a API tinha caído. Sem adb no PATH, segue sem fazer nada.
+    /// </summary>
+    private static void EnsureApiTunnel()
+    {
+        try
+        {
+            var port = MobileEnvironment.ApiUrl.Port;
+            using var adb = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("adb", $"reverse tcp:{port} tcp:{port}")
+            {
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                UseShellExecute = false
+            });
+            adb?.WaitForExit(15000);
+        }
+        catch (Exception) { /* sem adb no PATH: o túnel precisa ter sido aberto por fora */ }
     }
 
     /// <summary>Fecha e abre o app de novo, mantendo os dados (simula o usuário fechando e voltando).</summary>
