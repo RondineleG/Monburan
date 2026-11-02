@@ -1,6 +1,6 @@
 using Monburan.Core.DTOs.Response;
 
-namespace Monburan.Web.Services;
+namespace Monburan.Core.Services;
 
 /// <summary>
 /// Canal de candidatura da vaga: rótulo da ação, aviso e destino externo. A decisão de canal vem do domínio

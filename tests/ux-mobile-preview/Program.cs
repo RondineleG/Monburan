@@ -5,6 +5,9 @@ using Monburan.Mobile.Shared.Auth;
 
 // Uso: ux-mobile-preview --api http://127.0.0.1:5095/ [--urls http://127.0.0.1:5096]
 // A API é a do site (ex.: o host InMemory do ux-smoke); o app conversa com ela como no aparelho.
+if (args.Contains("--verify-external-applications"))
+    return await ExternalApplicationChecks.RunAsync();
+
 var apiIndex = Array.IndexOf(args, "--api");
 if (apiIndex < 0 || apiIndex + 1 >= args.Length || !Uri.TryCreate(args[apiIndex + 1], UriKind.Absolute, out var apiBase))
 {
