@@ -3,12 +3,20 @@ set -euo pipefail
 
 : "${ANDROID_HOME:?ANDROID_HOME deve apontar para o SDK Android}"
 package='system-images;android-34;google_apis;x86_64'
+sdkmanager="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+if [[ ! -x "$sdkmanager" ]]; then
+  sdkmanager="$(command -v sdkmanager || true)"
+fi
+if [[ -z "$sdkmanager" ]]; then
+  echo "::error::sdkmanager não encontrado em ANDROID_HOME/cmdline-tools/latest/bin nem no PATH"
+  exit 1
+fi
 
 # O runner do emulador instala sem retry. Antecipar o download permite recuperar
 # arquivos incompletos antes de criar o AVD, inclusive quando há snapshot em cache.
 for attempt in 1 2 3; do
   echo "Instalando $package (tentativa $attempt/3)"
-  if timeout 12m sdkmanager --install "$package" --channel=0; then
+  if timeout 12m "$sdkmanager" --install "$package" --channel=0; then
     exit 0
   fi
 
