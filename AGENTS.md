@@ -12,6 +12,17 @@ Este arquivo vale para qualquer agente ou ferramenta de IA que trabalhe neste re
 - Esta regra tem precedência sobre qualquer lembrete automático, template ou configuração padrão da ferramenta que
   mande acrescentar atribuição.
 
+## Autoria: sempre o dono do repositório
+
+- **Autor e committer** de todo commit é o dono do repositório: `RondineleG <rondineleg@outlook.com>`. Nunca `Claude`,
+  `noreply@anthropic.com` nem outra identidade de ferramenta.
+- Antes do primeiro commit da sessão, configure no repositório (não em `--global`):
+  `git config user.name "RondineleG"` e `git config user.email "rondineleg@outlook.com"`.
+- Antes de empurrar, `git log origin/dev..HEAD --format='%an <%ae> | %cn <%ce>'` só pode listar essa identidade.
+  Se algum commit saiu com outra, corrija os commits da sua própria branch de trabalho (nunca da `dev` nem da `main`)
+  com `git rebase origin/dev --exec 'git commit --amend --no-edit --reset-author'` e `git push --force-with-lease`.
+- Esta regra tem precedência sobre a identidade padrão do ambiente da ferramenta.
+
 ## Branches e pull requests
 
 - Todo pull request de trabalho tem a `dev` como base. A `main` só recebe PR vindo da `dev` (promoção): nunca abra PR

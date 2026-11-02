@@ -7,7 +7,7 @@
 
 <div class="auth-hero">
     <div class="brand-mark"><BrandMark /><span>Monburan</span></div>
-    <p>Crie sua conta de candidato</p>
+    <p>@(IsAdvertiser ? "Crie sua conta de recrutador" : "Crie sua conta de candidato")</p>
 </div>
 
 <h1 class="page-title" tabindex="-1">Criar conta</h1>
@@ -18,8 +18,20 @@
 }
 
 <form @onsubmit="DoRegister" novalidate>
+    <fieldset class="role-choice">
+        <legend>Como você quer usar a Monburan?</legend>
+        <label class="role-option">
+            <input type="radio" name="account-type" checked="@(!IsAdvertiser)" @onchange="@(() => _accountType = "candidate")" />
+            <span><strong>Quero encontrar uma vaga</strong><small>Sou candidato(a).</small></span>
+        </label>
+        <label class="role-option">
+            <input type="radio" name="account-type" checked="@IsAdvertiser" @onchange="@(() => _accountType = "advertiser")" />
+            <span><strong>Quero contratar</strong><small>Sou recrutador(a) e quero publicar vagas.</small></span>
+        </label>
+    </fieldset>
+
     <div class="form-field">
-        <label for="register-name">Nome completo</label>
+        <label for="register-name">@(IsAdvertiser ? "Seu nome ou nome da empresa" : "Nome completo")</label>
         <input id="register-name" class="input" @bind="_name" placeholder="Seu nome" autocomplete="name" />
         @if (FieldError("name") is { } nameError)
         {
@@ -38,7 +50,7 @@
 
     <div class="form-field">
         <label for="register-password">Senha</label>
-        <input id="register-password" class="input" type="password" @bind="_password" placeholder="Mínimo @(PasswordPolicy.MinLength) caracteres" autocomplete="new-password" />
+        <PasswordInput Id="register-password" @bind-Value="_password" Placeholder="@($"Mínimo {PasswordPolicy.MinLength} caracteres")" Autocomplete="new-password" />
         <div class="form-text">Use ao menos @(PasswordPolicy.MinLength) caracteres, com letra maiúscula, minúscula e número.</div>
         @if (FieldError("password") is { } passwordError)
         {
@@ -48,7 +60,7 @@
 
     <div class="form-field">
         <label for="register-confirm">Confirmar senha</label>
-        <input id="register-confirm" class="input" type="password" @bind="_confirm" placeholder="Repita a senha" autocomplete="new-password" />
+        <PasswordInput Id="register-confirm" @bind-Value="_confirm" Placeholder="Repita a senha" Autocomplete="new-password" />
         @if (FieldError("confirmPassword") is { } confirmError)
         {
             <div class="field-error">@confirmError</div>
@@ -65,6 +77,8 @@
 </div>
 
 @code {
+    private string _accountType = "candidate";
+    private bool IsAdvertiser => _accountType == "advertiser";
     private string _name = "";
     private string _email = "";
     private string _password = "";
@@ -107,14 +121,16 @@
         {
             var tokens = await AuthApi.RegisterAsync(new RegisterRequest
             {
-                AccountType = "candidate",
+                AccountType = _accountType,
                 Name = _name.Trim(),
                 Email = _email.Trim(),
                 Password = _password,
                 ConfirmPassword = _confirm
             });
             await Auth.SignInAsync(tokens);
-            Toast.ShowSuccess("Sua conta foi criada. Boas-vindas à Monburan!");
+            Toast.ShowSuccess(IsAdvertiser
+                ? "Sua conta de recrutador foi criada. Para publicar e gerenciar vagas, acesse monburan.com.br."
+                : "Sua conta foi criada. Boas-vindas à Monburan!");
             Nav.NavigateTo("/");
         }
         catch (ApiException ex)
