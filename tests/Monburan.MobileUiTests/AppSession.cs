@@ -219,9 +219,20 @@ public sealed class AppSession : IDisposable
 
     public void Type(string css, string value)
     {
-        var field = WaitFor(css);
-        field.Clear();
-        field.SendKeys(value);
+        // Logo após navegar, o campo já existe mas ainda não aceita digitação ("element not interactable"): repete
+        Wait().Until(_ =>
+        {
+            try
+            {
+                var field = Driver.FindElement(By.CssSelector(css));
+                field.Clear();
+                field.SendKeys(value);
+                return true;
+            }
+            catch (ElementNotInteractableException) { return false; }
+            catch (NoSuchElementException) { return false; }
+            catch (StaleElementReferenceException) { return false; }
+        });
     }
 
     /// <summary>Entra pelo formulário de login do app (Início, Entrar).</summary>
