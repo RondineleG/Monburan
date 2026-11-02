@@ -15,6 +15,9 @@ public interface IJobSubmissionRepository
 
     Task<RequestResult<JobSubmission>> UpdateAsync(JobSubmission submission, CancellationToken cancellationToken = default);
 
+    /// <summary>Grava somente os campos do rascunho, preservando decisões feitas enquanto a IA respondia.</summary>
+    Task<RequestResult<JobSubmission>> SaveAiDraftAsync(JobSubmission submission, CancellationToken cancellationToken = default);
+
     Task<RequestResult<PagedResponse<JobSubmission>>> ListAsync(ESubmissionStatus? status, int page, int size, CancellationToken cancellationToken = default);
 
     /// <summary>
