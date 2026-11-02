@@ -64,6 +64,9 @@ jobs:
     - name: Testar a conferência do deploy antes do APK
       run: bash .github/scripts/tests/wait-for-server-deploy.sh
 
+    - name: Testar a recuperação do download da imagem Android
+      run: bash .github/scripts/tests/install-android-system-image.sh
+
     - name: Testar os canais externos nas telas do app
       run: dotnet run --project tests/ux-mobile-preview/ux-mobile-preview.csproj --configuration Release -- --verify-external-applications
 

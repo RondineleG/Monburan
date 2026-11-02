@@ -134,6 +134,9 @@ jobs:
           ~/.android/adb*
         key: avd-api34-google_apis-x86_64-pixel_6-v1
 
+    - name: Instalar imagem Android com novas tentativas
+      run: bash .github/scripts/install-android-system-image.sh
+
     - name: Criar o AVD e gerar o snapshot para o cache
       if: steps.avd-cache.outputs.cache-hit != 'true'
       uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2.38.0
