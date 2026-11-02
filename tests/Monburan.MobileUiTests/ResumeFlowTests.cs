@@ -43,9 +43,7 @@ public class ResumeFlowTests
         var email = await TestApi.RegisterCandidateAsync();
         using var app = OpenNewResumeForm(email);
 
-        app.TapText("form button[type=submit]", "Criar currículo");
-
-        app.WaitForText(".field-error", "Informe um título para o currículo");
+        app.TapUntilShown("form button[type=submit]", "Criar currículo", ".field-error", "Informe um título para o currículo");
         app.WaitForText("h1.page-title", "Novo currículo");
     }
 
@@ -56,8 +54,6 @@ public class ResumeFlowTests
         using var app = OpenNewResumeForm(email);
 
         app.Type("#resume-title", "ab");
-        app.TapText("form button[type=submit]", "Criar currículo");
-
-        app.WaitForText(".field-error", "pelo menos 3 caracteres");
+        app.TapUntilShown("form button[type=submit]", "Criar currículo", ".field-error", "pelo menos 3 caracteres");
     }
 }

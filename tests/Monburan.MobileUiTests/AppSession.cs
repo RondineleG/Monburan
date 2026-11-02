@@ -231,6 +231,32 @@ public sealed class AppSession : IDisposable
     /// <summary>Toca num item da barra inferior (Início, Vagas, Candidaturas, Avisos, Perfil).</summary>
     public void GoTo(string label) => TapText(".bottom-nav__link", label);
 
+    /// <summary>
+    /// Toca no botão e espera o resultado aparecer; se não aparecer em 12 s, toca de novo (até 3 vezes). Para validações
+    /// de formulário, em que o primeiro toque às vezes se perde logo depois de digitar.
+    /// </summary>
+    public void TapUntilShown(string buttonCss, string buttonText, string expectCss, string expectText, int attempts = 3)
+    {
+        for (var attempt = 1; ; attempt++)
+        {
+            TapText(buttonCss, buttonText);
+            try
+            {
+                new WebDriverWait(new SystemClock(), Driver, TimeSpan.FromSeconds(12), TimeSpan.FromMilliseconds(300)).Until(_ =>
+                {
+                    try
+                    {
+                        return Driver.FindElements(By.CssSelector(expectCss))
+                            .FirstOrDefault(e => e.Displayed && e.Text.Contains(expectText, StringComparison.OrdinalIgnoreCase));
+                    }
+                    catch (StaleElementReferenceException) { return null; }
+                });
+                return;
+            }
+            catch (WebDriverTimeoutException) when (attempt < attempts) { }
+        }
+    }
+
     public void Tap(string css) => Click(WaitFor(css));
 
     public void TapText(string css, string text) => Click(WaitForText(css, text));
