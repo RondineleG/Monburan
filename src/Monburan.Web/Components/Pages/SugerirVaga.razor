@@ -6,8 +6,9 @@
 @using Monburan.Core.UseCases.Submissions
 @using Microsoft.AspNetCore.Components.Forms
 @using Monburan.Web.Middleware
+@implements IDisposable
 @inject SubmitJobSuggestionUseCase Submit
-@inject IHttpContextAccessor HttpAccessor
+@inject PersistentComponentState PersistedState
 @inject ILogger<SugerirVaga> Logger
 
 <PageTitle>Sugerir uma vaga - Monburan</PageTitle>
@@ -117,6 +118,14 @@
 @code {
     private readonly SubmitJobSuggestionRequest request = new();
     private readonly List<IBrowserFile> files = [];
+    private const string SubmitterKeyState = "sugerir-vaga-remetente";
+
+    // O HttpContext só existe no prerender: no circuito interativo o HttpContext não é confiável (e vem nulo). Por isso a
+    // chave do remetente é calculada no prerender e levada ao circuito pelo estado persistido (criptografado).
+    [CascadingParameter]
+    private HttpContext? HttpContext { get; set; }
+
+    private PersistingComponentStateSubscription persistingSubscription;
     private string? submitterKey;
     private string? honeypot;
     private string? error;
@@ -125,16 +134,60 @@
 
     protected override void OnInitialized()
     {
-        // Mesma chave do limite geral: o IPv4 ou o bloco /64 do IPv6 (trocar o fim do endereço não zera o limite)
-        var address = HttpAccessor.HttpContext?.Connection.RemoteIpAddress;
-        submitterKey = address is null ? null : RateLimiting.ClientKey(address);
+        if (PersistedState.TryTakeFromJson<string>(SubmitterKeyState, out var restored) && !string.IsNullOrEmpty(restored))
+        {
+            submitterKey = restored;
+        }
+        else if (HttpContext?.Connection.RemoteIpAddress is { } address)
+        {
+            // Mesma chave do limite geral: o IPv4 ou o bloco /64 do IPv6 (trocar o fim do endereço não zera o limite)
+            submitterKey = RateLimiting.ClientKey(address);
+        }
+        else
+        {
+            // Sem IP, a chave é por circuito: nunca uma chave única compartilhada, que juntaria todos os visitantes
+            // num só limite de 5 sugestões por hora
+            Logger.LogWarning("Sugestão de vaga sem IP do remetente: usando chave por circuito");
+            submitterKey = "circuito:" + Guid.NewGuid().ToString("N");
+        }
+
+        persistingSubscription = PersistedState.RegisterOnPersisting(() =>
+        {
+            PersistedState.PersistAsJson(SubmitterKeyState, submitterKey);
+            return Task.CompletedTask;
+        });
     }
+
+    public void Dispose() => persistingSubscription.Dispose();
 
     private void OnFilesSelected(InputFileChangeEventArgs args)
     {
+        // int.MaxValue: com um teto menor o GetMultipleFiles lança InvalidOperationException, que no OnChange derruba o
+        // circuito inteiro. A quantidade é conferida abaixo, com mensagem para a pessoa.
+        var selected = args.GetMultipleFiles(int.MaxValue);
         files.Clear();
-        files.AddRange(args.GetMultipleFiles(JobSubmissionRules.MaxEvidences));
-        error = null;
+        error = FirstFileProblem(selected);
+        if (error is null)
+            files.AddRange(selected);
+    }
+
+    /// <summary>Confere quantidade, tipo e tamanho pelos metadados, antes de transferir qualquer imagem para o servidor.</summary>
+    private static string? FirstFileProblem(IReadOnlyList<IBrowserFile> selected)
+    {
+        if (selected.Count > JobSubmissionRules.MaxEvidences)
+            return $"Envie no máximo {JobSubmissionRules.MaxEvidences} imagens.";
+
+        long total = 0;
+        foreach (var file in selected)
+        {
+            if (!JobSubmissionRules.AllowedImageTypes.Contains(file.ContentType, StringComparer.OrdinalIgnoreCase))
+                return "Formato não aceito. Envie imagens JPG, PNG ou WebP.";
+            if (file.Size > JobSubmissionRules.MaxEvidenceBytes)
+                return "Uma das imagens passa de 5 MB. Envie arquivos menores.";
+            total += file.Size;
+        }
+
+        return total > JobSubmissionRules.MaxTotalBytes ? "O total das imagens deve ter no máximo 15 MB." : null;
     }
 
     private async Task SubmitAsync()
@@ -155,6 +208,12 @@
         try
         {
             request.SubmitterKey = submitterKey ?? string.Empty;
+
+            // Quem já esgotou o limite é recusado antes de transferir até 15 MB de imagens
+            error = Submit.RateLimitMessage(request.SubmitterKey);
+            if (error is not null)
+                return;
+
             request.Evidences = await ReadEvidenceAsync();
             if (request.Evidences.Count == 0 && error is null)
                 error = "Envie pelo menos uma imagem da publicação.";
@@ -192,10 +251,17 @@
         {
             try
             {
+                // Array do tamanho exato e uma única alocação: MemoryStream + ToArray() realocava o buffer várias vezes
+                // e depois copiava tudo de novo
+                var content = new byte[file.Size];
                 await using var stream = file.OpenReadStream(JobSubmissionRules.MaxEvidenceBytes);
-                using var buffer = new MemoryStream();
-                await stream.CopyToAsync(buffer);
-                inputs.Add(new SubmissionEvidenceInput(file.Name, file.ContentType, buffer.ToArray()));
+                await stream.ReadExactlyAsync(content);
+                inputs.Add(new SubmissionEvidenceInput(file.Name, file.ContentType, content));
+            }
+            catch (EndOfStreamException)
+            {
+                error = "Não foi possível ler uma das imagens. Selecione os arquivos de novo.";
+                return [];
             }
             catch (IOException)
             {
