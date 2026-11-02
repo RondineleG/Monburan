@@ -293,7 +293,7 @@ public class AdminAiProvidersTests : E2ETestBase
 
         await GotoAsync(PagePath);
 
-        Assert.Contains("AccessDenied", Page.Url, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("/acesso-negado", Page.Url, StringComparison.OrdinalIgnoreCase);
         Assert.Equal(0, await Page.GetByTestId("ai-provider-card").CountAsync());
         Assert.Equal(0, await Page.GetByTestId("ai-provider-new").CountAsync());
     }
@@ -305,7 +305,7 @@ public class AdminAiProvidersTests : E2ETestBase
 
         await GotoAsync(PagePath);
 
-        Assert.Contains("AccessDenied", Page.Url, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("/acesso-negado", Page.Url, StringComparison.OrdinalIgnoreCase);
         Assert.Equal(0, await Page.GetByTestId("ai-provider-new").CountAsync());
     }
 

@@ -251,6 +251,6 @@ public class JobsExperienceTests : E2ETestBase
 
         await Page.GetByTestId("job-apply-mobile").ClickAsync();
         await Page.WaitForFunctionAsync("() => location.pathname === '/entrar'");
-        Assert.Contains("ReturnUrl=%2Fapply%2F", Page.Url, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("ReturnUrl=%2Fcandidatar%2F", Page.Url, StringComparison.OrdinalIgnoreCase);
     }
 }

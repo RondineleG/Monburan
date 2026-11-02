@@ -94,7 +94,7 @@ public class AdminAuditTests : E2ETestBase
 
         await GotoAsync(AuditPath);
 
-        Assert.Contains("AccessDenied", Page.Url, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("/acesso-negado", Page.Url, StringComparison.OrdinalIgnoreCase);
         Assert.Equal(0, await Page.GetByTestId("audit-row").CountAsync());
     }
 
