@@ -61,6 +61,12 @@ jobs:
     - name: Install MAUI Android workload
       run: dotnet workload install maui-android --version 10.0.402
 
+    - name: Testar a conferência do deploy antes do APK
+      run: bash .github/scripts/tests/wait-for-server-deploy.sh
+
+    - name: Testar os canais externos nas telas do app
+      run: dotnet run --project tests/ux-mobile-preview/ux-mobile-preview.csproj --configuration Release -- --verify-external-applications
+
     - name: Restore dependencies
       run: dotnet restore
 
