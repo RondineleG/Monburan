@@ -59,6 +59,26 @@ de Tela") são de contas criadas só para o teste; as vagas vêm da massa de dem
 | ![Detalhe da vaga](mobile-ui/09-detalhe-da-vaga.png) | `Jobs_ListsTheOpenJobs_...` | Detalhe de "Gerente de Projetos" com local, modalidade, salário, requisitos e *Candidatar-se* |
 | ![Busca sem resultado](mobile-ui/10-busca-sem-resultado.png) | `Jobs_SearchWithNoMatch_...` | Busca sem correspondência: "Nenhuma vaga encontrada" |
 
+### Imagens da segunda leva de testes (17 testes novos)
+
+A suíte foi ampliada de 7 para **24 testes**. As imagens abaixo vêm da execução 41376619916 (23 de 24 aprovados; o
+teste que falhou nessa rodada não gera imagem). As oito foram revisadas uma a uma.
+
+| Imagem | Teste | O que mostra |
+|---|---|---|
+| ![Conta criada](mobile-ui/11-conta-criada-painel.png) | `Register_WithValidData_...` | Conta criada pelo formulário: o app entra no painel e mostra "Sua conta foi criada. Boas-vindas à Monburan!" |
+| ![Cadastro com campos obrigatórios](mobile-ui/12-cadastro-campos-obrigatorios.png) | `Register_WithAnEmptyForm_...` | Formulário vazio: "Informe seu nome.", "Informe um e-mail válido." e "A senha precisa ter pelo menos 10 caracteres." |
+| ![Candidatura enviada](mobile-ui/13-candidatura-enviada.png) | `Apply_ToAnOpenJob_...` | "Candidatura enviada!" para a vaga "Gerente de Projetos", com o aviso de confirmação |
+| ![Vagas salvas](mobile-ui/14-vagas-salvas.png) | `SaveJob_FromTheList_...` | Aba *Vagas salvas* com 1 vaga, depois de salvar pela lista |
+| ![Currículo criado](mobile-ui/15-curriculo-criado.png) | `Resume_Create_AppearsInTheList` | Detalhe do currículo recém-criado (ativo, com o resumo digitado) e a mensagem "Currículo criado" |
+| ![Confirmação de exclusão de conta](mobile-ui/16-confirmacao-exclusao-de-conta.png) | `DeleteAccount_WithTheRightPassword_...` | Diálogo "Excluir sua conta?" com *Excluir conta* e *Cancelar* |
+| ![Tema claro](mobile-ui/17-tema-alternado.png) | `ThemeToggle_...` | O app em tema claro depois de tocar no botão de tema |
+| ![Filtro remoto](mobile-ui/18-filtro-remoto.png) | `Jobs_FilteredByRemote_...` | Filtro *Remoto* ativo e só a vaga remota na lista |
+
+Testes novos sem imagem própria: senhas diferentes e senha curta no cadastro, login com campos vazios, título do
+currículo vazio e curto, exclusão de conta sem senha e cancelada, lista de candidaturas vazia e navegação pela barra
+inferior.
+
 ## Ponto em aberto: tela depois de reabrir o app
 
 Os testes `Session_SurvivesClosingAndReopeningTheApp` e o final de `Logout_...` fecham e reabrem o app. Em 3 execuções
@@ -93,11 +113,66 @@ infraestrutura de teste, e não do aplicativo.
 | 11 | 41371426060 | `b3a4a1e` | Aprovado (7 de 7) | Origem das imagens 05 e 06. |
 | 12 | 41372385996 | `411d298` | Falhou (6 de 7) | Teste de vagas perdeu a WebView em uma rodada lenta do emulador. Não corrigido. |
 
+A partir daqui a suíte tem **24 testes** (17 novos: cadastro, candidatura, vagas salvas, currículo, exclusão de conta,
+navegação, tema e filtro).
+
+| # | Execução | Commit | Resultado | Causa e correção |
+|---|---|---|---|---|
+| 13 | 41374819467 | `1e435b1` | Falhou (22 de 24) | Cadastro com senha curta: WebView não subiu na partida a frio. Currículo criado: a expectativa estava errada (o app abre o detalhe do currículo, não a edição). |
+| 14 | 41376619916 | `3b86b60` | Falhou (23 de 24) | Corrigida a expectativa do currículo e incluído aquecimento do emulador. Falhou o teste do título curto do currículo (passara na rodada anterior). Origem das imagens 11 a 18. |
+| 15 | 41378041505 | `20587a9` | Falhou (23 de 24) | Toque de enviar repetido nas validações. Falhou o teste de sair da conta: a tela mostrou "Sem conexão com o servidor". |
+| 16 | 41379609146 | `9d7cbe7` | Falhou (22 de 24) | O teste passou a reaplicar o `adb reverse` da API antes de cada teste. Desta vez o teste de sair da conta passou, mas falharam o de criar currículo e o de tema. A suíte levou 23 min (as anteriores, 12 a 14 min) por quatro testes que esperaram 90 s. |
+
+Nas 13 execuções em que os testes chegaram a rodar (4 a 16), **nenhuma** passou 24 de 24 com a suíte ampliada: as quatro
+execuções com 24 testes tiveram 22, 23, 23 e 22 aprovados, e o teste que falha muda a cada rodada (partida a frio,
+validação de formulário, túnel até a API, criação de currículo). O que se pode afirmar é que **a suíte cobre as telas
+principais e a maior parte dos testes passa**, mas ela ainda não é estável em todas as execuções.
+
 A suíte tem, portanto, **instabilidade residual no emulador do CI**. Nas 9 execuções em que os testes chegaram a rodar
 (de 4 a 12), 3 passaram em 7 de 7 (8, 9 e 11) e 6 tiveram falha parcial (4, 5, 6, 7, 10 e 12). As falhas das
 execuções 6 e 7 já foram corrigidas (expectativa errada e partida a frio). As demais foram perda da WebView ou lentidão
 do emulador, e não foi constatado defeito de tela do aplicativo nelas. Para o relatório, a afirmação sustentada é
 "os 7 testes passam, mas a suíte ainda não é estável em todas as execuções".
+
+## Testes que falharam em cada execução
+
+Levantado dos logs de cada execução. "Tipo" separa o que era erro do **teste** (expectativa ou seletor errado) do que
+foi do **ambiente** do emulador no CI (partida a frio, WebView perdida, túnel até a API). Em nenhum dos casos abaixo
+foi constatado defeito de tela do aplicativo.
+
+| Execução | Resultado | Teste que falhou | O que o log mostrou | Tipo |
+|---|---|---|---|---|
+| 41359021036, 41359474062 | Nenhum teste rodou | — | O Appium não instalou (driver incompatível) e depois não iniciou (flag sem escopo) | Configuração do CI |
+| 41360056082 | Sessões não abriram | Todos os que chegaram a rodar | Instalação do servidor UiAutomator2 passou do limite de 20 s | Ambiente |
+| 41360855793 | 4 de 7 | `FirstLaunch_WithoutSession_...` | Estourou 45 s na primeira abertura a frio | Ambiente |
+| | | `Session_SurvivesClosingAndReopeningTheApp` | "not connected to DevTools" depois de reabrir o app | Ambiente |
+| | | `Logout_GoesToTheLoginScreen_...` | Clique interceptado: a barra inferior cobria o botão | Teste |
+| 41361761623 | 4 de 7 | `Jobs_SearchWithNoMatch_...` | "not connected to DevTools" | Ambiente |
+| | | `FirstLaunch_WithoutSession_...` | Estourou 90 s na primeira abertura a frio | Ambiente |
+| | | `Logout_GoesToTheLoginScreen_...` | Estourou 90 s | Ambiente |
+| 41362801913 | 6 de 7 | `Logout_GoesToTheLoginScreen_...` | O teste esperava a tela de boas-vindas, mas o app vai ao login | Teste |
+| 41363679411 | 6 de 7 | `FirstLaunch_WithoutSession_...` | A WebView não subiu em 90 s na partida a frio | Ambiente |
+| 41364600639, 41369620671, 41371426060 | 7 de 7 | — | — | — |
+| 41370360632 | 6 de 7 | `Session_SurvivesClosingAndReopeningTheApp` | "element not interactable" ao digitar no login logo depois de navegar | Teste |
+| 41372385996 | 6 de 7 | `Jobs_ListsTheOpenJobs_AndOpensTheDetails` | WebView perdida (URL "?"); não achou o botão *Entrar* em 90 s | Ambiente |
+| 41374819467 | 22 de 24 | `Register_WithAShortPassword_ShowsThePolicyError` | WebView perdida na partida a frio; não achou *Criar conta gratuita* em 90 s | Ambiente |
+| | | `Resume_Create_AppearsInTheList` | O currículo **foi criado**; o teste esperava a tela de edição, mas o app abre o detalhe | Teste |
+| 41376619916 | 23 de 24 | `Resume_WithATooShortTitle_...` | O aviso "pelo menos 3 caracteres" não apareceu em 90 s; esse teste havia passado na rodada anterior | Instável (causa não confirmada) |
+| 41378041505 | 23 de 24 | `Logout_GoesToTheLoginScreen_...` | A tela mostrou "Sem conexão com o servidor" ao entrar | Ambiente (túnel até a API, hipótese) |
+| 41379609146 | 22 de 24 | `Resume_Create_AppearsInTheList` | Estourou 90 s sem mensagem de elemento (duas esperas seguidas, 3 min 6 s no total); o teste passara na execução anterior | Instável (causa não confirmada) |
+| | | `ThemeToggle_SwitchesBetweenDarkAndLight` | A WebView não subiu: não achou o título das boas-vindas em 90 s (URL "?") | Ambiente |
+
+Leitura dos números: de 41360855793 em diante a tabela registra **16 falhas de teste individuais**. Delas, 10 foram
+ambiente do emulador (partida a frio, WebView ou túnel perdidos), 4 foram erro do próprio teste (já corrigidos) e 2
+ficaram sem causa confirmada (`Resume_WithATooShortTitle_...` e `Resume_Create_AppearsInTheList` na última execução).
+O `Logout_GoesToTheLoginScreen_...` falhou 4 vezes (duas por causa do teste, duas por ambiente), o
+`FirstLaunch_WithoutSession_...`, 3 vezes (sempre partida a frio), e o `Resume_Create_AppearsInTheList`, 2 vezes
+(uma por expectativa errada, outra sem causa confirmada).
+
+Na execução 41379609146, o que estendeu a suíte para 23 min não foi a chamada do `adb reverse` (a maioria dos testes
+levou de 14 a 31 s, como antes), e sim quatro testes que esperaram 90 s por engasgo do emulador: os dois que falharam
+e outros dois que passaram devagar (`Register_WithValidData_...` e `Login_WithValidCredentials_...`, cerca de 1 min 52 s
+cada).
 
 ## O que isso valida e o que não valida
 

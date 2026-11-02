@@ -42,8 +42,29 @@ public sealed class AppSession : IDisposable
             options.App = apk;
 
         Driver = new AndroidDriver(MobileEnvironment.AppiumUrl, options, TimeSpan.FromMinutes(3));
+        EnsureApiTunnel();
         ClearAppData();
         Relaunch();
+    }
+
+    /// <summary>
+    /// Reaplica o `adb reverse` da API antes de cada teste. Numa rodada o app mostrou "Sem conexão com o servidor" no
+    /// meio da suíte, sinal de que o túnel do emulador para a API tinha caído. Sem adb no PATH, segue sem fazer nada.
+    /// </summary>
+    private static void EnsureApiTunnel()
+    {
+        try
+        {
+            var port = MobileEnvironment.ApiUrl.Port;
+            using var adb = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("adb", $"reverse tcp:{port} tcp:{port}")
+            {
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                UseShellExecute = false
+            });
+            adb?.WaitForExit(15000);
+        }
+        catch (Exception) { /* sem adb no PATH: o túnel precisa ter sido aberto por fora */ }
     }
 
     /// <summary>Fecha e abre o app de novo, mantendo os dados (simula o usuário fechando e voltando).</summary>
@@ -211,6 +232,50 @@ public sealed class AppSession : IDisposable
             Driver.GetScreenshot().SaveAsFile(Path.Combine(dir, $"falha-{DateTime.UtcNow:HHmmss-fff}.png"));
         }
         catch (Exception) { /* diagnóstico nunca derruba o teste */ }
+    }
+
+    /// <summary>Espera uma condição sobre a página (ex.: todos os cartões da lista são de uma modalidade).</summary>
+    public void WaitUntil(string what, Func<bool> condition) =>
+        Poll(what, () =>
+        {
+            try { return condition() ? Driver.FindElement(By.CssSelector("body")) : null; }
+            catch (StaleElementReferenceException) { return null; }
+        });
+
+    /// <summary>Textos dos elementos visíveis que casam com o seletor.</summary>
+    public IReadOnlyList<string> TextsOf(string css) =>
+        Driver.FindElements(By.CssSelector(css)).Where(e => e.Displayed).Select(e => e.Text).ToList();
+
+    /// <summary>Atributo do primeiro elemento que casa com o seletor.</summary>
+    public string? AttributeOf(string css, string attribute) => WaitFor(css).GetAttribute(attribute);
+
+    /// <summary>Toca num item da barra inferior (Início, Vagas, Candidaturas, Avisos, Perfil).</summary>
+    public void GoTo(string label) => TapText(".bottom-nav__link", label);
+
+    /// <summary>
+    /// Toca no botão e espera o resultado aparecer; se não aparecer em 12 s, toca de novo (até 3 vezes). Para validações
+    /// de formulário, em que o primeiro toque às vezes se perde logo depois de digitar.
+    /// </summary>
+    public void TapUntilShown(string buttonCss, string buttonText, string expectCss, string expectText, int attempts = 3)
+    {
+        for (var attempt = 1; ; attempt++)
+        {
+            TapText(buttonCss, buttonText);
+            try
+            {
+                new WebDriverWait(new SystemClock(), Driver, TimeSpan.FromSeconds(12), TimeSpan.FromMilliseconds(300)).Until(_ =>
+                {
+                    try
+                    {
+                        return Driver.FindElements(By.CssSelector(expectCss))
+                            .FirstOrDefault(e => e.Displayed && e.Text.Contains(expectText, StringComparison.OrdinalIgnoreCase));
+                    }
+                    catch (StaleElementReferenceException) { return null; }
+                });
+                return;
+            }
+            catch (WebDriverTimeoutException) when (attempt < attempts) { }
+        }
     }
 
     public void Tap(string css) => Click(WaitFor(css));
