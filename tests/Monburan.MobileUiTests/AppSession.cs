@@ -15,6 +15,12 @@ public sealed class AppSession : IDisposable
     // A primeira abertura do app num emulador recém-iniciado (JIT do .NET + WebView) passa dos 45 s
     private static readonly TimeSpan DefaultWait = TimeSpan.FromSeconds(90);
 
+    // WebView em branco (sem nenhum texto na página, nem o "Monburan" da abertura) ou sem DevTools por tanto tempo é
+    // sinal de que ela não subiu: esperar o resto dos 90 s só adia a falha. O app é reiniciado, uma vez por espera
+    private static readonly TimeSpan BlankLimit = TimeSpan.FromSeconds(30);
+    private static readonly TimeSpan BlankCheckEvery = TimeSpan.FromSeconds(2);
+    private const int MaxBlankRestarts = 1;
+
     public AndroidDriver Driver { get; }
 
     public AppSession()
@@ -82,11 +88,18 @@ public sealed class AppSession : IDisposable
         {
             // Na primeira abertura a frio do emulador a WebView às vezes nem sobe (já passou e já falhou com o mesmo
             // APK): reinicia o app uma vez antes de dar o teste por perdido
-            TrySwitchToNative();
-            Driver.TerminateApp(MobileEnvironment.AppPackage);
-            Driver.ActivateApp(MobileEnvironment.AppPackage);
-            EnterWebView();
+            RestartApp();
         }
+    }
+
+    /// <summary>Fecha e abre o app e volta à WebView, sem apagar os dados (a sessão guardada continua valendo).</summary>
+    private void RestartApp(TimeSpan? webViewWait = null)
+    {
+        TrySwitchToNative();
+        EnsureApiTunnel(); // o túnel do emulador para a API também pode ter caído junto
+        Driver.TerminateApp(MobileEnvironment.AppPackage);
+        Driver.ActivateApp(MobileEnvironment.AppPackage);
+        EnterWebView(webViewWait);
     }
 
     private void TrySwitchToNative()
@@ -101,10 +114,10 @@ public sealed class AppSession : IDisposable
         Driver.ExecuteScript("mobile: clearApp", new Dictionary<string, object> { ["appId"] = MobileEnvironment.AppPackage });
     }
 
-    private void EnterWebView()
+    private void EnterWebView(TimeSpan? timeout = null)
     {
         // Repete até a WebView aceitar o contexto e responder: logo após abrir o app ela ainda pode estar sem DevTools
-        Wait().Until(_ =>
+        Wait(timeout).Until(_ =>
         {
             try
             {
@@ -130,8 +143,8 @@ public sealed class AppSession : IDisposable
         element.Click();
     }
 
-    private WebDriverWait Wait() =>
-        new(new SystemClock(), Driver, DefaultWait, TimeSpan.FromMilliseconds(300));
+    private WebDriverWait Wait(TimeSpan? timeout = null) =>
+        new(new SystemClock(), Driver, timeout ?? DefaultWait, TimeSpan.FromMilliseconds(300));
 
     public IWebElement WaitFor(string css) =>
         Poll($"elemento '{css}'", () =>
@@ -148,30 +161,64 @@ public sealed class AppSession : IDisposable
 
     /// <summary>
     /// Repete a sonda até ela devolver algo. Elemento ainda ausente ou velho é só "tente de novo"; se o chromedriver
-    /// perder o DevTools (a WebView foi recriada), reentra na WebView e continua. Ao estourar o tempo, a mensagem
-    /// traz o que estava na tela e um screenshot é salvo em MOBILE_DIAG_DIR.
+    /// perder o DevTools (a WebView foi recriada), reentra na WebView e continua. Se a página ficar em branco (ou sem
+    /// DevTools) por <see cref="BlankLimit"/>, reinicia o app e recomeça a espera, em vez de gastar os 90 s inteiros
+    /// numa WebView que não subiu. Ao estourar o tempo, a mensagem traz o que estava na tela e um screenshot é salvo
+    /// em MOBILE_DIAG_DIR.
     /// </summary>
     private IWebElement Poll(string what, Func<IWebElement?> probe)
     {
-        try
+        var deadline = DateTime.UtcNow + DefaultWait;
+        var nextBlankCheck = DateTime.UtcNow + BlankCheckEvery;
+        DateTime? blankSince = null;
+        var restarts = 0;
+
+        while (DateTime.UtcNow < deadline)
         {
-            return Wait().Until(_ =>
+            try
             {
-                try { return probe(); }
-                catch (NoSuchElementException) { return null; }
-                catch (StaleElementReferenceException) { return null; }
-                catch (WebDriverException ex) when (ex is not WebDriverTimeoutException)
+                if (probe() is { } found)
+                    return found;
+            }
+            catch (NoSuchElementException) { }
+            catch (StaleElementReferenceException) { }
+            catch (WebDriverException ex) when (ex is not WebDriverTimeoutException)
+            {
+                // "disconnected: not connected to DevTools" e semelhantes. Espera curta: o resto do tempo é da sonda
+                try { EnterWebView(BlankCheckEvery * 5); } catch (WebDriverTimeoutException) { }
+            }
+
+            // Só olha a página quando a sonda não achou nada, e no máximo a cada 2 s: não pesa nos testes que passam
+            var now = DateTime.UtcNow;
+            if (now >= nextBlankCheck)
+            {
+                nextBlankCheck = now + BlankCheckEvery;
+                if (!IsBlank())
+                    blankSince = null;
+                else
                 {
-                    // "disconnected: not connected to DevTools" e semelhantes
-                    try { EnterWebView(); } catch (WebDriverTimeoutException) { }
-                    return null;
+                    blankSince ??= now;
+                    if (restarts < MaxBlankRestarts && now - blankSince >= BlankLimit)
+                    {
+                        restarts++;
+                        blankSince = null;
+                        try { RestartApp(BlankLimit); } catch (WebDriverException) { /* a espera seguinte decide */ }
+                        deadline = DateTime.UtcNow + DefaultWait;
+                    }
                 }
-            })!;
+            }
+
+            Thread.Sleep(300);
         }
-        catch (WebDriverTimeoutException)
-        {
-            throw new WebDriverTimeoutException($"Não apareceu {what} em {DefaultWait.TotalSeconds:0}s. {Describe()}");
-        }
+
+        throw new WebDriverTimeoutException($"Não apareceu {what} em {DefaultWait.TotalSeconds:0}s. {Describe()}");
+    }
+
+    /// <summary>Página sem nenhum texto, ou WebView sem resposta: a abertura do app já tem texto ("Monburan").</summary>
+    private bool IsBlank()
+    {
+        try { return Driver.FindElement(By.CssSelector("body")).Text.Trim().Length == 0; }
+        catch (WebDriverException) { return true; }
     }
 
     private string Describe()
