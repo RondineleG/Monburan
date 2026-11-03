@@ -25,7 +25,7 @@
 
     <div class="form-field">
         <label for="login-password">Senha</label>
-        <input id="login-password" class="input" type="password" @bind="_password" placeholder="••••••••" autocomplete="current-password" />
+        <PasswordInput Id="login-password" @bind-Value="_password" Placeholder="••••••••" Autocomplete="current-password" />
     </div>
 
     <button type="submit" class="btn btn-primary btn-block" disabled="@_busy">

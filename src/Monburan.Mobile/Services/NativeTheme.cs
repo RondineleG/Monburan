@@ -41,6 +41,17 @@ public static class NativeTheme
         if (controller is null)
             return;
 
+        // Cor da barra de status e de navegação = fundo do tema (iguais ao theme-color da web), sem faixa estranha.
+        // Em Android 15+ (API 35) as barras são transparentes e o fundo da página aparece; o setter é ignorado.
+        var background = Android.Graphics.Color.ParseColor(isDark ? "#0A0806" : "#F2EBD9");
+        if (!OperatingSystem.IsAndroidVersionAtLeast(35))
+        {
+#pragma warning disable CA1422 // obsoleto só a partir da API 35, onde o ramo nem executa
+            window.SetStatusBarColor(background);
+            window.SetNavigationBarColor(background);
+#pragma warning restore CA1422
+        }
+
         controller.AppearanceLightStatusBars = !isDark;
         controller.AppearanceLightNavigationBars = !isDark;
     }
