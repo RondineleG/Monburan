@@ -120,6 +120,11 @@ else
                     <NavLink class="sidebar-link" href="/admin/sugestoes" data-testid="nav-admin-submissions" data-label="Sugestões">
                         <span class="sidebar-link__icon"><Icon Name="file" /></span><span>Sugestões</span>
                     </NavLink>
+                    <FeatureGate Feature="captacao-vagas">
+                        <NavLink class="sidebar-link" href="/admin/captacao" data-testid="nav-admin-job-collection" data-label="Captação">
+                            <span class="sidebar-link__icon"><Icon Name="briefcase" /></span><span>Captação de vagas</span>
+                        </NavLink>
+                    </FeatureGate>
                     <NavLink class="sidebar-link" href="/admin/candidatos" data-label="Candidatos">
                         <span class="sidebar-link__icon"><Icon Name="users" /></span><span>Candidatos</span>
                     </NavLink>

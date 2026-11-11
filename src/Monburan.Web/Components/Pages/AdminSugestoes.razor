@@ -23,7 +23,7 @@
 <PageTitle>Sugestões de vaga - Moderação - Monburan</PageTitle>
 
 <PageHeader Title="Sugestões de vaga" TestId="admin-submissions-page"
-            Description="Confira a imagem e os dados antes de decidir. Só a aprovação cria uma vaga, sempre como vaga externa.">
+            Description="Confira a origem e os dados antes de decidir. Só a aprovação cria uma vaga, sempre como vaga externa.">
 </PageHeader>
 
 <div class="container">
@@ -84,13 +84,20 @@
                     </article>
 
                     <article class="card mb-3" data-testid="admin-submission-evidence">
-                        <h3 class="h6">Evidência (privada, não publicada)</h3>
-                        <div class="d-flex flex-wrap gap-3">
-                            @foreach (var image in evidenceImages)
-                            {
-                                <img src="@image" alt="Imagem enviada como evidência" style="max-width: 320px; border-radius: 8px;" loading="lazy" />
-                            }
-                        </div>
+                        <h3 class="h6">Evidência privada</h3>
+                        @if (evidenceImages.Count == 0)
+                        {
+                            <p class="mb-0">Esta sugestão foi importada de uma fonte pública. Confira o conteúdo e a situação atual no link de origem.</p>
+                        }
+                        else
+                        {
+                            <div class="d-flex flex-wrap gap-3">
+                                @foreach (var image in evidenceImages)
+                                {
+                                    <img src="@image" alt="Imagem enviada como evidência" style="max-width: 320px; border-radius: 8px;" loading="lazy" />
+                                }
+                            </div>
+                        }
                     </article>
 
                     @if (duplicates.Count > 0)

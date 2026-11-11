@@ -455,6 +455,7 @@ builder.Services.AddSingleton<ISubmitterKeyHasher, HmacSubmitterKeyHasher>();
 builder.Services.AddScoped<SubmitJobSuggestionUseCase>();
 builder.Services.AddScoped<ModerateJobSubmissionUseCase>();
 builder.Services.AddScoped<ExtractJobDraftUseCase>();
+builder.Services.AddScoped<ImportCollectedJobSuggestionsUseCase>();
 
 // Registrar CurrentUserHelper
 builder.Services.AddHttpContextAccessor();

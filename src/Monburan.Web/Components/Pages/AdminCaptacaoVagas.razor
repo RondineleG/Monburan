@@ -1,0 +1,100 @@
+@page "/admin/captacao"
+@rendermode InteractiveServer
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Policy = "AdminOnly")]
+@using System.Text.Json
+@using Monburan.Core.DTOs.Request
+@using Monburan.Core.Enums
+@using Monburan.Core.UseCases.Submissions
+@inject ImportCollectedJobSuggestionsUseCase ImportCollected
+@inject AuthenticationStateProvider AuthenticationStateProvider
+
+<PageTitle>Captação de vagas - Administração - Monburan</PageTitle>
+
+<FeatureGate Feature="captacao-vagas">
+    <PageHeader Title="Captação de vagas" TestId="admin-job-collection-page"
+                Description="Importe a coleta dos portais públicos para revisão. Nenhuma vaga é publicada sem aprovação de um moderador.">
+    </PageHeader>
+
+    <div class="container">
+        <p>Execute o coletor Playwright em <code>tools/job-collector</code>, depois selecione o JSON gerado. A fila de revisão fica em <a href="/admin/sugestoes">Sugestões de vaga</a>.</p>
+        <pre class="p-3 bg-light border rounded"><code>cd tools/job-collector
+npm ci
+npx playwright install chromium
+npm run collect -- --output collected-jobs.json</code></pre>
+
+        @if (message is not null)
+        {
+            <p class="alert @(messageIsError ? "alert-danger" : "alert-success")" role="status" data-testid="admin-job-collection-message">@message</p>
+        }
+
+        <section class="card p-3" aria-labelledby="collection-import-title">
+            <h2 id="collection-import-title" class="h5">Importar para revisão</h2>
+            <p class="small">A importação valida a origem, remove links repetidos e não torna as vagas públicas.</p>
+            <InputFile OnChange="ImportAsync" accept="application/json,.json" disabled="@busy" data-testid="admin-job-collection-file" />
+            @if (busy)
+            {
+                <p class="mt-2 mb-0">Validando e importando vagas…</p>
+            }
+        </section>
+    </div>
+</FeatureGate>
+
+@code {
+    private const long MaxFileBytes = 2 * 1024 * 1024;
+    private static readonly JsonSerializerOptions JsonOptions = new() { PropertyNameCaseInsensitive = true };
+    private bool busy;
+    private bool messageIsError;
+    private string? message;
+
+    private async Task ImportAsync(InputFileChangeEventArgs args)
+    {
+        if (busy)
+            return;
+
+        busy = true;
+        message = null;
+        try
+        {
+            await using var stream = args.File.OpenReadStream(MaxFileBytes);
+            var batch = await JsonSerializer.DeserializeAsync<CollectedJobBatch>(stream, JsonOptions);
+            if (batch is null || batch.Version != 1 || batch.Jobs is null)
+            {
+                Show("O arquivo não tem o formato de coleta esperado (version 1).", true);
+                return;
+            }
+
+            var authenticationState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+            var imported = await ImportCollected.ExecuteAsync(
+                new ImportCollectedJobSuggestionsRequest(batch.Jobs), authenticationState.User);
+            if (imported.Status == EResultStatus.Success && imported.Data is not null)
+            {
+                Show($"Importadas {imported.Data.ImportedCount} vagas para revisão; {imported.Data.DuplicateCount} links repetidos foram ignorados.", false);
+                return;
+            }
+
+            Show(imported.ValidationResult?.ErrorMessage ?? imported.Message ?? "Não foi possível importar este arquivo.", true);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            Show(ex is IOException
+                ? "Não foi possível ler o arquivo. O limite é 2 MB."
+                : "O arquivo está inválido ou não corresponde ao formato da coleta.", true);
+        }
+        finally
+        {
+            busy = false;
+        }
+    }
+
+    private void Show(string text, bool isError)
+    {
+        message = text;
+        messageIsError = isError;
+    }
+
+    private sealed class CollectedJobBatch
+    {
+        public int Version { get; init; }
+        public List<CollectedJobInput> Jobs { get; init; } = [];
+    }
+}
