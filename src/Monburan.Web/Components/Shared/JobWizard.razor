@@ -25,12 +25,12 @@
                 @if ((stepNumber <= maxStep || hasErrors) && stepNumber != step)
                 {
                     <button type="button" class="job-wizard__step-link" @onclick="() => GoToStep(stepNumber)" data-testid="job-wizard-step-@stepNumber">
-                        @stepNumber. @item.Value@(hasErrors ? " (revisar)" : string.Empty)
+                        @stepNumber.<span class="job-wizard__step-label"> @item.Value</span>@(hasErrors ? " (revisar)" : string.Empty)
                     </button>
                 }
                 else
                 {
-                    <span data-testid="job-wizard-step-@stepNumber">@stepNumber. @item.Value@(hasErrors ? " (revisar)" : string.Empty)</span>
+                    <span data-testid="job-wizard-step-@stepNumber">@stepNumber.<span class="job-wizard__step-label"> @item.Value</span>@(hasErrors ? " (revisar)" : string.Empty)</span>
                 }
             </li>
         }

@@ -350,6 +350,16 @@
     /* Etapa ativa com erro: mantém o texto legível sobre o fundo escuro; o erro vai no contorno */
     .wizard-step--active.wizard-step--error { border-color: var(--er); box-shadow: 0 0 0 2px var(--er); color: var(--action-fg); }
     .job-wizard__step--error .job-wizard__step-link { color: var(--er); }
+    /* Celular: as etapas cabem numa linha. A etapa atual (e a com erro) mostra o nome; as outras, só o número, com o
+       nome mantido para leitor de tela (mesmo recorte do .visually-hidden) */
+    @media (max-width: 575.98px) {
+        .job-wizard__step:not(.job-wizard__step--active):not(.job-wizard__step--error) .job-wizard__step-label,
+        .wizard-step:not(.wizard-step--active):not(.wizard-step--error) .wizard-step__label {
+            position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+        }
+        .job-wizard__step,
+        .wizard-step { justify-content: center; min-width: var(--control-h); padding-inline: var(--s-3); }
+    }
 
     /* ---------- Estados: carregando, vazio, erro ---------- */
     .loading-state { display: grid; min-height: 12rem; place-items: center; align-content: center; gap: var(--s-3); color: var(--tx-2); }
