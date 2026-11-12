@@ -57,9 +57,15 @@ telas foram compiladas pelo `tests/ux-mobile-preview`). O CI roda os três.
       e `App__PublicBaseUrl` HTTPS no ambiente; cadastrar `/api/v1/webhooks/mercadopago` para os eventos
       `subscription_preapproval` e `subscription_authorized_payment` no painel do Mercado Pago; validar primeiro com
       credenciais de teste. Nunca ligar um bypass de upgrade pago.
-- [ ] 🟠 **Boost, destaque e analytics por plano.** Implementar ou remover do catálogo (`AUDIT-REPORT.md` §5.2).
+- [x] 🟠 **Boost, destaque e analytics por plano.** Resolvido pelo caminho "remover do catálogo": `/plans` anuncia
+      apenas o que o backend aplica (limite de vagas ativas, candidaturas ilimitadas, painel). As flags
+      `HasBoost`/`HasHighlight`/`HasAnalytics`/`MaxResumes` e `Job.Boost`/`Job.Highlight` seguem no schema, dormentes,
+      para eventual implementação — nada as anuncia nem as lê (`AUDIT-REPORT.md` §5.2).
+      **Evidência:** `Plans.razor` (lista só recursos aplicados), `grep` por `HasBoost|JobBoost` fora de migrations.
 - [ ] 🟠 **Limite de vagas ativas.** Comunicar aos anunciantes que quem excede o limite não publica nem reativa vagas
-      até ficar abaixo (`AUDIT-REPORT.md` §5.3).
+      até ficar abaixo (`AUDIT-REPORT.md` §5.3). *Backend já aplicado:* `CheckJobLimitUseCase` é chamado por
+      `CreateJobUseCase` e `ChangeJobStatusUseCase` (reativação também conta), com cobertura em
+      `CheckJobLimitUseCaseTests` — falta só a comunicação ao anunciante.
 - [ ] 🟡 **Página pública da empresa** e **detalhe de candidato no admin:** decidir se entram no roadmap (§5.4).
 - [ ] 🟡 **PDF importado como campo do currículo.** Decidir se o `FileUrl` será exibido ou baixado pelo recrutador (§5.5).
 - [ ] 🟠 **Retenção na exclusão de conta (LGPD).** Validar com o jurídico que candidaturas ficam anônimas no histórico
@@ -240,14 +246,22 @@ telas foram compiladas pelo `tests/ux-mobile-preview`). O CI roda os três.
 
 ## 7. Qualidade e testes
 
-- [ ] 🔴 **Testes unitários:** 1276 passando na branch (validado em 2026-10-29).
-- [ ] 🔴 **Testes de API:** 245 passando na branch (validado em 2026-10-29).
-- [ ] 🔴 **Testes de integração** (Testcontainers, precisa de Docker) passando na branch. *Não rodados nesta análise.*
-- [ ] 🔴 **E2E (Playwright)** passando na branch, contra o app com Postgres. *Não rodado nesta análise.*
+- [x] 🔴 **Testes unitários:** 1378 passando (validado em 2026-11-12 na `feat/monetizacao-portal-appp`,
+      `dotnet test tests/Monburan.UnitTests`).
+- [x] 🔴 **Testes de API:** 290 passando (validado em 2026-11-12, `dotnet test tests/Monburan.ApiTests`).
+- [x] 🔴 **Testes de integração** (Testcontainers, precisa de Docker): 63 passando em PostgreSQL 16 real
+      (validado em 2026-11-12, `dotnet test tests/Monburan.IntegrationTests`).
+- [x] 🔴 **E2E (Playwright):** 102 passando contra a app em Development + Postgres
+      (validado em 2026-11-12; app com `APPLY_MIGRATIONS=true` em `localhost:5095`, browsers v1248).
 - [ ] 🟠 **Falha intermitente** em `FullSweepTests.Sweep_Advertiser_AllRoutes`: investigar a causa raiz. O job repete a
-      execução para mascarar o problema (`docs/CI-CD.md`, Testes).
+      execução para mascarar o problema (`docs/CI-CD.md`, Testes). Em 2026-11-12 a suíte passou 2x seguidas;
+      `AddressCreate_WarnsBeforeLeavingWithUnsavedChanges` falhou 1x por timeout de 5s no `beforeunload` e passou
+      isolado e na re-execução — flakiness de timing, mesma classe. Segue aberto.
 - [ ] 🟠 **Teste da migração** de sugestões e de links públicos com dados reais em PostgreSQL 16 (não InMemory).
-- [ ] 🟠 **Teste de contrato do app** com a API da branch (`MobileClientContractTests`).
+      *Migrations aplicam limpo:* suíte de integração sobe Postgres 16 real e migra do zero (validado em 2026-11-12);
+      falta só a cópia de dados de produção.
+- [x] 🟠 **Teste de contrato do app** com a API da branch (`MobileClientContractTests`): dentro dos 290 de API
+      (validado em 2026-11-12).
 - [ ] 🟡 Rodar `ux-smoke` e comparar as capturas com as do `docs/prints`.
 - [ ] 🟡 **Cobertura de código** gerada no CI e revisada (artefato `coverage-report`).
 
@@ -266,7 +280,8 @@ telas foram compiladas pelo `tests/ux-mobile-preview`). O CI roda os três.
 
 ## 8. Segurança
 
-- [ ] 🔴 **Varredura de dependências vulneráveis** sem alertas (`dotnet list package --vulnerable --include-transitive`).
+- [x] 🔴 **Varredura de dependências vulneráveis** sem alertas (`dotnet list package --vulnerable --include-transitive`
+      → "no vulnerable packages" em todos os 10 projetos, validado em 2026-11-12).
 - [ ] 🔴 **CodeQL** sem alertas de severidade alta em *Security → Code scanning*.
 - [ ] 🟠 **Secret scanning** com bloqueio de push ligado.
 - [ ] 🟠 **Teste de invasão externo** (pendente na auditoria).
