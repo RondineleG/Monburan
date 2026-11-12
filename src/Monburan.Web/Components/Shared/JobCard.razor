@@ -23,12 +23,12 @@
             {
                 <p class="job-card__company">@JobChannel.CompanyName(Job)</p>
             }
+            @* Só a exceção ganha selo: vaga direta é o padrão. O selo fica abaixo do título para não espremê-lo no celular *@
+            @if (JobChannel.IsExternal(Job))
+            {
+                <span class="status-badge badge--info job-card__flag" data-testid="job-publication">@JobChannel.PublicationLabel(Job)</span>
+            }
         </div>
-        @if (isNew)
-        {
-            <span class="job-flag status-badge badge--ok">Nova</span>
-        }
-        <span class="status-badge @(JobChannel.IsExternal(Job) ? "badge--info" : "badge--neutral")" data-testid="job-publication">@JobChannel.PublicationLabel(Job)</span>
     </div>
 
     <ul class="job-facts" aria-label="Resumo da vaga">
@@ -60,7 +60,8 @@
     }
 
     <div class="job-card__foot">
-        <span>Publicada @JobDisplay.Age(Job.CreatedAt)</span>
+        @* "Publicada hoje/ontem" já diz que a vaga é nova: o destaque vem do texto, sem um selo a mais no topo *@
+        <span class="@(isNew ? "job-card__age--new" : null)">Publicada @JobDisplay.Age(Job.CreatedAt)</span>
         @if (closing is not null)
         {
             <span class="job-card__closing">@closing</span>

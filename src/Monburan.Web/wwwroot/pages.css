@@ -86,7 +86,8 @@
     .job-logo img { position: absolute; inset: 0; width: 100%; height: 100%; padding: var(--s-1); background: var(--logo-bg); object-fit: contain; }
     .job-logo img[hidden] { display: none; }
     .job-logo--lg { width: 4rem; height: 4rem; border-radius: var(--r-lg); font-size: var(--fs-xl); }
-    .job-flag { flex: 0 0 auto; }
+    .job-card__flag { margin-top: var(--s-2); }
+    .job-card__age--new { color: var(--ok); font-weight: var(--fw-semibold); }
     /* Vaga salva: estrela preenchida, mesmo botão (o texto diz o estado) */
     .save-job-button.is-saved { border-color: var(--gold); color: var(--gold-d); }
     .save-job-button.is-saved .icon { fill: currentColor; }
@@ -96,8 +97,7 @@
     .job-facts .icon { color: var(--gold-d); }
     .job-facts__salary { color: var(--ok); font-weight: var(--fw-bold); }
     .job-facts .job-facts__salary .icon { color: var(--ok); }
-    .job-facts--lg { gap: var(--s-2); font-size: var(--fs-md); }
-    .job-facts--lg li { padding: var(--s-2) var(--s-3); border: 1px solid var(--border); border-radius: var(--r-md); background: var(--bg-elev); }
+    .job-facts--lg { gap: var(--s-2) var(--s-5); font-size: var(--fs-md); }
     .job-tags { display: flex; flex-wrap: wrap; gap: var(--s-2); margin: 0; padding: 0; list-style: none; }
     .job-tag { padding: 0.125rem var(--s-3); border: 1px solid var(--border); border-radius: var(--r-pill); background: var(--surface); color: var(--tx-2); font-size: var(--fs-2xs); font-weight: var(--fw-semibold); }
     .job-tag--category { border-color: var(--gold-border); background: var(--gold-soft); color: var(--gold-d); }
@@ -176,14 +176,16 @@
     .job-sticky-cta .btn-cta { flex: 1; }
     .job-sticky-cta__share { flex: 0 0 auto; width: var(--control-h-lg); padding: 0; }
     .job-detail-page.has-sticky-cta { padding-bottom: 5.5rem; }
-    .job-apply-card { display: none; }
+    /* O cartão de candidatura fica no celular (salvar, fonte da vaga, situação da candidatura); só o botão principal,
+       repetido na barra fixa, sai dele */
+    .has-sticky-cta .job-apply-card__cta { display: none; }
     /* Avisos acima da barra fixa de candidatura, sem cobri-la */
     body:has(.has-sticky-cta) .toast-stack { bottom: calc(5.5rem + env(safe-area-inset-bottom)); }
 
     @media (min-width: 992px) {
         .job-detail-layout { grid-template-columns: minmax(0, 1fr) 20rem; }
         .job-detail-aside { position: sticky; top: calc(var(--topbar-h) + var(--s-4)); }
-        .job-apply-card { display: block; }
+        .has-sticky-cta .job-apply-card__cta { display: inline-flex; }
         .job-sticky-cta { display: none; }
         .job-detail-page.has-sticky-cta { padding-bottom: 0; }
         body:has(.has-sticky-cta) .toast-stack { bottom: var(--s-5); }

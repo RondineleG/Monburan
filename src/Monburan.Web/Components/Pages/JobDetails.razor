@@ -183,7 +183,7 @@
                             <p data-testid="job-external-notice">@JobChannel.Notice(job)</p>
                             @if (JobChannel.ExternalHref(job) is { } externalLink)
                             {
-                                <a class="btn btn-primary btn-cta" href="@externalLink" target="@(externalLink.StartsWith("http", StringComparison.Ordinal) ? "_blank" : null)" rel="noopener noreferrer" data-testid="job-apply-external">@JobChannel.CtaLabel(job)</a>
+                                <a class="btn btn-primary btn-cta job-apply-card__cta" href="@externalLink" target="@(externalLink.StartsWith("http", StringComparison.Ordinal) ? "_blank" : null)" rel="noopener noreferrer" data-testid="job-apply-external">@JobChannel.CtaLabel(job)</a>
                             }
                             else
                             {
@@ -206,22 +206,22 @@
                         {
                             <p>Você já se candidatou a esta vaga.</p>
                             <p class="mb-3">Situação: <StatusBadge Kind="StatusKind.Application" Value="@existingApplication.Status" /></p>
-                            <a class="btn btn-primary btn-cta" href="/minhas-candidaturas?aba=candidaturas" data-testid="job-track-application">Acompanhar candidatura</a>
+                            <a class="btn btn-primary btn-cta job-apply-card__cta" href="/minhas-candidaturas?aba=candidaturas" data-testid="job-track-application">Acompanhar candidatura</a>
                         }
                         else if (applicationLookupFailed)
                         {
                             <p>Não foi possível verificar se você já se candidatou.</p>
-                            <a class="btn btn-primary btn-cta" href="@applyUrl" data-testid="job-apply">Verificar candidatura</a>
+                            <a class="btn btn-primary btn-cta job-apply-card__cta" href="@applyUrl" data-testid="job-apply">Verificar candidatura</a>
                         }
                         else if (isCandidate)
                         {
                             <p>Envie sua candidatura em poucos cliques.</p>
-                            <a class="btn btn-primary btn-cta" href="@applyUrl" data-testid="job-apply">Candidatar-se</a>
+                            <a class="btn btn-primary btn-cta job-apply-card__cta" href="@applyUrl" data-testid="job-apply">Candidatar-se</a>
                         }
                         else if (!isAuthenticated)
                         {
                             <p>Entre ou crie uma conta gratuita de candidato para se candidatar.</p>
-                            <a class="btn btn-primary btn-cta" href="@loginUrl" data-testid="job-apply">Entrar para se candidatar</a>
+                            <a class="btn btn-primary btn-cta job-apply-card__cta" href="@loginUrl" data-testid="job-apply">Entrar para se candidatar</a>
                             <a class="btn btn-outline-secondary" href="@registerUrl" data-testid="job-register">Criar conta de candidato</a>
                         }
                         else
