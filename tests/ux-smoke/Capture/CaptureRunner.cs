@@ -396,11 +396,11 @@ static class CaptureRunner
         };
         var candidate = new List<(string, string)>
         {
-            ("home", "/"), ("jobs", "/jobs"), ("job-details", "/jobs/" + seed.AppliedJobId), ("apply-done", "/candidatar/" + seed.AppliedJobId),
+            ("home", "/"), ("jobs", "/jobs"), ("job-details", "/jobs/" + seed.AppliedJobId), ("apply-done", "/apply/" + seed.AppliedJobId),
             ("applications", "/applications"), ("saved-jobs", "/applications?aba=salvas"), ("job-alerts", "/applications?aba=alertas"),
-            ("notifications", "/notifications"), ("profile", "/profile"), ("career-profile", "/perfil-profissional"), ("plans", "/plans"),
-            ("resumes", "/curriculos"), ("resume-details", "/curriculos/" + seed.ResumeId), ("resume-edit", "/curriculos/" + seed.ResumeId + "/edit"),
-            ("resume-new", "/curriculos/novo"),
+            ("notifications", "/notifications"), ("profile", "/profile"), ("career-profile", "/career-profile"), ("plans", "/plans"),
+            ("resumes", "/resumes"), ("resume-details", "/resumes/" + seed.ResumeId), ("resume-edit", "/resumes/" + seed.ResumeId + "/edit"),
+            ("resume-new", "/resumes/new"),
         };
 
         // Uma pessoa por processo (as sessões do app são singletons): visitante e candidato em processos separados
