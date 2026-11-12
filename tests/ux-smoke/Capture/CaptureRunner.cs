@@ -271,7 +271,7 @@ static class CaptureRunner
             ("dashboard", "/", true), ("jobs", "/jobs", false), ("my-applications", "/minhas-candidaturas", true), ("my-applications-saved", "/minhas-candidaturas?aba=salvas", false),
             ("my-applications-alerts", "/minhas-candidaturas?aba=alertas", false), ("career-profile", "/perfil-profissional", false), ("profile", "/perfil/candidato", false),
             ("resumes", "/curriculos", false), ("resume-new", "/curriculos/novo", false), ("resume-wizard", "/curriculos/assistente", false), ("resume-upload", "/curriculos/upload", false),
-            ("resume-details", resumePath, true), ("resume-edit", resumePath + "/edit", false), ("resume-cv", resumePath + "/cv", false), ("resume-wizard-edit", resumePath + "/wizard", false),
+            ("resume-details", resumePath, true), ("resume-edit", resumePath + "/editar", false), ("resume-cv", resumePath + "/cv", false), ("resume-wizard-edit", resumePath + "/assistente", false),
             ("notifications", "/notifications", false), ("address-list", "/enderecos", false), ("address-create", "/enderecos/novo", false),
             ("address-edit-missing", "/enderecos/00000000-0000-0000-0000-000000000009/editar", false), ("address-delete-missing", "/enderecos/00000000-0000-0000-0000-000000000009/excluir", false),
             ("manage-index", "/conta", false), ("manage-email", "/conta/email", false), ("manage-password", "/conta/alterar-senha", false),
