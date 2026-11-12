@@ -19,6 +19,9 @@ public class FormattersTests
     [InlineData("BRL", "R$")]
     [InlineData("USD", "US$")]
     [InlineData("EUR", "€")]
+    [InlineData("GBP", "£")]
+    [InlineData("CAD", "CAD")] // moeda sem símbolo conhecido aparece pelo código, nunca como R$
+    [InlineData("usd", "US$")]
     public void Salary_UsesTheJobCurrency(string currency, string symbol)
     {
         var job = new JobResponse { SalaryMin = 5000, SalaryMax = 7000, SalaryDisplay = true, SalaryCurrency = currency };
