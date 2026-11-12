@@ -182,7 +182,7 @@
                                 <th scope="col">Empresa</th>
                                 <th scope="col">Situação</th>
                                 <th scope="col">Validade</th>
-                                <th scope="col" class="text-center">Candidaturas</th>
+                                <th scope="col" class="table-num">Candidaturas</th>
                                 <th scope="col">Publicada</th>
                                 <th scope="col">Ações</th>
                             </tr>
@@ -195,7 +195,7 @@
                                     <td data-label="Empresa">@(job.AdvertiserName ?? "Sem nome")</td>
                                     <td data-label="Situação"><StatusBadge Kind="StatusKind.Job" Value="@job.Status" /></td>
                                     <td data-label="Validade">@UiLabels.FormatMomentDate(job.ExpirationDate)@(job.IsPastExpiration ? " (expirada)" : string.Empty)</td>
-                                    <td data-label="Candidaturas" class="text-center">@job.Applications</td>
+                                    <td data-label="Candidaturas" class="table-num">@job.Applications</td>
                                     <td data-label="Publicada">@UiLabels.FormatMomentDate(job.CreatedAt)</td>
                                     <td data-label="Ações">
                                         <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="() => OpenPanelAsync(job)" data-testid="job-manage" aria-label="Gerenciar a vaga @job.Title">Gerenciar</button>
