@@ -22,7 +22,15 @@ public sealed class GetAvailablePlansUseCase : IUseCase<Guid, AvailablePlansResp
         _subscriptionRepository = subscriptionRepository;
     }
 
-    public async Task<RequestResult<AvailablePlansResponse>> ExecuteAsync(Guid advertiserId, CancellationToken cancellationToken = default)
+    public Task<RequestResult<AvailablePlansResponse>> ExecuteAsync(Guid advertiserId, CancellationToken cancellationToken = default) =>
+        LoadAsync(EPlanAudience.Advertiser, advertiserId, null, cancellationToken);
+
+    /// <summary>Planos e assinatura atuais do candidato (audiência Candidate).</summary>
+    public Task<RequestResult<AvailablePlansResponse>> ExecuteForCandidateAsync(Guid candidateId, CancellationToken cancellationToken = default) =>
+        LoadAsync(EPlanAudience.Candidate, null, candidateId, cancellationToken);
+
+    private async Task<RequestResult<AvailablePlansResponse>> LoadAsync(
+        EPlanAudience audience, Guid? advertiserId, Guid? candidateId, CancellationToken cancellationToken)
     {
         // Listar todos os planos ativos
         var plansResult = await _planRepository.GetAllAsync(1, 100, cancellationToken);
@@ -30,15 +38,17 @@ public sealed class GetAvailablePlansUseCase : IUseCase<Guid, AvailablePlansResp
             return RequestResult<AvailablePlansResponse>.FromResult(plansResult);
 
         var plans = plansResult.Data!
-            .Where(p => p.IsActive && p.Audience == EPlanAudience.Advertiser)
+            .Where(p => p.IsActive && p.Audience == audience)
             .Select(MapToPlanResponse)
             .ToList();
 
-        // Buscar assinatura atual do anunciante (ignorado para visitantes sem conta)
+        // Buscar assinatura atual do dono (ignorado para visitantes sem conta)
         SubscriptionResponse? currentSubscription = null;
-        var subscriptionResult = advertiserId == Guid.Empty
-            ? null
-            : await _subscriptionRepository.GetActiveByAdvertiserIdAsync(Id.Create(advertiserId), cancellationToken);
+        var subscriptionResult = advertiserId is { } advId && advId != Guid.Empty
+            ? await _subscriptionRepository.GetActiveByAdvertiserIdAsync(Id.Create(advId), cancellationToken)
+            : candidateId is { } candId && candId != Guid.Empty
+                ? await _subscriptionRepository.GetActiveByCandidateIdAsync(Id.Create(candId), cancellationToken)
+                : null;
         if (subscriptionResult is { Status: not EResultStatus.Success })
             return RequestResult<AvailablePlansResponse>.FromResult(subscriptionResult);
 

@@ -76,8 +76,11 @@ public static class SubscriptionEndpoints
                 }
             }
 
-            var advertiserId = currentUser.GetAdvertiserId() ?? Guid.Empty;
-            var result = await useCase.ExecuteAsync(advertiserId, cancellationToken);
+            var advertiserId = currentUser.GetAdvertiserId();
+            var candidateId = currentUser.GetCandidateId();
+            var result = advertiserId is null && candidateId is { } candId
+                ? await useCase.ExecuteForCandidateAsync(candId, cancellationToken)
+                : await useCase.ExecuteAsync(advertiserId ?? Guid.Empty, cancellationToken);
             return result.ToHttpResult();
         })
         .AllowAnonymous()
@@ -94,15 +97,18 @@ public static class SubscriptionEndpoints
             CancellationToken cancellationToken) =>
         {
             var advertiserId = currentUser.GetAdvertiserId();
-            if (advertiserId is null)
-                return Results.Problem(statusCode: StatusCodes.Status403Forbidden, title: "Perfil de anunciante necessário");
+            var candidateId = currentUser.GetCandidateId();
+            if (advertiserId is null && candidateId is null)
+                return Results.Problem(statusCode: StatusCodes.Status403Forbidden, title: "Perfil de conta necessário");
 
-            var result = await billing.CreateCheckoutAsync(advertiserId.Value, request.PlanId, cancellationToken);
+            var result = advertiserId is { } advId
+                ? await billing.CreateCheckoutAsync(advId, request.PlanId, cancellationToken)
+                : await billing.CreateCandidateCheckoutAsync(candidateId!.Value, request.PlanId, cancellationToken);
             return result.Status == EResultStatus.Success && result.Data is not null
                 ? Results.Ok(result.Data)
                 : result.ToHttpResult();
         })
-        .WithSummary("Cria checkout recorrente seguro para o anunciante autenticado");
+        .WithSummary("Cria checkout recorrente seguro para o anunciante ou candidato autenticado");
 
         group.MapPost("/upgrade", async (
             UpgradePlanRequest request,
@@ -127,13 +133,15 @@ public static class SubscriptionEndpoints
             CancellationToken cancellationToken) =>
         {
             var advertiserId = currentUser.GetAdvertiserId();
-            if (advertiserId is null)
-                return Results.Problem(statusCode: StatusCodes.Status403Forbidden, title: "Perfil de anunciante necessário");
+            var candidateId = currentUser.GetCandidateId();
+            if (advertiserId is null && candidateId is null)
+                return Results.Problem(statusCode: StatusCodes.Status403Forbidden, title: "Perfil de conta necessário");
 
-            // O anunciante vem da claim, nunca do corpo: a checagem de posse da assinatura é
+            // O dono vem da claim, nunca do corpo: a checagem de posse da assinatura é
             // feita pelo use case com este valor, para o cancelamento não poder ser usado
-            // contra a assinatura de outro anunciante.
-            request.AdvertiserId = advertiserId.Value;
+            // contra a assinatura de outra conta.
+            request.AdvertiserId = advertiserId;
+            request.CandidateId = candidateId;
 
             var result = await useCase.ExecuteAsync(request, cancellationToken);
             return result.ToHttpResult();

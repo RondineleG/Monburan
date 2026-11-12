@@ -18,9 +18,13 @@ namespace Monburan.Web.Services;
 public sealed class MercadoPagoOptions
 {
     public const string SectionName = "Billing:MercadoPago";
+    public const string DefaultApiBaseUrl = "https://api.mercadopago.com";
     public string AccessToken { get; set; } = string.Empty;
     public string WebhookSecret { get; set; } = string.Empty;
     public string PublicBaseUrl { get; set; } = string.Empty;
+    public string ApiBaseUrl { get; set; } = DefaultApiBaseUrl;
+    /// <summary>Só tem efeito em Development (o Program.cs zera fora dele): permite apontar a API para o simulador local.</summary>
+    public bool SimulateLocally { get; set; }
 }
 
 public sealed record MercadoPagoCheckoutResponse(string InitPoint, Guid SubscriptionId);
@@ -50,45 +54,83 @@ public sealed class MercadoPagoBillingService : IRecurringPaymentGateway
     }
 
     public bool IsConfigured => HasCredentials(_options.CurrentValue)
-        && Uri.TryCreate(_options.CurrentValue.PublicBaseUrl, UriKind.Absolute, out var baseUri)
-        && baseUri.Scheme == Uri.UriSchemeHttps;
+        && IsUsableBaseUrl(_options.CurrentValue, out _);
 
-    public async Task<RequestResult<MercadoPagoCheckoutResponse>> CreateCheckoutAsync(
+    private static bool IsUsableBaseUrl(MercadoPagoOptions options, out Uri baseUri) =>
+        Uri.TryCreate(options.PublicBaseUrl, UriKind.Absolute, out baseUri!)
+        && (baseUri.Scheme == Uri.UriSchemeHttps
+            // No modo simulado a URL pública pode ser o localhost HTTP da máquina de desenvolvimento
+            || (options.SimulateLocally && baseUri.Scheme == Uri.UriSchemeHttp && baseUri.IsLoopback));
+
+    public Task<RequestResult<MercadoPagoCheckoutResponse>> CreateCheckoutAsync(
         Guid advertiserId,
         Guid planId,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default) =>
+        CreateCheckoutCoreAsync(advertiserId, null, planId, cancellationToken);
+
+    /// <summary>Checkout recorrente para candidato (planos com audiência Candidate, ex.: assistente de IA).</summary>
+    public Task<RequestResult<MercadoPagoCheckoutResponse>> CreateCandidateCheckoutAsync(
+        Guid candidateId,
+        Guid planId,
+        CancellationToken cancellationToken = default) =>
+        CreateCheckoutCoreAsync(null, candidateId, planId, cancellationToken);
+
+    private async Task<RequestResult<MercadoPagoCheckoutResponse>> CreateCheckoutCoreAsync(
+        Guid? advertiserId,
+        Guid? candidateId,
+        Guid planId,
+        CancellationToken cancellationToken)
     {
         var options = _options.CurrentValue;
         if (!HasCredentials(options))
             return RequestResult<MercadoPagoCheckoutResponse>.WithDomainError("A cobrança online ainda não está configurada.");
 
-        if (!Uri.TryCreate(options.PublicBaseUrl, UriKind.Absolute, out var baseUri)
-            || baseUri.Scheme != Uri.UriSchemeHttps)
+        if (!IsUsableBaseUrl(options, out var baseUri))
             return RequestResult<MercadoPagoCheckoutResponse>.WithDomainError("A URL pública segura do Monburan não está configurada.");
 
+        var expectedAudience = advertiserId is not null ? EPlanAudience.Advertiser : EPlanAudience.Candidate;
+
         await using var context = await _contexts.CreateDbContextAsync(cancellationToken);
-        var advertiser = await context.Advertisers.AsNoTracking()
-            .FirstOrDefaultAsync(item => !item.IsDeleted && item.Id == Id.Create(advertiserId), cancellationToken);
-        if (advertiser is null || string.IsNullOrWhiteSpace(advertiser.Email))
-            return RequestResult<MercadoPagoCheckoutResponse>.WithDomainError("Perfil de empresa não encontrado.");
+        string? payerEmail;
+        if (advertiserId is { } advId)
+        {
+            var advertiser = await context.Advertisers.AsNoTracking()
+                .FirstOrDefaultAsync(item => !item.IsDeleted && item.Id == Id.Create(advId), cancellationToken);
+            if (advertiser is null || string.IsNullOrWhiteSpace(advertiser.Email))
+                return RequestResult<MercadoPagoCheckoutResponse>.WithDomainError("Perfil de empresa não encontrado.");
+            payerEmail = advertiser.Email;
+        }
+        else
+        {
+            var candidate = await context.Candidates.AsNoTracking()
+                .FirstOrDefaultAsync(item => !item.IsDeleted && item.Id == Id.Create(candidateId!.Value), cancellationToken);
+            if (candidate is null || string.IsNullOrWhiteSpace(candidate.Email))
+                return RequestResult<MercadoPagoCheckoutResponse>.WithDomainError("Perfil de candidato não encontrado.");
+            payerEmail = candidate.Email;
+        }
 
         var plan = await context.SubscriptionPlans.AsNoTracking()
             .FirstOrDefaultAsync(item => !item.IsDeleted && item.IsActive && item.Id == Id.Create(planId), cancellationToken);
-        if (plan is null || plan.Audience != EPlanAudience.Advertiser || plan.Price <= 0
+        if (plan is null || plan.Audience != expectedAudience || plan.Price <= 0
             || plan.Period is not (ESubscriptionPeriod.Monthly or ESubscriptionPeriod.Annual))
             return RequestResult<MercadoPagoCheckoutResponse>.WithDomainError("Plano pago inválido ou indisponível.");
 
+        Id? ownerAdvertiserId = advertiserId.HasValue ? Id.Create(advertiserId.Value) : null;
+        Id? ownerCandidateId = candidateId.HasValue ? Id.Create(candidateId.Value) : null;
         var active = await context.Subscriptions.AsNoTracking().AnyAsync(subscription =>
-            !subscription.IsDeleted && subscription.AdvertiserId == Id.Create(advertiserId)
-            && subscription.Status == ESubscriptionStatus.Active && subscription.PlanId == plan.Id, cancellationToken);
+            !subscription.IsDeleted && subscription.Status == ESubscriptionStatus.Active && subscription.PlanId == plan.Id
+            && subscription.AdvertiserId == ownerAdvertiserId
+            && subscription.CandidateId == ownerCandidateId, cancellationToken);
         if (active)
-            return RequestResult<MercadoPagoCheckoutResponse>.WithDomainError("Sua empresa já tem este plano ativo.");
+            return RequestResult<MercadoPagoCheckoutResponse>.WithDomainError(
+                advertiserId is not null ? "Sua empresa já tem este plano ativo." : "Você já tem este plano ativo.");
 
         var now = _time.GetUtcNow().UtcDateTime;
         var pending = new Subscription
         {
             Id = Id.Create(Guid.NewGuid()),
-            AdvertiserId = Id.Create(advertiserId),
+            AdvertiserId = ownerAdvertiserId,
+            CandidateId = ownerCandidateId,
             PlanId = plan.Id,
             StartDate = now,
             EndDate = now.AddDays(7),
@@ -104,7 +146,7 @@ public sealed class MercadoPagoBillingService : IRecurringPaymentGateway
         {
             reason = $"Monburan - {plan.Name}",
             external_reference = pending.Id.Value.ToString(),
-            payer_email = advertiser.Email,
+            payer_email = payerEmail,
             back_url = backUrl,
             notification_url = new Uri(baseUri, "/api/v1/webhooks/mercadopago").ToString(),
             auto_recurring = new
@@ -118,7 +160,7 @@ public sealed class MercadoPagoBillingService : IRecurringPaymentGateway
 
         try
         {
-            using var request = new HttpRequestMessage(HttpMethod.Post, "https://api.mercadopago.com/preapproval")
+            using var request = new HttpRequestMessage(HttpMethod.Post, $"{options.ApiBaseUrl.TrimEnd('/')}/preapproval")
             {
                 Content = JsonContent.Create(payload)
             };
@@ -243,15 +285,18 @@ public sealed class MercadoPagoBillingService : IRecurringPaymentGateway
             var subscription = await context.Subscriptions
                 .Include(item => item.Plan)
                 .Include(item => item.Advertiser)
+                .Include(item => item.Candidate)
                 .FirstOrDefaultAsync(item => item.Id == Id.Create(subscriptionId) && !item.IsDeleted, cancellationToken);
             if (subscription is null || (subscription.PaymentId is not null && subscription.PaymentId != PaymentPrefix + providerId)
-                || subscription.Advertiser is null || subscription.Plan is null)
+                || (subscription.Advertiser is null && subscription.Candidate is null) || subscription.Plan is null)
                 return true;
             subscription.PaymentId ??= PaymentPrefix + providerId;
 
             if (isPaymentEvent)
             {
-                if (paidAmount != subscription.Plan.Price || currency != "BRL" || subscription.Plan.Audience != EPlanAudience.Advertiser)
+                var expectedAudience = subscription.AdvertiserId is not null
+                    ? EPlanAudience.Advertiser : EPlanAudience.Candidate;
+                if (paidAmount != subscription.Plan.Price || currency != "BRL" || subscription.Plan.Audience != expectedAudience)
                 {
                     _logger.LogWarning("Mercado Pago webhook: plano e valor da assinatura {SubscriptionId} não conferem", subscriptionId);
                     return false;
@@ -274,10 +319,15 @@ public sealed class MercadoPagoBillingService : IRecurringPaymentGateway
                     await transaction.CommitAsync(cancellationToken);
                     return true;
                 }
-                var previous = await context.Subscriptions
-                    .Where(item => !item.IsDeleted && item.AdvertiserId == subscription.AdvertiserId
-                        && item.Status == ESubscriptionStatus.Active && item.Id != subscription.Id)
-                    .ToListAsync(cancellationToken);
+                var previous = subscription.AdvertiserId is not null
+                    ? await context.Subscriptions
+                        .Where(item => !item.IsDeleted && item.AdvertiserId == subscription.AdvertiserId
+                            && item.Status == ESubscriptionStatus.Active && item.Id != subscription.Id)
+                        .ToListAsync(cancellationToken)
+                    : await context.Subscriptions
+                        .Where(item => !item.IsDeleted && item.CandidateId == subscription.CandidateId
+                            && item.Status == ESubscriptionStatus.Active && item.Id != subscription.Id)
+                        .ToListAsync(cancellationToken);
                 if (previous.Any(old => old.StartDate > subscription.StartDate))
                 {
                     if (!await CancelAsync(subscription.PaymentId, cancellationToken))
@@ -299,7 +349,10 @@ public sealed class MercadoPagoBillingService : IRecurringPaymentGateway
                 subscription.Status = ESubscriptionStatus.Active;
                 subscription.StartDate = now;
                 subscription.EndDate = null;
-                subscription.Advertiser.ActivePlan = subscription.Plan.Name;
+                if (subscription.Advertiser is not null)
+                    subscription.Advertiser.ActivePlan = subscription.Plan.Name;
+                else
+                    subscription.Candidate!.ActivePlan = subscription.Plan.Name;
                 await context.SaveChangesAsync(cancellationToken);
                 await transaction.CommitAsync(cancellationToken);
             }
@@ -311,11 +364,19 @@ public sealed class MercadoPagoBillingService : IRecurringPaymentGateway
                     subscription.Status = status == "cancelled" ? ESubscriptionStatus.Cancelled : ESubscriptionStatus.Expired;
                     subscription.EndDate = now;
                     subscription.CancellationReason = status == "cancelled" ? "Cancelada no Mercado Pago." : "Cobrança recorrente pausada no Mercado Pago.";
+                    var ownerAdvertiserId = subscription.AdvertiserId;
+                    var ownerCandidateId = subscription.CandidateId;
                     var anotherActive = await context.Subscriptions.AnyAsync(item => !item.IsDeleted
-                        && item.AdvertiserId == subscription.AdvertiserId && item.Status == ESubscriptionStatus.Active
-                        && item.Id != subscription.Id, cancellationToken);
-                    if (!anotherActive && subscription.Advertiser.ActivePlan == subscription.Plan.Name)
-                        subscription.Advertiser.ActivePlan = "Free";
+                        && item.Status == ESubscriptionStatus.Active && item.Id != subscription.Id
+                        && item.AdvertiserId == ownerAdvertiserId
+                        && item.CandidateId == ownerCandidateId, cancellationToken);
+                    if (!anotherActive)
+                    {
+                        if (subscription.Advertiser is { } owner && owner.ActivePlan == subscription.Plan.Name)
+                            owner.ActivePlan = "Free";
+                        else if (subscription.Candidate is { } candidate && candidate.ActivePlan == subscription.Plan.Name)
+                            candidate.ActivePlan = "Free";
+                    }
                     await context.SaveChangesAsync(cancellationToken);
                 }
             }
@@ -331,7 +392,8 @@ public sealed class MercadoPagoBillingService : IRecurringPaymentGateway
 
     private async Task<JsonDocument?> GetProviderResourceAsync(string path, CancellationToken cancellationToken)
     {
-        using var request = new HttpRequestMessage(HttpMethod.Get, $"https://api.mercadopago.com/{path}");
+        using var request = new HttpRequestMessage(HttpMethod.Get,
+            $"{_options.CurrentValue.ApiBaseUrl.TrimEnd('/')}/{path}");
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _options.CurrentValue.AccessToken);
         using var response = await _http.SendAsync(request, cancellationToken);
         if (!response.IsSuccessStatusCode)
@@ -354,7 +416,7 @@ public sealed class MercadoPagoBillingService : IRecurringPaymentGateway
 
         var providerId = paymentId[PaymentPrefix.Length..];
         using var request = new HttpRequestMessage(HttpMethod.Put,
-            $"https://api.mercadopago.com/preapproval/{Uri.EscapeDataString(providerId)}")
+            $"{options.ApiBaseUrl.TrimEnd('/')}/preapproval/{Uri.EscapeDataString(providerId)}")
         {
             Content = JsonContent.Create(new { status = "cancelled" })
         };
@@ -376,13 +438,22 @@ public sealed class MercadoPagoBillingService : IRecurringPaymentGateway
     private static bool HasCredentials(MercadoPagoOptions options) =>
         !string.IsNullOrWhiteSpace(options.AccessToken) && !string.IsNullOrWhiteSpace(options.WebhookSecret);
 
-    private static bool IsSafeCheckoutUrl(string? value) =>
-        Uri.TryCreate(value, UriKind.Absolute, out var uri)
-        && uri.Scheme == Uri.UriSchemeHttps
-        && (uri.Host.Equals("mercadopago.com.br", StringComparison.OrdinalIgnoreCase)
-            || uri.Host.EndsWith(".mercadopago.com.br", StringComparison.OrdinalIgnoreCase)
-            || uri.Host.Equals("mpago.la", StringComparison.OrdinalIgnoreCase)
-            || uri.Host.EndsWith(".mpago.la", StringComparison.OrdinalIgnoreCase));
+    private bool IsSafeCheckoutUrl(string? value)
+    {
+        if (!Uri.TryCreate(value, UriKind.Absolute, out var uri))
+            return false;
+
+        // No modo simulado o checkout mora no próprio localhost (tools/fake-mercadopago.py)
+        if (_options.CurrentValue.SimulateLocally)
+            return uri.IsLoopback
+                && (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps);
+
+        return uri.Scheme == Uri.UriSchemeHttps
+            && (uri.Host.Equals("mercadopago.com.br", StringComparison.OrdinalIgnoreCase)
+                || uri.Host.EndsWith(".mercadopago.com.br", StringComparison.OrdinalIgnoreCase)
+                || uri.Host.Equals("mpago.la", StringComparison.OrdinalIgnoreCase)
+                || uri.Host.EndsWith(".mpago.la", StringComparison.OrdinalIgnoreCase));
+    }
 
     private static string? StringProperty(JsonElement element, string property) =>
         element.TryGetProperty(property, out var value)

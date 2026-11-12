@@ -161,6 +161,10 @@ builder.Services.AddAuthorizationBuilder()
     .AddPolicy("AdvertiserOnly", policy => policy
         .RequireAuthenticatedUser()
         .RequireClaim(ClaimsExtensions.UserTypeClaimType, "advertiser"))
+    // Páginas de assinatura: abertas a empresa e candidato — o conteúdo se adapta ao perfil
+    .AddPolicy("AccountProfile", policy => policy
+        .RequireAuthenticatedUser()
+        .RequireClaim(ClaimsExtensions.UserTypeClaimType, "advertiser", "candidate"))
     // token_use=access impede que um refresh token (JWT válido por 30 dias)
     // autentique como bearer em endpoints que só exigem RequireAuthenticatedUser
     .AddPolicy("ApiBearer", policy => policy
@@ -445,6 +449,12 @@ builder.Services.PostConfigure<MercadoPagoOptions>(options =>
 {
     if (string.IsNullOrWhiteSpace(options.PublicBaseUrl))
         options.PublicBaseUrl = builder.Configuration["App:PublicBaseUrl"] ?? string.Empty;
+    if (!builder.Environment.IsDevelopment())
+    {
+        // A simulação local nunca pode vazar para homologação ou produção
+        options.SimulateLocally = false;
+        options.ApiBaseUrl = MercadoPagoOptions.DefaultApiBaseUrl;
+    }
 });
 builder.Services.AddHttpClient<MercadoPagoBillingService>(client => client.Timeout = TimeSpan.FromSeconds(20));
 builder.Services.AddScoped<IRecurringPaymentGateway>(services => services.GetRequiredService<MercadoPagoBillingService>());

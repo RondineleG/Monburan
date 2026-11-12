@@ -51,11 +51,19 @@
                 </div>
             </div>
         }
-        else if (!isAdvertiser)
+        else if (isCandidate)
         {
             <div class="alert alert-info d-flex align-items-center mb-4" role="note">
                 <div>
-                    <strong>Planos para empresas.</strong> Os recursos abaixo valem para contas de empresa — candidatos usam o Monburan gratuitamente.
+                    <strong>Planos para candidatos.</strong> O plano pago libera o assistente de IA e mais currículos ativos.
+                </div>
+            </div>
+        }
+        else
+        {
+            <div class="alert alert-info d-flex align-items-center mb-4" role="note">
+                <div>
+                    <strong>Planos para empresas.</strong> Os recursos abaixo valem para contas de empresa.
                 </div>
             </div>
         }
@@ -94,25 +102,40 @@
                                 }
                             </div>
 
-                            @* Só recursos aplicados pelo backend: o limite de vagas ativas (CreateJobUseCase).
-                               Boost, destaque e analytics por plano não têm implementação — não são anunciados. *@
+                            @* Só recursos aplicados pelo backend: limite de vagas (CheckJobLimitUseCase) e
+                               assistente de IA (ImproveResumeUseCase). Boost, destaque e analytics por plano
+                               não têm implementação — não são anunciados. *@
                             <ul class="list-unstyled">
-                                <li>
-                                    <Icon Name="briefcase" Size="16" />
-                                    @(plan.MaxJobs == -1 ? "Vagas ativas ilimitadas" : $"Até {plan.MaxJobs} vagas ativas ao mesmo tempo")
-                                </li>
-                                <li>
-                                    <Icon Name="users" Size="16" />
-                                    Candidaturas ilimitadas em cada vaga
-                                </li>
-                                <li>
-                                    <Icon Name="layout" Size="16" />
-                                    Painel com indicadores das suas vagas
-                                </li>
+                                @if (plan.Audience == "Candidate")
+                                {
+                                    <li>
+                                        <Icon Name="file" Size="16" />
+                                        @(plan.MaxResumes == -1 ? "Currículos ilimitados" : $"Até {plan.MaxResumes} currículos")
+                                    </li>
+                                    <li>
+                                        <Icon Name="sparkles" Size="16" />
+                                        @(plan.HasAiAssistant ? "Assistente de IA para melhorar o currículo" : "Sem assistente de IA")
+                                    </li>
+                                }
+                                else
+                                {
+                                    <li>
+                                        <Icon Name="briefcase" Size="16" />
+                                        @(plan.MaxJobs == -1 ? "Vagas ativas ilimitadas" : $"Até {plan.MaxJobs} vagas ativas ao mesmo tempo")
+                                    </li>
+                                    <li>
+                                        <Icon Name="users" Size="16" />
+                                        Candidaturas ilimitadas em cada vaga
+                                    </li>
+                                    <li>
+                                        <Icon Name="layout" Size="16" />
+                                        Painel com indicadores das suas vagas
+                                    </li>
+                                }
                             </ul>
                         </div>
                         <div class="card-footer bg-transparent text-center">
-                            @if (isAdvertiser)
+                            @if (isAdvertiser || isCandidate)
                             {
                                 if (isCurrentPlan)
                                 {
@@ -144,7 +167,7 @@
                                     </a>
                                     <span class="plan-card__note">Nossa equipe orienta o pagamento e ativa o plano após a confirmação.</span>
                                 }
-                                else
+                                else if (isAdvertiser)
                                 {
                                     <button type="button" class="btn btn-primary w-100" @onclick="() => ChangePlanAsync(plan)" disabled="@(changingPlanId is not null)"
                                             aria-busy="@(changingPlanId == plan.Id ? "true" : null)"
@@ -160,10 +183,13 @@
                                         }
                                     </button>
                                 }
-                            }
-                            else if (isCandidate)
-                            {
-                                <span class="plan-card__note">Exclusivo para contas de empresa</span>
+                                else
+                                {
+                                    @* Candidato sem assinatura paga já está no plano gratuito — o botão não troca nada *@
+                                    <button type="button" class="btn btn-outline-secondary w-100" disabled>
+                                        Plano atual
+                                    </button>
+                                }
                             }
                             else
                             {
@@ -221,11 +247,14 @@
     private async Task StartCheckoutAsync(PlanResponse plan)
     {
         var advertiserId = CurrentUserHelper.GetAdvertiserId();
-        if (!advertiserId.HasValue || checkingOutPlanId is not null)
+        var candidateId = CurrentUserHelper.GetCandidateId();
+        if ((advertiserId is null && candidateId is null) || checkingOutPlanId is not null)
             return;
 
         checkingOutPlanId = plan.Id;
-        var result = await PaymentBilling.CreateCheckoutAsync(advertiserId.Value, plan.Id);
+        var result = advertiserId is { } advId
+            ? await PaymentBilling.CreateCheckoutAsync(advId, plan.Id)
+            : await PaymentBilling.CreateCandidateCheckoutAsync(candidateId!.Value, plan.Id);
         checkingOutPlanId = null;
         if (result.Status == Core.Enums.EResultStatus.Success && result.Data is not null)
         {
@@ -242,7 +271,11 @@
         isLoading = true;
         loadFailed = false;
 
-        var result = await GetAvailablePlansUseCase.ExecuteAsync(CurrentUserHelper.GetAdvertiserId() ?? Guid.Empty);
+        var advertiserId = CurrentUserHelper.GetAdvertiserId();
+        var candidateId = CurrentUserHelper.GetCandidateId();
+        var result = advertiserId is null && candidateId is { } candId
+            ? await GetAvailablePlansUseCase.ExecuteForCandidateAsync(candId)
+            : await GetAvailablePlansUseCase.ExecuteAsync(advertiserId ?? Guid.Empty);
         if (result.Status == Core.Enums.EResultStatus.Success)
         {
             availablePlans = result.Data;
