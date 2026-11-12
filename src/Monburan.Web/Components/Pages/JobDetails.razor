@@ -7,6 +7,7 @@
 @inject ICurrentUserHelper CurrentUserHelper
 @inject NavigationManager Navigation
 @inject IConfiguration Configuration
+@inject LocalAdCampaignService LocalAds
 @inject ILogger<JobDetails> Logger
 
 @* Página pública da vaga, renderizada no servidor: qualquer pessoa (e buscadores) lê a vaga; o login só é pedido
@@ -264,8 +265,33 @@
                         </a>
                     </section>
                 }
+
             </aside>
         </div>
+
+        @if (localAd is not null && job.Status == "Active" && !isOwner && !isAdmin)
+        {
+            <aside class="aside-card local-ad-card" aria-label="Publicidade local" data-testid="local-ad-card">
+                <span class="local-ad-card__label">Publicidade</span>
+                @if (!string.IsNullOrWhiteSpace(localAd.ImageUrl))
+                {
+                    <a href="@localAd.ClickUrl" target="_blank" rel="sponsored noopener noreferrer" aria-label="Saiba mais sobre @localAd.Headline">
+                        <img class="local-ad-card__image" src="@localAd.ImageUrl" alt="@localAd.Headline" loading="lazy" decoding="async" />
+                    </a>
+                }
+                <div class="local-ad-card__content">
+                    <span class="local-ad-card__sponsor">@localAd.SponsorName</span>
+                    <h2 class="local-ad-card__title">@localAd.Headline</h2>
+                    @if (!string.IsNullOrWhiteSpace(localAd.Description))
+                    {
+                        <p>@localAd.Description</p>
+                    }
+                    <a class="local-ad-card__link" href="@localAd.ClickUrl" target="_blank" rel="sponsored noopener noreferrer">
+                        Saiba mais <span aria-hidden="true">↗</span>
+                    </a>
+                </div>
+            </aside>
+        }
 
         @if (similar.Count > 0)
         {
@@ -327,8 +353,11 @@
     private bool isAdmin;
     private string? salary;
     private string? closing;
+    private LocalAdPlacement? localAd;
     private string canonicalUrl = string.Empty;
     private string structuredData = string.Empty;
+    private int? impressionPendingGeneration;
+    private int? impressionRecordedGeneration;
 
     // Link para o botão de candidatura: depois do login a pessoa volta direto para o formulário
     private string applyUrl => $"/candidatar/{JobId}";
@@ -377,6 +406,8 @@
         isAdmin = false;
         salary = null;
         closing = null;
+        localAd = null;
+        impressionPendingGeneration = null;
         canonicalUrl = string.Empty;
         structuredData = string.Empty;
 
@@ -425,6 +456,16 @@
 
         if (job is null)
             return;
+
+        if (job.Status == "Active" && !isOwner && !isAdmin)
+        {
+            var matchingAd = await LocalAds.GetForJobAsync(jobId);
+            if (generation != loadGeneration)
+                return;
+            localAd = matchingAd;
+            if (matchingAd is not null)
+                impressionPendingGeneration = generation;
+        }
 
         // Pré-verificação: já candidatado vê a situação em vez do botão de candidatura.
         // Falha na consulta nunca vira "não se candidatou" — oferece o link de verificação.
@@ -489,6 +530,18 @@
             yield return ("observations", "Observações", job.Observations);
         if (!string.IsNullOrWhiteSpace(job.ApplicationInstructions))
             yield return ("apply", "Como se candidatar", job.ApplicationInstructions);
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (impressionPendingGeneration is not { } pendingGeneration
+            || pendingGeneration != loadGeneration
+            || impressionRecordedGeneration == pendingGeneration)
+            return;
+
+        impressionRecordedGeneration = pendingGeneration;
+        if (localAd is { } ad)
+            await LocalAds.RegisterImpressionAsync(ad.Id);
     }
 
 }

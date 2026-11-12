@@ -463,6 +463,7 @@ builder.Services.AddScoped<SubmitJobSuggestionUseCase>();
 builder.Services.AddScoped<ModerateJobSubmissionUseCase>();
 builder.Services.AddScoped<ExtractJobDraftUseCase>();
 builder.Services.AddScoped<ImportCollectedJobSuggestionsUseCase>();
+builder.Services.AddScoped<LocalAdCampaignService>();
 
 // Registrar CurrentUserHelper
 builder.Services.AddHttpContextAccessor();
@@ -576,6 +577,7 @@ app.MapRazorComponents<App>()
 
 app.MapAdditionalIdentityEndpoints();
 app.MapEvidenceEndpoints();
+app.MapLocalAdEndpoints();
 
 // API REST consumida pelo app mobile
 app.MapApiEndpoints();

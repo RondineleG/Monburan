@@ -22,6 +22,7 @@ public class AdminAuditActionsTests
             "account.deactivated", "account.activated", "account.unlocked", "account.email_confirmed", "account.sessions_revoked",
             "account.two_factor_reset", "account.admin_granted", "account.admin_revoked", "account.plan_changed", "job.status_changed", "job.deleted",
             "ai_provider.saved", "ai_provider.default_changed", "ai_provider.deleted", "submission.decided",
+            "local_ad_campaign.saved", "local_ad_campaign.deleted",
             "feature_flag.saved", "feature_flag.deleted", "access_group.saved", "access_group.deleted",
             "access_group.member_added", "access_group.member_removed", "account.product_granted", "account.product_revoked");
     }
@@ -37,6 +38,6 @@ public class AdminAuditActionsTests
     public void TheTargetsHaveLabelsToo()
     {
         AdminAuditActions.Targets.Select(AdminAuditActions.TargetLabel).Should().BeEquivalentTo(
-            "Conta", "Vaga", "Provedor de IA", "Sugestão de vaga", "Funcionalidade", "Grupo de acesso");
+            "Conta", "Vaga", "Provedor de IA", "Sugestão de vaga", "Campanha local", "Funcionalidade", "Grupo de acesso");
     }
 }

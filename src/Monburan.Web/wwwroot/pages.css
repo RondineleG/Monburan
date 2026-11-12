@@ -158,6 +158,16 @@
     .job-sticky-cta__share.is-done { border-color: var(--ok); background: var(--ok-bg); color: var(--ok); }
     .job-company-card__row { display: flex; align-items: center; gap: var(--s-3); }
     .job-company-card__row strong { min-width: 0; overflow-wrap: anywhere; }
+    .local-ad-card { display: grid; width: min(100%, 20rem); gap: var(--s-2); margin: var(--s-4) 0 0 auto; overflow: hidden; border-color: var(--border); background: var(--bg-card); }
+    .local-ad-card__label { width: fit-content; padding: 0.125rem var(--s-2); border: 1px solid var(--border); border-radius: var(--r-pill); color: var(--tx-2); font-size: var(--fs-2xs); font-weight: var(--fw-semibold); letter-spacing: 0.04em; text-transform: uppercase; }
+    .local-ad-card__image { display: block; width: 100%; max-height: 9rem; border-radius: var(--r-sm); object-fit: cover; }
+    .local-ad-card__content { min-width: 0; }
+    .local-ad-card__sponsor { color: var(--tx-2); font-size: var(--fs-xs); }
+    .local-ad-card__title { margin: var(--s-1) 0; font-size: var(--fs-md); overflow-wrap: anywhere; }
+    .local-ad-card__content p { margin: 0 0 var(--s-2); color: var(--tx-2); font-size: var(--fs-sm); }
+    .local-ad-card__link { display: inline-flex; min-height: var(--control-h-sm); align-items: center; gap: var(--s-1); color: var(--gold-d); font-size: var(--fs-sm); font-weight: var(--fw-semibold); text-decoration: none; }
+    .local-ad-card__link:hover { text-decoration: underline; }
+    .local-ad-admin-preview { display: block; width: min(100%, 20rem); max-height: 10rem; border: 1px solid var(--border); border-radius: var(--r-sm); object-fit: cover; }
     .job-similar { margin-top: var(--s-10); }
     .job-similar h2 { font-size: var(--fs-xl); }
 

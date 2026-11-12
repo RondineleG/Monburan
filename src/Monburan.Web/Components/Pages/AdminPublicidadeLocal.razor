@@ -1,0 +1,308 @@
+@page "/admin/publicidade-local"
+@rendermode InteractiveServer
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Policy = "AdminOnly")]
+@using System.Security.Claims
+@using Monburan.Core.DTOs.Request
+@using Monburan.Core.Enums
+@using Monburan.Core.Interfaces.Services
+@using Monburan.Core.Services
+@using Monburan.Core.UseCases.Storage
+@using Monburan.Web.Services
+@inject LocalAdCampaignService Campaigns
+@inject UploadFileUseCase UploadFile
+@inject AuthenticationStateProvider AuthenticationState
+@inject IToastService Toast
+@inject ILogger<AdminPublicidadeLocal> Logger
+
+<PageTitle>Publicidade local - Administração - Monburan</PageTitle>
+
+<FeatureGate Feature="publicidade-local">
+    <PageHeader Title="Publicidade local" TestId="admin-local-ads-page"
+                Description="Cadastre campanhas discretas por cidade para exibir nos detalhes de vagas ativas.">
+        <Actions>
+            <button type="button" class="btn btn-primary" @onclick="NewCampaign" disabled="@(form is not null || busy)" data-testid="local-ad-new">
+                <Icon Name="plus" Size="16" />Nova campanha
+            </button>
+        </Actions>
+    </PageHeader>
+
+    <div class="container">
+        <p class="text-muted">A publicidade aparece depois do conteúdo da vaga, é identificada como anúncio e abre em nova aba. Somente cidades selecionadas recebem a campanha.</p>
+
+        @if (form is not null)
+        {
+            <form class="card mb-4" @onsubmit="SaveAsync" @onsubmit:preventDefault data-testid="local-ad-form">
+                <div class="card-body">
+                    <h2 class="h5">@(form.Id is null ? "Nova campanha" : "Editar campanha")</h2>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label" for="local-ad-sponsor">Anunciante</label>
+                            <input id="local-ad-sponsor" class="form-control" @bind="form.SponsorName" maxlength="120" required data-testid="local-ad-sponsor" />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label" for="local-ad-headline">Título do anúncio</label>
+                            <input id="local-ad-headline" class="form-control" @bind="form.Headline" maxlength="100" required data-testid="local-ad-headline" />
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label" for="local-ad-description">Texto curto</label>
+                            <textarea id="local-ad-description" class="form-control" rows="2" @bind="form.Description" maxlength="280" data-testid="local-ad-description"></textarea>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label" for="local-ad-image">Imagem do anúncio (opcional)</label>
+                            <InputFile id="local-ad-image" class="form-control" OnChange="UploadBannerAsync" accept="image/jpeg,image/png,image/gif,image/webp" disabled="@(busy || uploadingImage)" data-testid="local-ad-image" />
+                            <small class="form-text">JPEG, PNG, GIF ou WebP, até 5 MB. O arquivo fica hospedado no Monburan.</small>
+                            @if (uploadingImage)
+                            {
+                                <small class="d-block mt-1" role="status">Enviando imagem…</small>
+                            }
+                            @if (!string.IsNullOrWhiteSpace(form.ImageUrl))
+                            {
+                                <img class="local-ad-admin-preview mt-2" src="@form.ImageUrl" alt="Prévia do anúncio" loading="lazy" />
+                                <button type="button" class="btn btn-link btn-sm p-0 d-block" @onclick="() => form.ImageUrl = null">Remover imagem</button>
+                            }
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label" for="local-ad-target">Link de destino</label>
+                            <input id="local-ad-target" class="form-control" type="url" @bind="form.TargetUrl" maxlength="1000" placeholder="https://..." required data-testid="local-ad-target" />
+                        </div>
+                        <div class="col-md-7">
+                            <label class="form-label" for="local-ad-locations">Cidades atendidas</label>
+                            <textarea id="local-ad-locations" class="form-control" rows="5" @bind="form.LocationsText" required placeholder="Curitiba, PR&#10;Pinhais, PR&#10;Joinville, SC" data-testid="local-ad-locations"></textarea>
+                            <small class="form-text">Uma cidade por linha no formato Cidade, UF. Cobertura disponível: polos e municípios próximos de Ponta Grossa, Curitiba, Joinville e Itajaí.</small>
+                        </div>
+                        <div class="col-md-5">
+                            <div class="mb-3">
+                                <label class="form-label" for="local-ad-start">Início</label>
+                                <input id="local-ad-start" class="form-control" type="date" @bind="form.StartsAt" data-testid="local-ad-start" />
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label" for="local-ad-end">Fim</label>
+                                <input id="local-ad-end" class="form-control" type="date" @bind="form.EndsAt" data-testid="local-ad-end" />
+                            </div>
+                            <div class="form-check">
+                                <input id="local-ad-active" class="form-check-input" type="checkbox" @bind="form.IsActive" data-testid="local-ad-active" />
+                                <label class="form-check-label" for="local-ad-active">Campanha ativa</label>
+                            </div>
+                        </div>
+                    </div>
+                    @if (formError is not null)
+                    {
+                        <p class="alert alert-danger mt-3" role="alert">@formError</p>
+                    }
+                    <div class="d-flex gap-2 mt-4">
+                        <button type="submit" class="btn btn-primary" disabled="@(busy || uploadingImage)" data-testid="local-ad-save">@(busy ? "Salvando…" : "Salvar campanha")</button>
+                        <button type="button" class="btn btn-outline-secondary" @onclick="CancelForm" disabled="@busy">Cancelar</button>
+                    </div>
+                </div>
+            </form>
+        }
+
+        @if (loadFailed)
+        {
+            <ErrorState Title="Não foi possível carregar as campanhas" Message="Tente novamente em instantes." OnRetry="LoadAsync" />
+        }
+        else if (campaigns.Count == 0)
+        {
+            <EmptyState Icon="briefcase" Title="Nenhuma campanha cadastrada" Message="Crie uma campanha para anunciar em cidades selecionadas." TestId="local-ad-empty" />
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="table align-middle" data-testid="local-ad-table">
+                    <thead><tr><th>Anunciante</th><th>Localidades</th><th>Período</th><th>Resultados</th><th>Status</th><th></th></tr></thead>
+                    <tbody>
+                        @foreach (var campaign in campaigns)
+                        {
+                            <tr @key="campaign.Id" data-testid="local-ad-row">
+                                <td><strong>@campaign.SponsorName</strong><div class="text-muted small">@campaign.Headline</div></td>
+                                <td>@campaign.LocationsText.Replace(Environment.NewLine, ", ")</td>
+                                <td>@campaign.StartsAt.ToString("dd/MM/yyyy")–@campaign.EndsAt.ToString("dd/MM/yyyy")</td>
+                                <td>@campaign.ImpressionCount impressões · @campaign.ClickCount cliques</td>
+                                <td><span class="badge @(campaign.IsActive ? "text-bg-success" : "text-bg-secondary")">@(campaign.IsActive ? "Ativa" : "Pausada")</span></td>
+                                <td class="text-end text-nowrap">
+                                    <button type="button" class="btn btn-outline-secondary btn-sm" @onclick="() => EditCampaign(campaign)" data-testid="local-ad-edit">Editar</button>
+                                    <button type="button" class="btn btn-outline-danger btn-sm" @onclick="() => DeleteAsync(campaign)" disabled="@busy" data-testid="local-ad-delete">Remover</button>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+</FeatureGate>
+
+<ConfirmDialog @ref="confirmDialog" />
+
+@code {
+    private List<LocalAdCampaignRow> campaigns = [];
+    private CampaignForm? form;
+    private bool busy;
+    private bool uploadingImage;
+    private bool loadFailed;
+    private string? formError;
+    private ClaimsPrincipal user = new ClaimsPrincipal(new ClaimsIdentity());
+    private ConfirmDialog confirmDialog = default!;
+
+    protected override async Task OnInitializedAsync()
+    {
+        user = (await AuthenticationState.GetAuthenticationStateAsync()).User;
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        loadFailed = false;
+        try
+        {
+            campaigns = (await Campaigns.ListAsync(user)).ToList();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Não foi possível carregar campanhas locais");
+            loadFailed = true;
+        }
+    }
+
+    private void NewCampaign()
+    {
+        var today = DateTime.Today;
+        formError = null;
+        form = new CampaignForm { StartsAt = today, EndsAt = today.AddDays(30), IsActive = true };
+    }
+
+    private void EditCampaign(LocalAdCampaignRow campaign)
+    {
+        formError = null;
+        form = new CampaignForm
+        {
+            Id = campaign.Id,
+            SponsorName = campaign.SponsorName,
+            Headline = campaign.Headline,
+            Description = campaign.Description,
+            ImageUrl = campaign.ImageUrl,
+            TargetUrl = campaign.TargetUrl,
+            LocationsText = campaign.LocationsText,
+            StartsAt = campaign.StartsAt,
+            EndsAt = campaign.EndsAt,
+            IsActive = campaign.IsActive
+        };
+    }
+
+    private async Task SaveAsync()
+    {
+        if (form is null || busy) return;
+        busy = true;
+        formError = null;
+        try
+        {
+            var result = await Campaigns.SaveAsync(new LocalAdCampaignInput(
+                form.Id, form.SponsorName, form.Headline, form.Description, form.ImageUrl, form.TargetUrl,
+                form.LocationsText, form.StartsAt, form.EndsAt, form.IsActive), user);
+            if (result.Status == EResultStatus.Success)
+            {
+                form = null;
+                Toast.ShowSuccess("A campanha foi salva.");
+                await LoadAsync();
+            }
+            else
+            {
+                formError = ResultMessages.ToUserMessage(result, "Revise os dados da campanha.");
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Não foi possível salvar campanha local");
+            formError = "Não foi possível salvar a campanha. Tente novamente.";
+        }
+        finally
+        {
+            busy = false;
+        }
+    }
+
+    private async Task UploadBannerAsync(InputFileChangeEventArgs args)
+    {
+        if (form is null || uploadingImage) return;
+        uploadingImage = true;
+        formError = null;
+        try
+        {
+            await using var stream = args.File.OpenReadStream(5 * 1024 * 1024);
+            var result = await UploadFile.ExecuteAsync(new UploadFileRequest
+            {
+                FileStream = stream,
+                FileName = args.File.Name,
+                ContentType = args.File.ContentType,
+                FileType = EFileType.Image
+            });
+            if (result.Status == EResultStatus.Success && result.Data is not null)
+                form.ImageUrl = result.Data.FileUrl;
+            else
+                formError = ResultMessages.ToUserMessage(result, "Não foi possível enviar esta imagem.");
+        }
+        catch (Exception ex) when (ex is IOException or InvalidOperationException)
+        {
+            formError = "Não foi possível enviar a imagem. Escolha um arquivo menor que 5 MB.";
+        }
+        finally
+        {
+            uploadingImage = false;
+        }
+    }
+
+    private async Task DeleteAsync(LocalAdCampaignRow campaign)
+    {
+        if (busy || !await confirmDialog.ShowAsync(new ConfirmOptions
+            {
+                Title = "Remover campanha?",
+                Message = $"O anúncio de {campaign.SponsorName} deixará de aparecer imediatamente.",
+                ConfirmText = "Remover campanha",
+                Destructive = true
+            })) return;
+
+        busy = true;
+        try
+        {
+            var result = await Campaigns.DeleteAsync(campaign.Id, user);
+            if (result.Status == EResultStatus.Success)
+            {
+                Toast.ShowSuccess("A campanha foi removida.");
+                await LoadAsync();
+            }
+            else
+            {
+                Toast.ShowError(ResultMessages.ToUserMessage(result, "Não foi possível remover a campanha."));
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Não foi possível remover campanha local");
+            Toast.ShowError("Não foi possível remover a campanha. Tente novamente.");
+        }
+        finally
+        {
+            busy = false;
+        }
+    }
+
+    private void CancelForm()
+    {
+        form = null;
+        formError = null;
+    }
+
+    private sealed class CampaignForm
+    {
+        public Guid? Id { get; set; }
+        public string SponsorName { get; set; } = string.Empty;
+        public string Headline { get; set; } = string.Empty;
+        public string? Description { get; set; }
+        public string? ImageUrl { get; set; }
+        public string TargetUrl { get; set; } = string.Empty;
+        public string LocationsText { get; set; } = string.Empty;
+        public DateTime StartsAt { get; set; } = DateTime.Today;
+        public DateTime EndsAt { get; set; } = DateTime.Today.AddDays(30);
+        public bool IsActive { get; set; }
+    }
+}

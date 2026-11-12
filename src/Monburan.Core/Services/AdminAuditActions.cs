@@ -20,6 +20,8 @@ public static class AdminAuditActions
     public const string AiProviderDefaultChanged = "ai_provider.default_changed";
     public const string AiProviderDeleted = "ai_provider.deleted";
     public const string SubmissionDecided = "submission.decided";
+    public const string LocalAdCampaignSaved = "local_ad_campaign.saved";
+    public const string LocalAdCampaignDeleted = "local_ad_campaign.deleted";
     public const string FeatureFlagSaved = "feature_flag.saved";
     public const string FeatureFlagDeleted = "feature_flag.deleted";
     public const string AccessGroupSaved = "access_group.saved";
@@ -33,6 +35,7 @@ public static class AdminAuditActions
     public const string JobTarget = "job";
     public const string AiProviderTarget = "aiProvider";
     public const string SubmissionTarget = "jobSubmission";
+    public const string LocalAdCampaignTarget = "localAdCampaign";
     public const string FeatureFlagTarget = "featureFlag";
     public const string AccessGroupTarget = "accessGroup";
 
@@ -53,6 +56,8 @@ public static class AdminAuditActions
         [AiProviderDefaultChanged] = "Provedor de IA padrão alterado",
         [AiProviderDeleted] = "Provedor de IA excluído",
         [SubmissionDecided] = "Sugestão de vaga decidida",
+        [LocalAdCampaignSaved] = "Campanha de publicidade salva",
+        [LocalAdCampaignDeleted] = "Campanha de publicidade removida",
         [FeatureFlagSaved] = "Funcionalidade salva",
         [FeatureFlagDeleted] = "Funcionalidade removida",
         [AccessGroupSaved] = "Grupo de acesso salvo",
@@ -69,6 +74,7 @@ public static class AdminAuditActions
         [JobTarget] = "Vaga",
         [AiProviderTarget] = "Provedor de IA",
         [SubmissionTarget] = "Sugestão de vaga",
+        [LocalAdCampaignTarget] = "Campanha local",
         [FeatureFlagTarget] = "Funcionalidade",
         [AccessGroupTarget] = "Grupo de acesso"
     };

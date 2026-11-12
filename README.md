@@ -76,7 +76,7 @@ Versão em Mermaid, editável, em [docs/fluxo-projeto.md](docs/fluxo-projeto.md)
 - **Candidatos:** busca de vagas por cargo, cidade e salário; candidatura com ou sem currículo anexado; alertas de vagas; currículos com importação de PDF e link público com campos à escolha; acompanhamento de cada candidatura.
 - **Empresas:** publicação e edição de vagas (a moderação é posterior, feita pela administração); recebimento de candidaturas por vaga; movimentação da situação de cada processo; perfil e logo da empresa.
 - **Visitantes:** sugestão de vagas encontradas fora da plataforma, revisadas pela administração (viram vagas externas).
-- **Plataforma:** cadastro e autenticação por perfil (ASP.NET Core Identity), API REST com JWT, notificações na plataforma e por e-mail, planos empresariais com checkout recorrente Mercado Pago (requer configuração de credenciais e webhook), IA para melhoria de currículo (plano Premium), importação de PDF e rascunho de vaga, feature flags por grupo de acesso.
+- **Plataforma:** cadastro e autenticação por perfil (ASP.NET Core Identity), API REST com JWT, notificações na plataforma e por e-mail, planos empresariais com checkout recorrente Mercado Pago (requer configuração de credenciais e webhook), campanhas de publicidade local por cidade, IA para melhoria de currículo (plano Premium), importação de PDF e rascunho de vaga, feature flags por grupo de acesso.
 - **Administração:** contas (inativar, reativar, 2FA e papéis), moderação de vagas e sugestões, trilha de auditoria, provedores de IA e feature flags.
 - **Aplicativo Android:** o fluxo do **candidato** (sem telas de empresa), em .NET MAUI Blazor Hybrid, com token em armazenamento seguro, exclusão de conta pelo app e respeito às feature flags.
 
