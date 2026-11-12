@@ -147,6 +147,7 @@
     .aside-card__actions { display: grid; gap: var(--s-2); }
     .job-apply-card { border-color: var(--gold-border); background: linear-gradient(145deg, var(--gold-soft), var(--bg-card)); }
     .job-apply-card .btn { width: 100%; }
+    .job-apply-card .btn + .btn { margin-top: var(--s-2); }
     .job-owner-card__status { display: flex; align-items: center; gap: var(--s-2); }
     .job-owner-card__stats { display: grid; gap: var(--s-2); margin: 0 0 var(--s-4); grid-template-columns: repeat(3, minmax(0, 1fr)); }
     .job-owner-card__stats > div { padding: var(--s-2); border: 1px solid var(--border); border-radius: var(--r-sm); background: var(--bg-elev); text-align: center; }
@@ -289,7 +290,11 @@
     .received-filters__count { margin-left: auto; align-self: center; color: var(--tx-2); font-size: var(--fs-sm); }
     .my-jobs-search { display: flex; min-width: 0; flex: 1 1 18rem; flex-wrap: wrap; align-items: flex-end; gap: var(--s-2); }
     .my-jobs-search__field { min-width: 0; flex: 1 1 10rem; margin: 0; }
-    .received-filters { display: grid; gap: var(--s-3); margin: 0 0 var(--s-5); grid-template-columns: minmax(0, 1fr); }
+    /* Celular: duas colunas (situação e período lado a lado; vaga e busca na linha inteira) para a primeira
+       candidatura aparecer mais cedo */
+    .received-filters { display: grid; gap: var(--s-3); margin: 0 0 var(--s-5); grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .received-filters > .received-filter:first-child,
+    .received-filters > .received-filter--search { grid-column: 1 / -1; }
     .received-filter { min-width: 0; margin: 0; }
     .received-filter__label { display: block; margin-bottom: var(--s-1); color: var(--tx-2); font-size: var(--fs-sm); font-weight: var(--fw-semibold); }
     @media (min-width: 768px) {

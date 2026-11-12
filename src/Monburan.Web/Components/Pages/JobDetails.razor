@@ -177,7 +177,7 @@
                 else if (job.Status == "Active")
                 {
                     <section class="aside-card job-apply-card" id="candidatura" data-testid="job-apply-card">
-                        <h2 class="aside-card__title">Interessado nesta vaga?</h2>
+                        <h2 class="aside-card__title">@(existingApplication is not null ? "Sua candidatura" : "Interessado nesta vaga?")</h2>
                         @if (JobChannel.IsExternal(job))
                         {
                             <p data-testid="job-external-notice">@JobChannel.Notice(job)</p>

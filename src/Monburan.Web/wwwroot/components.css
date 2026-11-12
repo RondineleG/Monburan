@@ -190,6 +190,9 @@
 
     @media (max-width: 767.98px) {
         .table-responsive:has(> .table-cards) { overflow: visible; border: 0; background: transparent; }
+        /* A tabela vira cartões: o cartão que a envolvia deixa de desenhar uma segunda borda em volta deles */
+        .card:has(> .card-body > .table-cards),
+        .card:has(> .card-body > .table-responsive > .table-cards) { border: 0; background: transparent; box-shadow: none; }
         .table-responsive > .table.table-cards { min-width: 0; }
         .table-cards caption { padding-inline: 0; }
         .table-cards thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
