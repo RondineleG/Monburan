@@ -290,9 +290,15 @@ public sealed class LocalAdCampaignService
                 return [];
             }
 
-            var city = CanonicalCity(pieces[0]);
             var state = pieces[1].ToUpperInvariant();
-            if (city is null || (state is not "PR" and not "SC"))
+            if (!RegionalCities.TryGetValue(state, out var cities))
+            {
+                error = $"A localidade “{line}” está fora das regiões atendidas.";
+                return [];
+            }
+
+            var city = cities.FirstOrDefault(item => Normalize(item) == Normalize(pieces[0]));
+            if (city is null)
             {
                 error = $"A localidade “{line}” está fora das regiões atendidas.";
                 return [];
@@ -301,12 +307,6 @@ public sealed class LocalAdCampaignService
                 locations.Add(new TargetLocation(city, state));
         }
         return locations;
-    }
-
-    private static string? CanonicalCity(string city)
-    {
-        var known = RegionalCities.Values.SelectMany(items => items).FirstOrDefault(item => Normalize(item) == Normalize(city));
-        return known;
     }
 
     private static bool HasLocation(string json, string city, string state)
@@ -356,6 +356,8 @@ public sealed class LocalAdCampaignService
     private static readonly IReadOnlyDictionary<string, string[]> RegionalCities = new Dictionary<string, string[]>
     {
         ["PR"] = ["Ponta Grossa", "Carambeí", "Castro", "Palmeira", "Porto Amazonas", "Ipiranga", "Curitiba", "Almirante Tamandaré", "Araucária", "Balsa Nova", "Campina Grande do Sul", "Campo Largo", "Campo Magro", "Colombo", "Contenda", "Fazenda Rio Grande", "Mandirituba", "Pinhais", "Piraquara", "Quatro Barras", "Quitandinha", "São José dos Pinhais", "Tijucas do Sul"],
-        ["SC"] = ["Joinville", "Araquari", "Balneário Barra do Sul", "Garuva", "Guaramirim", "Jaraguá do Sul", "São Francisco do Sul", "Schroeder", "Itajaí", "Navegantes", "Balneário Camboriú", "Camboriú", "Penha", "Balneário Piçarras", "Ilhota", "Itapema", "Porto Belo", "Brusque", "Gaspar", "Tijucas", "Luiz Alves"]
+        ["SC"] = ["Joinville", "Araquari", "Balneário Barra do Sul", "Garuva", "Guaramirim", "Jaraguá do Sul", "São Francisco do Sul", "Schroeder", "Itajaí", "Navegantes", "Balneário Camboriú", "Camboriú", "Penha", "Balneário Piçarras", "Ilhota", "Itapema", "Porto Belo", "Brusque", "Gaspar", "Tijucas", "Luiz Alves", "Florianópolis"],
+        ["SP"] = ["São Paulo", "Campinas", "Guarulhos", "Osasco", "São Bernardo do Campo", "Santo André", "Barueri", "Santos"],
+        ["RJ"] = ["Rio de Janeiro", "Niterói", "São Gonçalo", "Duque de Caxias", "Nova Iguaçu"]
     };
 }
