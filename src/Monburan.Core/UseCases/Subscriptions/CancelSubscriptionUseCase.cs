@@ -4,6 +4,7 @@ using Monburan.Core.Entities;
 using Monburan.Core.Enums;
 using Monburan.Core.Interfaces.Repositories;
 using Monburan.Core.Interfaces.Repositories.Base;
+using Monburan.Core.Interfaces.Services;
 using Monburan.Core.Interfaces.UseCases;
 using Monburan.Core.Requests;
 using Monburan.Core.ValueObjects;
@@ -14,13 +15,16 @@ public sealed class CancelSubscriptionUseCase : IUseCase<CancelSubscriptionReque
 {
     private readonly ISubscriptionRepository _subscriptionRepository;
     private readonly IBaseRepository<Advertiser> _advertiserRepository;
+    private readonly IRecurringPaymentGateway _paymentGateway;
 
     public CancelSubscriptionUseCase(
         ISubscriptionRepository subscriptionRepository,
-        IBaseRepository<Advertiser> advertiserRepository)
+        IBaseRepository<Advertiser> advertiserRepository,
+        IRecurringPaymentGateway paymentGateway)
     {
         _subscriptionRepository = subscriptionRepository;
         _advertiserRepository = advertiserRepository;
+        _paymentGateway = paymentGateway;
     }
 
     public async Task<RequestResult<SubscriptionResponse>> ExecuteAsync(CancelSubscriptionRequest request, CancellationToken cancellationToken = default)
@@ -50,6 +54,10 @@ public sealed class CancelSubscriptionUseCase : IUseCase<CancelSubscriptionReque
             return RequestResult<SubscriptionResponse>.FromResult(advertiserResult);
 
         var advertiser = advertiserResult.Data;
+
+        if (!await _paymentGateway.CancelAsync(subscription.PaymentId, cancellationToken))
+            return RequestResult<SubscriptionResponse>.WithDomainError(
+                "Não foi possível cancelar a cobrança recorrente. Tente novamente ou fale com o suporte.");
 
         // Cancelar assinatura e voltar para o plano Free — as duas gravações saem na mesma
         // transação, para o plano do anunciante nunca divergir do estado da assinatura.

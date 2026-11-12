@@ -6,7 +6,7 @@
 @inject GetAvailablePlansUseCase GetAvailablePlansUseCase
 @inject UpgradePlanUseCase UpgradePlanUseCase
 @inject ICurrentUserHelper CurrentUserHelper
-@inject Monburan.Core.Interfaces.Services.IBillingPolicy Billing
+@inject MercadoPagoBillingService PaymentBilling
 @inject NavigationManager Navigation
 @inject IToastService Toast
 @inject ILogger<Plans> Logger
@@ -15,6 +15,13 @@
 
 <div class="container plans-page">
     <PageHeader Title="Planos para crescer no seu ritmo" Description="Compare os recursos e escolha o que faz sentido para suas contratações." />
+
+    @if (checkoutReturned)
+    {
+        <div class="alert alert-info" role="status" data-testid="plan-checkout-returned">
+            O pagamento está sendo confirmado. O plano será liberado assim que o Mercado Pago confirmar a assinatura.
+        </div>
+    }
 
     @if (isLoading)
     {
@@ -113,7 +120,23 @@
                                         Plano atual
                                     </button>
                                 }
-                                else if (plan.Price > 0 && !Billing.AllowsSelfServicePaidPlans)
+                                else if (plan.Price > 0 && PaymentBilling.IsConfigured)
+                                {
+                                    <button type="button" class="btn btn-primary w-100" @onclick="() => StartCheckoutAsync(plan)"
+                                            disabled="@(checkingOutPlanId is not null)" data-testid="plan-checkout">
+                                        @if (checkingOutPlanId == plan.Id)
+                                        {
+                                            <span class="spinner-border spinner-border-sm" aria-hidden="true"></span>
+                                            <span>Abrindo pagamento…</span>
+                                        }
+                                        else
+                                        {
+                                            <span>Assinar plano</span>
+                                        }
+                                    </button>
+                                    <span class="plan-card__note">Renovação recorrente pelo Mercado Pago. Cancele quando quiser em Minha assinatura.</span>
+                                }
+                                else if (plan.Price > 0)
                                 {
                                     <a class="btn btn-outline-primary w-100" href="@PlanInquiryUrl(plan)"
                                        data-testid="plan-paid-inquiry">
@@ -183,13 +206,35 @@
     private bool isAdvertiser;
     private bool isCandidate;
     private Guid? changingPlanId;
+    private Guid? checkingOutPlanId;
+    private bool checkoutReturned;
     private ConfirmDialog confirmDialog = default!;
 
     protected override async Task OnInitializedAsync()
     {
         isAdvertiser = CurrentUserHelper.GetAdvertiserId().HasValue;
         isCandidate = CurrentUserHelper.GetCandidateId().HasValue;
+        checkoutReturned = Navigation.ToAbsoluteUri(Navigation.Uri).Query.Contains("checkout=returned", StringComparison.OrdinalIgnoreCase);
         await LoadAsync();
+    }
+
+    private async Task StartCheckoutAsync(PlanResponse plan)
+    {
+        var advertiserId = CurrentUserHelper.GetAdvertiserId();
+        if (!advertiserId.HasValue || checkingOutPlanId is not null)
+            return;
+
+        checkingOutPlanId = plan.Id;
+        var result = await PaymentBilling.CreateCheckoutAsync(advertiserId.Value, plan.Id);
+        checkingOutPlanId = null;
+        if (result.Status == Core.Enums.EResultStatus.Success && result.Data is not null)
+        {
+            Navigation.NavigateTo(result.Data.InitPoint, forceLoad: true);
+            return;
+        }
+
+        Logger.LogFailure(result, "Iniciar checkout de assinatura");
+        Toast.ShowError(ResultMessages.ToUserMessage(result, "Não foi possível iniciar o pagamento. Tente novamente."));
     }
 
     private async Task LoadAsync()

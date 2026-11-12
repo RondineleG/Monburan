@@ -1,3 +1,6 @@
+using System.Text;
+using System.Text.Json;
+
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 
@@ -12,6 +15,46 @@ public static class SubscriptionEndpoints
 {
     public static RouteGroupBuilder MapSubscriptionEndpoints(this RouteGroupBuilder api)
     {
+        api.MapPost("/webhooks/mercadopago", async (HttpContext http, MercadoPagoBillingService billing, CancellationToken cancellationToken) =>
+        {
+            if (http.Request.ContentLength > 64 * 1024)
+                return Results.StatusCode(StatusCodes.Status413PayloadTooLarge);
+
+            await using var payloadBuffer = new MemoryStream();
+            var buffer = new byte[8192];
+            int read;
+            while ((read = await http.Request.Body.ReadAsync(buffer, cancellationToken)) > 0)
+            {
+                if (payloadBuffer.Length + read > 64 * 1024)
+                    return Results.StatusCode(StatusCodes.Status413PayloadTooLarge);
+                await payloadBuffer.WriteAsync(buffer.AsMemory(0, read), cancellationToken);
+            }
+            var payload = Encoding.UTF8.GetString(payloadBuffer.ToArray());
+            string? dataId = http.Request.Query["data.id"].FirstOrDefault();
+            if (string.IsNullOrWhiteSpace(dataId))
+            {
+                try
+                {
+                    using var document = JsonDocument.Parse(payload);
+                    if (document.RootElement.TryGetProperty("data", out var data)
+                        && data.TryGetProperty("id", out var id))
+                        dataId = id.ValueKind == JsonValueKind.String ? id.GetString() : id.ToString();
+                }
+                catch (JsonException)
+                {
+                    return Results.BadRequest();
+                }
+            }
+
+            var handled = await billing.HandleWebhookAsync(
+                payload,
+                http.Request.Headers["x-signature"].FirstOrDefault(),
+                http.Request.Headers["x-request-id"].FirstOrDefault(),
+                dataId,
+                cancellationToken);
+            return Results.StatusCode(handled ? StatusCodes.Status200OK : StatusCodes.Status503ServiceUnavailable);
+        }).AllowAnonymous().WithTags("Billing").WithSummary("Webhook assinado de assinaturas Mercado Pago");
+
         // Planos: anônimo vê a lista; autenticado também recebe CurrentSubscription.
         // AllowAnonymous + DefaultScheme=cookie faz o bearer nunca ser executado —
         // autentica o JWT explicitamente quando vier no header.
@@ -43,6 +86,23 @@ public static class SubscriptionEndpoints
 
         var group = api.MapGroup("/subscriptions").WithTags("Subscriptions")
             .RequireAuthorization("ApiBearer");
+
+        group.MapPost("/checkout", async (
+            CreateSubscriptionCheckoutRequest request,
+            ICurrentUserHelper currentUser,
+            MercadoPagoBillingService billing,
+            CancellationToken cancellationToken) =>
+        {
+            var advertiserId = currentUser.GetAdvertiserId();
+            if (advertiserId is null)
+                return Results.Problem(statusCode: StatusCodes.Status403Forbidden, title: "Perfil de anunciante necessário");
+
+            var result = await billing.CreateCheckoutAsync(advertiserId.Value, request.PlanId, cancellationToken);
+            return result.Status == EResultStatus.Success && result.Data is not null
+                ? Results.Ok(result.Data)
+                : result.ToHttpResult();
+        })
+        .WithSummary("Cria checkout recorrente seguro para o anunciante autenticado");
 
         group.MapPost("/upgrade", async (
             UpgradePlanRequest request,

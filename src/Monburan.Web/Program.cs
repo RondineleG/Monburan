@@ -437,10 +437,17 @@ builder.Services.AddScoped<Monburan.Core.UseCases.Notifications.PasswordResetUse
 
 // Registrar Use Cases de Assinatura
 builder.Services.AddScoped<GetAvailablePlansUseCase>();
-builder.Services.AddSingleton<IBillingPolicy, BillingPolicy>();
 builder.Services.AddScoped<UpgradePlanUseCase>();
 builder.Services.AddScoped<CancelSubscriptionUseCase>();
 builder.Services.AddScoped<CheckJobLimitUseCase>();
+builder.Services.Configure<MercadoPagoOptions>(builder.Configuration.GetSection(MercadoPagoOptions.SectionName));
+builder.Services.PostConfigure<MercadoPagoOptions>(options =>
+{
+    if (string.IsNullOrWhiteSpace(options.PublicBaseUrl))
+        options.PublicBaseUrl = builder.Configuration["App:PublicBaseUrl"] ?? string.Empty;
+});
+builder.Services.AddHttpClient<MercadoPagoBillingService>(client => client.Timeout = TimeSpan.FromSeconds(20));
+builder.Services.AddScoped<IRecurringPaymentGateway>(services => services.GetRequiredService<MercadoPagoBillingService>());
 
 // Registrar Storage Provider
 builder.Services.AddScoped<IStorageProvider, LocalStorageProvider>();

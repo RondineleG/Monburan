@@ -56,7 +56,12 @@ As rotas `/api/v1/**` exigem `Authorization: Bearer` (policy `ApiBearer`), excet
 | `POST` | `/api/v1/advertisers/logo` | advertiser | Upload de logo (multipart `file`) + atualiza perfil |
 | `GET` | `/api/v1/dashboard` | advertiser | Métricas |
 | `GET` | `/api/v1/plans` | anon | Planos (com assinatura atual se anunciante logado) |
+| `POST` | `/api/v1/subscriptions/checkout` | advertiser | Checkout recorrente de plano pago; devolve `initPoint` para abrir no navegador |
 | `POST` | `/api/v1/subscriptions/upgrade`, `/api/v1/subscriptions/cancel` | advertiser | Troca e cancelamento de plano |
+
+O webhook do Mercado Pago é `POST /api/v1/webhooks/mercadopago` (sem bearer; valida `x-signature`). A ativação acontece
+somente após o evento de pagamento autorizado ser consultado no provedor e conferido com o valor/ciclo do plano. A
+autorização inicial da recorrência sozinha não libera acesso.
 
 ## Configuração do JWT
 

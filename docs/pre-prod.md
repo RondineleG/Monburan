@@ -50,16 +50,13 @@ telas foram compiladas pelo `tests/ux-mobile-preview`). O CI roda os três.
 
 ## 1. Decisões de produto (bloqueantes)
 
-- [ ] 🔴 **Cobrança dos planos.** Hoje "Fazer upgrade" ativa Premium/Enterprise sem pagamento (`AUDIT-REPORT.md` §5.1).
-      Escolher e registrar uma opção:
-  - [ ] integrar gateway de pagamento (ex.: Mercado Pago, Asaas ou Stripe);
-  - [ ] ativação manual pelo administrador;
-  - [x] ocultar os planos pagos até a cobrança existir. **Medida provisória aplicada:** o servidor recusa a ativação de
-        plano pago pelo próprio anunciante, no site e em `POST /api/v1/subscriptions/upgrade`
-        (`Billing:SelfServicePaidPlans`, desligado fora de Development), e a tela mostra "Em breve" no lugar do botão.
-        Para voltar atrás, ligue a chave (`Billing__SelfServicePaidPlans=true`). **O item continua aberto até existir
-        cobrança de verdade.**
-      **Evidência:** decisão registrada em `PRODUCT.md`.
+- [x] 🔴 **Cobrança dos planos.** Escolhido Mercado Pago: o checkout recorrente mensal/anual cria assinatura pendente;
+      o webhook assinado consulta o provedor e ativa somente após confirmar status, valor e moeda. Cancelamentos no portal
+      também encerram a recorrência no Mercado Pago. Sem credenciais válidas, a contratação permanece em contato manual.
+      **Pendente para produção:** configurar `Billing__MercadoPago__AccessToken`, `Billing__MercadoPago__WebhookSecret`
+      e `App__PublicBaseUrl` HTTPS no ambiente; cadastrar `/api/v1/webhooks/mercadopago` para os eventos
+      `subscription_preapproval` e `subscription_authorized_payment` no painel do Mercado Pago; validar primeiro com
+      credenciais de teste. Nunca ligar um bypass de upgrade pago.
 - [ ] 🟠 **Boost, destaque e analytics por plano.** Implementar ou remover do catálogo (`AUDIT-REPORT.md` §5.2).
 - [ ] 🟠 **Limite de vagas ativas.** Comunicar aos anunciantes que quem excede o limite não publica nem reativa vagas
       até ficar abaixo (`AUDIT-REPORT.md` §5.3).
