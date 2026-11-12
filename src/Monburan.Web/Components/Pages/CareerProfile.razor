@@ -10,6 +10,12 @@
 @using Monburan.Web.Services
 @inject GetCareerProfileUseCase GetCareerProfileUseCase
 @inject UpsertCareerProfileUseCase UpsertCareerProfileUseCase
+@inject GetInternationalPreferencesUseCase GetInternationalPreferences
+@inject UpsertInternationalPreferencesUseCase UpsertInternationalPreferences
+@inject GetCandidateLanguagesUseCase GetCandidateLanguages
+@inject ReplaceCandidateLanguagesUseCase ReplaceCandidateLanguages
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject IFeatureFlags FeatureFlags
 @inject CurrentUserHelper CurrentUserHelper
 @inject NavigationManager Navigation
 @inject IToastService Toast
@@ -124,6 +130,98 @@
                         </EditForm>
                     </div>
                 </article>
+
+                @if (showInternational)
+                {
+                    <article class="card mt-3" data-testid="international-preferences-card">
+                        <div class="card-body">
+                            <h2 class="h5">Carreira internacional</h2>
+                            <p class="text-muted small">
+                                Preferências autodeclaradas para vagas fora do Brasil. Opcionais —
+                                informar não determina elegibilidade legal para trabalhar em outro país.
+                            </p>
+                            @if (!string.IsNullOrEmpty(internationalError))
+                            {
+                                <div class="alert alert-danger" role="alert" data-testid="international-error">@internationalError</div>
+                            }
+
+                            <EditForm Model="intlModel" OnValidSubmit="SaveInternationalAsync" Context="intlForm" novalidate>
+                                <div class="mb-3">
+                                    <label class="form-label" for="intl-countries">Países de interesse</label>
+                                    <InputText id="intl-countries" class="form-control" @bind-Value="intlModel.CountriesInput"
+                                               placeholder="ES, PT, DE" data-testid="intl-countries" />
+                                    <div class="form-text">Códigos de 2 letras separados por vírgula (máx. 20).</div>
+                                </div>
+
+                                <div class="row g-2">
+                                    <div class="col-md-6">
+                                        <label class="form-label" for="intl-mobility">Disponibilidade</label>
+                                        <InputSelect id="intl-mobility" class="form-select" @bind-Value="intlModel.Mobility" data-testid="intl-mobility">
+                                            <option value="@EInternationalMobility.NotInformed">Prefiro não informar</option>
+                                            <option value="@EInternationalMobility.RemoteOnly">Somente remoto para o exterior</option>
+                                            <option value="@EInternationalMobility.Relocation">Somente com realocação</option>
+                                            <option value="@EInternationalMobility.RemoteOrRelocation">Remoto ou realocação</option>
+                                        </InputSelect>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label" for="intl-work-auth">Autorização de trabalho (autodeclarada)</label>
+                                        <InputSelect id="intl-work-auth" class="form-select" @bind-Value="intlModel.WorkAuthorizationStatus" data-testid="intl-work-auth">
+                                            <option value="@EWorkAuthorizationStatus.NotInformed">Prefiro não informar</option>
+                                            <option value="@EWorkAuthorizationStatus.None">Não tenho autorização</option>
+                                            <option value="@EWorkAuthorizationStatus.Citizen">Cidadania do país de destino</option>
+                                            <option value="@EWorkAuthorizationStatus.PermanentResidency">Residência permanente</option>
+                                            <option value="@EWorkAuthorizationStatus.WorkVisa">Visto de trabalho vigente</option>
+                                            <option value="@EWorkAuthorizationStatus.Other">Outra situação</option>
+                                        </InputSelect>
+                                    </div>
+                                </div>
+
+                                <div class="form-actions mt-3">
+                                    <button type="submit" class="btn btn-primary" disabled="@intlSaving" data-testid="intl-submit">
+                                        @(intlSaving ? "Salvando…" : "Salvar preferências internacionais")
+                                    </button>
+                                </div>
+                            </EditForm>
+
+                            <hr />
+
+                            <h3 class="h6">Idiomas (autodeclarados)</h3>
+                            @foreach (var (item, index) in languages.Select((l, i) => (l, i)))
+                            {
+                                <div class="row g-2 align-items-end mb-2" data-testid="language-row">
+                                    <div class="col-md-4">
+                                        <label class="form-label">Idioma (ex.: es-ES)</label>
+                                        <InputText class="form-control" @bind-Value="item.LanguageTag" placeholder="es-ES" />
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="form-label">Nível</label>
+                                        <InputSelect class="form-select" @bind-Value="item.Level">
+                                            @foreach (var level in Enum.GetValues<ELanguageLevel>())
+                                            {
+                                                <option value="@level">@LanguageLevelLabel(level)</option>
+                                            }
+                                        </InputSelect>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="form-label">Evidência</label>
+                                        <InputSelect class="form-select" @bind-Value="item.Evidence">
+                                            <option value="@ELanguageEvidence.SelfDeclared">Autodeclarado</option>
+                                            <option value="@ELanguageEvidence.Certificate">Certificado</option>
+                                            <option value="@ELanguageEvidence.Native">Nativo</option>
+                                        </InputSelect>
+                                    </div>
+                                    <div class="col-md-2">
+                                        <button type="button" class="btn btn-outline-danger btn-sm w-100" @onclick="() => languages.RemoveAt(index)">Remover</button>
+                                    </div>
+                                </div>
+                            }
+                            <div class="d-flex gap-2 mt-2">
+                                <button type="button" class="btn btn-outline-primary btn-sm" @onclick="AddLanguage" data-testid="language-add">Adicionar idioma</button>
+                                <button type="button" class="btn btn-primary btn-sm" disabled="@intlSaving" @onclick="SaveLanguagesAsync" data-testid="languages-submit">Salvar idiomas</button>
+                            </div>
+                        </div>
+                    </article>
+                }
             </div>
         </div>
     }
@@ -144,7 +242,35 @@
     private bool isSaving;
     private bool loadFailed;
 
-    protected override async Task OnInitializedAsync() => await LoadAsync();
+    private bool showInternational;
+    private bool intlSaving;
+    private string internationalError = string.Empty;
+    private InternationalFormModel intlModel = new();
+    private List<CandidateLanguageItem> languages = [];
+
+    private sealed class InternationalFormModel
+    {
+        public string CountriesInput { get; set; } = string.Empty;
+        public EInternationalMobility Mobility { get; set; } = EInternationalMobility.NotInformed;
+        public EWorkAuthorizationStatus WorkAuthorizationStatus { get; set; } = EWorkAuthorizationStatus.NotInformed;
+    }
+
+    private static string LanguageLevelLabel(ELanguageLevel level) => level switch
+    {
+        ELanguageLevel.Basic => "Básico",
+        ELanguageLevel.Intermediate => "Intermediário",
+        ELanguageLevel.Advanced => "Avançado",
+        ELanguageLevel.Fluent => "Fluente",
+        ELanguageLevel.Native => "Nativo",
+        _ => level.ToString()
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        showInternational = await FeatureFlags.IsEnabledAsync("carreira-internacional", authState.User);
+        await LoadAsync();
+    }
 
     private async Task LoadAsync()
     {
@@ -171,7 +297,97 @@
             loadFailed = true;
         }
 
+        if (showInternational)
+            await LoadInternationalAsync();
+
         isLoading = false;
+    }
+
+    private async Task LoadInternationalAsync()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var candidateId = CurrentUserHelper.GetCandidateId()!.Value;
+
+        var prefs = await GetInternationalPreferences.ExecuteAsync(
+            new GetInternationalPreferencesCommand(candidateId), authState.User);
+        if (prefs.Status == EResultStatus.Success && prefs.Data is not null)
+        {
+            intlModel = new InternationalFormModel
+            {
+                CountriesInput = string.Join(", ", prefs.Data.InterestedCountries),
+                Mobility = prefs.Data.Mobility,
+                WorkAuthorizationStatus = prefs.Data.WorkAuthorizationStatus
+            };
+        }
+
+        var langs = await GetCandidateLanguages.ExecuteAsync(
+            new GetCandidateLanguagesCommand(candidateId), authState.User);
+        if (langs.Status == EResultStatus.Success && langs.Data is not null)
+            languages = langs.Data.Languages;
+    }
+
+    private async Task SaveInternationalAsync()
+    {
+        if (intlSaving)
+            return;
+        intlSaving = true;
+        internationalError = string.Empty;
+
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var candidateId = CurrentUserHelper.GetCandidateId()!.Value;
+        var countries = intlModel.CountriesInput
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .ToList();
+
+        var result = await UpsertInternationalPreferences.ExecuteAsync(
+            new UpsertInternationalPreferencesCommand(candidateId, new InternationalPreferencesRequest
+            {
+                InterestedCountries = countries,
+                Mobility = intlModel.Mobility,
+                WorkAuthorizationStatus = intlModel.WorkAuthorizationStatus
+            }), authState.User);
+
+        if (result.Status == EResultStatus.Success)
+        {
+            Toast.ShowSuccess("Preferências internacionais salvas.", "Carreira internacional");
+        }
+        else
+        {
+            Logger.LogFailure(result, "Salvar preferências internacionais");
+            internationalError = ResultMessages.ToUserMessage(result, "Não foi possível salvar. Revise os campos e tente novamente.");
+        }
+
+        intlSaving = false;
+    }
+
+    private void AddLanguage() => languages.Add(new CandidateLanguageItem());
+
+    private async Task SaveLanguagesAsync()
+    {
+        if (intlSaving)
+            return;
+        intlSaving = true;
+        internationalError = string.Empty;
+
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var candidateId = CurrentUserHelper.GetCandidateId()!.Value;
+
+        var result = await ReplaceCandidateLanguages.ExecuteAsync(
+            new ReplaceCandidateLanguagesCommand(candidateId, new CandidateLanguagesRequest { Languages = languages }),
+            authState.User);
+
+        if (result.Status == EResultStatus.Success)
+        {
+            languages = result.Data!.Languages;
+            Toast.ShowSuccess("Idiomas salvos.", "Carreira internacional");
+        }
+        else
+        {
+            Logger.LogFailure(result, "Salvar idiomas");
+            internationalError = ResultMessages.ToUserMessage(result, "Não foi possível salvar os idiomas.");
+        }
+
+        intlSaving = false;
     }
 
     private async Task SaveAsync(EditContext form)

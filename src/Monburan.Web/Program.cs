@@ -336,6 +336,7 @@ builder.Services.AddScoped<IResumeRepository, ResumeRepository>();
 builder.Services.AddScoped<ISavedJobRepository, SavedJobRepository>();
 builder.Services.AddScoped<IJobAlertRepository, JobAlertRepository>();
 builder.Services.AddScoped<ICareerProfileRepository, CareerProfileRepository>();
+builder.Services.AddScoped<ICandidateLanguageRepository, CandidateLanguageRepository>();
 builder.Services.AddScoped<IAiProviderRepository, AiProviderRepository>();
 builder.Services.AddScoped<IAdminAuditLog, AdminAuditLog>();
 builder.Services.AddScoped<Monburan.Core.UseCases.Admin.AdminListJobsUseCase>();
@@ -399,6 +400,10 @@ builder.Services.AddScoped<Monburan.Core.UseCases.Candidates.DeleteCandidateUseC
 builder.Services.AddScoped<Monburan.Core.UseCases.Candidates.UpdateCandidateUseCase>();
 builder.Services.AddScoped<GetCareerProfileUseCase>();
 builder.Services.AddScoped<UpsertCareerProfileUseCase>();
+builder.Services.AddScoped<GetInternationalPreferencesUseCase>();
+builder.Services.AddScoped<UpsertInternationalPreferencesUseCase>();
+builder.Services.AddScoped<GetCandidateLanguagesUseCase>();
+builder.Services.AddScoped<ReplaceCandidateLanguagesUseCase>();
 builder.Services.AddScoped<GetCandidateProgressUseCase>();
 
 // Registrar Use Cases de Advertisers

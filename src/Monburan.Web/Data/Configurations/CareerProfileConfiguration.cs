@@ -43,6 +43,17 @@ public class CareerProfileConfiguration : IEntityTypeConfiguration<CareerProfile
             .HasConversion<string>()
             .HasMaxLength(30);
 
+        builder.Property(p => p.InterestedCountries)
+            .HasColumnType("text[]");
+
+        builder.Property(p => p.Mobility)
+            .HasConversion<string>()
+            .HasMaxLength(30);
+
+        builder.Property(p => p.WorkAuthorizationStatus)
+            .HasConversion<string>()
+            .HasMaxLength(30);
+
         builder.HasOne<Candidate>()
             .WithMany()
             .HasForeignKey(p => p.CandidateId)

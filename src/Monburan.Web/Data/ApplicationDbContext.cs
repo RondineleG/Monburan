@@ -41,6 +41,8 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
 
     public DbSet<CareerProfile> CareerProfiles => Set<CareerProfile>();
 
+    public DbSet<CandidateLanguage> CandidateLanguages => Set<CandidateLanguage>();
+
     public DbSet<Job> Jobs => Set<Job>();
 
     public DbSet<JobAlert> JobAlerts => Set<JobAlert>();
