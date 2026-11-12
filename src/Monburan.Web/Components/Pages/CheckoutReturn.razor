@@ -1,0 +1,143 @@
+@page "/checkout/retorno"
+@rendermode InteractiveServer
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Policy = "AccountProfile")]
+@using Monburan.Core.DTOs.Request
+@using Monburan.Core.UseCases.Subscriptions
+@implements IDisposable
+@inject GetSubscriptionStatusUseCase GetSubscriptionStatus
+@inject ICurrentUserHelper CurrentUserHelper
+
+<PageTitle>Confirmando pagamento - Monburan</PageTitle>
+
+<div class="container subscription-layout">
+    <PageHeader Title="Retorno do pagamento" Description="Acompanhamos a confirmação do provedor para liberar seu plano." />
+
+    <div class="row justify-content-center">
+        <div class="col-md-8 col-lg-6">
+            <div class="card shadow-sm text-center">
+                <div class="card-body py-5">
+                    @switch (state)
+                    {
+                        case ReturnState.Checking:
+                            <div class="spinner-border text-primary mb-3" role="status" aria-label="Aguardando confirmação"></div>
+                            <h1 class="h4">Confirmando seu pagamento…</h1>
+                            <p class="text-muted mb-0">
+                                O Mercado Pago está processando a assinatura. Isso leva poucos segundos — não feche esta página.
+                            </p>
+                            break;
+                        case ReturnState.Confirmed:
+                            <div class="text-success mb-3" aria-hidden="true"><Icon Name="check" Size="48" /></div>
+                            <h1 class="h4">Pagamento confirmado!</h1>
+                            <p class="text-muted">
+                                Seu plano <strong>@planName</strong> está ativo
+                                @if (price > 0)
+                                {
+                                    @: — R$ @price.ToString("N2")/@period
+                                }
+                                .
+                            </p>
+                            <a class="btn btn-primary" href="/minha-assinatura" data-testid="checkout-return-go-subscription">Ver minha assinatura</a>
+                            break;
+                        case ReturnState.StillPending:
+                            <div class="text-primary mb-3" aria-hidden="true"><Icon Name="clock" Size="48" /></div>
+                            <h1 class="h4">Pagamento em processamento</h1>
+                            <p class="text-muted">
+                                A confirmação do Mercado Pago está demorando mais que o normal. O plano
+                                <strong>@planName</strong> será liberado automaticamente assim que o pagamento for confirmado —
+                                você pode acompanhar em "Plano e assinatura".
+                            </p>
+                            <a class="btn btn-outline-primary" href="/minha-assinatura">Acompanhar assinatura</a>
+                            <a class="btn btn-link" href="/plans">Voltar aos planos</a>
+                            break;
+                        default:
+                            <div class="text-warning mb-3" aria-hidden="true"><Icon Name="alert" Size="48" /></div>
+                            <h1 class="h4">Não encontramos este checkout</h1>
+                            <p class="text-muted">
+                                O link de retorno não corresponde a um pagamento seu ou o checkout foi encerrado.
+                                Se o valor foi debitado, fale com o suporte.
+                            </p>
+                            <a class="btn btn-primary" href="/plans">Ver planos</a>
+                            break;
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private enum ReturnState { Checking, Confirmed, StillPending, Problem }
+
+    [SupplyParameterFromQuery(Name = "sub")]
+    public string? SubscriptionId { get; set; }
+
+    private readonly CancellationTokenSource cancellation = new();
+    private ReturnState state = ReturnState.Checking;
+    private string planName = string.Empty;
+    private decimal price;
+    private string period = "mês";
+
+    protected override void OnInitialized()
+    {
+        if (!Guid.TryParse(SubscriptionId, out var subscriptionId) || subscriptionId == Guid.Empty)
+        {
+            state = ReturnState.Problem;
+            return;
+        }
+
+        _ = PollAsync(subscriptionId, cancellation.Token);
+    }
+
+    // O webhook do Mercado Pago ativa a assinatura de forma assíncrona: consultamos o
+    // status a cada 3s por até 2 minutos e, se não confirmar, orientamos a acompanhar.
+    private async Task PollAsync(Guid subscriptionId, CancellationToken cancellationToken)
+    {
+        var deadline = DateTime.UtcNow.AddMinutes(2);
+        try
+        {
+            while (DateTime.UtcNow < deadline)
+            {
+                var result = await GetSubscriptionStatus.ExecuteAsync(new SubscriptionStatusRequest
+                {
+                    SubscriptionId = subscriptionId,
+                    AdvertiserId = CurrentUserHelper.GetAdvertiserId(),
+                    CandidateId = CurrentUserHelper.GetCandidateId()
+                }, cancellationToken);
+
+                if (result.Status == Core.Enums.EResultStatus.Success && result.Data is { } subscription)
+                {
+                    planName = UiLabels.PlanName(subscription.PlanName);
+                    price = subscription.Price;
+                    period = subscription.Period == "Annual" ? "ano" : "mês";
+
+                    if (subscription.Status == "Active")
+                    {
+                        state = ReturnState.Confirmed;
+                        await InvokeAsync(StateHasChanged);
+                        return;
+                    }
+                    if (subscription.Status is "Cancelled" or "Expired")
+                    {
+                        state = ReturnState.Problem;
+                        await InvokeAsync(StateHasChanged);
+                        return;
+                    }
+                }
+
+                await Task.Delay(3000, cancellationToken);
+            }
+
+            state = ReturnState.StillPending;
+            await InvokeAsync(StateHasChanged);
+        }
+        catch (OperationCanceledException)
+        {
+        }
+    }
+
+    public void Dispose()
+    {
+        cancellation.Cancel();
+        cancellation.Dispose();
+    }
+}

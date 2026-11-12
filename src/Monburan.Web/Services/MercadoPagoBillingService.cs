@@ -126,6 +126,22 @@ public sealed class MercadoPagoBillingService : IRecurringPaymentGateway
                 advertiserId is not null ? "Sua empresa já tem este plano ativo." : "Você já tem este plano ativo.");
 
         var now = _time.GetUtcNow().UtcDateTime;
+
+        // Checkouts anteriores que ficaram pendentes viram mandatos reais no provedor:
+        // sem expirá-los, pagar dois checkouts cobraria a conta em dobro. O cancelamento
+        // remoto mata o preapproval; a linha local fica Expired para histórico.
+        var stalePendings = await context.Subscriptions
+            .Where(item => !item.IsDeleted && item.Status == ESubscriptionStatus.Pending
+                && item.AdvertiserId == ownerAdvertiserId && item.CandidateId == ownerCandidateId)
+            .ToListAsync(cancellationToken);
+        foreach (var stale in stalePendings)
+        {
+            await CancelAsync(stale.PaymentId, cancellationToken);
+            stale.Status = ESubscriptionStatus.Expired;
+            stale.EndDate = now;
+            stale.CancellationReason = "Substituída por um novo checkout.";
+        }
+
         var pending = new Subscription
         {
             Id = Id.Create(Guid.NewGuid()),
@@ -141,7 +157,7 @@ public sealed class MercadoPagoBillingService : IRecurringPaymentGateway
         await context.SaveChangesAsync(cancellationToken);
 
         var period = plan.Period == ESubscriptionPeriod.Annual ? 12 : 1;
-        var backUrl = new Uri(baseUri, "/plans?checkout=returned").ToString();
+        var backUrl = new Uri(baseUri, $"/checkout/retorno?sub={pending.Id.Value}").ToString();
         var payload = new
         {
             reason = $"Monburan - {plan.Name}",

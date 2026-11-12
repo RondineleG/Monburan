@@ -251,6 +251,16 @@
         if ((advertiserId is null && candidateId is null) || checkingOutPlanId is not null)
             return;
 
+        var price = $"R$ {plan.Price:N2} por {(plan.Period == "Annual" ? "ano" : "mês")}";
+        var confirmed = await confirmDialog.ShowAsync(new ConfirmOptions
+        {
+            Title = $"Assinar o plano {UiLabels.PlanName(plan.Name)}?",
+            Message = $"Você será levado ao Mercado Pago para concluir o pagamento de {price}. O plano é liberado assim que o pagamento for confirmado.",
+            ConfirmText = "Ir para o pagamento"
+        });
+        if (!confirmed)
+            return;
+
         checkingOutPlanId = plan.Id;
         var result = advertiserId is { } advId
             ? await PaymentBilling.CreateCheckoutAsync(advId, plan.Id)
