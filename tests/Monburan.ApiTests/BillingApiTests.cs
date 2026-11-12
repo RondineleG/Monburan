@@ -39,14 +39,41 @@ public class BillingApiTests : IClassFixture<MonburanBillingApiFactory>
     }
 
     [Fact]
-    public async Task Checkout_WithACandidateAccount_Returns403()
+    public async Task Checkout_WithACandidateAccount_AndAnAdvertiserPlan_IsRefused()
     {
         var token = await RegisterAsync("candidate", "candidate");
+        // /api/v1/plans anônimo retorna os planos de empresa — exatamente o que o
+        // candidato não pode contratar (audiência cruzada).
+        var plans = await _client.GetFromJsonAsync<AvailablePlansResponse>("/api/v1/plans");
+        var advertiserPlan = plans!.Plans.First(p => p.Price > 0);
 
         var response = await SendAsync(HttpMethod.Post, "/api/v1/subscriptions/checkout", token.AccessToken,
-            new CreateSubscriptionCheckoutRequest { PlanId = Guid.NewGuid() });
+            new CreateSubscriptionCheckoutRequest { PlanId = advertiserPlan.Id });
 
-        response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
+    [Fact]
+    public async Task Checkout_WithACandidateAccount_AndACandidatePlan_ReturnsACheckout()
+    {
+        var token = await RegisterAsync("candidate", "candidate-flow");
+
+        using var plansRequest = new HttpRequestMessage(HttpMethod.Get, "/api/v1/plans");
+        plansRequest.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token.AccessToken);
+        var plans = await (await _client.SendAsync(plansRequest))
+            .Content.ReadFromJsonAsync<AvailablePlansResponse>();
+        var candidatePlan = plans!.Plans.First(p => p.Price > 0);
+
+        _factory.MercadoPago.EnqueueJson(HttpStatusCode.Created,
+            """{"id":"PRE-C1","init_point":"https://www.mercadopago.com.br/subscriptions/checkout?preapproval_id=PRE-C1"}""");
+
+        var checkout = await SendAsync(HttpMethod.Post, "/api/v1/subscriptions/checkout", token.AccessToken,
+            new CreateSubscriptionCheckoutRequest { PlanId = candidatePlan.Id });
+
+        checkout.StatusCode.Should().Be(HttpStatusCode.OK);
+        var init = await checkout.Content.ReadFromJsonAsync<MercadoPagoCheckoutResponse>();
+        init.Should().NotBeNull();
+        await SubscriptionStatusIsAsync(init!.SubscriptionId, ESubscriptionStatus.Pending);
     }
 
     [Fact]
@@ -72,7 +99,8 @@ public class BillingApiTests : IClassFixture<MonburanBillingApiFactory>
         var checkout = await SendAsync(HttpMethod.Post, "/api/v1/subscriptions/checkout", token.AccessToken,
             new CreateSubscriptionCheckoutRequest { PlanId = plan.Id });
 
-        checkout.StatusCode.Should().Be(HttpStatusCode.OK);
+        var checkoutBody = await checkout.Content.ReadAsStringAsync();
+        checkout.StatusCode.Should().Be(HttpStatusCode.OK, checkoutBody);
         var init = await checkout.Content.ReadFromJsonAsync<MercadoPagoCheckoutResponse>();
         init.Should().NotBeNull();
         init!.InitPoint.Should().StartWith("https://");

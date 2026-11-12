@@ -169,17 +169,18 @@ public class CandidateFlowTests : E2ETestBase
         await WaitForBlazorAsync();
     }
 
-    // Plano e assinatura são da conta da empresa (AdvertiserOnly): o candidato cai na tela de acesso restrito
+    // Candidato também tem plano e assinatura (plano Free padrão + Premium com IA):
+    // a página /minha-assinatura mostra o plano dele, não a tela de acesso restrito
     [Fact]
-    public async Task Candidate_MySubscription_IsRestrictedToAdvertisers()
+    public async Task Candidate_MySubscription_ShowsTheCandidatePlan()
     {
         await LoginAsCandidateAsync();
 
         await GotoAsync("/minha-assinatura");
         await WaitForBlazorAsync();
 
-        Assert.Contains("/acesso-negado", Page.Url, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("/acesso-negado", Page.Url, StringComparison.OrdinalIgnoreCase);
         var body = await Page.Locator("body").InnerTextAsync();
-        Assert.Contains("Esta área é restrita", body, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("Esta área é restrita", body, StringComparison.OrdinalIgnoreCase);
     }
 }

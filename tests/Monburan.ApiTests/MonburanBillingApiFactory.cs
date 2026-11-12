@@ -27,7 +27,11 @@ public class MonburanBillingApiFactory : MonburanApiFactory
                 ["Billing:MercadoPago:AccessToken"] = "APP-TEST-TOKEN",
                 ["Billing:MercadoPago:WebhookSecret"] = WebhookSecret,
                 ["Billing:MercadoPago:PublicBaseUrl"] = "https://monburan.test",
-                ["App:PublicBaseUrl"] = "https://monburan.test"
+                ["App:PublicBaseUrl"] = "https://monburan.test",
+                // Os testes rodam em Development e herdariam o appsettings.Development.json:
+                // aqui a simulação local fica desligada para exercitar o caminho de produção.
+                ["Billing:MercadoPago:SimulateLocally"] = "false",
+                ["Billing:MercadoPago:ApiBaseUrl"] = MercadoPagoOptions.DefaultApiBaseUrl
             }));
 
         builder.ConfigureServices(services =>
