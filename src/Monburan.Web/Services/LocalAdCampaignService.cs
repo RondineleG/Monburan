@@ -229,10 +229,19 @@ public sealed class LocalAdCampaignService
         if (!await _flags.IsEnabledAsync(FeatureName, null, cancellationToken)) return;
         var now = _time.GetUtcNow().UtcDateTime;
         await using var context = await _contexts.CreateDbContextAsync(cancellationToken);
-        await context.LocalAdCampaigns
+        var eligible = context.LocalAdCampaigns
             .Where(item => item.Id == Id.Create(id) && !item.IsDeleted && item.IsActive
-                && item.StartsAt <= now && item.EndsAt >= now)
-            .ExecuteUpdateAsync(setters => setters.SetProperty(item => item.ImpressionCount, item => item.ImpressionCount + 1), cancellationToken);
+                && item.StartsAt <= now && item.EndsAt >= now);
+        if (context.Database.IsNpgsql())
+        {
+            await eligible.ExecuteUpdateAsync(setters => setters.SetProperty(item => item.ImpressionCount, item => item.ImpressionCount + 1), cancellationToken);
+            return;
+        }
+
+        var tracked = await eligible.FirstOrDefaultAsync(cancellationToken);
+        if (tracked is null) return;
+        tracked.ImpressionCount++;
+        await context.SaveChangesAsync(cancellationToken);
     }
 
     public async Task<string?> RegisterClickAndGetTargetAsync(Guid id, CancellationToken cancellationToken = default)
@@ -246,6 +255,17 @@ public sealed class LocalAdCampaignService
             .Select(item => new { item.TargetUrl })
             .FirstOrDefaultAsync(cancellationToken);
         if (campaign is null) return null;
+
+        if (!context.Database.IsNpgsql())
+        {
+            var tracked = await context.LocalAdCampaigns.FirstOrDefaultAsync(
+                item => item.Id == Id.Create(id) && !item.IsDeleted && item.IsActive
+                    && item.StartsAt <= now && item.EndsAt >= now, cancellationToken);
+            if (tracked is null) return null;
+            tracked.ClickCount++;
+            await context.SaveChangesAsync(cancellationToken);
+            return campaign.TargetUrl;
+        }
 
         var updated = await context.LocalAdCampaigns
             .Where(item => item.Id == Id.Create(id) && !item.IsDeleted && item.IsActive
