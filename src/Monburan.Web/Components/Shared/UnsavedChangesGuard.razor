@@ -5,6 +5,8 @@
    navegador ao fechar ou recarregar a aba. Uso: <UnsavedChangesGuard HasChanges="() => editContext.IsModified()" /> *@
 <NavigationLock OnBeforeInternalNavigation="OnBeforeInternalNavigationAsync" ConfirmExternalNavigation="@HasChanges()" />
 <ConfirmDialog @ref="dialog" />
+@* Estado observável do aviso (testes de navegador esperam por ele antes de sair da página) *@
+<span hidden data-unsaved-changes="@(HasChanges() ? "true" : "false")"></span>
 
 @code {
     private ConfirmDialog dialog = default!;
