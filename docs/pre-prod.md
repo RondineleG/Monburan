@@ -62,10 +62,10 @@ telas foram compiladas pelo `tests/ux-mobile-preview`). O CI roda os três.
       `HasBoost`/`HasHighlight`/`HasAnalytics`/`MaxResumes` e `Job.Boost`/`Job.Highlight` seguem no schema, dormentes,
       para eventual implementação — nada as anuncia nem as lê (`AUDIT-REPORT.md` §5.2).
       **Evidência:** `Plans.razor` (lista só recursos aplicados), `grep` por `HasBoost|JobBoost` fora de migrations.
-- [ ] 🟠 **Limite de vagas ativas.** Comunicar aos anunciantes que quem excede o limite não publica nem reativa vagas
-      até ficar abaixo (`AUDIT-REPORT.md` §5.3). *Backend já aplicado:* `CheckJobLimitUseCase` é chamado por
-      `CreateJobUseCase` e `ChangeJobStatusUseCase` (reativação também conta), com cobertura em
-      `CheckJobLimitUseCaseTests` — falta só a comunicação ao anunciante.
+- [x] 🟠 **Limite de vagas ativas.** Aplicado no backend e comunicado na tela: `CheckJobLimitUseCase` é chamado por
+      `CreateJobUseCase` e `ChangeJobStatusUseCase` (reativar também conta), e `/vagas/nova` mostra o aviso do limite
+      antes do formulário quando o plano está no teto (`AUDIT-REPORT.md` §5.3).
+      **Evidência:** `JobCreate.razor` (banner `CanCreate: false` + `CanPublish`), `CheckJobLimitUseCaseTests`.
 - [ ] 🟡 **Página pública da empresa** e **detalhe de candidato no admin:** decidir se entram no roadmap (§5.4).
 - [ ] 🟡 **PDF importado como campo do currículo.** Decidir se o `FileUrl` será exibido ou baixado pelo recrutador (§5.5).
 - [ ] 🟠 **Retenção na exclusão de conta (LGPD).** Validar com o jurídico que candidaturas ficam anônimas no histórico
