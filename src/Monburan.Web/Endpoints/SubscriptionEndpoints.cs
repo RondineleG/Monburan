@@ -146,7 +146,23 @@ public static class SubscriptionEndpoints
             var result = await useCase.ExecuteAsync(request, cancellationToken);
             return result.ToHttpResult();
         })
-        .WithSummary("Cancela assinatura do anunciante autenticado");
+        .WithSummary("Cancela assinatura do anunciante ou candidato autenticado");
+
+        group.MapGet("/{id:guid}/status", async (
+            Guid id,
+            ICurrentUserHelper currentUser,
+            GetSubscriptionStatusUseCase useCase,
+            CancellationToken cancellationToken) =>
+        {
+            var result = await useCase.ExecuteAsync(new SubscriptionStatusRequest
+            {
+                SubscriptionId = id,
+                AdvertiserId = currentUser.GetAdvertiserId(),
+                CandidateId = currentUser.GetCandidateId()
+            }, cancellationToken);
+            return result.ToHttpResult();
+        })
+        .WithSummary("Status pontual da assinatura do próprio usuário — usado pelo retorno do checkout");
 
         return api;
     }

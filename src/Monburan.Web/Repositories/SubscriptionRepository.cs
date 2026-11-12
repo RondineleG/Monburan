@@ -129,6 +129,33 @@ public class SubscriptionRepository : ISubscriptionRepository
     }
 
     /// <summary>
+    /// Busca o checkout mais recente ainda pendente de um anunciante.
+    /// </summary>
+    public async Task<RequestResult<Subscription?>> GetPendingByAdvertiserIdAsync(Id advertiserId, CancellationToken cancellationToken = default) =>
+        await GetPendingAsync(advertiserId, null, cancellationToken);
+
+    /// <summary>
+    /// Busca o checkout mais recente ainda pendente de um candidato.
+    /// </summary>
+    public async Task<RequestResult<Subscription?>> GetPendingByCandidateIdAsync(Id candidateId, CancellationToken cancellationToken = default) =>
+        await GetPendingAsync(null, candidateId, cancellationToken);
+
+    private async Task<RequestResult<Subscription?>> GetPendingAsync(Id? advertiserId, Id? candidateId, CancellationToken cancellationToken)
+    {
+        await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);
+        var subscription = await context.Subscriptions
+            .Include(s => s.Plan)
+            .OrderByDescending(s => s.StartDate)
+            .FirstOrDefaultAsync(s => s.AdvertiserId == advertiserId
+                && s.CandidateId == candidateId
+                && s.Status == ESubscriptionStatus.Pending
+                && !s.IsDeleted,
+                cancellationToken);
+
+        return RequestResult<Subscription?>.Success(subscription);
+    }
+
+    /// <summary>
     /// Cancela a assinatura e devolve o anunciante ao plano inicial, na mesma transação.
     /// As entidades são recarregadas no mesmo contexto para gravar só as colunas que mudaram
     /// (nada de reescrever a linha inteira) e o commit é único.

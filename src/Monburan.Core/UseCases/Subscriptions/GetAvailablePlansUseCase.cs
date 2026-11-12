@@ -54,25 +54,42 @@ public sealed class GetAvailablePlansUseCase : IUseCase<Guid, AvailablePlansResp
 
         if (subscriptionResult?.Data is { } activeSubscription)
         {
-            currentSubscription = new SubscriptionResponse
-            {
-                Id = activeSubscription.Id.Value,
-                PlanName = activeSubscription.Plan?.Name ?? "Desconhecido",
-                Status = activeSubscription.Status.ToString(),
-                StartDate = activeSubscription.StartDate,
-                EndDate = activeSubscription.EndDate,
-                Price = activeSubscription.Plan?.Price ?? 0
-            };
+            currentSubscription = MapToSubscriptionResponse(activeSubscription);
+        }
+
+        // Checkout recém-iniciado ainda sem confirmação do provedor: a tela mostra
+        // "pagamento em processamento" em vez de fingir que nada aconteceu.
+        SubscriptionResponse? pendingSubscription = null;
+        if (currentSubscription is null && (advertiserId is { } ownerAdvId && ownerAdvId != Guid.Empty || candidateId is { } ownerCandId && ownerCandId != Guid.Empty))
+        {
+            var pendingResult = advertiserId is { } pendingAdvId && pendingAdvId != Guid.Empty
+                ? await _subscriptionRepository.GetPendingByAdvertiserIdAsync(Id.Create(pendingAdvId), cancellationToken)
+                : await _subscriptionRepository.GetPendingByCandidateIdAsync(Id.Create(candidateId!.Value), cancellationToken);
+            if (pendingResult.Status != EResultStatus.Success)
+                return RequestResult<AvailablePlansResponse>.FromResult(pendingResult);
+            if (pendingResult.Data is { } pending)
+                pendingSubscription = MapToSubscriptionResponse(pending);
         }
 
         var response = new AvailablePlansResponse
         {
             Plans = plans,
-            CurrentSubscription = currentSubscription
+            CurrentSubscription = currentSubscription,
+            PendingSubscription = pendingSubscription
         };
 
         return RequestResult<AvailablePlansResponse>.Success(response);
     }
+
+    private static SubscriptionResponse MapToSubscriptionResponse(Entities.Subscription subscription) => new()
+    {
+        Id = subscription.Id.Value,
+        PlanName = subscription.Plan?.Name ?? "Desconhecido",
+        Status = subscription.Status.ToString(),
+        StartDate = subscription.StartDate,
+        EndDate = subscription.EndDate,
+        Price = subscription.Plan?.Price ?? 0
+    };
 
     private static PlanResponse MapToPlanResponse(SubscriptionPlan p) => new()
     {
