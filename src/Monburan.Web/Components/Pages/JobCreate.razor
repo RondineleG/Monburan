@@ -32,8 +32,16 @@
                 <div class="alert alert-warning" role="status" data-testid="job-limit-reached">
                     <strong>Você atingiu o limite do plano @UiLabels.PlanName(jobLimit.PlanName).</strong>
                     Ele permite até @jobLimit.MaxJobs vagas ativas ao mesmo tempo.
-                    Encerre uma vaga em <a href="/minhas-vagas">Minhas vagas</a> ou <a href="/plans">mude de plano</a> para publicar outra.
+                    Encerre uma vaga em <a href="/minhas-vagas">Minhas vagas</a> ou <a href="/plans?para=empresas">mude de plano</a> para publicar outra.
                 </div>
+            }
+            else if (jobLimit is { CanCreate: true, MaxJobs: > 0, RemainingSlots: <= 2 } nearLimit)
+            {
+                @* Aviso antes do fim do assistente: a empresa não descobre o limite só ao publicar *@
+                <p class="alert alert-info" role="note" data-testid="job-limit-near">
+                    O plano @UiLabels.PlanName(nearLimit.PlanName) permite até @nearLimit.MaxJobs vagas ativas ao mesmo tempo.
+                    @(nearLimit.RemainingSlots == 1 ? "Esta é a última que você pode publicar agora." : $"Você ainda pode publicar {nearLimit.RemainingSlots}.")
+                </p>
             }
 
             <div class="card page-form-card">
