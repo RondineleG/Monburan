@@ -3,19 +3,22 @@
 
 <PageTitle>Ocorreu um erro - Monburan</PageTitle>
 
-<section class="auth-message-page error-page">
-    <span class="empty-state__icon" aria-hidden="true"><Icon Name="alert" Size="24" /></span>
-    <h1>Não foi possível concluir esta ação</h1>
-    <p>Ocorreu um problema inesperado. Tente novamente ou volte para a página inicial.</p>
-    @if (ShowRequestId)
-    {
-        <p class="error-reference">Referência de suporte: <code>@RequestId</code></p>
-    }
-    <div class="d-flex gap-2 flex-wrap">
-        <a class="btn btn-primary" href="/">Voltar ao início</a>
-        <a class="btn btn-outline-secondary" href="/jobs">Ver oportunidades</a>
-    </div>
-</section>
+@* Margem lateral do layout principal vem do .container *@
+<div class="container">
+    <section class="auth-message-page error-page">
+        <span class="empty-state__icon" aria-hidden="true"><Icon Name="alert" Size="24" /></span>
+        <h1>Não foi possível concluir esta ação</h1>
+        <p>Ocorreu um problema inesperado. Tente novamente ou volte para a página inicial.</p>
+        @if (ShowRequestId)
+        {
+            <p class="error-reference">Referência de suporte: <code>@RequestId</code></p>
+        }
+        <div class="d-flex gap-2 flex-wrap">
+            <a class="btn btn-primary" href="/">Voltar ao início</a>
+            <a class="btn btn-outline-secondary" href="/jobs">Ver oportunidades</a>
+        </div>
+    </section>
+</div>
 
 @code{
     [CascadingParameter]
