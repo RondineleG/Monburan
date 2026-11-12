@@ -194,7 +194,11 @@
                                 Fonte: @(job.SourceName ?? job.SourceUrl ?? "não informada")
                                 @if (job.LastVerifiedAt is { } verifiedAt)
                                 {
-                                    <span> · verificada em @UiLabels.FormatDate(verifiedAt)</span>
+                                    <span> · conferida com a fonte em @UiLabels.FormatDate(verifiedAt)</span>
+                                }
+                                else
+                                {
+                                    <span> · data da última conferência não informada</span>
                                 }
                             </p>
                         }

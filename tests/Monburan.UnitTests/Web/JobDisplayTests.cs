@@ -65,6 +65,32 @@ public class JobDisplayTests
     }
 
     [Theory]
+    [InlineData("Lisboa", null, "PT", "OnSite", "Lisboa, Portugal")]
+    [InlineData(null, null, "PT", "Remote", "Portugal")]
+    [InlineData(null, null, "CA", "OnSite", "Canadá")]
+    [InlineData("Toronto", "ON", "ca", "Hybrid", "Toronto, ON, Canadá")]
+    [InlineData("Curitiba", "PR", "BR", "OnSite", "Curitiba, PR")]
+    [InlineData(null, null, "ZZ", "Remote", "ZZ")]
+    public void Location_NamesTheCountryOnlyWhenAbroad(string? city, string? state, string country, string type, string expected)
+    {
+        var job = new JobResponse { City = city, State = state, Country = country, Type = type, IsRemote = type != "OnSite" };
+
+        JobDisplay.Location(job).Should().Be(expected);
+    }
+
+    [Theory]
+    [InlineData("GBP", "£ 1.000 – 2.000")]
+    [InlineData("CAD", "CAD 1.000 – 2.000")]
+    [InlineData("usd", "US$ 1.000 – 2.000")]
+    [InlineData(null, "R$ 1.000 – 2.000")]
+    public void Salary_NeverShowsAnUnknownCurrencyAsReal(string? currency, string expected)
+    {
+        var job = new JobResponse { SalaryMin = 1000, SalaryMax = 2000, SalaryDisplay = true, SalaryCurrency = currency! };
+
+        JobDisplay.Salary(job).Should().Be(expected);
+    }
+
+    [Theory]
     [InlineData("2026-10-18T09:00:00Z", "hoje")]
     [InlineData("2026-10-17T20:00:00Z", "ontem")]
     [InlineData("2026-10-15T12:00:00Z", "há 3 dias")]

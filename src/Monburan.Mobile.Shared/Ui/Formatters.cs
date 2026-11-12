@@ -30,11 +30,14 @@ public static class Formatters
         };
     }
 
-    public static string CurrencySymbol(string? currency) => currency switch
+    /// <summary>Mesma regra da web (UiLabels.CurrencySymbol): moeda desconhecida aparece pelo código, nunca como "R$".</summary>
+    public static string CurrencySymbol(string? currency) => currency?.Trim().ToUpperInvariant() switch
     {
+        null or "" or "BRL" => "R$",
         "USD" => "US$",
         "EUR" => "€",
-        _ => "R$"
+        "GBP" => "£",
+        var code => code
     };
 
     public static string JobType(string? type) => type switch

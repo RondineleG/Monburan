@@ -35,7 +35,8 @@ public static class JobDisplay
     }
 
     /// <summary>
-    /// Cidade e UF; sem endereço, vaga remota vira "Brasil" e as demais "Local a combinar".
+    /// Cidade e UF, com o país quando não é o Brasil ("Lisboa, Portugal"); sem endereço, vaga remota mostra o país da
+    /// vaga (não "qualquer lugar": remoto não quer dizer remoto global) e as demais "Local a combinar".
     /// A vaga pode não estar carregada (a página abre antes do carregamento): nesse caso,
     /// devolve o texto de "local a combinar".
     /// </summary>
@@ -47,14 +48,23 @@ public static class JobDisplay
         var city = job.City?.Trim();
         var state = job.State?.Trim();
 
-        if (!string.IsNullOrEmpty(city) && !string.IsNullOrEmpty(state))
-            return $"{city}, {state}";
-        if (!string.IsNullOrEmpty(city))
-            return city;
-        if (!string.IsNullOrEmpty(state))
-            return state;
+        var abroad = UiLabels.IsAbroad(job.Country);
+        var country = UiLabels.CountryName(job.Country);
+        var place = (city, state) switch
+        {
+            ({ Length: > 0 }, { Length: > 0 }) => $"{city}, {state}",
+            ({ Length: > 0 }, _) => city,
+            (_, { Length: > 0 }) => state,
+            _ => null
+        };
 
-        return job.IsRemote || job.Type == "Remote" ? "Brasil" : "Local a combinar";
+        if (place is not null)
+            return abroad ? $"{place}, {country}" : place;
+
+        if (job.IsRemote || job.Type == "Remote")
+            return country;
+
+        return abroad ? country : "Local a combinar";
     }
 
     /// <summary>Nome do ícone (<c>Icon</c>) da modalidade de trabalho.</summary>
