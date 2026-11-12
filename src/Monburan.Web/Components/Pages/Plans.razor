@@ -115,7 +115,11 @@
                                 }
                                 else if (plan.Price > 0 && !Billing.AllowsSelfServicePaidPlans)
                                 {
-                                    <span class="plan-card__note" data-testid="plan-paid-unavailable">Em breve: contratação ainda não disponível</span>
+                                    <a class="btn btn-outline-primary w-100" href="@PlanInquiryUrl(plan)"
+                                       data-testid="plan-paid-inquiry">
+                                        Falar sobre este plano
+                                    </a>
+                                    <span class="plan-card__note">Nossa equipe orienta o pagamento e ativa o plano após a confirmação.</span>
                                 }
                                 else
                                 {
@@ -162,6 +166,16 @@
 @code {
     // O preço do plano anual é anual: o rótulo não pode dizer "/mês"
     private static string PeriodSuffix(PlanResponse plan) => plan.Period == "Annual" ? "/ano" : "/mês";
+
+    private static string PlanInquiryUrl(PlanResponse plan)
+    {
+        var subject = Uri.EscapeDataString($"Contratação do plano {UiLabels.PlanName(plan.Name)} - Monburan");
+        var period = plan.Period == "Annual" ? "ano" : "mês";
+        var body = Uri.EscapeDataString(
+            $"Olá! Tenho interesse no plano {UiLabels.PlanName(plan.Name)} (R$ {plan.Price:N2}/{period}).\n\n" +
+            "Gostaria de receber as opções de pagamento e os próximos passos para ativação.");
+        return $"mailto:suporte@monburan.com.br?subject={subject}&body={body}";
+    }
 
     private AvailablePlansResponse? availablePlans;
     private bool isLoading = true;
