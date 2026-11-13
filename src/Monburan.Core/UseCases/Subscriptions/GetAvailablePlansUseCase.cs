@@ -5,6 +5,7 @@ using Monburan.Core.Interfaces.Repositories;
 using Monburan.Core.Interfaces.Repositories.Base;
 using Monburan.Core.Interfaces.UseCases;
 using Monburan.Core.Requests;
+using Monburan.Core.Services;
 using Monburan.Core.ValueObjects;
 
 namespace Monburan.Core.UseCases.Subscriptions;
@@ -104,6 +105,7 @@ public sealed class GetAvailablePlansUseCase : IUseCase<Guid, AvailablePlansResp
         MaxResumes = p.MaxResumes,
         Audience = p.Audience.ToString(),
         Period = p.Period.ToString(),
-        HasAiAssistant = p.HasAiAssistant
+        HasAiAssistant = p.HasAiAssistant,
+        IsAdFree = AdvertisingRules.IsAdFreePlan(p.Price)
     };
 }
