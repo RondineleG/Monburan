@@ -19,6 +19,8 @@ static class CaptureRunner
 
     static (string Name, int W, int H)[] WebViewports = [("desktop", 1440, 900), ("tablet", 834, 1112), ("mobile", 390, 844)];
     static readonly (string Name, int W, int H)[] AppViewports = [("small", 360, 800), ("medium", 390, 844), ("large", 412, 915)];
+    // O app Android também roda em tablet, em retrato e em paisagem (telas médias e grandes)
+    static readonly (string Name, int W, int H)[] AppTabletViewports = [("tablet", 800, 1280), ("tablet-landscape", 1280, 800)];
 
     sealed record Shot(string Role, string Name, string Path);
 
@@ -486,7 +488,7 @@ static class CaptureRunner
                 }
             Logged:
                 foreach (var (name, path) in pages)
-                    await s.CaptureAsync(ctx, "app", role, name, preview.Url + path, theme == "dark" ? AppViewports : [AppViewports[1]], theme, keyboard: theme == "dark");
+                    await s.CaptureAsync(ctx, "app", role, name, preview.Url + path, theme == "dark" ? [.. AppViewports, .. AppTabletViewports] : [AppViewports[1], .. AppTabletViewports], theme, keyboard: theme == "dark");
                 await ctx.CloseAsync();
             }
         }
