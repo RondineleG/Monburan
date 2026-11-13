@@ -1,7 +1,7 @@
 using FluentAssertions;
 
 using Monburan.Core.DTOs.Response;
-using Monburan.Web.Services;
+using Monburan.Core.Services;
 
 namespace Monburan.UnitTests.Web;
 

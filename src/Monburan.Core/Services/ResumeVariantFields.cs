@@ -1,6 +1,6 @@
 using Monburan.Core.DTOs.Response;
 
-namespace Monburan.Web.Services;
+namespace Monburan.Core.Services;
 
 /// <summary>Um texto do currículo que pode ganhar tradução na versão localizada.</summary>
 public sealed record ResumeVariantField(string Key, string Group, string Label, string Original, bool Multiline);

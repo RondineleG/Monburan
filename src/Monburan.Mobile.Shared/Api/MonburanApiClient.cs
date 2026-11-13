@@ -135,6 +135,31 @@ public class MonburanApiClient
         SendAsync<ResumeImprovementResponse>(_uploadHttp, HttpMethod.Post, $"api/v1/resumes/{id}/improvements",
             new ImproveResumeRequest { AcceptsExternalProcessing = acceptsExternalProcessing }, ct);
 
+    // ---- Currículo em outro idioma (versões localizadas; flag carreira-internacional) ----
+
+    public Task<List<ResumeVariantResponse>> GetResumeVariantsAsync(Guid resumeId, CancellationToken ct = default) =>
+        SendAsync<List<ResumeVariantResponse>>(HttpMethod.Get, $"api/v1/resumes/{resumeId}/variants", null, ct);
+
+    public Task<ResumeVariantResponse> CreateResumeVariantAsync(Guid resumeId, string locale, CancellationToken ct = default) =>
+        SendAsync<ResumeVariantResponse>(HttpMethod.Post, $"api/v1/resumes/{resumeId}/variants", new ResumeVariantCreateRequest { Locale = locale }, ct);
+
+    public Task<ResumeVariantResponse> UpdateResumeVariantAsync(Guid variantId, Dictionary<string, string> overrides, CancellationToken ct = default) =>
+        SendAsync<ResumeVariantResponse>(HttpMethod.Put, $"api/v1/resumes/variants/{variantId}", new ResumeVariantUpdateRequest { Overrides = overrides }, ct);
+
+    public Task DeleteResumeVariantAsync(Guid variantId, CancellationToken ct = default) =>
+        SendAsync<object>(HttpMethod.Delete, $"api/v1/resumes/variants/{variantId}", null, ct);
+
+    public Task<ResumeVariantPreviewResponse> GetResumeVariantPreviewAsync(Guid variantId, CancellationToken ct = default) =>
+        SendAsync<ResumeVariantPreviewResponse>(HttpMethod.Get, $"api/v1/resumes/variants/{variantId}/preview", null, ct);
+
+    /// <summary>Sugestão de tradução com IA (fica pendente até a pessoa aceitar). Tempo limite maior, como a melhoria.</summary>
+    public Task<ResumeVariantResponse> GenerateVariantSuggestionsAsync(Guid variantId, CancellationToken ct = default) =>
+        SendAsync<ResumeVariantResponse>(_uploadHttp, HttpMethod.Post, $"api/v1/resumes/variants/{variantId}/suggestions", null, ct);
+
+    public Task<ResumeVariantResponse> ResolveVariantSuggestionsAsync(Guid variantId, bool accept, CancellationToken ct = default) =>
+        SendAsync<ResumeVariantResponse>(HttpMethod.Post, $"api/v1/resumes/variants/{variantId}/suggestions/resolve",
+            new ResumeVariantResolveSuggestionsRequest { Accept = accept }, ct);
+
     // ---- Files ----
 
     public Task<UploadFileResponse> UploadPdfAsync(Stream stream, string fileName, CancellationToken ct = default)

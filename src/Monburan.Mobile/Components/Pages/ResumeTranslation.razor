@@ -1,0 +1,292 @@
+@page "/resumes/{Id:guid}/translation"
+@inherits ProtectedPage
+@using Monburan.Core.Services
+@inject MonburanApiClient Api
+@inject IToastService Toast
+
+@* Currículo em outro idioma no app (mesma regra da web: ResumeVariantFields). A versão guarda só os textos traduzidos;
+   o currículo original não muda. A sugestão da IA fica pendente até a pessoa aceitar. *@
+<FeatureGate Feature="carreira-internacional">
+    <ChildContent>
+        @if (_loading)
+        {
+            <h1 class="visually-hidden" tabindex="-1">Currículo em outro idioma</h1>
+            <LoadingState Message="Carregando o currículo…" />
+        }
+        else if (_error is not null)
+        {
+            @if (_error.StatusCode is System.Net.HttpStatusCode.NotFound or System.Net.HttpStatusCode.Forbidden)
+            {
+                <EmptyState IconName="search" HeadingLevel="1" Title="Currículo não encontrado" Message="Ele pode ter sido excluído ou você não tem acesso a ele.">
+                    <a class="btn btn-primary" href="/resumes">Ir para meus currículos</a>
+                </EmptyState>
+            }
+            else
+            {
+                <h1 class="visually-hidden" tabindex="-1">Currículo em outro idioma</h1>
+                <ErrorState Message="@_error.Message" IsOffline="@_error.IsNetworkError" OnRetry="LoadAsync" />
+            }
+        }
+        else if (_resume is not null)
+        {
+            <div class="detail-hero">
+                <h1 tabindex="-1">Currículo em outro idioma</h1>
+                <p class="text-dim">Prepare uma versão traduzida de “@_resume.Title” para vagas em outro país. O currículo original não muda.</p>
+            </div>
+
+            @if (_variant is null)
+            {
+                <section class="card" aria-labelledby="translation-create" data-testid="translation-empty">
+                    <h2 id="translation-create" class="card-title">Ainda não há versão traduzida</h2>
+                    <p class="body-text">A versão traduzida mostra os mesmos cargos, datas e formação do original, com os textos no outro idioma.</p>
+                    @foreach (var locale in ResumeVariantFields.Locales)
+                    {
+                        <button type="button" class="btn btn-primary btn-block" @onclick="() => CreateAsync(locale.Locale)" disabled="@_busy" data-testid="translation-create">
+                            @(_busy ? "Criando…" : $"Criar versão em {locale.Label.ToLowerInvariant()}")
+                        </button>
+                    }
+                </section>
+            }
+            else
+            {
+                <section class="detail-section" aria-labelledby="translation-locale">
+                    <h2 id="translation-locale">@ResumeVariantFields.LocaleLabel(_variant.Locale)</h2>
+                    <p class="text-dim">Campos sem tradução aparecem com o texto original. Para imprimir ou salvar em PDF, abra o currículo no site.</p>
+                </section>
+
+                @if (_pending is { Count: > 0 })
+                {
+                    <section class="card translation-review" aria-labelledby="translation-review" data-testid="translation-review">
+                        <h2 id="translation-review" class="card-title"><Icon Name="sparkles" Size="18" /> Revise as sugestões da IA</h2>
+                        <div class="alert alert-warning" role="note">
+                            A IA pode errar. Confira cada texto e não aceite nada que acrescente cursos, certificações, cargos ou níveis de idioma que você não tem.
+                        </div>
+                        <dl class="intl-list">
+                            @foreach (var field in _fields.Where(f => _pending.ContainsKey(f.Key)))
+                            {
+                                <div>
+                                    <dt>@field.Group · @field.Label</dt>
+                                    <dd><span class="text-dim">@field.Original</span><br /><span lang="@_variant.Locale">@_pending[field.Key]</span></dd>
+                                </div>
+                            }
+                        </dl>
+                        <div class="action-stack">
+                            <button type="button" class="btn btn-primary btn-block" @onclick="() => ResolveAsync(true)" disabled="@_busy" data-testid="translation-accept">Aceitar sugestões</button>
+                            <button type="button" class="btn btn-secondary btn-block" @onclick="() => ResolveAsync(false)" disabled="@_busy" data-testid="translation-discard">Descartar</button>
+                        </div>
+                    </section>
+                }
+                else
+                {
+                    <section class="card" aria-labelledby="translation-ai">
+                        <h2 id="translation-ai" class="card-title"><Icon Name="sparkles" Size="18" /> Sugestão de tradução com IA</h2>
+                        <p class="text-dim" id="translation-ai-note">O texto profissional do currículo é enviado a um serviço externo de IA; seus dados de contato não. Nada muda na versão sem a sua revisão.</p>
+                        <button type="button" class="btn btn-secondary btn-block" @onclick="GenerateAsync" disabled="@_busy"
+                                aria-describedby="translation-ai-note" data-testid="translation-generate">
+                            @(_generating ? "Gerando sugestões…" : "Sugerir tradução com IA")
+                        </button>
+                    </section>
+                }
+
+                <section class="card" aria-labelledby="translation-fields" data-testid="translation-editor">
+                    <h2 id="translation-fields" class="card-title">Tradução campo a campo</h2>
+                    <p class="form-text">Deixe em branco para usar o texto original.</p>
+                    @foreach (var field in _fields)
+                    {
+                        var inputId = $"translation-field-{field.Key.Replace(':', '-')}";
+                        <div class="form-field">
+                            <label for="@inputId">@field.Group · @field.Label</label>
+                            <span id="@($"{inputId}-original")" class="form-text">Original: @field.Original</span>
+                            @if (field.Multiline)
+                            {
+                                <textarea id="@inputId" class="input" rows="4" maxlength="4000" lang="@_variant.Locale"
+                                          aria-describedby="@($"{inputId}-original")"
+                                          value="@Draft(field.Key)" @onchange="e => SetDraft(field.Key, e.Value)"></textarea>
+                            }
+                            else
+                            {
+                                <input id="@inputId" class="input" maxlength="4000" lang="@_variant.Locale"
+                                       aria-describedby="@($"{inputId}-original")"
+                                       value="@Draft(field.Key)" @onchange="e => SetDraft(field.Key, e.Value)" />
+                            }
+                        </div>
+                    }
+                    @if (_saveError is not null)
+                    {
+                        <div class="field-error" role="alert">@_saveError</div>
+                    }
+                    <div class="action-stack">
+                        <button type="button" class="btn btn-primary btn-block" @onclick="SaveAsync" disabled="@_busy" data-testid="translation-save">
+                            @(_saving ? "Salvando…" : "Salvar tradução")
+                        </button>
+                        <button type="button" class="btn btn-danger btn-block" @onclick="DeleteAsync" disabled="@_busy" data-testid="translation-delete">Excluir versão</button>
+                    </div>
+                </section>
+            }
+        }
+    </ChildContent>
+    <Disabled>
+        <EmptyState IconName="lock" HeadingLevel="1" Title="Recurso ainda não liberado para a sua conta"
+                    Message="As versões do currículo em outro idioma estão em teste com um grupo de pessoas.">
+            <a class="btn btn-primary" href="/resumes/@Id">Voltar ao currículo</a>
+        </EmptyState>
+    </Disabled>
+</FeatureGate>
+
+<ConfirmDialog @ref="_confirm" />
+
+@code {
+    [Parameter] public Guid Id { get; set; }
+
+    private ResumeResponse? _resume;
+    private ResumeVariantResponse? _variant;
+    private IReadOnlyList<ResumeVariantField> _fields = [];
+    private Dictionary<string, string> _drafts = new();
+    private Dictionary<string, string>? _pending;
+    private bool _loading = true;
+    private bool _busy;
+    private bool _saving;
+    private bool _generating;
+    private string? _saveError;
+    private ApiException? _error;
+    private ConfirmDialog _confirm = default!;
+    private Guid _loadedId;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (_loadedId == Id)
+            return;
+
+        _loadedId = Id;
+        if (await EnsureAuthenticatedAsync())
+            await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        _error = null;
+        _pending = null;
+        try
+        {
+            // A lista de versões confere o dono do currículo antes de qualquer outra consulta
+            var variants = await Api.GetResumeVariantsAsync(Id);
+            _resume = await Api.GetResumeAsync(Id);
+            _fields = ResumeVariantFields.From(_resume);
+            _variant = variants.FirstOrDefault();
+            _drafts = _variant is null ? new() : new Dictionary<string, string>(_variant.Overrides);
+            if (_variant is { HasPendingSuggestions: true })
+                _pending = (await Api.GetResumeVariantPreviewAsync(_variant.Id)).PendingSuggestions;
+        }
+        catch (ApiException ex)
+        {
+            _error = ex;
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private string Draft(string key) => _drafts.TryGetValue(key, out var value) ? value : string.Empty;
+
+    private void SetDraft(string key, object? value)
+    {
+        var text = value?.ToString() ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(text))
+            _drafts.Remove(key);
+        else
+            _drafts[key] = text;
+    }
+
+    private async Task RunAsync(Func<Task> action)
+    {
+        if (_busy)
+            return;
+
+        _busy = true;
+        try
+        {
+            await action();
+        }
+        catch (ApiException ex)
+        {
+            Toast.ShowError(ex.Message);
+        }
+        finally
+        {
+            _busy = _saving = _generating = false;
+        }
+    }
+
+    private Task CreateAsync(string locale) => RunAsync(async () =>
+    {
+        _variant = await Api.CreateResumeVariantAsync(Id, locale);
+        _drafts = new();
+        Toast.ShowSuccess("Versão criada. Traduza os campos ou peça uma sugestão à IA.");
+    });
+
+    private Task SaveAsync() => RunAsync(async () =>
+    {
+        if (_variant is null)
+            return;
+
+        _saving = true;
+        _saveError = null;
+        try
+        {
+            // O que foi digitado continua na tela se o servidor recusar
+            _variant = await Api.UpdateResumeVariantAsync(_variant.Id, new Dictionary<string, string>(_drafts));
+            Toast.ShowSuccess("A tradução foi salva. O currículo original continua igual.");
+        }
+        catch (ApiException ex)
+        {
+            _saveError = $"{ex.Message} Seus textos continuam aqui.";
+        }
+    });
+
+    private Task GenerateAsync() => RunAsync(async () =>
+    {
+        if (_variant is null)
+            return;
+
+        _generating = true;
+        _variant = await Api.GenerateVariantSuggestionsAsync(_variant.Id);
+        _pending = (await Api.GetResumeVariantPreviewAsync(_variant.Id)).PendingSuggestions;
+    });
+
+    private Task ResolveAsync(bool accept) => RunAsync(async () =>
+    {
+        if (_variant is null)
+            return;
+
+        _variant = await Api.ResolveVariantSuggestionsAsync(_variant.Id, accept);
+        _pending = null;
+        _drafts = new Dictionary<string, string>(_variant.Overrides);
+        Toast.ShowSuccess(accept ? "As sugestões entraram na versão. Revise e ajuste o que precisar." : "As sugestões foram descartadas.");
+    });
+
+    private async Task DeleteAsync()
+    {
+        if (_variant is null || _busy)
+            return;
+
+        var confirmed = await _confirm.ShowAsync(new ConfirmOptions
+        {
+            Title = $"Excluir a versão em {ResumeVariantFields.LocaleLabel(_variant.Locale).ToLowerInvariant()}?",
+            Message = "As traduções desta versão serão perdidas. O currículo original não muda.",
+            ConfirmText = "Excluir versão",
+            Destructive = true
+        });
+        if (!confirmed)
+            return;
+
+        await RunAsync(async () =>
+        {
+            await Api.DeleteResumeVariantAsync(_variant!.Id);
+            _variant = null;
+            _drafts = new();
+            Toast.ShowSuccess("A versão traduzida foi excluída.");
+        });
+    }
+}
