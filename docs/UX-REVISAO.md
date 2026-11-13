@@ -276,6 +276,7 @@ candidato).
   edição mantém o que estava gravado. O app mostra o país no local e a mesma seção na página da vaga.
 - **Currículo em outro idioma (es-ES):** `/curriculos/{id}/versoes` traduz campo a campo com o original ao lado; a
   sugestão da IA fica pendente numa revisão explícita; impressão pelo mesmo documento de CV. O original nunca muda.
+  No app, a mesma tela fica em `/resumes/{id}/translation` (a impressão continua pelo site).
   Limitação: as traduções são presas à posição de cada item; se o currículo-base ganhar ou perder uma experiência, as
   traduções seguintes deslocam e precisam ser revistas.
 
@@ -285,4 +286,3 @@ candidato).
 |---|---|
 | Cobrança da IA de tradução ("Carreira Global" no PRD) | Hipótese de produto; a sugestão usa só a cota de uso da IA |
 | Outros idiomas além de es-ES | Depois de validar a Espanha (PRD) |
-| Currículo em outro idioma no app | A API existe; a tela de versões está só na web |
