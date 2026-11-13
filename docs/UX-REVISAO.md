@@ -262,8 +262,10 @@ candidato).
 
 - **Plano pago não vê anúncio** (ver `docs/ANUNCIOS-LOCAIS.md`): antes, a escolha do anúncio ignorava quem estava vendo.
 - **Planos:** abas por perfil na URL, visíveis para visitantes; resumo do que é gratuito; cada plano lista só o que o
-  servidor aplica (limite de vagas, assistente de IA, sem publicidade). Saíram o selo "Mais escolhido" e o limite de
-  currículos, que ainda não é aplicado. O checkout do Mercado Pago não mudou.
+  servidor aplica (limite de vagas, limite de currículos, assistente de IA, sem publicidade). Saiu o selo "Mais
+  escolhido". O checkout do Mercado Pago não mudou.
+- **Limite de currículos:** `MaxResumes` passou a ser aplicado na criação e na importação de PDF
+  (`CheckResumeLimitUseCase`): o da assinatura ativa ou, sem ela, o do plano gratuito de candidato.
 - **Minha assinatura:** resumo único com os mesmos recursos da tela de planos.
 
 ### Carreira internacional (flag `carreira-internacional`)
@@ -271,7 +273,7 @@ candidato).
 - **Vaga:** abrangência do remoto (qualquer país ou países listados), países elegíveis, relocação e visto, com "não
   informado" separado de "não"; país e moeda no cadastro. A página mostra a seção "Trabalho internacional" só quando há
   algo a dizer e avisa que o Monburan não presta serviço de imigração. Flag desligada: a criação descarta os campos e a
-  edição mantém o que estava gravado.
+  edição mantém o que estava gravado. O app mostra o país no local e a mesma seção na página da vaga.
 - **Currículo em outro idioma (es-ES):** `/curriculos/{id}/versoes` traduz campo a campo com o original ao lado; a
   sugestão da IA fica pendente numa revisão explícita; impressão pelo mesmo documento de CV. O original nunca muda.
   Limitação: as traduções são presas à posição de cada item; se o currículo-base ganhar ou perder uma experiência, as
@@ -281,7 +283,6 @@ candidato).
 
 | Requisito | Situação |
 |---|---|
-| Limite de currículos por plano | `MaxResumes` não é aplicado no servidor; não é anunciado |
 | Cobrança da IA de tradução ("Carreira Global" no PRD) | Hipótese de produto; a sugestão usa só a cota de uso da IA |
 | Outros idiomas além de es-ES | Depois de validar a Espanha (PRD) |
-| Campos internacionais e versões no app | A API devolve os campos; as telas do app não os mostram ainda |
+| Currículo em outro idioma no app | A API existe; a tela de versões está só na web |
