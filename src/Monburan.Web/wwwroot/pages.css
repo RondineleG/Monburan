@@ -368,6 +368,13 @@
     .plan-card__features .icon { flex: 0 0 auto; margin-top: 0.125rem; color: var(--gold-d); }
     .plan-card__action { display: grid; gap: var(--s-2); margin-top: var(--s-2); }
     .plan-card__note { margin: 0; color: var(--tx-2); font-size: var(--fs-sm); }
+    .subscription-summary { max-width: var(--container-narrow); padding: var(--s-5); border: 1px solid var(--border); border-radius: var(--r-md); background: var(--bg-card); }
+    .subscription-summary__title { margin: 0 0 var(--s-4); font-size: var(--fs-xl); }
+    .subscription-summary__subtitle { margin: var(--s-6) 0 var(--s-3); font-size: var(--fs-md); }
+    .subscription-facts { display: grid; gap: var(--s-4); margin: 0; grid-template-columns: repeat(auto-fit, minmax(min(100%, 9rem), 1fr)); }
+    .subscription-facts dt { color: var(--tx-2); font-size: var(--fs-sm); font-weight: var(--fw-semibold); }
+    .subscription-facts dd { margin: var(--s-1) 0 0; }
+    .subscription-summary__actions { display: flex; flex-wrap: wrap; gap: var(--s-2); margin-top: var(--s-6); }
     .plans-footnote { margin-top: var(--s-6); color: var(--tx-2); font-size: var(--fs-sm); text-align: center; }
 
     /* ---------- Notificações ---------- */

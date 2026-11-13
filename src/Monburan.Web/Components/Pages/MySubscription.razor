@@ -39,7 +39,7 @@
                             poucos minutos.
                         </p>
                         <button type="button" class="btn btn-outline-primary" @onclick="LoadAsync">Atualizar status</button>
-                        <a class="btn btn-link" href="/plans">Voltar aos planos</a>
+                        <a class="btn btn-link" href="@PlansHref">Voltar aos planos</a>
                     </div>
                 </div>
             </div>
@@ -49,106 +49,81 @@
     {
         var currentPlan = availablePlans.Plans.FirstOrDefault(p => p.Name == subscription.PlanName);
 
-        <div class="row">
-            <div class="col-md-8">
-                <div class="card shadow-sm">
-                    <div class="card-header">
-                        <h2 class="h5 mb-0">Plano atual: @UiLabels.PlanName(subscription.PlanName)</h2>
-                    </div>
-                    <div class="card-body">
-                        <div class="row mb-3">
-                            <div class="col-md-6">
-                                <p class="mb-1"><strong>Situação:</strong></p>
-                                <StatusBadge Kind="StatusKind.Subscription" Value="@subscription.Status" TestId="subscription-status" />
-                            </div>
-                            <div class="col-md-6">
-                                <p class="mb-1"><strong>Preço:</strong></p>
-                                <p class="fs-5 text-primary">
-                                    @(subscription.Price == 0 ? "Grátis" : $"R$ {subscription.Price:N2}/{(currentPlan?.Period == "Annual" ? "ano" : "mês")}")
-                                </p>
-                            </div>
-                        </div>
-
-                        <div class="row mb-3">
-                            <div class="col-md-6">
-                                <p class="mb-1"><strong>Início:</strong></p>
-                                <p>@UiLabels.FormatMomentDate(subscription.StartDate)</p>
-                            </div>
-                            <div class="col-md-6">
-                                <p class="mb-1"><strong>Válido até:</strong></p>
-                                <p>@(subscription.EndDate.HasValue ? UiLabels.FormatMomentDate(subscription.EndDate) : "Sem vencimento")</p>
-                            </div>
-                        </div>
-
-                        <div class="d-flex flex-wrap gap-2 mt-4">
-                            <a class="btn btn-outline-secondary" href="/plans">Mudar de plano</a>
-                            @* Plano grátis não tem o que cancelar *@
-                            @if (subscription.Status == "Active" && subscription.Price > 0)
-                            {
-                                <button type="button" class="btn btn-outline-danger" @onclick="CancelAsync" disabled="@isCancelling" aria-busy="@(isCancelling ? "true" : null)" data-testid="subscription-cancel">
-                                    @(isCancelling ? "Cancelando…" : "Cancelar assinatura")
-                                </button>
-                            }
-                        </div>
-                    </div>
+        <section class="subscription-summary" aria-labelledby="subscription-plan-title">
+            <h2 id="subscription-plan-title" class="subscription-summary__title">@UiLabels.PlanName(subscription.PlanName)</h2>
+            <dl class="subscription-facts">
+                <div>
+                    <dt>Situação</dt>
+                    <dd><StatusBadge Kind="StatusKind.Subscription" Value="@subscription.Status" TestId="subscription-status" /></dd>
                 </div>
-            </div>
-
-            <div class="col-md-4">
-                <div class="card shadow-sm">
-                    <div class="card-header">
-                        <h2 class="h5 mb-0">Recursos do plano</h2>
-                    </div>
-                    <div class="card-body">
-                        @if (currentPlan != null)
-                        {
-                            @if (currentPlan.Audience == "Candidate")
-                            {
-                                <ul class="list-unstyled mb-0">
-                                    <li class="mb-2">
-                                        <strong>Currículos:</strong>
-                                        @(currentPlan.MaxResumes == -1 ? "ilimitados" : $"até {currentPlan.MaxResumes}")
-                                    </li>
-                                    @if (currentPlan.HasAiAssistant)
-                                    {
-                                        <li>Assistente de IA para melhorar o currículo</li>
-                                    }
-                                </ul>
-                            }
-                            else
-                            {
-                                <ul class="list-unstyled mb-0">
-                                    <li class="mb-2">
-                                        <strong>Vagas ativas:</strong>
-                                        @(currentPlan.MaxJobs == -1 ? "ilimitadas" : $"até {currentPlan.MaxJobs} ao mesmo tempo")
-                                    </li>
-                                    <li class="mb-2">Candidaturas ilimitadas</li>
-                                    <li>Painel com indicadores das vagas</li>
-                                </ul>
-                            }
-                        }
-                        else
-                        {
-                            <p class="text-muted mb-0">Detalhes do plano indisponíveis no momento.</p>
-                        }
-                    </div>
+                <div>
+                    <dt>Preço</dt>
+                    <dd>@PriceText(subscription.Price, currentPlan)</dd>
                 </div>
+                <div>
+                    <dt>Início</dt>
+                    <dd>@UiLabels.FormatMomentDate(subscription.StartDate)</dd>
+                </div>
+                <div>
+                    <dt>Válido até</dt>
+                    <dd>@(subscription.EndDate.HasValue ? UiLabels.FormatMomentDate(subscription.EndDate) : "Sem vencimento")</dd>
+                </div>
+            </dl>
+
+            <h3 class="subscription-summary__subtitle">O que o plano inclui</h3>
+            @if (currentPlan != null)
+            {
+                @* Só o que o servidor aplica (o limite de currículos ainda não é aplicado e não é anunciado) *@
+                <ul class="plan-card__features">
+                    @if (currentPlan.Audience == "Candidate")
+                    {
+                        <li><Icon Name="file" Size="16" /><span>Candidaturas e currículos sem custo</span></li>
+                        @if (currentPlan.HasAiAssistant)
+                        {
+                            <li><Icon Name="sparkles" Size="16" /><span>Assistente de IA para melhorar o currículo: você revisa e escolhe o que aplicar</span></li>
+                        }
+                    }
+                    else
+                    {
+                        <li><Icon Name="briefcase" Size="16" /><span>@(currentPlan.MaxJobs == -1 ? "Vagas ativas ilimitadas" : $"Até {currentPlan.MaxJobs} vagas ativas ao mesmo tempo")</span></li>
+                        <li><Icon Name="users" Size="16" /><span>Candidaturas ilimitadas em cada vaga</span></li>
+                        <li><Icon Name="layout" Size="16" /><span>Painel com indicadores das suas vagas</span></li>
+                    }
+                    <li><Icon Name="@(currentPlan.IsAdFree ? "shield" : "info")" Size="16" /><span>@(currentPlan.IsAdFree ? "Sem publicidade" : "Pode mostrar um anúncio local na página da vaga")</span></li>
+                </ul>
+            }
+            else
+            {
+                <p class="text-muted mb-0">Detalhes do plano indisponíveis no momento.</p>
+            }
+
+            <div class="subscription-summary__actions">
+                <a class="btn btn-outline-secondary" href="@PlansHref">Mudar de plano</a>
+                @* Plano grátis não tem o que cancelar *@
+                @if (subscription.Status == "Active" && subscription.Price > 0)
+                {
+                    <button type="button" class="btn btn-outline-danger" @onclick="CancelAsync" disabled="@isCancelling" aria-busy="@(isCancelling ? "true" : null)" data-testid="subscription-cancel">
+                        @(isCancelling ? "Cancelando…" : "Cancelar assinatura")
+                    </button>
+                }
             </div>
-        </div>
+        </section>
     }
     else
     {
         var freePlan = availablePlans?.Plans.FirstOrDefault(p => p.Price == 0);
         var freeMessage = isCandidate
-            ? "Conheça os planos para usar o assistente de IA e manter mais currículos."
+            ? "Conheça os planos pagos: assistente de IA para o currículo e nenhuma publicidade."
             : freePlan is null
                 ? "Conheça os planos para ampliar quantas vagas você mantém ativas."
-                : $"Ele permite até {freePlan.MaxJobs} vagas ativas ao mesmo tempo. Precisa de mais? Conheça os outros planos.";
+                : freePlan.MaxJobs == -1
+                    ? "Ele permite vagas ativas ilimitadas. Os planos pagos não exibem publicidade."
+                    : $"Ele permite até {freePlan.MaxJobs} vagas ativas ao mesmo tempo. Precisa de mais? Conheça os outros planos.";
         <EmptyState Icon="banknote"
                     Title="Você está no plano gratuito"
                     Message="@freeMessage"
                     TestId="subscription-free">
-            <a class="btn btn-primary" href="/plans">Ver planos disponíveis</a>
+            <a class="btn btn-primary" href="@PlansHref">Ver planos disponíveis</a>
         </EmptyState>
     }
 </div>
@@ -159,6 +134,12 @@
 </ConfirmDialog>
 
 @code {
+    private string PlansHref => isCandidate ? "/plans?para=candidatos" : "/plans?para=empresas";
+
+    // Plano anual cobra por ano: o rótulo não pode dizer "por mês"
+    private static string PriceText(decimal price, PlanResponse? plan) =>
+        price == 0 ? "Grátis" : $"R$ {price.ToString("N2", System.Globalization.CultureInfo.GetCultureInfo("pt-BR"))} {(plan?.Period == "Annual" ? "por ano" : "por mês")}";
+
     private AvailablePlansResponse? availablePlans;
     private bool isLoading = true;
     private bool loadFailed;
