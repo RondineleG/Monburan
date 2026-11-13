@@ -90,6 +90,42 @@ public class MobileClientContractTests : IClassFixture<MonburanApiFactory>
     }
 
     [Fact]
+    public async Task ResumeTranslation_ThroughMobileClient_NeverChangesTheBaseResume()
+    {
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var admin = scope.ServiceProvider.GetRequiredService<Monburan.Web.Services.FeatureFlagAdminService>();
+            if ((await admin.ListFlagsAsync()).All(flag => flag.Name != "carreira-internacional"))
+                await admin.SaveFlagAsync(new Monburan.Web.Services.FeatureFlagInput(null, "carreira-internacional", "Carreira internacional", true, [], null),
+                    new Monburan.Core.Interfaces.Services.AdminActor(Guid.NewGuid().ToString(), "admin@monburan.com.br"));
+        }
+        var ai = _factory.Services.GetRequiredService<FakeAiTextClient>();
+        ai.Reset();
+        ai.Responder = _ => new Monburan.Core.Interfaces.Services.AiCompletion("""{"title":"Dependienta"}""", "modelo-de-teste", 1, 1);
+
+        var app = MobileApp.Create(_factory);
+        await app.SignInAsync(CandidateEmail);
+        var resume = await app.Api.CreateResumeAsync(new CreateResumeRequest { Title = "Atendente pelo app", Summary = "Resumo" });
+
+        var variant = await app.Api.CreateResumeVariantAsync(resume.Id, "es-ES");
+        (await app.Api.GetResumeVariantsAsync(resume.Id)).Should().ContainSingle(v => v.Id == variant.Id);
+
+        variant = await app.Api.UpdateResumeVariantAsync(variant.Id, new Dictionary<string, string> { ["summary"] = "Resumen" });
+        variant.Overrides.Should().ContainKey("summary");
+
+        variant = await app.Api.GenerateVariantSuggestionsAsync(variant.Id);
+        variant.HasPendingSuggestions.Should().BeTrue();
+        (await app.Api.GetResumeVariantPreviewAsync(variant.Id)).PendingSuggestions.Should().ContainKey("title");
+
+        variant = await app.Api.ResolveVariantSuggestionsAsync(variant.Id, accept: true);
+        (await app.Api.GetResumeVariantPreviewAsync(variant.Id)).Title.Should().Be("Dependienta");
+        (await app.Api.GetResumeAsync(resume.Id)).Title.Should().Be("Atendente pelo app");
+
+        await app.Api.DeleteResumeVariantAsync(variant.Id);
+        (await app.Api.GetResumeVariantsAsync(resume.Id)).Should().BeEmpty();
+    }
+
+    [Fact]
     public async Task Profile_GetAndUpdate_ThroughMobileClient()
     {
         var app = MobileApp.Create(_factory);
