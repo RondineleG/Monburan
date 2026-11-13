@@ -52,6 +52,8 @@ public static class NavigationTrail
             _ when Is(segments, "curriculos", null, "editar") => T(resumes, new TrailItem("Editar currículo")),
             _ when Is(segments, "curriculos", null, "assistente") => T(resumes, new TrailItem("Revisar currículo")),
             _ when Is(segments, "curriculos", null, "cv") => T(resumes, new TrailItem("Ver CV")),
+            _ when Is(segments, "curriculos", null, "versoes") => T(resumes, new TrailItem("Em outro idioma")),
+            _ when Is(segments, "curriculos", null, "versoes", null, "cv") => T(resumes, new TrailItem("CV em outro idioma")),
             _ when Is(segments, "curriculos", null) => T(resumes, new TrailItem("Currículo")),
 
             "/minhas-vagas" => T(new TrailItem("Minhas vagas")),

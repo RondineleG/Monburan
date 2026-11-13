@@ -1,0 +1,401 @@
+@page "/curriculos/{resumeId:guid}/versoes"
+@rendermode InteractiveServer
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Policy = "CandidateOnly")]
+@using System.Security.Claims
+@using Monburan.Core.DTOs.Request
+@using Monburan.Core.DTOs.Response
+@using Monburan.Core.Enums
+@using Monburan.Core.UseCases.Resumes
+@inject GetResumeByIdUseCase GetResume
+@inject ListResumeVariantsUseCase ListVariants
+@inject CreateResumeVariantUseCase CreateVariant
+@inject UpdateResumeVariantUseCase UpdateVariant
+@inject DeleteResumeVariantUseCase DeleteVariant
+@inject GetResumeVariantPreviewUseCase PreviewVariant
+@inject GenerateVariantSuggestionsUseCase GenerateSuggestions
+@inject ResolveVariantSuggestionsUseCase ResolveSuggestions
+@inject ICurrentUserHelper CurrentUserHelper
+@inject AuthenticationStateProvider AuthenticationState
+@inject IToastService Toast
+@inject ILogger<ResumeVariants> Logger
+
+<PageTitle>Currículo em outro idioma - Monburan</PageTitle>
+
+@* Versões localizadas (PRD carreira internacional, P0 es-ES). A versão guarda só os textos traduzidos e usa a
+   estrutura do currículo-base, que nunca muda. Sugestões de IA ficam pendentes até a pessoa aceitar. *@
+<FeatureGate Feature="carreira-internacional">
+    <ChildContent>
+        <div class="container page-narrow resume-variants-page">
+            <PageHeader Title="Currículo em outro idioma"
+                        Description="Prepare uma versão traduzida para vagas em outro país. O currículo original não muda."
+                        BackHref="@($"/curriculos/{ResumeId}")" BackText="Voltar ao currículo" />
+
+            @if (isLoading)
+            {
+                <LoadingState Message="Carregando o currículo…" />
+            }
+            else if (loadFailed)
+            {
+                <ErrorState Title="Não foi possível carregar as versões" Message="Tente novamente em instantes." OnRetry="LoadAsync" />
+            }
+            else if (resume is null)
+            {
+                <EmptyState Icon="file" Title="Currículo não encontrado" Message="Ele não existe mais ou pertence a outra conta.">
+                    <a class="btn btn-primary" href="/curriculos">Ir para meus currículos</a>
+                </EmptyState>
+            }
+            else if (variant is null)
+            {
+                <section class="card page-form-card" aria-labelledby="variant-create-title" data-testid="variant-empty">
+                    <div class="card-body">
+                        <h2 class="h5" id="variant-create-title">Ainda não há versão traduzida de “@resume.Title”</h2>
+                        <p>A versão traduzida mostra os mesmos cargos, datas e formação do original, com os textos no outro idioma. Você traduz campo por campo ou pede uma sugestão à IA e revisa antes de usar.</p>
+                        @foreach (var locale in ResumeVariantFields.Locales)
+                        {
+                            <button type="button" class="btn btn-primary" @onclick="() => CreateAsync(locale.Locale)" disabled="@isBusy"
+                                    aria-busy="@(isBusy ? "true" : null)" data-testid="variant-create">
+                                @(isBusy ? "Criando…" : $"Criar versão em {locale.Label.ToLowerInvariant()}")
+                            </button>
+                        }
+                    </div>
+                </section>
+            }
+            else
+            {
+                <section class="variant-summary" aria-labelledby="variant-title" data-testid="variant-summary">
+                    <h2 id="variant-title" class="h5">@ResumeVariantFields.LocaleLabel(variant.Locale)</h2>
+                    <p class="text-muted">Campos sem tradução aparecem com o texto original.</p>
+                    <div class="d-flex flex-wrap gap-2">
+                        <a class="btn btn-outline-secondary" href="@($"/curriculos/{ResumeId}/versoes/{variant.Id}/cv")" data-testid="variant-cv">
+                            <Icon Name="download" Size="16" />Ver e imprimir
+                        </a>
+                        <button type="button" class="btn btn-outline-danger" @onclick="DeleteAsync" disabled="@isBusy" data-testid="variant-delete">Excluir versão</button>
+                    </div>
+                </section>
+
+                @if (pending is { Count: > 0 })
+                {
+                    <section class="variant-ai variant-ai--review" aria-labelledby="variant-ai-review-title" data-testid="variant-ai-review">
+                        <h2 id="variant-ai-review-title" class="h5"><Icon Name="sparkles" Size="18" />Revise as sugestões da IA</h2>
+                        <p class="variant-ai__warning" role="note">
+                            A IA pode errar. Confira cada texto e não aceite nada que acrescente cursos, certificações, cargos ou níveis de idioma que você não tem.
+                            Ao aceitar, as sugestões entram na versão e continuam editáveis.
+                        </p>
+                        <dl class="variant-ai__list">
+                            @foreach (var field in fields.Where(f => pending.ContainsKey(f.Key)))
+                            {
+                                <div>
+                                    <dt>@field.Group · @field.Label</dt>
+                                    <dd><span class="variant-ai__original">@field.Original</span><span class="variant-ai__suggestion" lang="@variant.Locale">@pending[field.Key]</span></dd>
+                                </div>
+                            }
+                        </dl>
+                        <div class="d-flex flex-wrap gap-2">
+                            <button type="button" class="btn btn-primary" @onclick="() => ResolveAsync(true)" disabled="@isBusy" data-testid="variant-ai-accept">Aceitar sugestões</button>
+                            <button type="button" class="btn btn-outline-secondary" @onclick="() => ResolveAsync(false)" disabled="@isBusy" data-testid="variant-ai-discard">Descartar</button>
+                        </div>
+                    </section>
+                }
+                else
+                {
+                    <section class="variant-ai" aria-labelledby="variant-ai-title">
+                        <h2 id="variant-ai-title" class="h6"><Icon Name="sparkles" Size="16" />Sugestão de tradução com IA</h2>
+                        <p id="variant-ai-note" class="text-muted">
+                            O texto profissional do currículo é enviado a um serviço externo de IA; seus dados de contato não. Nada muda na versão sem a sua revisão.
+                        </p>
+                        <button type="button" class="btn btn-outline-secondary" @onclick="GenerateAsync" disabled="@isBusy"
+                                aria-describedby="variant-ai-note" aria-busy="@(isGenerating ? "true" : null)" data-testid="variant-ai-generate">
+                            @(isGenerating ? "Gerando sugestões…" : "Sugerir tradução com IA")
+                        </button>
+                    </section>
+                }
+
+                <section class="card page-form-card mt-4" aria-labelledby="variant-edit-title" data-testid="variant-editor">
+                    <div class="card-body">
+                        <h2 class="h5" id="variant-edit-title">Tradução campo a campo</h2>
+                        <p class="text-muted">Deixe em branco para usar o texto original.</p>
+
+                        @foreach (var group in fields.GroupBy(f => f.Group))
+                        {
+                            <fieldset class="variant-group">
+                                <legend>@group.Key</legend>
+                                @foreach (var field in group)
+                                {
+                                    var inputId = $"variant-{field.Key.Replace(':', '-')}";
+                                    <div class="mb-3">
+                                        <label class="form-label" for="@inputId">@field.Label</label>
+                                        <div class="form-text" id="@($"{inputId}-original")">Original: @field.Original</div>
+                                        @if (field.Multiline)
+                                        {
+                                            <textarea id="@inputId" class="form-control" rows="3" lang="@variant.Locale" maxlength="4000"
+                                                      aria-describedby="@($"{inputId}-original")"
+                                                      value="@Draft(field.Key)" @onchange="e => SetDraft(field.Key, e.Value)"></textarea>
+                                        }
+                                        else
+                                        {
+                                            <input id="@inputId" class="form-control" lang="@variant.Locale" maxlength="4000"
+                                                   aria-describedby="@($"{inputId}-original")"
+                                                   value="@Draft(field.Key)" @onchange="e => SetDraft(field.Key, e.Value)" />
+                                        }
+                                    </div>
+                                }
+                            </fieldset>
+                        }
+
+                        @if (saveError is not null)
+                        {
+                            <div class="alert alert-danger" role="alert" data-testid="variant-save-error">@saveError</div>
+                        }
+                        <button type="button" class="btn btn-primary" @onclick="SaveAsync" disabled="@isBusy" aria-busy="@(isSaving ? "true" : null)" data-testid="variant-save">
+                            @(isSaving ? "Salvando…" : "Salvar tradução")
+                        </button>
+                    </div>
+                </section>
+            }
+        </div>
+    </ChildContent>
+    <Disabled>
+        <div class="container">
+            <EmptyState Icon="lock" HeadingLevel="1" Title="Recurso ainda não liberado para a sua conta"
+                        Message="As versões do currículo em outro idioma estão em teste com um grupo de pessoas.">
+                <a class="btn btn-primary" href="@($"/curriculos/{ResumeId}")">Voltar ao currículo</a>
+            </EmptyState>
+        </div>
+    </Disabled>
+</FeatureGate>
+
+<ConfirmDialog @ref="deleteDialog" />
+
+@code {
+    [Parameter]
+    public Guid ResumeId { get; set; }
+
+    private ResumeResponse? resume;
+    private ResumeVariantResponse? variant;
+    private IReadOnlyList<ResumeVariantField> fields = [];
+    private Dictionary<string, string> drafts = new();
+    private Dictionary<string, string>? pending;
+    private bool isLoading = true;
+    private bool loadFailed;
+    private bool isSaving;
+    private bool isGenerating;
+    private bool isBusy;
+    private string? saveError;
+    private ConfirmDialog deleteDialog = default!;
+
+    protected override Task OnParametersSetAsync() => LoadAsync();
+
+    private async Task<(Guid CandidateId, ClaimsPrincipal User)?> OwnerAsync()
+    {
+        var candidateId = CurrentUserHelper.GetCandidateId();
+        if (candidateId is null)
+            return null;
+        return (candidateId.Value, (await AuthenticationState.GetAuthenticationStateAsync()).User);
+    }
+
+    private async Task LoadAsync()
+    {
+        isLoading = true;
+        loadFailed = false;
+        resume = null;
+        variant = null;
+        pending = null;
+
+        var owner = await OwnerAsync();
+        if (owner is null)
+        {
+            isLoading = false;
+            return;
+        }
+
+        var variants = await ListVariants.ExecuteAsync(new ResumeVariantCommand(owner.Value.CandidateId, ResumeId, owner.Value.User));
+        if (variants.Status == EResultStatus.EntityNotFound)
+        {
+            isLoading = false;
+            return; // currículo inexistente ou de outra conta
+        }
+        if (variants.Status != EResultStatus.Success)
+        {
+            Logger.LogFailure(variants, "Listar versões do currículo");
+            loadFailed = true;
+            isLoading = false;
+            return;
+        }
+
+        var baseResume = await GetResume.ExecuteAsync(ResumeId);
+        if (baseResume.Status != EResultStatus.Success || baseResume.Data is null)
+        {
+            Logger.LogFailure(baseResume, "Carregar currículo-base da versão");
+            loadFailed = true;
+            isLoading = false;
+            return;
+        }
+
+        resume = baseResume.Data;
+        fields = ResumeVariantFields.From(resume);
+        variant = variants.Data!.FirstOrDefault();
+        drafts = variant is null ? new() : new Dictionary<string, string>(variant.Overrides);
+        if (variant is { HasPendingSuggestions: true })
+            await LoadPendingAsync(owner.Value);
+
+        isLoading = false;
+    }
+
+    private async Task LoadPendingAsync((Guid CandidateId, ClaimsPrincipal User) owner)
+    {
+        var preview = await PreviewVariant.ExecuteAsync(new ResumeVariantByIdCommand(owner.CandidateId, variant!.Id, owner.User));
+        pending = preview.Status == EResultStatus.Success ? preview.Data?.PendingSuggestions : null;
+    }
+
+    private string Draft(string key) => drafts.TryGetValue(key, out var value) ? value : string.Empty;
+
+    private void SetDraft(string key, object? value)
+    {
+        var text = value?.ToString() ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(text))
+            drafts.Remove(key);
+        else
+            drafts[key] = text;
+    }
+
+    private async Task CreateAsync(string locale)
+    {
+        if (isBusy || await OwnerAsync() is not { } owner)
+            return;
+
+        isBusy = true;
+        try
+        {
+            var result = await CreateVariant.ExecuteAsync(new CreateResumeVariantCommand(owner.CandidateId, ResumeId, new ResumeVariantCreateRequest { Locale = locale }, owner.User));
+            if (result.Status == EResultStatus.Success)
+            {
+                Toast.ShowSuccess("Versão criada. Traduza os campos ou peça uma sugestão à IA.", "Versão criada");
+                await LoadAsync();
+            }
+            else
+            {
+                Toast.ShowError(ResultMessages.ToUserMessage(result, "Não foi possível criar a versão."));
+            }
+        }
+        finally
+        {
+            isBusy = false;
+        }
+    }
+
+    private async Task SaveAsync()
+    {
+        if (isBusy || variant is null || await OwnerAsync() is not { } owner)
+            return;
+
+        isBusy = isSaving = true;
+        saveError = null;
+        try
+        {
+            // O que foi digitado fica na tela mesmo se o servidor recusar
+            var result = await UpdateVariant.ExecuteAsync(new UpdateResumeVariantCommand(owner.CandidateId, variant.Id,
+                new ResumeVariantUpdateRequest { Overrides = new Dictionary<string, string>(drafts) }, owner.User));
+            if (result.Status == EResultStatus.Success)
+            {
+                variant = result.Data;
+                Toast.ShowSuccess("A tradução foi salva. O currículo original continua igual.", "Tradução salva");
+            }
+            else
+            {
+                saveError = ResultMessages.ToUserMessage(result, "Não foi possível salvar a tradução. Seus textos continuam aqui.");
+            }
+        }
+        finally
+        {
+            isBusy = isSaving = false;
+        }
+    }
+
+    private async Task GenerateAsync()
+    {
+        if (isBusy || variant is null || await OwnerAsync() is not { } owner)
+            return;
+
+        isBusy = isGenerating = true;
+        try
+        {
+            var result = await GenerateSuggestions.ExecuteAsync(new ResumeVariantByIdCommand(owner.CandidateId, variant.Id, owner.User));
+            if (result.Status == EResultStatus.Success)
+            {
+                variant = result.Data;
+                await LoadPendingAsync(owner);
+            }
+            else
+            {
+                Toast.ShowError(ResultMessages.ToUserMessage(result, "Não foi possível gerar sugestões agora."));
+            }
+        }
+        finally
+        {
+            isBusy = isGenerating = false;
+        }
+    }
+
+    private async Task ResolveAsync(bool accept)
+    {
+        if (isBusy || variant is null || await OwnerAsync() is not { } owner)
+            return;
+
+        isBusy = true;
+        try
+        {
+            var result = await ResolveSuggestions.ExecuteAsync(new ResolveVariantSuggestionsCommand(owner.CandidateId, variant.Id, accept, owner.User));
+            if (result.Status == EResultStatus.Success)
+            {
+                variant = result.Data;
+                pending = null;
+                drafts = new Dictionary<string, string>(variant!.Overrides);
+                Toast.ShowSuccess(accept ? "As sugestões entraram na versão. Revise e ajuste o que precisar." : "As sugestões foram descartadas.",
+                    accept ? "Sugestões aceitas" : "Sugestões descartadas");
+            }
+            else
+            {
+                Toast.ShowError(ResultMessages.ToUserMessage(result, "Não foi possível concluir a revisão."));
+            }
+        }
+        finally
+        {
+            isBusy = false;
+        }
+    }
+
+    private async Task DeleteAsync()
+    {
+        if (isBusy || variant is null || await OwnerAsync() is not { } owner)
+            return;
+
+        var confirmed = await deleteDialog.ShowAsync(new ConfirmOptions
+        {
+            Title = $"Excluir a versão em {ResumeVariantFields.LocaleLabel(variant.Locale).ToLowerInvariant()}?",
+            Message = "As traduções desta versão serão perdidas. O currículo original não muda.",
+            ConfirmText = "Excluir versão",
+            Destructive = true
+        });
+        if (!confirmed)
+            return;
+
+        isBusy = true;
+        try
+        {
+            var result = await DeleteVariant.ExecuteAsync(new ResumeVariantByIdCommand(owner.CandidateId, variant.Id, owner.User));
+            if (result.Status == EResultStatus.Success)
+            {
+                Toast.ShowSuccess("A versão traduzida foi excluída.", "Versão excluída");
+                await LoadAsync();
+            }
+            else
+            {
+                Toast.ShowError(ResultMessages.ToUserMessage(result, "Não foi possível excluir a versão."));
+            }
+        }
+        finally
+        {
+            isBusy = false;
+        }
+    }
+}

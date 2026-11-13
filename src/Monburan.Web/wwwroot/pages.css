@@ -379,6 +379,18 @@
     .subscription-facts dt { color: var(--tx-2); font-size: var(--fs-sm); font-weight: var(--fw-semibold); }
     .subscription-facts dd { margin: var(--s-1) 0 0; }
     .subscription-summary__actions { display: flex; flex-wrap: wrap; gap: var(--s-2); margin-top: var(--s-6); }
+    /* Currículo em outro idioma: original ao lado de cada campo, sugestões da IA só com revisão */
+    .variant-summary { margin: 0 0 var(--s-5); }
+    .variant-ai { margin: 0 0 var(--s-5); padding: var(--s-4); border: 1px solid var(--border); border-radius: var(--r-md); background: var(--bg-card); }
+    .variant-ai h2 { display: flex; align-items: center; gap: var(--s-2); }
+    .variant-ai--review { border-color: var(--gold-border); background: var(--gold-soft); }
+    .variant-ai__warning { color: var(--tx); font-size: var(--fs-sm); }
+    .variant-ai__list { display: grid; gap: var(--s-3); margin: 0 0 var(--s-4); }
+    .variant-ai__list dt { color: var(--tx-2); font-size: var(--fs-sm); font-weight: var(--fw-semibold); }
+    .variant-ai__list dd { display: grid; gap: var(--s-1); margin: var(--s-1) 0 0; }
+    .variant-ai__original { color: var(--tx-2); font-size: var(--fs-sm); }
+    .variant-group { margin: 0 0 var(--s-5); padding: var(--s-4) 0 0; border: 0; border-top: 1px solid var(--border); }
+    .variant-group legend { margin-bottom: var(--s-3); font-size: var(--fs-md); font-weight: var(--fw-semibold); }
     .plans-footnote { margin-top: var(--s-6); color: var(--tx-2); font-size: var(--fs-sm); text-align: center; }
 
     /* ---------- Notificações ---------- */

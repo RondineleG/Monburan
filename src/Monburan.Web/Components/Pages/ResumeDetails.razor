@@ -47,6 +47,9 @@
                         <summary class="btn btn-outline-secondary">Outras ações<Icon Name="chevron-down" Size="16" /></summary>
                         <div class="page-heading__more-menu">
                             <a href="/curriculos/@ResumeId/cv" data-testid="resume-export-pdf">Ver CV</a>
+                            <FeatureGate Feature="carreira-internacional">
+                                <a href="/curriculos/@ResumeId/versoes" data-testid="resume-variants">Preparar em outro idioma</a>
+                            </FeatureGate>
                             <a href="/curriculos/@ResumeId/assistente" aria-label="Completar o currículo no passo a passo">Completar no passo a passo</a>
                             <button type="button" class="link-danger" @onclick="DeleteAsync" disabled="@isDeleting" data-testid="resume-delete"
                                     aria-busy="@(isDeleting ? "true" : null)"
