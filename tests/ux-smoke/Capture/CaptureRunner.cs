@@ -450,6 +450,7 @@ static class CaptureRunner
         var jobs = new List<(string, string)>
         {
             ("home", "/"), ("jobs", "/jobs"), ("job-details", "/jobs/" + seed.AppliedJobId), ("login", "/login"), ("register", "/register"),
+            ("job-intl", "/jobs/" + seed.IntlJobId),
             ("forgot-password", "/forgot-password"), ("not-found", "/not-found"), ("protected", "/applications"),
         };
         var candidate = new List<(string, string)>

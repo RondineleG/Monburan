@@ -31,9 +31,9 @@ else if (_job is not null)
             <div class="text-dim">@companyName</div>
         }
         <div class="card-meta">
-            @if (!string.IsNullOrEmpty(_job.City))
+            @if (Formatters.JobPlace(_job) is { } place)
             {
-                <span class="meta-chip"><Icon Name="map-pin" Size="16" /> @_job.City@(_job.State is not null ? $"/{_job.State}" : "")</span>
+                <span class="meta-chip"><Icon Name="map-pin" Size="16" /> @place</span>
             }
             <span class="meta-chip"><Icon Name="@Formatters.JobModeIcon(mode)" Size="16" /> @Formatters.JobType(mode)</span>
             @if (Formatters.Salary(_job) is { } salary)
@@ -85,6 +85,28 @@ else if (_job is not null)
         <div class="detail-section">
             <h2>Como se candidatar</h2>
             <p class="body-text">@_job.ApplicationInstructions</p>
+        </div>
+    }
+
+    @if (Formatters.HasInternationalInfo(_job))
+    {
+        @* Só o que a empresa informou: "Não informado" é diferente de "não" (mesma seção da web) *@
+        <div class="detail-section" data-testid="job-intl-info">
+            <h2>Trabalho internacional</h2>
+            <dl class="intl-list">
+                <div><dt>País da vaga</dt><dd>@Formatters.CountryName(_job.Country)</dd></div>
+                @if (_job.SalaryCurrency is not (null or "" or "BRL"))
+                {
+                    <div><dt>Moeda do salário</dt><dd>@_job.SalaryCurrency</dd></div>
+                }
+                @if (Formatters.RemoteScope(_job) is { } scope)
+                {
+                    <div><dt>De onde trabalhar</dt><dd>@scope</dd></div>
+                }
+                <div><dt>Ajuda de relocação</dt><dd>@Formatters.YesNoUnknown(_job.OffersRelocation, "A empresa oferece", "A empresa não oferece")</dd></div>
+                <div><dt>Patrocínio de visto</dt><dd>@Formatters.YesNoUnknown(_job.SponsorsVisa, "A empresa patrocina", "A empresa não patrocina")</dd></div>
+            </dl>
+            <p class="text-dim intl-note">Informações dadas pela empresa. O Monburan não presta serviço de imigração nem aconselhamento jurídico: confirme visto e exigências com a empresa e com os órgãos oficiais.</p>
         </div>
     }
 

@@ -55,4 +55,28 @@ public class FormattersTests
 
         Formatters.CalendarDate(expiration).Should().Be("16/11/2026");
     }
+
+    [Theory]
+    [InlineData("Lisboa", null, "PT", "OnSite", "Lisboa, Portugal")]
+    [InlineData("Curitiba", "PR", "BR", "OnSite", "Curitiba/PR")]
+    [InlineData(null, null, "ES", "Remote", "Espanha")]
+    [InlineData(null, null, "BR", "OnSite", null)]
+    public void JobPlace_NamesTheCountryOnlyWhenAbroad(string? city, string? state, string country, string type, string? expected) =>
+        Formatters.JobPlace(new JobResponse { City = city, State = state, Country = country, Type = type, IsRemote = type == "Remote" })
+            .Should().Be(expected);
+
+    [Theory]
+    [InlineData("Remote", "Global", null, "De qualquer país")]
+    [InlineData("Hybrid", "Restricted", "PT,ES", "Só de: Portugal, Espanha")]
+    [InlineData("Remote", null, null, "Não informado")]
+    [InlineData("OnSite", "Global", null, null)]
+    public void RemoteScope_NeverAssumesGlobal(string type, string? scope, string? countries, string? expected) =>
+        Formatters.RemoteScope(new JobResponse { Type = type, RemoteScope = scope, EligibleCountries = countries }).Should().Be(expected);
+
+    [Theory]
+    [InlineData(true, "Oferece")]
+    [InlineData(false, "Não oferece")]
+    [InlineData(null, "Não informado")]
+    public void YesNoUnknown_KeepsNotInformedApartFromNo(bool? value, string expected) =>
+        Formatters.YesNoUnknown(value, "Oferece", "Não oferece").Should().Be(expected);
 }
