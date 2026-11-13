@@ -25,8 +25,11 @@
     <Using Include="Xunit" />
   </ItemGroup>
 
+
+  <!-- O servidor de IA falso dos testes usa o ASP.NET Core. Sem referência ao Monburan.Web: um dotnet test não pode
+       recompilar o app que está no ar (a saída reescrita derrubava a navegação do Blazor no meio da suíte). -->
   <ItemGroup>
-    <ProjectReference Include="..\..\src\Monburan.Web\Monburan.Web.csproj" />
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
   </ItemGroup>
 
 </Project>

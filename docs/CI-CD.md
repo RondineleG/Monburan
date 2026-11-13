@@ -149,17 +149,15 @@ administração e os ajustes de segurança do app: [SEGURANCA.md](SEGURANCA.md).
 - **E2E** (`tests/Monburan.E2ETests`) precisa do app no ar com Postgres e dos usuários do seed de Development. Local:
 
   ```bash
-  dotnet build tests/Monburan.E2ETests          # compila o site e os testes antes de subir o app
-  ASPNETCORE_ENVIRONMENT=Development APPLY_MIGRATIONS=true dotnet run --no-build --project src/Monburan.Web --urls http://localhost:5095
-  dotnet test tests/Monburan.E2ETests --no-build   # E2E_BASE_URL muda a URL do app
+  ASPNETCORE_ENVIRONMENT=Development APPLY_MIGRATIONS=true dotnet run --project src/Monburan.Web --urls http://localhost:5095
+  dotnet test tests/Monburan.E2ETests          # E2E_BASE_URL muda a URL do app
   ```
 
-  Use `--no-build` com o app no ar: o projeto E2E referencia o `Monburan.Web`, e um `dotnet test` que compila tenta
-  reescrever a saída do app em execução (aviso `MSB3061`, arquivo bloqueado pelo processo `Monburan.Web`) e regera os
-  manifestos de arquivos estáticos que ele está servindo da mesma pasta. Reproduzido de propósito (build `--no-incremental`
-  durante a suíte): a navegação interna do Blazor no fim de `AddressCreate_WarnsBeforeLeavingWithUnsavedChanges` não
-  completa e estoura 20 s, a mesma falha intermitente vista antes. Sem compilar com o app no ar, a suíte passou inteira
-  em todas as rodadas.
+  O projeto E2E não referencia o `Monburan.Web` (usa só o framework ASP.NET Core para o servidor de IA falso). Antes,
+  a referência fazia o `dotnet test` recompilar o app que estava no ar: o build tentava reescrever a saída em uso
+  (`MSB3061`) e os manifestos de arquivos estáticos, e a navegação interna do Blazor no fim de
+  `AddressCreate_WarnsBeforeLeavingWithUnsavedChanges` estourava 20 s de forma intermitente. Reproduzido recompilando
+  durante a suíte; sem a referência, a mesma reprodução passou inteira.
 
   As varreduras (`FullSweepTests`) já falharam de forma intermitente por navegarem enquanto a página de chegada ainda
   negociava o circuito Blazor, e hoje esperam esse circuito antes da primeira rota. O job ainda repete a execução uma
