@@ -149,9 +149,15 @@ administração e os ajustes de segurança do app: [SEGURANCA.md](SEGURANCA.md).
 - **E2E** (`tests/Monburan.E2ETests`) precisa do app no ar com Postgres e dos usuários do seed de Development. Local:
 
   ```bash
-  ASPNETCORE_ENVIRONMENT=Development APPLY_MIGRATIONS=true dotnet run --project src/Monburan.Web --urls http://localhost:5095
-  dotnet test tests/Monburan.E2ETests          # E2E_BASE_URL muda a URL do app
+  dotnet build tests/Monburan.E2ETests          # compila o site e os testes antes de subir o app
+  ASPNETCORE_ENVIRONMENT=Development APPLY_MIGRATIONS=true dotnet run --no-build --project src/Monburan.Web --urls http://localhost:5095
+  dotnet test tests/Monburan.E2ETests --no-build   # E2E_BASE_URL muda a URL do app
   ```
+
+  Use `--no-build` com o app no ar: o projeto E2E referencia o `Monburan.Web`, e um `dotnet test` que compila reescreve a
+  saída e os manifestos de arquivos estáticos que o app em Development está servindo da mesma pasta. Nas rodadas assim
+  o teste do aviso de alterações (`AddressCreate_WarnsBeforeLeavingWithUnsavedChanges`) falhou de forma intermitente;
+  com `--no-build`, a suíte passou inteira em todas as rodadas.
 
   As varreduras (`FullSweepTests`) já falharam de forma intermitente por navegarem enquanto a página de chegada ainda
   negociava o circuito Blazor, e hoje esperam esse circuito antes da primeira rota. O job ainda repete a execução uma
