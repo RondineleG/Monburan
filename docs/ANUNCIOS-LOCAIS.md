@@ -2,6 +2,11 @@
 
 Campanhas aparecem como um único cartão discreto no detalhe de vagas ativas. O cartão fica abaixo do conteúdo da vaga no celular e na coluna lateral do desktop; não sobrepõe o botão de candidatura nem permanece fixo durante a rolagem. Sem uma campanha ativa que corresponda à cidade e UF da vaga, nenhum espaço vazio é exibido.
 
+**Quem não vê publicidade:** quem tem assinatura ativa e vigente de plano pago (preço maior que zero), seja candidato ou
+empresa. A regra fica no servidor (`AdvertisingRules.IsAdFree`, conferida em `LocalAdCampaignService.GetForJobAsync`);
+o nome do plano não entra na conta e, se a consulta da assinatura falhar, o anúncio não aparece. A tela de planos usa a
+mesma regra (`PlanResponse.IsAdFree`). A empresa dona da vaga e a administração também não veem anúncio na vaga.
+
 ## Liberação
 
 1. Em `/admin/funcionalidades`, crie `publicidade-local` com descrição e sem liberação para todos.
