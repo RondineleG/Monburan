@@ -172,6 +172,10 @@
     .local-ad-card__content p { margin: 0 0 var(--s-2); color: var(--tx-2); font-size: var(--fs-sm); }
     .local-ad-card__link { display: inline-flex; min-height: var(--control-h-sm); align-items: center; gap: var(--s-1); color: var(--gold-d); font-size: var(--fs-sm); font-weight: var(--fw-semibold); text-decoration: none; }
     .local-ad-card__link:hover { text-decoration: underline; }
+    /* No celular o anúncio segue a coluna única, alinhado aos outros cartões (no desktop fica sob a coluna lateral) */
+    @media (max-width: 991.98px) {
+        .local-ad-card { width: 100%; margin-left: 0; }
+    }
     .local-ad-admin-preview { display: block; width: min(100%, 20rem); max-height: 10rem; border: 1px solid var(--border); border-radius: var(--r-sm); object-fit: cover; }
     .job-similar { margin-top: var(--s-10); }
     .job-similar h2 { font-size: var(--fs-xl); }
