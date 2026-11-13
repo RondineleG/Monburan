@@ -1,3 +1,5 @@
+using System.Security.Claims;
+
 using Monburan.Core.DTOs.Request;
 using Monburan.Core.Enums;
 using Monburan.Core.Interfaces.Repositories;
@@ -28,6 +30,148 @@ public static class ResumeEndpoints
             return result.ToHttpResult();
         })
         .WithSummary("Lista currículos do candidato autenticado");
+
+        group.MapGet("/{resumeId:guid}/variants", async (
+            Guid resumeId,
+            ICurrentUserHelper currentUser,
+            ClaimsPrincipal user,
+            ListResumeVariantsUseCase useCase,
+            CancellationToken cancellationToken) =>
+        {
+            var candidateId = currentUser.GetCandidateId();
+            if (candidateId is null)
+                return Results.Problem(statusCode: StatusCodes.Status403Forbidden, title: "Perfil de candidato necessário");
+
+            var result = await useCase.ExecuteAsync(new ResumeVariantCommand(candidateId.Value, resumeId, user), cancellationToken);
+            return result.ToHttpResult();
+        })
+        .RequireFeature("carreira-internacional")
+        .WithSummary("Variantes localizadas de um currículo (MI-02)");
+
+        group.MapPost("/{resumeId:guid}/variants", async (
+            Guid resumeId,
+            ResumeVariantCreateRequest request,
+            ICurrentUserHelper currentUser,
+            ClaimsPrincipal user,
+            CreateResumeVariantUseCase useCase,
+            CancellationToken cancellationToken) =>
+        {
+            var candidateId = currentUser.GetCandidateId();
+            if (candidateId is null)
+                return Results.Problem(statusCode: StatusCodes.Status403Forbidden, title: "Perfil de candidato necessário");
+
+            var result = await useCase.ExecuteAsync(
+                new CreateResumeVariantCommand(candidateId.Value, resumeId, request, user), cancellationToken);
+            return result.ToHttpResult();
+        })
+        .RequireFeature("carreira-internacional")
+        .WithSummary("Cria variante localizada (ex.: es-ES) sem tocar o currículo base");
+
+        group.MapGet("/variants/{variantId:guid}", async (
+            Guid variantId,
+            ICurrentUserHelper currentUser,
+            ClaimsPrincipal user,
+            GetResumeVariantUseCase useCase,
+            CancellationToken cancellationToken) =>
+        {
+            var candidateId = currentUser.GetCandidateId();
+            if (candidateId is null)
+                return Results.Problem(statusCode: StatusCodes.Status403Forbidden, title: "Perfil de candidato necessário");
+
+            var result = await useCase.ExecuteAsync(new ResumeVariantByIdCommand(candidateId.Value, variantId, user), cancellationToken);
+            return result.ToHttpResult();
+        })
+        .RequireFeature("carreira-internacional")
+        .WithSummary("Detalhe da variante com overrides desserializados");
+
+        group.MapGet("/variants/{variantId:guid}/preview", async (
+            Guid variantId,
+            ICurrentUserHelper currentUser,
+            ClaimsPrincipal user,
+            GetResumeVariantPreviewUseCase useCase,
+            CancellationToken cancellationToken) =>
+        {
+            var candidateId = currentUser.GetCandidateId();
+            if (candidateId is null)
+                return Results.Problem(statusCode: StatusCodes.Status403Forbidden, title: "Perfil de candidato necessário");
+
+            var result = await useCase.ExecuteAsync(new ResumeVariantByIdCommand(candidateId.Value, variantId, user), cancellationToken);
+            return result.ToHttpResult();
+        })
+        .RequireFeature("carreira-internacional")
+        .WithSummary("Preview da variante: estrutura do base + textos localizados");
+
+        group.MapPut("/variants/{variantId:guid}", async (
+            Guid variantId,
+            ResumeVariantUpdateRequest request,
+            ICurrentUserHelper currentUser,
+            ClaimsPrincipal user,
+            UpdateResumeVariantUseCase useCase,
+            CancellationToken cancellationToken) =>
+        {
+            var candidateId = currentUser.GetCandidateId();
+            if (candidateId is null)
+                return Results.Problem(statusCode: StatusCodes.Status403Forbidden, title: "Perfil de candidato necessário");
+
+            var result = await useCase.ExecuteAsync(
+                new UpdateResumeVariantCommand(candidateId.Value, variantId, request, user), cancellationToken);
+            return result.ToHttpResult();
+        })
+        .RequireFeature("carreira-internacional")
+        .WithSummary("Atualiza textos localizados da variante (nunca o base)");
+
+        group.MapDelete("/variants/{variantId:guid}", async (
+            Guid variantId,
+            ICurrentUserHelper currentUser,
+            ClaimsPrincipal user,
+            DeleteResumeVariantUseCase useCase,
+            CancellationToken cancellationToken) =>
+        {
+            var candidateId = currentUser.GetCandidateId();
+            if (candidateId is null)
+                return Results.Problem(statusCode: StatusCodes.Status403Forbidden, title: "Perfil de candidato necessário");
+
+            var result = await useCase.ExecuteAsync(new ResumeVariantByIdCommand(candidateId.Value, variantId, user), cancellationToken);
+            return result.ToHttpResult();
+        })
+        .RequireFeature("carreira-internacional")
+        .WithSummary("Remove a variante (soft-delete; base intacto)");
+
+        group.MapPost("/variants/{variantId:guid}/suggestions", async (
+            Guid variantId,
+            ICurrentUserHelper currentUser,
+            ClaimsPrincipal user,
+            GenerateVariantSuggestionsUseCase useCase,
+            CancellationToken cancellationToken) =>
+        {
+            var candidateId = currentUser.GetCandidateId();
+            if (candidateId is null)
+                return Results.Problem(statusCode: StatusCodes.Status403Forbidden, title: "Perfil de candidato necessário");
+
+            var result = await useCase.ExecuteAsync(new ResumeVariantByIdCommand(candidateId.Value, variantId, user), cancellationToken);
+            return result.ToHttpResult();
+        })
+        .RequireFeature("carreira-internacional")
+        .WithSummary("Gera sugestões de localização com IA — ficam pendentes de revisão");
+
+        group.MapPost("/variants/{variantId:guid}/suggestions/resolve", async (
+            Guid variantId,
+            ResumeVariantResolveSuggestionsRequest request,
+            ICurrentUserHelper currentUser,
+            ClaimsPrincipal user,
+            ResolveVariantSuggestionsUseCase useCase,
+            CancellationToken cancellationToken) =>
+        {
+            var candidateId = currentUser.GetCandidateId();
+            if (candidateId is null)
+                return Results.Problem(statusCode: StatusCodes.Status403Forbidden, title: "Perfil de candidato necessário");
+
+            var result = await useCase.ExecuteAsync(
+                new ResolveVariantSuggestionsCommand(candidateId.Value, variantId, request.Accept, user), cancellationToken);
+            return result.ToHttpResult();
+        })
+        .RequireFeature("carreira-internacional")
+        .WithSummary("Aceita ou rejeita as sugestões de IA pendentes");
 
         group.MapGet("/{id:guid}", async (
             Guid id,

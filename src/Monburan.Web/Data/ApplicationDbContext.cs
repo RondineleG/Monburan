@@ -55,6 +55,8 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
 
     public DbSet<ResumeShare> ResumeShares => Set<ResumeShare>();
 
+    public DbSet<ResumeVariant> ResumeVariants => Set<ResumeVariant>();
+
     public DbSet<Notification> Notifications => Set<Notification>();
 
     public DbSet<Resume> Resumes => Set<Resume>();
