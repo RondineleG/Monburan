@@ -154,10 +154,12 @@ administração e os ajustes de segurança do app: [SEGURANCA.md](SEGURANCA.md).
   dotnet test tests/Monburan.E2ETests --no-build   # E2E_BASE_URL muda a URL do app
   ```
 
-  Use `--no-build` com o app no ar: o projeto E2E referencia o `Monburan.Web`, e um `dotnet test` que compila reescreve a
-  saída e os manifestos de arquivos estáticos que o app em Development está servindo da mesma pasta. Nas rodadas assim
-  o teste do aviso de alterações (`AddressCreate_WarnsBeforeLeavingWithUnsavedChanges`) falhou de forma intermitente;
-  com `--no-build`, a suíte passou inteira em todas as rodadas.
+  Use `--no-build` com o app no ar: o projeto E2E referencia o `Monburan.Web`, e um `dotnet test` que compila tenta
+  reescrever a saída do app em execução (aviso `MSB3061`, arquivo bloqueado pelo processo `Monburan.Web`) e regera os
+  manifestos de arquivos estáticos que ele está servindo da mesma pasta. Reproduzido de propósito (build `--no-incremental`
+  durante a suíte): a navegação interna do Blazor no fim de `AddressCreate_WarnsBeforeLeavingWithUnsavedChanges` não
+  completa e estoura 20 s, a mesma falha intermitente vista antes. Sem compilar com o app no ar, a suíte passou inteira
+  em todas as rodadas.
 
   As varreduras (`FullSweepTests`) já falharam de forma intermitente por navegarem enquanto a página de chegada ainda
   negociava o circuito Blazor, e hoje esperam esse circuito antes da primeira rota. O job ainda repete a execução uma
