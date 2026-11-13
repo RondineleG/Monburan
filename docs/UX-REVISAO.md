@@ -285,4 +285,17 @@ candidato).
 | Requisito | Situação |
 |---|---|
 | Cobrança da IA de tradução ("Carreira Global" no PRD) | Hipótese de produto; a sugestão usa só a cota de uso da IA |
-| Outros idiomas além de es-ES | Depois de validar a Espanha (PRD) |
+| Outros idiomas além de es-ES | Dependência formal registrada abaixo |
+
+#### Dependência formal: idiomas do currículo além de es-ES
+
+- **Decisão (13/11/2026):** a versão em outro idioma oferece só **espanhol (es-ES)**, confirmada pelo dono do produto
+  duas vezes nesta revisão, conforme o PRD de carreira internacional ("Primeiro país para currículo localizado: Espanha";
+  "mais locales e países após validar Espanha").
+- **Critério para abrir outros idiomas:** validação da Espanha pelas métricas do PRD (variante criada, editada e
+  exportada; perfil internacional concluído) e decisão do produto sobre quais países entram a seguir.
+- **O que já está pronto:** a API aceita qualquer tag BCP-47 (`ResumeVariantLocalization.IsValidLocale`) e a regra de
+  campos é a mesma para qualquer idioma (`ResumeVariantFields`, usada pela web e pelo app).
+- **O que falta para entregar um idioma novo:** incluir o par código/nome em `ResumeVariantFields.Locales` (web e app
+  passam a oferecer o botão), revisar os textos das telas para o idioma e repetir a captura e os testes de API.
+
