@@ -463,7 +463,8 @@
 
         if (job.Status == "Active" && !isOwner && !isAdmin)
         {
-            var matchingAd = await LocalAds.GetForJobAsync(jobId);
+            // O servidor decide: plano pago ativo não vê publicidade
+            var matchingAd = await LocalAds.GetForJobAsync(jobId, CurrentUserHelper.GetCandidateId(), CurrentUserHelper.GetAdvertiserId());
             if (generation != loadGeneration)
                 return;
             localAd = matchingAd;

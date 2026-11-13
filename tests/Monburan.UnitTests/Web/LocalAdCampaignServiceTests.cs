@@ -184,6 +184,57 @@ public class LocalAdCampaignServiceTests : IDisposable
         placement.ClickUrl.Should().Be($"/ads/{campaign.Id.Value:D}/click");
     }
 
+    private static Subscription PaidSubscription(Guid? candidateId = null, Guid? advertiserId = null, decimal price = 19.90m,
+        ESubscriptionStatus status = ESubscriptionStatus.Active, DateTime? endDate = null)
+    {
+        var plan = new SubscriptionPlan { Name = "Qualquer nome", Price = price, TenantId = "default" };
+        return new Subscription
+        {
+            TenantId = "default",
+            CandidateId = candidateId is { } c ? Id.Create(c) : null,
+            AdvertiserId = advertiserId is { } a ? Id.Create(a) : null,
+            PlanId = plan.Id,
+            Plan = plan,
+            Status = status,
+            EndDate = endDate ?? Now.AddDays(30)
+        };
+    }
+
+    [Fact]
+    public async Task GetForJob_PaidCandidate_SeesNoAd_RegardlessOfPlanName()
+    {
+        var job = ActiveJob("Curitiba", "PR");
+        var candidateId = Guid.NewGuid();
+        await SeedAsync(job, Campaign("Curitiba", "PR"), PaidSubscription(candidateId: candidateId));
+
+        (await _service.GetForJobAsync(job.Id.Value, viewerCandidateId: candidateId)).Should().BeNull();
+    }
+
+    [Fact]
+    public async Task GetForJob_PaidCompany_SeesNoAd()
+    {
+        var job = ActiveJob("Curitiba", "PR");
+        var advertiserId = Guid.NewGuid();
+        await SeedAsync(job, Campaign("Curitiba", "PR"), PaidSubscription(advertiserId: advertiserId, price: 99m));
+
+        (await _service.GetForJobAsync(job.Id.Value, viewerAdvertiserId: advertiserId)).Should().BeNull();
+    }
+
+    [Theory]
+    [InlineData(0, ESubscriptionStatus.Active, 30)]        // plano gratuito
+    [InlineData(19.90, ESubscriptionStatus.Cancelled, 30)] // cancelada
+    [InlineData(19.90, ESubscriptionStatus.Pending, 30)]   // pagamento não confirmado
+    [InlineData(19.90, ESubscriptionStatus.Active, -1)]    // vigência acabou
+    public async Task GetForJob_WithoutAnActivePaidPlan_StillSeesTheAd(double price, ESubscriptionStatus status, int endsInDays)
+    {
+        var job = ActiveJob("Curitiba", "PR");
+        var candidateId = Guid.NewGuid();
+        await SeedAsync(job, Campaign("Curitiba", "PR"),
+            PaidSubscription(candidateId: candidateId, price: (decimal)price, status: status, endDate: Now.AddDays(endsInDays)));
+
+        (await _service.GetForJobAsync(job.Id.Value, viewerCandidateId: candidateId)).Should().NotBeNull();
+    }
+
     [Fact]
     public async Task GetForJob_MatchesTheCityRegardlessOfAccentsAndCase()
     {
