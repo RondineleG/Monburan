@@ -73,11 +73,11 @@
             <h3 class="subscription-summary__subtitle">O que o plano inclui</h3>
             @if (currentPlan != null)
             {
-                @* Só o que o servidor aplica (o limite de currículos ainda não é aplicado e não é anunciado) *@
+                @* Só o que o servidor aplica (limite de vagas, de currículos, assistente de IA e publicidade) *@
                 <ul class="plan-card__features">
                     @if (currentPlan.Audience == "Candidate")
                     {
-                        <li><Icon Name="file" Size="16" /><span>Candidaturas e currículos sem custo</span></li>
+                        <li><Icon Name="file" Size="16" /><span>@(currentPlan.MaxResumes < 0 ? "Currículos ilimitados" : $"Até {currentPlan.MaxResumes} currículos")</span></li>
                         @if (currentPlan.HasAiAssistant)
                         {
                             <li><Icon Name="sparkles" Size="16" /><span>Assistente de IA para melhorar o currículo: você revisa e escolhe o que aplicar</span></li>
@@ -113,7 +113,7 @@
     {
         var freePlan = availablePlans?.Plans.FirstOrDefault(p => p.Price == 0);
         var freeMessage = isCandidate
-            ? "Conheça os planos pagos: assistente de IA para o currículo e nenhuma publicidade."
+            ? "Conheça os planos pagos: mais currículos, assistente de IA e nenhuma publicidade."
             : freePlan is null
                 ? "Conheça os planos para ampliar quantas vagas você mantém ativas."
                 : freePlan.MaxJobs == -1

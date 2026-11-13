@@ -35,7 +35,7 @@
         <h2 id="plans-free-title">O que é gratuito</h2>
         @if (ShowCandidates)
         {
-            <p>Buscar vagas, candidatar-se, criar e editar currículos, salvar vagas, criar alertas e acompanhar suas candidaturas não custam nada.</p>
+            <p>Buscar vagas, candidatar-se@(FreeResumesText), salvar vagas, criar alertas e acompanhar suas candidaturas não custam nada.</p>
         }
         else
         {
@@ -100,9 +100,9 @@
                         <p class="plan-card__desc">@plan.Description</p>
                     }
 
-                    @* Só o que o servidor aplica: limite de vagas ativas (CheckJobLimitUseCase), assistente de IA
-                       (ImproveResumeUseCase) e publicidade (LocalAdCampaignService). Boost, destaque e limite de
-                       currículos ainda não são aplicados: não são anunciados. *@
+                    @* Só o que o servidor aplica: limite de vagas ativas (CheckJobLimitUseCase), limite de currículos
+                       (CheckResumeLimitUseCase), assistente de IA (ImproveResumeUseCase) e publicidade
+                       (LocalAdCampaignService). Boost e destaque não têm implementação: não são anunciados. *@
                     <ul class="plan-card__features">
                         @foreach (var feature in Features(plan))
                         {
@@ -147,6 +147,17 @@
 
     private string CurrentPath => ShowCandidates ? "/plans?para=candidatos" : "/plans?para=empresas";
 
+    private string FreeResumesText
+    {
+        get
+        {
+            var free = availablePlans?.Plans.FirstOrDefault(plan => plan.Price == 0);
+            return free is null || !ShowCandidates ? ", criar e editar currículos"
+                : free.MaxResumes < 0 ? ", criar e editar currículos sem limite"
+                : $", manter até {free.MaxResumes} currículos";
+        }
+    }
+
     private string FreeJobsText
     {
         get
@@ -163,7 +174,7 @@
     {
         if (ShowCandidates)
         {
-            yield return ("file", "Candidaturas e currículos sem custo");
+            yield return ("file", plan.MaxResumes < 0 ? "Currículos ilimitados" : $"Até {plan.MaxResumes} currículos");
             if (plan.HasAiAssistant)
                 yield return ("sparkles", "Assistente de IA para melhorar o currículo: você revisa e escolhe o que aplicar");
         }
