@@ -1223,6 +1223,10 @@ namespace Monburan.Web.Migrations
                         .HasMaxLength(2000)
                         .HasColumnType("character varying(2000)");
 
+                    b.Property<string>("EligibleCountries")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
                     b.Property<DateTime>("ExpirationDate")
                         .HasColumnType("date");
 
@@ -1243,12 +1247,19 @@ namespace Monburan.Web.Migrations
                         .HasMaxLength(2000)
                         .HasColumnType("character varying(2000)");
 
+                    b.Property<bool?>("OffersRelocation")
+                        .HasColumnType("boolean");
+
                     b.Property<string>("PublicationType")
                         .IsRequired()
                         .ValueGeneratedOnAdd()
                         .HasMaxLength(20)
                         .HasColumnType("character varying(20)")
                         .HasDefaultValue("Direct");
+
+                    b.Property<string>("RemoteScope")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
 
                     b.Property<string>("Requirements")
                         .HasMaxLength(2000)
@@ -1265,6 +1276,9 @@ namespace Monburan.Web.Migrations
                     b.Property<string>("SourceUrl")
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)");
+
+                    b.Property<bool?>("SponsorsVisa")
+                        .HasColumnType("boolean");
 
                     b.Property<string>("Status")
                         .IsRequired()

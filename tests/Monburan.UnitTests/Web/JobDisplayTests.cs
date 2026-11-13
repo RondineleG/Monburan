@@ -79,6 +79,39 @@ public class JobDisplayTests
     }
 
     [Theory]
+    [InlineData("Remote", "Global", null, "De qualquer país")]
+    [InlineData("Hybrid", "Restricted", "PT,ES", "Só de: Portugal, Espanha")]
+    [InlineData("Remote", null, null, "Não informado")] // remoto sem abrangência não vira "de qualquer país"
+    [InlineData("Remote", "Restricted", null, "Não informado")]
+    [InlineData("OnSite", "Global", null, null)]
+    public void RemoteScope_NeverAssumesGlobal(string type, string? scope, string? countries, string? expected)
+    {
+        var job = new JobResponse { Type = type, RemoteScope = scope, EligibleCountries = countries };
+
+        JobDisplay.RemoteScope(job).Should().Be(expected);
+    }
+
+    [Theory]
+    [InlineData("BR", null, null, null, false)]
+    [InlineData("PT", null, null, null, true)]
+    [InlineData("BR", null, false, null, true)] // "não oferece" também é informação
+    [InlineData("BR", null, null, true, true)]
+    [InlineData("BR", "Global", null, null, true)]
+    public void HasInternationalInfo_OnlyWhenThereIsSomethingToSay(string country, string? scope, bool? relocation, bool? visa, bool expected)
+    {
+        var job = new JobResponse { Country = country, RemoteScope = scope, OffersRelocation = relocation, SponsorsVisa = visa };
+
+        JobDisplay.HasInternationalInfo(job).Should().Be(expected);
+    }
+
+    [Theory]
+    [InlineData(true, "Oferece")]
+    [InlineData(false, "Não oferece")]
+    [InlineData(null, "Não informado")]
+    public void YesNoUnknown_KeepsNotInformedApartFromNo(bool? value, string expected) =>
+        UiLabels.YesNoUnknown(value, "Oferece", "Não oferece").Should().Be(expected);
+
+    [Theory]
     [InlineData("GBP", "£ 1.000 – 2.000")]
     [InlineData("CAD", "CAD 1.000 – 2.000")]
     [InlineData("usd", "US$ 1.000 – 2.000")]

@@ -6,6 +6,8 @@ using Monburan.Core.DTOs.Response;
 using Monburan.Core.Requests;
 using Monburan.Core.UseCases.Jobs;
 using Monburan.Web.Services;
+using Monburan.Core.Interfaces.Services;
+using Monburan.Core.Services;
 
 namespace Monburan.Web.Endpoints;
 
@@ -190,7 +192,9 @@ public static class JobEndpoints
         // Bearer — criar vaga (AdvertiserId sempre vem da claim, nunca do body)
         group.MapPost("/", async (
             CreateJobRequest request,
+            HttpContext httpContext,
             ICurrentUserHelper currentUser,
+            IFeatureFlags featureFlags,
             CreateJobUseCase useCase,
             CancellationToken cancellationToken) =>
         {
@@ -199,6 +203,8 @@ public static class JobEndpoints
                 return Results.Problem(statusCode: StatusCodes.Status403Forbidden, title: "Perfil de anunciante necessário");
 
             request.AdvertiserId = advertiserId.Value;
+            InternationalJobFields.DropUnlessEnabled(request,
+                await featureFlags.IsEnabledAsync(InternationalJobRules.FeatureKey, httpContext.User, cancellationToken));
             var result = await useCase.ExecuteAsync(request, cancellationToken);
             return result.ToHttpResult(StatusCodes.Status201Created);
         })
@@ -209,7 +215,9 @@ public static class JobEndpoints
         group.MapPut("/{id:guid}", async (
             Guid id,
             UpdateJobRequest request,
+            HttpContext httpContext,
             ICurrentUserHelper currentUser,
+            IFeatureFlags featureFlags,
             GetJobByIdUseCase getJob,
             UpdateJobUseCase useCase,
             CancellationToken cancellationToken) =>
@@ -226,6 +234,8 @@ public static class JobEndpoints
                 return Results.Problem(statusCode: StatusCodes.Status403Forbidden, title: "Vaga pertence a outro anunciante");
 
             request.Id = id;
+            InternationalJobFields.KeepExistingUnlessEnabled(request, existing.Data,
+                await featureFlags.IsEnabledAsync(InternationalJobRules.FeatureKey, httpContext.User, cancellationToken));
             var result = await useCase.ExecuteAsync(request, cancellationToken);
             return result.ToHttpResult();
         })

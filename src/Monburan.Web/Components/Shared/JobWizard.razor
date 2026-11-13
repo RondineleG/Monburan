@@ -131,6 +131,76 @@
             </div>
         }
 
+
+        @if (ShowInternational)
+        {
+            @* Carreira internacional (flag carreira-internacional). Só o que a empresa confirma; o resto fica "Não informado" *@
+            <fieldset class="job-intl mb-3" aria-describedby="job-intl-help" data-testid="job-intl-fields">
+                <legend class="form-label">Trabalho internacional</legend>
+                <p class="form-text" id="job-intl-help">Preencha só o que a empresa confirma. O que ficar como “Não informado” aparece assim na vaga.</p>
+
+                <div class="mb-3">
+                    <label class="form-label" for="model.Country">País da vaga</label>
+                    <InputSelect class="form-select" @bind-Value="Model.Country" id="model.Country" data-testid="job-country-select">
+                        @foreach (var countryCode in UiLabels.CountryCodes)
+                        {
+                            <option value="@countryCode">@UiLabels.CountryName(countryCode)</option>
+                        }
+                    </InputSelect>
+                    @FieldError(nameof(CreateJobRequest.Country))
+                </div>
+
+                @if (Model.Type is "Remote" or "Hybrid")
+                {
+                    <fieldset class="mb-3">
+                        <legend class="form-label">De onde a pessoa pode trabalhar?</legend>
+                        @foreach (var option in RemoteScopes)
+                        {
+                            <label class="form-check">
+                                <input class="form-check-input" type="radio" name="job-remote-scope" value="@(option.Value?.ToString() ?? string.Empty)"
+                                       checked="@(Model.RemoteScope == option.Value)" @onchange="() => SelectRemoteScope(option.Value)"
+                                       data-testid="@($"job-remote-scope-{(option.Value?.ToString() ?? "unknown").ToLowerInvariant()}")" />
+                                <span class="form-check-label">@option.Label</span>
+                            </label>
+                        }
+                    </fieldset>
+
+                    @if (Model.RemoteScope == ERemoteScope.Restricted)
+                    {
+                        <div class="mb-3">
+                            <label class="form-label" for="model.EligibleCountries">Países elegíveis *</label>
+                            <div class="form-text" id="model.EligibleCountries-help">Códigos de duas letras separados por vírgula (ex.: PT, ES, IE).</div>
+                            <InputText class="form-control" @bind-Value="Model.EligibleCountries" id="model.EligibleCountries" maxlength="200"
+                                       autocapitalize="characters" aria-describedby="model.EligibleCountries-help" data-testid="job-eligible-countries-input" />
+                            @FieldError(nameof(CreateJobRequest.EligibleCountries))
+                        </div>
+                    }
+                }
+
+                <div class="row g-2">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label" for="model.OffersRelocation">Ajuda de relocação</label>
+                        @* select de três estados à mão: o InputSelect<bool?> mostrava "não" para o nulo *@
+                        <select class="form-select" id="model.OffersRelocation" data-testid="job-relocation-select"
+                                @onchange="e => Model.OffersRelocation = ParseTriState(e.Value)">
+                            <option value="" selected="@(Model.OffersRelocation is null)">Não informado</option>
+                            <option value="true" selected="@(Model.OffersRelocation == true)">Oferece</option>
+                            <option value="false" selected="@(Model.OffersRelocation == false)">Não oferece</option>
+                        </select>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label" for="model.SponsorsVisa">Patrocínio de visto</label>
+                        <select class="form-select" id="model.SponsorsVisa" data-testid="job-visa-select"
+                                @onchange="e => Model.SponsorsVisa = ParseTriState(e.Value)">
+                            <option value="" selected="@(Model.SponsorsVisa is null)">Não informado</option>
+                            <option value="true" selected="@(Model.SponsorsVisa == true)">Patrocina</option>
+                            <option value="false" selected="@(Model.SponsorsVisa == false)">Não patrocina</option>
+                        </select>
+                    </div>
+                </div>
+            </fieldset>
+        }
+
         <div class="mb-3">
             <label class="form-label" for="model.Tags">Tags</label>
             <InputText class="form-control" @bind-Value="Model.Tags" id="model.Tags" maxlength="500" placeholder="Ex.: atendimento, vendas, caixa (separadas por vírgula)" />
@@ -178,14 +248,28 @@
     {
         <h2 class="h5" id="job-wizard-title" tabindex="-1">Remuneração e candidatura</h2>
 
+        @if (ShowInternational)
+        {
+            <div class="mb-3">
+                <label class="form-label" for="model.SalaryCurrency">Moeda do salário</label>
+                <InputSelect class="form-select" @bind-Value="Model.SalaryCurrency" id="model.SalaryCurrency" data-testid="job-currency-select">
+                    @foreach (var currency in UiLabels.Currencies)
+                    {
+                        <option value="@currency.Code">@currency.Label</option>
+                    }
+                </InputSelect>
+                @FieldError(nameof(CreateJobRequest.SalaryCurrency))
+            </div>
+        }
+
         <div class="row g-2">
             <div class="col-md-4 mb-3">
-                <label class="form-label" for="model.SalaryMin">Salário mínimo (R$)</label>
+                <label class="form-label" for="model.SalaryMin">Salário mínimo (@UiLabels.CurrencySymbol(Model.SalaryCurrency))</label>
                 <InputNumber ParsingErrorMessage="Informe um número válido." class="form-control" @bind-Value="Model.SalaryMin" id="model.SalaryMin" />
                 <ValidationMessage class="text-danger" For="@(() => Model.SalaryMin)" />
             </div>
             <div class="col-md-4 mb-3">
-                <label class="form-label" for="model.SalaryMax">Salário máximo (R$)</label>
+                <label class="form-label" for="model.SalaryMax">Salário máximo (@UiLabels.CurrencySymbol(Model.SalaryCurrency))</label>
                 <InputNumber ParsingErrorMessage="Informe um número válido." class="form-control" @bind-Value="Model.SalaryMax" id="model.SalaryMax" />
                 <ValidationMessage class="text-danger" For="@(() => Model.SalaryMax)" />
             </div>
@@ -369,6 +453,27 @@
 
     [Parameter]
     public EventCallback OnCancel { get; set; }
+
+    /// <summary>Mostra os campos de trabalho internacional (flag carreira-internacional, conferida também no servidor).</summary>
+    [Parameter]
+    public bool ShowInternational { get; set; }
+
+    private static readonly (ERemoteScope? Value, string Label)[] RemoteScopes =
+    [
+        (null, "Não informado"),
+        (ERemoteScope.Global, "De qualquer país"),
+        (ERemoteScope.Restricted, "Só de alguns países")
+    ];
+
+    private void SelectRemoteScope(ERemoteScope? scope) => Model.RemoteScope = scope;
+
+    /// <summary>"" = não informado (nulo), "true" = sim, "false" = não. Nunca transforma o vazio em "não".</summary>
+    public static bool? ParseTriState(object? value) => value?.ToString() switch
+    {
+        "true" => true,
+        "false" => false,
+        _ => null
+    };
 
     private ServerValidationErrors serverErrors = default!;
     private EditContext editContext = default!;

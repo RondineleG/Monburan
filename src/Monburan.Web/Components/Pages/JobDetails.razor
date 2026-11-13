@@ -147,6 +147,28 @@
                     </section>
                 }
 
+                @if (JobDisplay.HasInternationalInfo(job))
+                {
+                    @* Só o que a empresa informou; "Não informado" é diferente de "não" e remoto nunca vira "de qualquer país" *@
+                    <section class="job-section job-intl-info" aria-labelledby="job-intl-title" data-testid="job-intl-info">
+                        <h2 id="job-intl-title">Trabalho internacional</h2>
+                        <dl class="job-intl-info__list">
+                            <div><dt>País da vaga</dt><dd>@UiLabels.CountryName(job.Country)</dd></div>
+                            @if (job.SalaryCurrency is not (null or "" or "BRL"))
+                            {
+                                <div><dt>Moeda do salário</dt><dd>@job.SalaryCurrency</dd></div>
+                            }
+                            @if (JobDisplay.RemoteScope(job) is { } scope)
+                            {
+                                <div><dt>De onde trabalhar</dt><dd data-testid="job-intl-remote">@scope</dd></div>
+                            }
+                            <div><dt>Ajuda de relocação</dt><dd data-testid="job-intl-relocation">@UiLabels.YesNoUnknown(job.OffersRelocation, "A empresa oferece", "A empresa não oferece")</dd></div>
+                            <div><dt>Patrocínio de visto</dt><dd data-testid="job-intl-visa">@UiLabels.YesNoUnknown(job.SponsorsVisa, "A empresa patrocina", "A empresa não patrocina")</dd></div>
+                        </dl>
+                        <p class="job-intl-info__note">Informações dadas pela empresa. O Monburan não presta serviço de imigração nem aconselhamento jurídico: confirme visto e exigências com a empresa e com os órgãos oficiais.</p>
+                    </section>
+                }
+
                 <aside class="job-note" role="note">
                     <Icon Name="shield" Size="20" />
                     <div>

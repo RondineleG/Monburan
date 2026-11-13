@@ -67,6 +67,30 @@ public static class JobDisplay
         return abroad ? country : "Local a combinar";
     }
 
+    /// <summary>
+    /// A vaga tem algo de carreira internacional a mostrar: fica fora do Brasil ou informa abrangência do remoto,
+    /// relocação ou visto.
+    /// </summary>
+    public static bool HasInternationalInfo(JobResponse job) =>
+        UiLabels.IsAbroad(job.Country) || job.RemoteScope is not null || job.OffersRelocation is not null || job.SponsorsVisa is not null;
+
+    /// <summary>
+    /// De onde se pode trabalhar na vaga remota ou híbrida. Sem informação diz isso: "remoto" nunca vira "de qualquer
+    /// país". Vaga presencial não tem abrangência (<c>null</c>).
+    /// </summary>
+    public static string? RemoteScope(JobResponse job)
+    {
+        if (job.Type is not ("Remote" or "Hybrid"))
+            return null;
+
+        return job.RemoteScope switch
+        {
+            "Global" => "De qualquer país",
+            "Restricted" when UiLabels.CountryNames(job.EligibleCountries) is { Length: > 0 } countries => $"Só de: {countries}",
+            _ => "Não informado"
+        };
+    }
+
     /// <summary>Nome do ícone (<c>Icon</c>) da modalidade de trabalho.</summary>
     public static string ModeIcon(string? type) => type switch
     {

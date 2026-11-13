@@ -14,6 +14,7 @@
 @inject NavigationManager Navigation
 @inject IToastService Toast
 @inject ILogger<JobCreate> Logger
+@inject Monburan.Core.Interfaces.Services.IFeatureFlags FeatureFlags
 
 <PageTitle>Nova vaga - Monburan</PageTitle>
 
@@ -52,6 +53,7 @@
                                IsSubmitting="isSubmitting"
                                CanPublish="jobLimit is not { CanCreate: false }"
                                ServerError="@errorMessage"
+                               ShowInternational="internationalEnabled"
                                OnSubmit="SubmitForm"
                                OnCancel="Cancel" />
                 </div>
@@ -66,6 +68,17 @@ else
 }
 
 @code {
+    [CascadingParameter]
+    private Task<AuthenticationState>? AuthenticationStateTask { get; set; }
+
+    private bool internationalEnabled;
+
+    private async Task<bool> InternationalEnabledAsync()
+    {
+        var user = AuthenticationStateTask is null ? null : (await AuthenticationStateTask).User;
+        return await FeatureFlags.IsEnabledAsync(Monburan.Core.Services.InternationalJobRules.FeatureKey, user);
+    }
+
     private CreateJobRequest model = new()
     {
         NumberOfOpenings = 1,
@@ -87,6 +100,7 @@ else
 
     protected override async Task OnInitializedAsync()
     {
+        internationalEnabled = await InternationalEnabledAsync();
         var advertiserId = CurrentUserHelper.GetAdvertiserId();
         isAdvertiser = advertiserId.HasValue;
         if (!isAdvertiser)
@@ -121,6 +135,8 @@ else
         model.AdvertiserId = advertiserId.Value;
         model.IsRemote = model.Type is "Remote" or "Hybrid";
 
+        // A flag vale também no servidor: desligada, os campos internacionais não são gravados
+        InternationalJobFields.DropUnlessEnabled(model, await InternationalEnabledAsync());
         var result = await CreateJobUseCase.ExecuteAsync(model);
 
         if (result.Status == EResultStatus.Success)
