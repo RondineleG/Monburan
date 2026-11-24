@@ -79,6 +79,9 @@ else
                         <span class="sidebar-link__icon"><Icon Name="bell" /></span><span>Notificações</span>
                     </NavLink>
                     <span class="sidebar-nav__label sidebar-nav__label--spaced">Minha conta</span>
+                    <NavLink class="sidebar-link" href="/minha-assinatura" data-testid="nav-subscription" data-label="Plano e assinatura">
+                        <span class="sidebar-link__icon"><Icon Name="banknote" /></span><span>Plano e assinatura</span>
+                    </NavLink>
                     <NavLink class="sidebar-link" href="/conta" Match="NavLinkMatch.Prefix" data-label="Conta e segurança">
                         <span class="sidebar-link__icon"><Icon Name="shield" /></span><span>Conta e segurança</span>
                     </NavLink>
@@ -120,6 +123,16 @@ else
                     <NavLink class="sidebar-link" href="/admin/sugestoes" data-testid="nav-admin-submissions" data-label="Sugestões">
                         <span class="sidebar-link__icon"><Icon Name="file" /></span><span>Sugestões</span>
                     </NavLink>
+                    <FeatureGate Feature="captacao-vagas">
+                        <NavLink class="sidebar-link" href="/admin/captacao" data-testid="nav-admin-job-collection" data-label="Captação">
+                            <span class="sidebar-link__icon"><Icon Name="briefcase" /></span><span>Captação de vagas</span>
+                        </NavLink>
+                    </FeatureGate>
+                    <FeatureGate Feature="publicidade-local">
+                        <NavLink class="sidebar-link" href="/admin/publicidade-local" data-testid="nav-admin-local-ads" data-label="Publicidade local">
+                            <span class="sidebar-link__icon"><Icon Name="banknote" /></span><span>Publicidade local</span>
+                        </NavLink>
+                    </FeatureGate>
                     <NavLink class="sidebar-link" href="/admin/candidatos" data-label="Candidatos">
                         <span class="sidebar-link__icon"><Icon Name="users" /></span><span>Candidatos</span>
                     </NavLink>

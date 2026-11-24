@@ -20,4 +20,7 @@ public class AvailablePlansResponse
 {
     public List<PlanResponse> Plans { get; set; } = [];
     public SubscriptionResponse? CurrentSubscription { get; set; }
+
+    /// <summary>Checkout iniciado e ainda sem confirmação do provedor — só quando não há assinatura ativa.</summary>
+    public SubscriptionResponse? PendingSubscription { get; set; }
 }

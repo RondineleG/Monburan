@@ -1,0 +1,11 @@
+{
+  "name": "monburan-job-collector",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "collect": "node collect.mjs"
+  },
+  "devDependencies": {
+    "playwright": "1.65.0"
+  }
+}

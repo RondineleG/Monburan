@@ -81,7 +81,11 @@ O limite de envios é de 5 por hora por IPv4 ou por bloco IPv6 `/64`, em memóri
 
 | Chave | Padrão | Para quê |
 |---|---|---|
-| `Billing:SelfServicePaidPlans` | `false` (`true` só em Development) | Permite ao anunciante ativar sozinho um plano com preço maior que zero. Desligada, o servidor recusa a ativação no site e na API, e a tela mostra "Em breve". Mantenha desligada até existir cobrança (`docs/pre-prod.md`, item 1). |
+| `Billing:MercadoPago:AccessToken` | vazio | Access token privado do Mercado Pago. Configure em User Secrets ou como `Billing__MercadoPago__AccessToken`; nunca no repositório. |
+| `Billing:MercadoPago:WebhookSecret` | vazio | Chave secreta de assinatura do webhook no Mercado Pago, configurada como `Billing__MercadoPago__WebhookSecret`. |
+| `Billing:MercadoPago:PublicBaseUrl` | `App:PublicBaseUrl` | URL pública HTTPS do portal. O webhook fica em `/api/v1/webhooks/mercadopago`; pode usar `Billing__MercadoPago__PublicBaseUrl` para sobrescrever. |
+
+Com as três configurações corretas, `/plans` abre uma assinatura recorrente mensal ou anual. O acesso só muda após webhook assinado e confirmação server-to-server de status, valor e moeda. Sem essas chaves, a página mantém o contato manual e o servidor não ativa planos pagos pelo endpoint de upgrade. Cancelar em `/minha-assinatura` também cancela a recorrência no provedor.
 
 ## User Secrets (desenvolvimento)
 
@@ -89,6 +93,8 @@ O limite de envios é de 5 por hora por IPv4 ou por bloco IPv6 `/64`, em memóri
 dotnet user-secrets set "ConnectionStrings:DefaultConnection" "Host=localhost;Port=5432;Database=monburan_dev;Username=postgres;Password=postgres"
 dotnet user-secrets set "Jwt:SigningKey" "$(openssl rand -base64 48)"
 dotnet user-secrets set "Smtp:Password" "sua-api-key-resend"
+dotnet user-secrets set "Billing:MercadoPago:AccessToken" "seu-access-token-privado"
+dotnet user-secrets set "Billing:MercadoPago:WebhookSecret" "sua-chave-secreta-de-webhook"
 ```
 
 > **Nunca commite segredos no repositório.** Use User Secrets em desenvolvimento e variáveis de ambiente em produção.

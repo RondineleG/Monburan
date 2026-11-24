@@ -21,11 +21,11 @@ public class FullSweepTests : E2ETestBase
         "/404"
     ];
 
-    // Sem /minha-assinatura: é só de empresa (AdvertiserOnly); a restrição é testada em CandidateFlowTests
     private static readonly string[] CandidateRoutes =
     [
         "/painel", "/perfil/candidato", "/jobs", "/minhas-candidaturas",
         "/curriculos", "/curriculos/novo", "/curriculos/upload", "/notifications",
+        "/minha-assinatura",
         "/enderecos", "/enderecos/novo",
         "/plans", "/privacidade", "/termos",
         "/conta", "/conta/alterar-senha",

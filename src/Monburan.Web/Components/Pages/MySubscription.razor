@@ -1,6 +1,6 @@
 @page "/minha-assinatura"
 @rendermode InteractiveServer
-@attribute [Microsoft.AspNetCore.Authorization.Authorize(Policy = "AdvertiserOnly")]
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Policy = "AccountProfile")]
 @using Monburan.Core.DTOs.Request
 @using Monburan.Core.DTOs.Response
 @using Monburan.Core.UseCases.Subscriptions
@@ -25,6 +25,26 @@
                     Message="Tivemos um problema ao buscar os dados do seu plano. Tente novamente em instantes."
                     OnRetry="LoadAsync" />
     }
+    else if (availablePlans?.PendingSubscription is { } pending)
+    {
+        <div class="row justify-content-center">
+            <div class="col-md-8">
+                <div class="card shadow-sm">
+                    <div class="card-body text-center py-5">
+                        <div class="spinner-border text-primary mb-3" role="status" aria-label="Pagamento em processamento"></div>
+                        <h2 class="h5">Pagamento em processamento</h2>
+                        <p class="text-muted">
+                            Recebemos seu pedido do plano <strong>@UiLabels.PlanName(pending.PlanName)</strong> e estamos
+                            aguardando a confirmação do Mercado Pago. O plano libera automaticamente — em geral leva
+                            poucos minutos.
+                        </p>
+                        <button type="button" class="btn btn-outline-primary" @onclick="LoadAsync">Atualizar status</button>
+                        <a class="btn btn-link" href="/plans">Voltar aos planos</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
     else if (availablePlans?.CurrentSubscription is { } subscription)
     {
         var currentPlan = availablePlans.Plans.FirstOrDefault(p => p.Name == subscription.PlanName);
@@ -44,7 +64,7 @@
                             <div class="col-md-6">
                                 <p class="mb-1"><strong>Preço:</strong></p>
                                 <p class="fs-5 text-primary">
-                                    @(subscription.Price == 0 ? "Grátis" : $"R$ {subscription.Price:N2}/mês")
+                                    @(subscription.Price == 0 ? "Grátis" : $"R$ {subscription.Price:N2}/{(currentPlan?.Period == "Annual" ? "ano" : "mês")}")
                                 </p>
                             </div>
                         </div>
@@ -82,14 +102,30 @@
                     <div class="card-body">
                         @if (currentPlan != null)
                         {
-                            <ul class="list-unstyled mb-0">
-                                <li class="mb-2">
-                                    <strong>Vagas ativas:</strong>
-                                    @(currentPlan.MaxJobs == -1 ? "ilimitadas" : $"até {currentPlan.MaxJobs} ao mesmo tempo")
-                                </li>
-                                <li class="mb-2">Candidaturas ilimitadas</li>
-                                <li>Painel com indicadores das vagas</li>
-                            </ul>
+                            @if (currentPlan.Audience == "Candidate")
+                            {
+                                <ul class="list-unstyled mb-0">
+                                    <li class="mb-2">
+                                        <strong>Currículos:</strong>
+                                        @(currentPlan.MaxResumes == -1 ? "ilimitados" : $"até {currentPlan.MaxResumes}")
+                                    </li>
+                                    @if (currentPlan.HasAiAssistant)
+                                    {
+                                        <li>Assistente de IA para melhorar o currículo</li>
+                                    }
+                                </ul>
+                            }
+                            else
+                            {
+                                <ul class="list-unstyled mb-0">
+                                    <li class="mb-2">
+                                        <strong>Vagas ativas:</strong>
+                                        @(currentPlan.MaxJobs == -1 ? "ilimitadas" : $"até {currentPlan.MaxJobs} ao mesmo tempo")
+                                    </li>
+                                    <li class="mb-2">Candidaturas ilimitadas</li>
+                                    <li>Painel com indicadores das vagas</li>
+                                </ul>
+                            }
                         }
                         else
                         {
@@ -103,9 +139,14 @@
     else
     {
         var freePlan = availablePlans?.Plans.FirstOrDefault(p => p.Price == 0);
+        var freeMessage = isCandidate
+            ? "Conheça os planos para usar o assistente de IA e manter mais currículos."
+            : freePlan is null
+                ? "Conheça os planos para ampliar quantas vagas você mantém ativas."
+                : $"Ele permite até {freePlan.MaxJobs} vagas ativas ao mesmo tempo. Precisa de mais? Conheça os outros planos.";
         <EmptyState Icon="banknote"
                     Title="Você está no plano gratuito"
-                    Message="@(freePlan is null ? "Conheça os planos para ampliar quantas vagas você mantém ativas." : $"Ele permite até {freePlan.MaxJobs} vagas ativas ao mesmo tempo. Precisa de mais? Conheça os outros planos.")"
+                    Message="@freeMessage"
                     TestId="subscription-free">
             <a class="btn btn-primary" href="/plans">Ver planos disponíveis</a>
         </EmptyState>
@@ -122,6 +163,7 @@
     private bool isLoading = true;
     private bool loadFailed;
     private bool isCancelling;
+    private bool isCandidate;
     private string cancelReason = string.Empty;
     private ConfirmDialog cancelDialog = default!;
 
@@ -133,14 +175,18 @@
         loadFailed = false;
 
         var advertiserId = CurrentUserHelper.GetAdvertiserId();
-        if (!advertiserId.HasValue)
+        var candidateId = CurrentUserHelper.GetCandidateId();
+        isCandidate = advertiserId is null && candidateId is not null;
+        if (advertiserId is null && candidateId is null)
         {
             loadFailed = true;
             isLoading = false;
             return;
         }
 
-        var result = await GetAvailablePlansUseCase.ExecuteAsync(advertiserId.Value);
+        var result = advertiserId is { } advId
+            ? await GetAvailablePlansUseCase.ExecuteAsync(advId)
+            : await GetAvailablePlansUseCase.ExecuteForCandidateAsync(candidateId!.Value);
         if (result.Status == Core.Enums.EResultStatus.Success)
         {
             availablePlans = result.Data;
@@ -163,7 +209,7 @@
         var confirmed = await cancelDialog.ShowAsync(new ConfirmOptions
         {
             Title = "Cancelar assinatura?",
-            Message = $"O plano {UiLabels.PlanName(subscription.PlanName)} será encerrado agora e sua conta volta para o plano gratuito, com limite menor de vagas ativas.",
+            Message = $"O plano {UiLabels.PlanName(subscription.PlanName)} será encerrado agora e sua conta volta para o plano gratuito, com menos recursos.",
             ConfirmText = "Cancelar assinatura",
             CancelText = "Manter plano",
             Destructive = true
@@ -176,9 +222,10 @@
         {
             SubscriptionId = subscription.Id,
             Reason = string.IsNullOrWhiteSpace(cancelReason) ? null : cancelReason.Trim(),
-            // O anunciante vem da sessão, nunca do navegador: o use case só cancela a
-            // assinatura que for deste anunciante
-            AdvertiserId = CurrentUserHelper.GetAdvertiserId()
+            // O dono vem da sessão, nunca do navegador: o use case só cancela a
+            // assinatura que for desta conta
+            AdvertiserId = CurrentUserHelper.GetAdvertiserId(),
+            CandidateId = CurrentUserHelper.GetCandidateId()
         });
         isCancelling = false;
 
