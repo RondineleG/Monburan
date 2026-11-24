@@ -55,6 +55,9 @@ public class IntegrationTokenRequestIdIndexTests : IClassFixture<PostgresDatabas
         });
         var salvar = async () => await context.SaveChangesAsync();
 
-        await salvar.Should().ThrowAsync<DbUpdateException>();
+        var falha = await salvar.Should().ThrowAsync<DbUpdateException>();
+        var postgres = falha.Which.InnerException.Should().BeOfType<Npgsql.PostgresException>().Which;
+        postgres.SqlState.Should().Be(Npgsql.PostgresErrorCodes.UniqueViolation);
+        postgres.ConstraintName.Should().Be("IX_IntegrationTokens_RequestId");
     }
 }
