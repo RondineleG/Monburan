@@ -291,6 +291,7 @@ public class MonburanApiClient
         if (r.SalaryMax.HasValue)
             query.Add(FormattableString.Invariant($"salaryMax={r.SalaryMax.Value}"));
         if (!string.IsNullOrWhiteSpace(r.Category)) query.Add($"category={Uri.EscapeDataString(r.Category)}");
+        if (!string.IsNullOrWhiteSpace(r.Country)) query.Add($"country={Uri.EscapeDataString(r.Country)}");
         if (!string.IsNullOrWhiteSpace(r.SortBy)) query.Add($"sortBy={Uri.EscapeDataString(r.SortBy)}");
         query.Add($"sortDescending={r.SortDescending.ToString().ToLowerInvariant()}");
         if (r.AdvertiserId.HasValue) query.Add($"advertiserId={r.AdvertiserId.Value}");
