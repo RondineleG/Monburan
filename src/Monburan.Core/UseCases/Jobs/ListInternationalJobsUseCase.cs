@@ -48,7 +48,20 @@ public class ListInternationalJobsUseCase : IUseCase<ListInternationalJobsQuery,
             return RequestResult<PagedResponse<JobResponse>>.FromResult(profileResult);
 
         var profile = profileResult.Data;
-        var countries = PreferredCountryCodes.Parse(profile?.PreferredCountries);
+        var preferredCountries = PreferredCountryCodes.Parse(profile?.PreferredCountries);
+        // Feed internacional nunca traz vagas do Brasil: remove BR da lista preferida. Se o
+        // perfil só tinha BR, não há país internacional para listar.
+        var countries = preferredCountries?.Where(code => code != "BR").ToList();
+        if (preferredCountries is not null && countries is { Count: 0 })
+        {
+            return RequestResult<PagedResponse<JobResponse>>.Success(new PagedResponse<JobResponse>
+            {
+                Data = [],
+                TotalCount = 0,
+                Page = request.Page,
+                Size = request.Size
+            });
+        }
 
         var page = Math.Max(request.Page, 1);
         var size = Math.Clamp(request.Size, 1, 50);
@@ -62,8 +75,8 @@ public class ListInternationalJobsUseCase : IUseCase<ListInternationalJobsQuery,
             size: size,
             sortBy: "createdAt",
             sortDescending: true,
-            international: countries is null ? true : null,
-            countries: countries,
+            international: true,
+            countries: countries is { Count: > 0 } ? countries : null,
             cancellationToken: cancellationToken);
 
         if (result.Status != EResultStatus.Success || result.Data is null)
@@ -72,7 +85,18 @@ public class ListInternationalJobsUseCase : IUseCase<ListInternationalJobsQuery,
         var paged = result.Data;
         return RequestResult<PagedResponse<JobResponse>>.Success(new PagedResponse<JobResponse>
         {
-            Data = paged.Data.Select(job => JobResponseMapper.ToResponse(job)),
+            // Salário oculto pelo anunciante nunca sai no feed (vale para os dois consumidores:
+            // site autenticado e integração por token).
+            Data = paged.Data.Select(job =>
+            {
+                var response = JobResponseMapper.ToResponse(job);
+                if (!response.SalaryDisplay)
+                {
+                    response.SalaryMin = null;
+                    response.SalaryMax = null;
+                }
+                return response;
+            }),
             TotalCount = paged.TotalCount,
             Page = paged.Page,
             Size = paged.Size
