@@ -11,6 +11,9 @@ public interface IIntegrationTokenRepository
 
     Task<IntegrationToken?> FindByTokenHashAsync(string tokenHash, CancellationToken cancellationToken = default);
 
+    /// <summary>Busca o token já emitido por um envio de formulário (dedup de replay).</summary>
+    Task<IntegrationToken?> FindByRequestIdAsync(Guid requestId, Guid userId, CancellationToken cancellationToken = default);
+
     Task<IReadOnlyList<IntegrationToken>> ListByUserIdAsync(Guid userId, CancellationToken cancellationToken = default);
 
     Task<RequestResult<IntegrationToken>> RevokeAsync(Id id, Guid userId, CancellationToken cancellationToken = default);

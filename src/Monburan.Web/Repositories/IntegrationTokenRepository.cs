@@ -26,6 +26,14 @@ public class IntegrationTokenRepository(IDbContextFactory<ApplicationDbContext> 
             .FirstOrDefaultAsync(t => t.TokenHash == tokenHash && !t.IsDeleted, cancellationToken);
     }
 
+    public async Task<IntegrationToken?> FindByRequestIdAsync(Guid requestId, Guid userId, CancellationToken cancellationToken = default)
+    {
+        await using var context = await contextFactory.CreateDbContextAsync(cancellationToken);
+        return await context.IntegrationTokens
+            .AsNoTracking()
+            .FirstOrDefaultAsync(t => t.RequestId == requestId && t.UserId == userId && !t.IsDeleted, cancellationToken);
+    }
+
     public async Task<IReadOnlyList<IntegrationToken>> ListByUserIdAsync(Guid userId, CancellationToken cancellationToken = default)
     {
         await using var context = await contextFactory.CreateDbContextAsync(cancellationToken);

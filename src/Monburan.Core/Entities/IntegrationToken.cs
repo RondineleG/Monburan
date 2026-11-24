@@ -25,6 +25,9 @@ public class IntegrationToken : BaseEntity
     /// <summary>Escopos concedidos, separados por vírgula (ex.: "readiness:read,jobs:read").</summary>
     public string Scopes { get; set; } = string.Empty;
 
+    /// <summary>Id único do envio do formulário web: deduplica reemissão (F5/replay) mesmo após restart.</summary>
+    public Guid? RequestId { get; set; }
+
     public DateTime ExpiresAt { get; set; }
 
     public DateTime? RevokedAt { get; set; }

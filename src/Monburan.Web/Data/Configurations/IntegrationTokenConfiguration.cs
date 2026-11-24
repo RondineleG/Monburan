@@ -23,6 +23,7 @@ public class IntegrationTokenConfiguration : IEntityTypeConfiguration<Integratio
 
         builder.HasIndex(e => e.TokenHash).IsUnique().HasDatabaseName("IX_IntegrationTokens_TokenHash");
         builder.HasIndex(e => e.UserId).HasDatabaseName("IX_IntegrationTokens_UserId");
+        builder.HasIndex(e => e.RequestId).IsUnique().HasDatabaseName("IX_IntegrationTokens_RequestId");
 
         builder.Ignore(e => e.ScopeList);
         builder.Ignore(e => e.IsActive);

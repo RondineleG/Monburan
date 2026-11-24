@@ -58,12 +58,13 @@ public static class IntegrationEndpoints
                     });
 
                 var (token, rawValue) = await tokens.CreateAsync(
-                    userId.Value, name, scopes, request?.ExpiresInDays ?? 90, cancellationToken);
+                    userId.Value, name, scopes, request?.ExpiresInDays ?? 90, cancellationToken: cancellationToken);
 
                 // O valor em claro só aparece nesta resposta — depois disso só o hash existe
+                // (token nulo só ocorreria com requestId de dedup — a API não o envia)
                 return Results.Ok(new
                 {
-                    token.Id.Value,
+                    token!.Id.Value,
                     token.Name,
                     token.Prefix,
                     Scopes = token.ScopeList,

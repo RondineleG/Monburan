@@ -8,6 +8,7 @@
 
 @inject IIntegrationTokenService TokenService
 @inject IFeatureFlags FeatureFlags
+@inject IConfiguration Configuration
 @inject IdentityUserAccessor UserAccessor
 @inject IdentityRedirectManager RedirectManager
 @inject ILogger<Integracoes> Logger
@@ -37,6 +38,12 @@ else
                 parceiro (ex.: painel de integrações do HiMarshall).
             </p>
             <code class="user-select-all d-block p-2 border rounded bg-body text-break">@newTokenValue</code>
+            @if (HiMarshallUrl is { } hm)
+            {
+                <p class="mt-2 mb-0">
+                    <a href="@hm" target="_blank" rel="noopener noreferrer">Colar o token no HiMarshall (Conta → Integrações)</a>
+                </p>
+            }
         </div>
     }
 
@@ -95,6 +102,15 @@ else
         </div>
     }
 
+    @if (HiMarshallUrl is { } himarshall)
+    {
+        <p class="mt-3">
+            Integre com o HiMarshall, o app de gestão de vida: gerencie finanças, mudança,
+            objetivos e mercado — e veja suas vagas internacionais lá.
+            <a href="@himarshall" target="_blank" rel="noopener noreferrer">Abrir o HiMarshall</a>
+        </p>
+    }
+
     <h3>Novo token</h3>
     <div class="row">
         <div class="col-md-6">
@@ -138,12 +154,12 @@ else
 }
 
 @code {
-    // Reenvio do mesmo POST (F5 na página de sucesso) não pode emitir um segundo token:
-    // o valor em claro só existe na primeira resposta, então o duplicado seria inútil.
-    private static readonly System.Collections.Concurrent.ConcurrentDictionary<Guid, DateTime> RecentCreations = new();
-
     private string? message;
     private bool _scopesError;
+
+    private string? HiMarshallUrl => Configuration["Integrations:HiMarshallUrl"] is { Length: > 0 } url
+        ? url.TrimEnd('/') + "/conta"
+        : null;
     private ApplicationUser user = default!;
     private IReadOnlyList<IntegrationToken>? tokens;
     private string? newTokenValue;
@@ -182,20 +198,21 @@ else
         _scopesError = scopes.Count == 0;
         if (_scopesError) return;
 
-        if (!RecentCreations.TryAdd(Input.RequestId, DateTime.UtcNow))
+        // Reenvio do mesmo POST (F5 na página de sucesso) não emite um segundo token:
+        // o RequestId vai para o banco junto do token, então o dedup sobrevive a restart
+        // e só é consumido quando a emissão realmente acontece.
+        var (token, rawValue) = await TokenService.CreateAsync(
+            user.Id, Input.Name, scopes, Input.ExpiresInDays, Input.RequestId, HttpContext.RequestAborted);
+
+        if (rawValue is null)
         {
             message = "Este token já foi emitido — o valor completo apareceu na tela anterior.";
+            Input.RequestId = Guid.NewGuid();
             tokens = await TokenService.ListAsync(user.Id, HttpContext.RequestAborted);
             return;
         }
-        // Mantém o dedup pequeno: ids de mais de um dia não voltam a chegar.
-        var stale = RecentCreations.Where(kv => kv.Value < DateTime.UtcNow.AddDays(-1)).Select(kv => kv.Key).ToList();
-        foreach (var key in stale) RecentCreations.TryRemove(key, out _);
 
-        var (token, rawValue) = await TokenService.CreateAsync(
-            user.Id, Input.Name, scopes, Input.ExpiresInDays, HttpContext.RequestAborted);
-
-        Logger.LogInformation("Usuário emitiu token de integração '{TokenName}' ({TokenPrefix}…).", token.Name, token.Prefix);
+        Logger.LogInformation("Usuário emitiu token de integração '{TokenName}' ({TokenPrefix}…).", token!.Name, token.Prefix);
 
         newTokenValue = rawValue;
         _input = null;

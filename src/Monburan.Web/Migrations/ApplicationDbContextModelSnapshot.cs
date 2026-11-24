@@ -17,7 +17,7 @@ namespace Monburan.Web.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "10.0.14")
+                .HasAnnotation("ProductVersion", "10.0.15")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -1115,6 +1115,9 @@ namespace Monburan.Web.Migrations
                         .HasMaxLength(16)
                         .HasColumnType("character varying(16)");
 
+                    b.Property<Guid?>("RequestId")
+                        .HasColumnType("uuid");
+
                     b.Property<DateTime?>("RevokedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -1145,6 +1148,10 @@ namespace Monburan.Web.Migrations
                         .HasColumnType("uuid");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("RequestId")
+                        .IsUnique()
+                        .HasDatabaseName("IX_IntegrationTokens_RequestId");
 
                     b.HasIndex("TokenHash")
                         .IsUnique()
@@ -2621,7 +2628,7 @@ namespace Monburan.Web.Migrations
 
                             b1.HasKey("JobId");
 
-                            b1.ToTable("Jobs");
+                            b1.ToTable("Jobs", (string)null);
 
                             b1.WithOwner()
                                 .HasForeignKey("JobId");
@@ -2658,7 +2665,7 @@ namespace Monburan.Web.Migrations
 
                             b1.HasKey("JobId");
 
-                            b1.ToTable("Jobs");
+                            b1.ToTable("Jobs", (string)null);
 
                             b1.WithOwner()
                                 .HasForeignKey("JobId");
@@ -2685,7 +2692,7 @@ namespace Monburan.Web.Migrations
 
                             b1.HasKey("JobId");
 
-                            b1.ToTable("Jobs");
+                            b1.ToTable("Jobs", (string)null);
 
                             b1.WithOwner()
                                 .HasForeignKey("JobId");
@@ -2737,7 +2744,7 @@ namespace Monburan.Web.Migrations
 
                             b1.HasKey("JobId");
 
-                            b1.ToTable("Jobs");
+                            b1.ToTable("Jobs", (string)null);
 
                             b1.WithOwner()
                                 .HasForeignKey("JobId");
@@ -2772,7 +2779,7 @@ namespace Monburan.Web.Migrations
 
                             b1.HasKey("JobId");
 
-                            b1.ToTable("Jobs");
+                            b1.ToTable("Jobs", (string)null);
 
                             b1.WithOwner()
                                 .HasForeignKey("JobId");
@@ -2812,7 +2819,7 @@ namespace Monburan.Web.Migrations
 
                             b1.HasKey("JobId");
 
-                            b1.ToTable("Jobs");
+                            b1.ToTable("Jobs", (string)null);
 
                             b1.WithOwner()
                                 .HasForeignKey("JobId");
@@ -2874,6 +2881,53 @@ namespace Monburan.Web.Migrations
                         .HasForeignKey("CandidateId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.OwnsMany("Monburan.Core.Enums.Education", "EducationHistory", b1 =>
+                        {
+                            b1.Property<int>("Id")
+                                .ValueGeneratedOnAdd()
+                                .HasColumnType("integer");
+
+                            NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b1.Property<int>("Id"));
+
+                            b1.Property<string>("Course")
+                                .IsRequired()
+                                .HasMaxLength(150)
+                                .HasColumnType("character varying(150)");
+
+                            b1.Property<DateTime?>("EndDate")
+                                .HasColumnType("timestamp with time zone");
+
+                            b1.Property<string>("Institution")
+                                .IsRequired()
+                                .HasMaxLength(150)
+                                .HasColumnType("character varying(150)");
+
+                            b1.Property<string>("Level")
+                                .IsRequired()
+                                .HasMaxLength(50)
+                                .HasColumnType("character varying(50)");
+
+                            b1.Property<Guid>("ResumeId")
+                                .HasColumnType("uuid");
+
+                            b1.Property<DateTime?>("StartDate")
+                                .HasColumnType("timestamp with time zone");
+
+                            b1.Property<string>("Status")
+                                .IsRequired()
+                                .HasMaxLength(50)
+                                .HasColumnType("character varying(50)");
+
+                            b1.HasKey("Id");
+
+                            b1.HasIndex("ResumeId");
+
+                            b1.ToTable("EducationHistory", (string)null);
+
+                            b1.WithOwner()
+                                .HasForeignKey("ResumeId");
+                        });
 
                     b.OwnsMany("Monburan.Core.Entities.Experience", "ExperienceHistory", b1 =>
                         {
@@ -2947,53 +3001,6 @@ namespace Monburan.Web.Migrations
                             b1.HasIndex("ResumeId");
 
                             b1.ToTable("Languages", (string)null);
-
-                            b1.WithOwner()
-                                .HasForeignKey("ResumeId");
-                        });
-
-                    b.OwnsMany("Monburan.Core.Enums.Education", "EducationHistory", b1 =>
-                        {
-                            b1.Property<int>("Id")
-                                .ValueGeneratedOnAdd()
-                                .HasColumnType("integer");
-
-                            NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b1.Property<int>("Id"));
-
-                            b1.Property<string>("Course")
-                                .IsRequired()
-                                .HasMaxLength(150)
-                                .HasColumnType("character varying(150)");
-
-                            b1.Property<DateTime?>("EndDate")
-                                .HasColumnType("timestamp with time zone");
-
-                            b1.Property<string>("Institution")
-                                .IsRequired()
-                                .HasMaxLength(150)
-                                .HasColumnType("character varying(150)");
-
-                            b1.Property<string>("Level")
-                                .IsRequired()
-                                .HasMaxLength(50)
-                                .HasColumnType("character varying(50)");
-
-                            b1.Property<Guid>("ResumeId")
-                                .HasColumnType("uuid");
-
-                            b1.Property<DateTime?>("StartDate")
-                                .HasColumnType("timestamp with time zone");
-
-                            b1.Property<string>("Status")
-                                .IsRequired()
-                                .HasMaxLength(50)
-                                .HasColumnType("character varying(50)");
-
-                            b1.HasKey("Id");
-
-                            b1.HasIndex("ResumeId");
-
-                            b1.ToTable("EducationHistory", (string)null);
 
                             b1.WithOwner()
                                 .HasForeignKey("ResumeId");
