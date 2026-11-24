@@ -38,9 +38,11 @@ public class ShellInteractionTests : E2ETestBase
         await Page.GetByRole(AriaRole.Button, new() { Name = "Cancelar" }).ClickAsync();
         await Assertions.Expect(Page.GetByTestId("confirm-dialog")).ToBeVisibleAsync();
         await Page.GetByTestId("confirm-accept").ClickAsync();
-        // Navegação interna do Blazor: a URL muda sem evento "load"; basta a troca de endereço
+        // Navegação interna do Blazor: a URL muda sem evento "load"; sob carga da suíte o
+        // circuito demora a processar o clique — espera longa e pela tela alvo, não só pela URL
         await Page.WaitForURLAsync(url => url.EndsWith("/enderecos", StringComparison.OrdinalIgnoreCase),
-            new() { WaitUntil = WaitUntilState.Commit });
+            new() { WaitUntil = WaitUntilState.Commit, Timeout = 60000 });
+        await Assertions.Expect(Page.GetByTestId("confirm-dialog")).Not.ToBeVisibleAsync();
     }
 
     [Fact]
