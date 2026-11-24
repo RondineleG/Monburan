@@ -82,7 +82,7 @@ public sealed class IntegrationReadinessService(
             candidateId,
             candidate.Name,
             candidate.Email,
-            candidate.ActivePlan,
+            plan?.Name ?? "Free",
             plan?.HasInternationalJobs == true,
             profile?.DesiredRole,
             profile?.Category,
