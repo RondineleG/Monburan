@@ -534,10 +534,18 @@ app.UseWhen(ctx => ctx.Request.Path.StartsWithSegments("/api"),
 app.UseHttpsRedirection();
 // i18n: pt-BR é o idioma padrão; es-ES e en-US são a primeira fatia da internacionalização.
 // Ordem dos provedores: cookie (escolha do usuário) → Accept-Language → padrão.
-app.UseRequestLocalization(new RequestLocalizationOptions()
+var localizationOptions = new RequestLocalizationOptions()
     .SetDefaultCulture("pt-BR")
     .AddSupportedCultures("pt-BR", "es-ES", "en-US")
-    .AddSupportedUICultures("pt-BR", "es-ES", "en-US"));
+    .AddSupportedUICultures("pt-BR", "es-ES", "en-US");
+// O cookie (escolha salva do usuário) prevalece sobre query string e Accept-Language.
+localizationOptions.RequestCultureProviders =
+[
+    new Microsoft.AspNetCore.Localization.CookieRequestCultureProvider(),
+    new Microsoft.AspNetCore.Localization.QueryStringRequestCultureProvider(),
+    new Microsoft.AspNetCore.Localization.AcceptLanguageHeaderRequestCultureProvider()
+];
+app.UseRequestLocalization(localizationOptions);
 app.UseLegacyRouteRedirects();
 app.UseRateLimiter();
 app.UseSecurityHeaders();
