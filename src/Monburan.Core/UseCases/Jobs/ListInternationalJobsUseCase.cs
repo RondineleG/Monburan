@@ -69,7 +69,7 @@ public class ListInternationalJobsUseCase : IUseCase<ListInternationalJobsQuery,
         var result = await _jobs.SearchAsync(
             category: profile?.Category,
             contractType: profile?.ContractType,
-            salaryMin: profile?.MinimumSalary,
+            salaryMin: profile?.MinimumSalary is > 0 ? profile.MinimumSalary : null,
             type: profile?.Mode,
             page: page,
             size: size,
