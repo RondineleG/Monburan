@@ -47,7 +47,7 @@ public sealed class IntegrationReadinessService(
     {
         await using var context = await contextFactory.CreateDbContextAsync(cancellationToken);
         var email = await context.Users
-            .Where(u => u.Id == userId)
+            .Where(u => u.Id == userId && u.IsActive)
             .Select(u => u.Email)
             .FirstOrDefaultAsync(cancellationToken);
 
