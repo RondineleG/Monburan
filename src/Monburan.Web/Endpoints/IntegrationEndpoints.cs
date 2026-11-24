@@ -138,11 +138,11 @@ public static class IntegrationEndpoints
                 if (token is null)
                     return Results.Unauthorized();
 
-                if (!await flags.IsEnabledAsync(FeatureName, PrincipalOf(token.UserId), cancellationToken))
-                    return Results.NotFound();
-
                 var candidate = await readiness.ResolveCandidateAsync(token.UserId, cancellationToken);
                 if (candidate is null)
+                    return Results.NotFound();
+
+                if (!await flags.IsEnabledAsync(FeatureName, PrincipalOf(token.UserId), cancellationToken))
                     return Results.NotFound();
 
                 var summary = await readiness.BuildSummaryAsync(candidate.Id.Value, cancellationToken);
@@ -184,11 +184,14 @@ public static class IntegrationEndpoints
                 if (token is null)
                     return Results.Unauthorized();
 
-                if (!await flags.IsEnabledAsync(FeatureName, PrincipalOf(token.UserId), cancellationToken))
-                    return Results.NotFound();
-
                 var candidate = await readiness.ResolveCandidateAsync(token.UserId, cancellationToken);
                 if (candidate is null)
+                    return Results.NotFound();
+
+                var principal = PrincipalOf(token.UserId);
+                if (!await flags.IsEnabledAsync(FeatureName, principal, cancellationToken)
+                    || !await flags.IsEnabledAsync(
+                        JobEndpoints.InternationalJobsFeature, principal, cancellationToken))
                     return Results.NotFound();
 
                 var result = await useCase.ExecuteAsync(
@@ -198,9 +201,15 @@ public static class IntegrationEndpoints
             .AllowAnonymous();
     }
 
-    // A flag de grupo é avaliada para o dono do token, não para o chamador anônimo.
+    // A flag de grupo é avaliada para o dono do token, não para o chamador anônimo: a
+    // identidade precisa vir autenticada e com user_type para render os grupos implícitos.
     private static ClaimsPrincipal PrincipalOf(Guid userId) =>
-        new(new ClaimsIdentity([new Claim(ClaimTypes.NameIdentifier, userId.ToString())]));
+        new(new ClaimsIdentity(
+            [
+                new Claim(ClaimTypes.NameIdentifier, userId.ToString()),
+                new Claim(ClaimsExtensions.UserTypeClaimType, "candidate")
+            ],
+            authenticationType: "IntegrationToken"));
 
     private static Guid? ResolveUserId(ClaimsPrincipal user)
     {
