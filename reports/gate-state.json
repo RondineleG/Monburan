@@ -1,11 +1,12 @@
 {
-  "attempts": 2,
+  "attempts": 4,
   "flow_failures": {
     "MB-12": {
       "causes": [
-        "unknown"
+        "unknown",
+        "flaky"
       ],
-      "count": 1
+      "count": 2
     }
   }
 }
