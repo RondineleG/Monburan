@@ -30,6 +30,15 @@ internal static class CareerProfileInputValidation
         if (request.MinimumSalary < 0)
             errors.Add(new(nameof(request.MinimumSalary), "O salário mínimo não pode ser negativo."));
 
+        if (request.PreferredCountries is { Count: > 25 })
+            errors.Add(new(nameof(request.PreferredCountries), "Informe até 25 países preferidos."));
+
+        if (request.PreferredCountries?.Any(code =>
+                string.IsNullOrWhiteSpace(code)
+                || code.Trim().Length != 2
+                || !code.Trim().All(char.IsLetter)) == true)
+            errors.Add(new(nameof(request.PreferredCountries), "Cada país deve ser um código ISO de 2 letras (ex.: ES, PT)."));
+
         return errors;
     }
 }

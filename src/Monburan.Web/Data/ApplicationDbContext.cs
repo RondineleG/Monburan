@@ -27,6 +27,8 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
 
     public DbSet<FeatureFlag> FeatureFlags => Set<FeatureFlag>();
 
+    public DbSet<IntegrationToken> IntegrationTokens => Set<IntegrationToken>();
+
     public DbSet<AccessGroup> AccessGroups => Set<AccessGroup>();
 
     public DbSet<Advertiser> Advertisers => Set<Advertiser>();

@@ -22,4 +22,10 @@ public class CareerProfile : BaseEntity
     public string? Mode { get; set; }
 
     public string? State { get; set; }
+
+    /// <summary>
+    /// Países (ISO 3166-1 alpha-2, CSV) que o candidato quer ver nas vagas internacionais.
+    /// Vazio significa "todos os países fora do Brasil".
+    /// </summary>
+    public string? PreferredCountries { get; set; }
 }

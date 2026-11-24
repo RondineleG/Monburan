@@ -18,4 +18,7 @@ public class CareerProfileRequest
     public decimal? MinimumSalary { get; set; }
 
     public EContractType? ContractType { get; set; }
+
+    /// <summary>Países preferidos para vagas internacionais (ISO alpha-2, ex.: ["ES","PT"]). Vazio = todos fora do Brasil.</summary>
+    public List<string>? PreferredCountries { get; set; }
 }

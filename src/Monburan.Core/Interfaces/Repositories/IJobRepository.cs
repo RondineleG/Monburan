@@ -26,6 +26,9 @@ public interface IJobRepository : IBaseRepository<Job>
         EContractType? contractType = null,
         ESalaryPeriod? salaryPeriod = null,
         int? publishedWithinDays = null,
+        string? country = null,
+        bool? international = null,
+        IReadOnlyCollection<string>? countries = null,
         CancellationToken cancellationToken = default);
 
     /// <summary>Busca somente vagas públicas ativas de uma empresa, nunca itens da visão de gestão.</summary>

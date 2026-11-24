@@ -48,6 +48,7 @@ public class UpsertCareerProfileUseCase : IUseCase<UpsertCareerProfileCommand, C
         profile.Category = request.Profile.Category?.Trim();
         profile.MinimumSalary = request.Profile.MinimumSalary;
         profile.ContractType = request.Profile.ContractType;
+        profile.PreferredCountries = PreferredCountryCodes.Serialize(request.Profile.PreferredCountries);
 
         var result = isNew
             ? await _profiles.CreateAsync(profile, cancellationToken)

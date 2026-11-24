@@ -332,6 +332,9 @@ builder.Services.AddScoped<IResumeRepository, ResumeRepository>();
 builder.Services.AddScoped<ISavedJobRepository, SavedJobRepository>();
 builder.Services.AddScoped<IJobAlertRepository, JobAlertRepository>();
 builder.Services.AddScoped<ICareerProfileRepository, CareerProfileRepository>();
+builder.Services.AddScoped<IIntegrationTokenRepository, IntegrationTokenRepository>();
+builder.Services.AddScoped<IIntegrationTokenService, IntegrationTokenService>();
+builder.Services.AddScoped<IIntegrationReadinessService, IntegrationReadinessService>();
 builder.Services.AddScoped<IAiProviderRepository, AiProviderRepository>();
 builder.Services.AddScoped<IAdminAuditLog, AdminAuditLog>();
 builder.Services.AddScoped<Monburan.Core.UseCases.Admin.AdminListJobsUseCase>();
@@ -366,6 +369,7 @@ builder.Services.AddScoped<SaveJobUseCase>();
 builder.Services.AddScoped<UnsaveJobUseCase>();
 builder.Services.AddScoped<ListSavedJobsUseCase>();
 builder.Services.AddScoped<ListRecommendedJobsUseCase>();
+builder.Services.AddScoped<ListInternationalJobsUseCase>();
 builder.Services.AddScoped<RegisterJobViewUseCase>();
 
 // Registrar Use Cases de Alertas de Vaga
@@ -528,10 +532,12 @@ app.UseWhen(ctx => ctx.Request.Path.StartsWithSegments("/api"),
     }));
 
 app.UseHttpsRedirection();
+// i18n: pt-BR é o idioma padrão; es-ES e en-US são a primeira fatia da internacionalização.
+// Ordem dos provedores: cookie (escolha do usuário) → Accept-Language → padrão.
 app.UseRequestLocalization(new RequestLocalizationOptions()
     .SetDefaultCulture("pt-BR")
-    .AddSupportedCultures("pt-BR")
-    .AddSupportedUICultures("pt-BR"));
+    .AddSupportedCultures("pt-BR", "es-ES", "en-US")
+    .AddSupportedUICultures("pt-BR", "es-ES", "en-US"));
 app.UseLegacyRouteRedirects();
 app.UseRateLimiter();
 app.UseSecurityHeaders();

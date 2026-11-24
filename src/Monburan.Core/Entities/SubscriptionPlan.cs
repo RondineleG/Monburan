@@ -63,6 +63,11 @@ public class SubscriptionPlan : BaseEntity
     public bool HasAiAssistant { get; set; }
 
     /// <summary>
+    /// Libera a listagem de vagas internacionais (fora do Brasil). Vale para planos de candidato.
+    /// </summary>
+    public bool HasInternationalJobs { get; set; }
+
+    /// <summary>
     /// Indica se o plano está ativo para assinatura.
     /// </summary>
     public bool IsActive { get; set; } = true;

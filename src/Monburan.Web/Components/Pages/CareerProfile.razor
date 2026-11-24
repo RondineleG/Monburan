@@ -107,6 +107,22 @@
                                 </div>
                             </div>
 
+                            <div class="mt-3">
+                                <label class="form-label" for="career-countries">Países de interesse (vagas internacionais)</label>
+                                <select id="career-countries" class="form-select" multiple size="6"
+                                        @onchange="OnCountriesChanged" data-testid="career-countries">
+                                    @foreach (var country in InternationalCountries)
+                                    {
+                                        <option value="@country.Code" selected="@(model.PreferredCountries?.Contains(country.Code) == true)">
+                                            @country.Label
+                                        </option>
+                                    }
+                                </select>
+                                <div class="form-text">
+                                    Vagas internacionais exigem plano Premium. Sem seleção, mostramos vagas de todos os países fora do Brasil.
+                                </div>
+                            </div>
+
                             <div class="form-actions">
                                 <button type="submit" class="btn btn-primary" disabled="@isSaving" aria-busy="@(isSaving ? "true" : null)" data-testid="career-profile-submit">
                                     @if (isSaving)
@@ -138,6 +154,15 @@
 
     private static readonly CultureInfo BrazilianCulture = CultureInfo.GetCultureInfo("pt-BR");
 
+    private static readonly (string Code, string Label)[] InternationalCountries =
+    [
+        ("PT", "Portugal"), ("ES", "Espanha"), ("DE", "Alemanha"), ("NL", "Países Baixos"),
+        ("IE", "Irlanda"), ("GB", "Reino Unido"), ("FR", "França"), ("IT", "Itália"),
+        ("US", "Estados Unidos"), ("CA", "Canadá"), ("AU", "Austrália"), ("NZ", "Nova Zelândia"),
+        ("UY", "Uruguai"), ("AR", "Argentina"), ("CL", "Chile"), ("PY", "Paraguai"),
+        ("MX", "México"), ("JP", "Japão"), ("AE", "Emirados Árabes"), ("CH", "Suíça")
+    ];
+
     private CareerProfileRequest model = new();
     private string errorMessage = string.Empty;
     private bool isLoading = true;
@@ -162,7 +187,8 @@
                 Mode = result.Data.Mode,
                 Category = result.Data.Category,
                 MinimumSalary = result.Data.MinimumSalary,
-                ContractType = result.Data.ContractType
+                ContractType = result.Data.ContractType,
+                PreferredCountries = result.Data.PreferredCountries
             };
         }
         else
@@ -199,6 +225,16 @@
         }
 
         isSaving = false;
+    }
+
+    private void OnCountriesChanged(ChangeEventArgs args)
+    {
+        model.PreferredCountries = args.Value switch
+        {
+            string single when !string.IsNullOrWhiteSpace(single) => [single],
+            string[] multiple => [.. multiple],
+            _ => null
+        };
     }
 
     private void BackToDashboard() => Navigation.NavigateTo("/painel");

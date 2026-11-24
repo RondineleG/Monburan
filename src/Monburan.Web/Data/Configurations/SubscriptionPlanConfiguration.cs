@@ -49,6 +49,9 @@ public class SubscriptionPlanConfiguration : IEntityTypeConfiguration<Subscripti
         builder.Property(p => p.HasAiAssistant)
             .HasDefaultValue(false);
 
+        builder.Property(p => p.HasInternationalJobs)
+            .HasDefaultValue(false);
+
         builder.Property(p => p.IsActive)
             .HasDefaultValue(true);
 

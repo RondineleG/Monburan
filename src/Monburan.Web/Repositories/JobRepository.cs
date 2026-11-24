@@ -287,6 +287,9 @@ public class JobRepository : IJobRepository
         EContractType? contractType = null,
         ESalaryPeriod? salaryPeriod = null,
         int? publishedWithinDays = null,
+        string? country = null,
+        bool? international = null,
+        IReadOnlyCollection<string>? countries = null,
         CancellationToken cancellationToken = default)
     {
         await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);
@@ -398,6 +401,26 @@ public class JobRepository : IJobRepository
         {
             var cutoff = DateTime.UtcNow.AddDays(-publishedWithinDays.Value);
             query = query.Where(j => j.CreatedAt >= cutoff);
+        }
+
+        // Filtro por país (código ISO, ex.: ES). Case-insensitive.
+        if (!string.IsNullOrWhiteSpace(country))
+        {
+            var countryUpper = country.Trim().ToUpper();
+            query = query.Where(j => j.Location != null && j.Location.Country == countryUpper);
+        }
+
+        // Só vagas internacionais: qualquer país que não seja BR
+        if (international == true)
+        {
+            query = query.Where(j => j.Location != null && j.Location.Country != null && j.Location.Country != "BR");
+        }
+
+        // Restringe aos países preferidos do candidato (normalizados em maiúsculas)
+        if (countries is { Count: > 0 })
+        {
+            var normalized = countries.Select(code => code.ToUpper()).ToList();
+            query = query.Where(j => j.Location != null && j.Location.Country != null && normalized.Contains(j.Location.Country));
         }
 
         // Ordenação — sortBy: "createdAt" (default), "title", "salary"
