@@ -71,7 +71,7 @@ public class CreateJobUseCase : IUseCase<CreateJobRequest, JobResponse>
                 Min = request.SalaryMin,
                 Max = request.SalaryMax,
                 Period = request.SalaryPeriod,
-                Currency = request.SalaryCurrency,
+                Currency = request.SalaryCurrency?.Trim().ToUpperInvariant() ?? "BRL",
                 Display = request.SalaryDisplay
             },
             Moderation = new ModerationInfo { Status = EModerationStatus.Pending },

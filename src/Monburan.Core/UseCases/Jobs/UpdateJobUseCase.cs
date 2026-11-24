@@ -58,7 +58,7 @@ public class UpdateJobUseCase : IUseCase<UpdateJobRequest, JobResponse>
             existingJob.Salary.Min = request.SalaryMin;
             existingJob.Salary.Max = request.SalaryMax;
             existingJob.Salary.Period = request.SalaryPeriod;
-            existingJob.Salary.Currency = request.SalaryCurrency;
+            existingJob.Salary.Currency = request.SalaryCurrency?.Trim().ToUpperInvariant() ?? "BRL";
             existingJob.Salary.Display = request.SalaryDisplay;
         }
 
