@@ -343,7 +343,8 @@ public static class JobEndpoints
             CandidateId = candidateId,
             ContractType = contractType,
             SalaryPeriod = salaryPeriod,
-            PublishedWithinDays = publishedWithinDays is > 0 ? publishedWithinDays : null
+            PublishedWithinDays = publishedWithinDays is > 0 ? publishedWithinDays : null,
+            Country = country
         };
     }
 }
