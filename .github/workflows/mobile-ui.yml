@@ -68,7 +68,7 @@ jobs:
           nuget-${{ runner.os }}-
 
     - name: Install MAUI Android workload
-      run: dotnet workload install maui-android --version 10.0.402
+      run: dotnet workload restore Monburan.sln
 
     - name: Build API, APK (Debug) and tests
       run: |
