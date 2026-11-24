@@ -86,7 +86,8 @@
     .job-logo img { position: absolute; inset: 0; width: 100%; height: 100%; padding: var(--s-1); background: var(--logo-bg); object-fit: contain; }
     .job-logo img[hidden] { display: none; }
     .job-logo--lg { width: 4rem; height: 4rem; border-radius: var(--r-lg); font-size: var(--fs-xl); }
-    .job-flag { flex: 0 0 auto; }
+    .job-card__flag { margin-top: var(--s-2); }
+    .job-card__age--new { color: var(--ok); font-weight: var(--fw-semibold); }
     /* Vaga salva: estrela preenchida, mesmo botão (o texto diz o estado) */
     .save-job-button.is-saved { border-color: var(--gold); color: var(--gold-d); }
     .save-job-button.is-saved .icon { fill: currentColor; }
@@ -96,8 +97,7 @@
     .job-facts .icon { color: var(--gold-d); }
     .job-facts__salary { color: var(--ok); font-weight: var(--fw-bold); }
     .job-facts .job-facts__salary .icon { color: var(--ok); }
-    .job-facts--lg { gap: var(--s-2); font-size: var(--fs-md); }
-    .job-facts--lg li { padding: var(--s-2) var(--s-3); border: 1px solid var(--border); border-radius: var(--r-md); background: var(--bg-elev); }
+    .job-facts--lg { gap: var(--s-2) var(--s-5); font-size: var(--fs-md); }
     .job-tags { display: flex; flex-wrap: wrap; gap: var(--s-2); margin: 0; padding: 0; list-style: none; }
     .job-tag { padding: 0.125rem var(--s-3); border: 1px solid var(--border); border-radius: var(--r-pill); background: var(--surface); color: var(--tx-2); font-size: var(--fs-2xs); font-weight: var(--fw-semibold); }
     .job-tag--category { border-color: var(--gold-border); background: var(--gold-soft); color: var(--gold-d); }
@@ -120,6 +120,10 @@
     .job-hero__closing { color: var(--er); font-weight: var(--fw-bold); }
     .job-section { margin-top: var(--s-6); padding-top: var(--s-6); border-top: 1px solid var(--border); }
     .job-section h2 { font-size: var(--fs-lg); }
+    .job-intl-info__list { display: grid; gap: var(--s-3) var(--s-6); margin: 0; grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr)); }
+    .job-intl-info__list dt { color: var(--tx-2); font-size: var(--fs-sm); font-weight: var(--fw-semibold); }
+    .job-intl-info__list dd { margin: var(--s-1) 0 0; }
+    .job-intl-info__note { margin: var(--s-4) 0 0; color: var(--tx-2); font-size: var(--fs-sm); }
     .job-section--apply { padding: var(--s-4) var(--s-5); border: 1px solid var(--gold-border); border-radius: var(--r-md); background: var(--gold-soft); }
 
     .rich-text { max-width: 72ch; color: var(--tx); line-height: 1.7; }
@@ -147,6 +151,7 @@
     .aside-card__actions { display: grid; gap: var(--s-2); }
     .job-apply-card { border-color: var(--gold-border); background: linear-gradient(145deg, var(--gold-soft), var(--bg-card)); }
     .job-apply-card .btn { width: 100%; }
+    .job-apply-card .btn + .btn { margin-top: var(--s-2); }
     .job-owner-card__status { display: flex; align-items: center; gap: var(--s-2); }
     .job-owner-card__stats { display: grid; gap: var(--s-2); margin: 0 0 var(--s-4); grid-template-columns: repeat(3, minmax(0, 1fr)); }
     .job-owner-card__stats > div { padding: var(--s-2); border: 1px solid var(--border); border-radius: var(--r-sm); background: var(--bg-elev); text-align: center; }
@@ -167,6 +172,10 @@
     .local-ad-card__content p { margin: 0 0 var(--s-2); color: var(--tx-2); font-size: var(--fs-sm); }
     .local-ad-card__link { display: inline-flex; min-height: var(--control-h-sm); align-items: center; gap: var(--s-1); color: var(--gold-d); font-size: var(--fs-sm); font-weight: var(--fw-semibold); text-decoration: none; }
     .local-ad-card__link:hover { text-decoration: underline; }
+    /* No celular o anúncio segue a coluna única, alinhado aos outros cartões (no desktop fica sob a coluna lateral) */
+    @media (max-width: 991.98px) {
+        .local-ad-card { width: 100%; margin-left: 0; }
+    }
     .local-ad-admin-preview { display: block; width: min(100%, 20rem); max-height: 10rem; border: 1px solid var(--border); border-radius: var(--r-sm); object-fit: cover; }
     .job-similar { margin-top: var(--s-10); }
     .job-similar h2 { font-size: var(--fs-xl); }
@@ -176,14 +185,16 @@
     .job-sticky-cta .btn-cta { flex: 1; }
     .job-sticky-cta__share { flex: 0 0 auto; width: var(--control-h-lg); padding: 0; }
     .job-detail-page.has-sticky-cta { padding-bottom: 5.5rem; }
-    .job-apply-card { display: none; }
+    /* O cartão de candidatura fica no celular (salvar, fonte da vaga, situação da candidatura); só o botão principal,
+       repetido na barra fixa, sai dele */
+    .has-sticky-cta .job-apply-card__cta { display: none; }
     /* Avisos acima da barra fixa de candidatura, sem cobri-la */
     body:has(.has-sticky-cta) .toast-stack { bottom: calc(5.5rem + env(safe-area-inset-bottom)); }
 
     @media (min-width: 992px) {
         .job-detail-layout { grid-template-columns: minmax(0, 1fr) 20rem; }
         .job-detail-aside { position: sticky; top: calc(var(--topbar-h) + var(--s-4)); }
-        .job-apply-card { display: block; }
+        .has-sticky-cta .job-apply-card__cta { display: inline-flex; }
         .job-sticky-cta { display: none; }
         .job-detail-page.has-sticky-cta { padding-bottom: 0; }
         body:has(.has-sticky-cta) .toast-stack { bottom: var(--s-5); }
@@ -205,6 +216,12 @@
         .chip-select--sort .chip-select__label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
         .jobs-grid { grid-template-columns: minmax(0, 1fr); }
         .job-logo--lg { width: 3.25rem; height: 3.25rem; }
+    }
+
+    @media (max-width: 575.98px) {
+        /* Celular: cada campo com a largura toda e o botão embaixo, ao alcance do polegar (o local não é mais cortado) */
+        .jobs-search__bar { grid-template-columns: minmax(0, 1fr); }
+        .jobs-search__submit { width: 100%; }
     }
 
     /* ---------- Promoção discreta ---------- */
@@ -281,7 +298,11 @@
     .received-filters__count { margin-left: auto; align-self: center; color: var(--tx-2); font-size: var(--fs-sm); }
     .my-jobs-search { display: flex; min-width: 0; flex: 1 1 18rem; flex-wrap: wrap; align-items: flex-end; gap: var(--s-2); }
     .my-jobs-search__field { min-width: 0; flex: 1 1 10rem; margin: 0; }
-    .received-filters { display: grid; gap: var(--s-3); margin: 0 0 var(--s-5); grid-template-columns: minmax(0, 1fr); }
+    /* Celular: duas colunas (situação e período lado a lado; vaga e busca na linha inteira) para a primeira
+       candidatura aparecer mais cedo */
+    .received-filters { display: grid; gap: var(--s-3); margin: 0 0 var(--s-5); grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .received-filters > .received-filter:first-child,
+    .received-filters > .received-filter--search { grid-column: 1 / -1; }
     .received-filter { min-width: 0; margin: 0; }
     .received-filter__label { display: block; margin-bottom: var(--s-1); color: var(--tx-2); font-size: var(--fs-sm); font-weight: var(--fw-semibold); }
     @media (min-width: 768px) {
@@ -336,27 +357,44 @@
     .address-delete-card__actions { display: flex; flex-wrap: wrap; gap: var(--s-3); margin-top: var(--s-6); }
 
     /* ---------- Planos ---------- */
-    .plans-page > .row.g-4 { display: grid; gap: var(--s-4); margin-inline: 0; grid-template-columns: repeat(auto-fit, minmax(min(100%, 15.5rem), 1fr)); }
-    .plans-page > .row.g-4 > * { width: auto; padding: 0; }
-    .plan-card { position: relative; height: 100%; }
+    .plans-free { max-width: var(--container-narrow); margin: 0 0 var(--s-6); }
+    .plans-free h2 { margin: 0 0 var(--s-2); font-size: var(--fs-lg); }
+    .plans-free p { margin: 0 0 var(--s-2); color: var(--tx-2); }
+    .plans-free__ads { font-size: var(--fs-sm); }
+    .plans-current { margin: 0 0 var(--s-4); color: var(--tx-2); }
+    .plans-grid { display: grid; gap: var(--s-4); margin: 0; padding: 0; list-style: none; grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr)); }
+    .plan-card { display: flex; flex-direction: column; gap: var(--s-3); padding: var(--s-5); border: 1px solid var(--border); border-radius: var(--r-md); background: var(--bg-card); }
     .plan-card--current { border-color: var(--gold); box-shadow: var(--shadow-md); }
-    .plan-card--featured { border-color: var(--gold-border); }
-    .plan-card__ribbon { display: flex; min-height: 2.25rem; align-items: center; justify-content: center; border-bottom: 1px solid var(--border); }
-    .plan-card__ribbon:empty { min-height: var(--s-3); border-bottom: 0; }
-    .plan-card--featured .plan-card__ribbon,
-    .plan-card--current .plan-card__ribbon { border-bottom-color: var(--gold-border); background: var(--gold-soft); }
-    .plan-card__ribbon span { color: var(--gold-d); font-size: var(--fs-sm); font-weight: var(--fw-semibold); }
-    .plan-card .card-body { display: flex; height: 100%; flex-direction: column; }
-    .plan-card .card-body .list-unstyled { flex: 1; }
-    .plan-card .card-title { font-size: var(--fs-xl); }
-    .plan-card__desc { min-height: 2.6em; color: var(--tx-2); font-size: var(--fs-sm); }
-    .plan-card__price { margin-block: var(--s-4) var(--s-5); }
-    .plan-card__price strong { font-size: var(--fs-3xl); line-height: var(--lh-tight); }
-    .plan-card__price small { color: var(--tx-muted); }
-    .plan-card__note { display: block; padding-block: var(--s-2); color: var(--tx-muted); font-size: var(--fs-sm); }
-    .plan-card .list-unstyled li { padding: var(--s-2) 0; border-bottom: 1px solid var(--border); color: var(--tx-2); font-size: var(--fs-sm); }
-    .plan-card .list-unstyled li:last-child { border-bottom: 0; }
-    .plan-card .list-unstyled li .icon { margin-right: var(--s-1); color: var(--gold-d); }
+    .plan-card__head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--s-2); }
+    .plan-card__name { margin: 0; font-size: var(--fs-xl); }
+    .plan-card__price { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--s-2); margin: 0; }
+    .plan-card__price strong { font-size: var(--fs-2xl); line-height: var(--lh-tight); }
+    .plan-card__price span { color: var(--tx-2); font-size: var(--fs-sm); }
+    .plan-card__desc { margin: 0; color: var(--tx-2); font-size: var(--fs-sm); }
+    .plan-card__features { display: grid; flex: 1; gap: var(--s-2); margin: 0; padding: var(--s-3) 0 0; border-top: 1px solid var(--border); list-style: none; }
+    .plan-card__features li { display: flex; align-items: flex-start; gap: var(--s-2); color: var(--tx-2); font-size: var(--fs-sm); }
+    .plan-card__features .icon { flex: 0 0 auto; margin-top: 0.125rem; color: var(--gold-d); }
+    .plan-card__action { display: grid; gap: var(--s-2); margin-top: var(--s-2); }
+    .plan-card__note { margin: 0; color: var(--tx-2); font-size: var(--fs-sm); }
+    .subscription-summary { max-width: var(--container-narrow); padding: var(--s-5); border: 1px solid var(--border); border-radius: var(--r-md); background: var(--bg-card); }
+    .subscription-summary__title { margin: 0 0 var(--s-4); font-size: var(--fs-xl); }
+    .subscription-summary__subtitle { margin: var(--s-6) 0 var(--s-3); font-size: var(--fs-md); }
+    .subscription-facts { display: grid; gap: var(--s-4); margin: 0; grid-template-columns: repeat(auto-fit, minmax(min(100%, 9rem), 1fr)); }
+    .subscription-facts dt { color: var(--tx-2); font-size: var(--fs-sm); font-weight: var(--fw-semibold); }
+    .subscription-facts dd { margin: var(--s-1) 0 0; }
+    .subscription-summary__actions { display: flex; flex-wrap: wrap; gap: var(--s-2); margin-top: var(--s-6); }
+    /* Currículo em outro idioma: original ao lado de cada campo, sugestões da IA só com revisão */
+    .variant-summary { margin: 0 0 var(--s-5); }
+    .variant-ai { margin: 0 0 var(--s-5); padding: var(--s-4); border: 1px solid var(--border); border-radius: var(--r-md); background: var(--bg-card); }
+    .variant-ai h2 { display: flex; align-items: center; gap: var(--s-2); }
+    .variant-ai--review { border-color: var(--gold-border); background: var(--gold-soft); }
+    .variant-ai__warning { color: var(--tx); font-size: var(--fs-sm); }
+    .variant-ai__list { display: grid; gap: var(--s-3); margin: 0 0 var(--s-4); }
+    .variant-ai__list dt { color: var(--tx-2); font-size: var(--fs-sm); font-weight: var(--fw-semibold); }
+    .variant-ai__list dd { display: grid; gap: var(--s-1); margin: var(--s-1) 0 0; }
+    .variant-ai__original { color: var(--tx-2); font-size: var(--fs-sm); }
+    .variant-group { margin: 0 0 var(--s-5); padding: var(--s-4) 0 0; border: 0; border-top: 1px solid var(--border); }
+    .variant-group legend { margin-bottom: var(--s-3); font-size: var(--fs-md); font-weight: var(--fw-semibold); }
     .plans-footnote { margin-top: var(--s-6); color: var(--tx-2); font-size: var(--fs-sm); text-align: center; }
 
     /* ---------- Notificações ---------- */

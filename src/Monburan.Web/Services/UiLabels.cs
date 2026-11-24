@@ -191,12 +191,68 @@ public static class UiLabels
         _ => level ?? string.Empty
     };
 
-    public static string CurrencySymbol(string? currency) => currency switch
+    /// <summary>
+    /// Símbolo da moeda do salário. Moeda sem símbolo conhecido aparece pelo código ISO ("CAD 5.000"): nunca vira
+    /// "R$" por engano. Sem moeda informada vale o real (padrão do cadastro).
+    /// </summary>
+    public static string CurrencySymbol(string? currency) => currency?.Trim().ToUpperInvariant() switch
     {
+        null or "" or "BRL" => "R$",
         "USD" => "US$",
         "EUR" => "€",
-        _ => "R$"
+        "GBP" => "£",
+        var code => code
     };
+
+    /// <summary>Nome do país pelo código ISO de duas letras; código desconhecido aparece como veio.</summary>
+    public static string CountryName(string? code) => code?.Trim().ToUpperInvariant() switch
+    {
+        null or "" or "BR" => "Brasil",
+        "PT" => "Portugal",
+        "US" => "Estados Unidos",
+        "CA" => "Canadá",
+        "GB" or "UK" => "Reino Unido",
+        "IE" => "Irlanda",
+        "DE" => "Alemanha",
+        "ES" => "Espanha",
+        "FR" => "França",
+        "IT" => "Itália",
+        "NL" => "Países Baixos",
+        "AR" => "Argentina",
+        "CL" => "Chile",
+        "UY" => "Uruguai",
+        "MX" => "México",
+        "AU" => "Austrália",
+        "JP" => "Japão",
+        var other => other
+    };
+
+    /// <summary>Países oferecidos no cadastro de vaga (os que têm nome em <see cref="CountryName"/>).</summary>
+    public static readonly IReadOnlyList<string> CountryCodes =
+        ["BR", "PT", "ES", "IE", "DE", "FR", "IT", "NL", "GB", "US", "CA", "MX", "AR", "CL", "UY", "AU", "JP"];
+
+    /// <summary>Moedas oferecidas no cadastro de vaga.</summary>
+    public static readonly IReadOnlyList<(string Code, string Label)> Currencies =
+    [
+        ("BRL", "Real (BRL)"), ("USD", "Dólar americano (USD)"), ("EUR", "Euro (EUR)"), ("GBP", "Libra (GBP)"),
+        ("CAD", "Dólar canadense (CAD)"), ("AUD", "Dólar australiano (AUD)")
+    ];
+
+    /// <summary>Lista de países por extenso ("Portugal, Espanha"); códigos sem nome conhecido aparecem como vieram.</summary>
+    public static string CountryNames(string? codes) =>
+        string.Join(", ", Monburan.Core.Services.InternationalJobRules.ParseCountries(codes).Select(CountryName));
+
+    /// <summary>Resposta de sim/não que pode não ter sido informada: nulo nunca vira "não".</summary>
+    public static string YesNoUnknown(bool? value, string yes, string no) => value switch
+    {
+        true => yes,
+        false => no,
+        null => "Não informado"
+    };
+
+    /// <summary>Vaga fora do Brasil (o país só é escrito quando não é o padrão).</summary>
+    public static bool IsAbroad(string? countryCode) =>
+        !string.IsNullOrWhiteSpace(countryCode) && !string.Equals(countryCode.Trim(), "BR", StringComparison.OrdinalIgnoreCase);
 
     /// <summary>
     /// Momentos (criação, candidatura, leitura) são gravados em UTC; a exibição usa Brasília.

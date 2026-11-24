@@ -463,6 +463,7 @@ builder.Services.AddScoped<GetSubscriptionStatusUseCase>();
 builder.Services.AddScoped<UpgradePlanUseCase>();
 builder.Services.AddScoped<CancelSubscriptionUseCase>();
 builder.Services.AddScoped<CheckJobLimitUseCase>();
+builder.Services.AddScoped<CheckResumeLimitUseCase>();
 builder.Services.Configure<MercadoPagoOptions>(builder.Configuration.GetSection(MercadoPagoOptions.SectionName));
 builder.Services.PostConfigure<MercadoPagoOptions>(options =>
 {

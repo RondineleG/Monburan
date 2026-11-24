@@ -36,6 +36,18 @@ public class JobResponse
     public string SalaryCurrency { get; set; } = "BRL";
     public bool SalaryDisplay { get; set; } = true;
 
+    /// <summary>"Global", "Restricted" ou nulo (não informado).</summary>
+    public string? RemoteScope { get; set; }
+
+    /// <summary>Códigos ISO separados por vírgula, quando o remoto é restrito.</summary>
+    public string? EligibleCountries { get; set; }
+
+    /// <summary>Nulo = não informado.</summary>
+    public bool? OffersRelocation { get; set; }
+
+    /// <summary>Nulo = não informado.</summary>
+    public bool? SponsorsVisa { get; set; }
+
     /// <summary>Período do salário ("Hour", "Month"...); nulo quando a vaga não informa.</summary>
     public string? SalaryPeriod { get; set; }
 

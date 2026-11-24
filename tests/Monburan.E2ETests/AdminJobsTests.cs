@@ -31,14 +31,22 @@ public class AdminJobsTests : E2ETestBase
         await Assertions.Expect(Page.GetByTestId("job-panel")).ToBeVisibleAsync();
     }
 
-    /// <summary>Publica uma vaga pela API como a empresa de teste e devolve o id.</summary>
+    // Empresa própria de cada teste: a semeada acumula as vagas dos testes anteriores até o limite do plano gratuito
+    private readonly string companyEmail = $"empresa-moderacao-{Guid.NewGuid():N}@test.com";
+
+    /// <summary>Publica uma vaga pela API como a empresa deste teste (registrada na primeira vez) e devolve o id.</summary>
     private async Task<string> CreateJobAsCompanyAsync(string title)
     {
         var api = await Fixture.Playwright.APIRequest.NewContextAsync(new APIRequestNewContextOptions { BaseURL = BaseUrl, IgnoreHTTPSErrors = true });
         try
         {
-            var login = await api.PostAsync("/api/auth/login", new APIRequestContextOptions { DataObject = new { email = AdvertiserEmail, password = TestPassword } });
-            Assert.True(login.Ok, "A empresa de teste deveria entrar pela API");
+            var login = await api.PostAsync("/api/auth/login", new APIRequestContextOptions { DataObject = new { email = companyEmail, password = TestPassword } });
+            if (!login.Ok)
+                login = await api.PostAsync("/api/auth/register", new APIRequestContextOptions
+                {
+                    DataObject = new { accountType = "advertiser", name = "Empresa Moderação E2E", email = companyEmail, password = TestPassword, confirmPassword = TestPassword }
+                });
+            Assert.True(login.Ok, "A empresa de teste deveria entrar ou se registrar pela API: " + await login.TextAsync());
             var token = (await login.JsonAsync())!.Value.GetProperty("accessToken").GetString();
 
             var created = await api.PostAsync("/api/v1/jobs", new APIRequestContextOptions
@@ -101,7 +109,7 @@ public class AdminJobsTests : E2ETestBase
             var company = await context.NewPageAsync();
             company.SetDefaultTimeout(20000);
             await company.GotoAsync(BaseUrl + "/entrar");
-            await company.GetByTestId("login-email").FillAsync(AdvertiserEmail);
+            await company.GetByTestId("login-email").FillAsync(companyEmail);
             await company.GetByTestId("login-password").FillAsync(TestPassword);
             await company.GetByTestId("login-submit").ClickAsync();
             await company.WaitForURLAsync(url => !url.Contains("/entrar", StringComparison.OrdinalIgnoreCase));

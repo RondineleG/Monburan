@@ -1,0 +1,121 @@
+@page "/curriculos/{resumeId:guid}/versoes/{variantId:guid}/cv"
+@rendermode InteractiveServer
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Policy = "CandidateOnly")]
+@using Monburan.Core.DTOs.Response
+@using Monburan.Core.Enums
+@using Monburan.Core.UseCases.Resumes
+@inject ResumeViewerService ResumeViewer
+@inject GetResumeVariantUseCase GetVariant
+@inject ICurrentUserHelper CurrentUserHelper
+@inject AuthenticationStateProvider AuthenticationState
+@inject IJSRuntime JS
+@inject ILogger<ResumeVariantCv> Logger
+
+<PageTitle>@(localized?.Title ?? "Currículo") - Monburan</PageTitle>
+
+@* Exportação da versão traduzida: o mesmo documento de CV, com os textos da versão no lugar dos originais *@
+<FeatureGate Feature="carreira-internacional">
+    <ChildContent>
+        @if (isLoading)
+        {
+            <div class="container">
+                <h1 class="visually-hidden">Currículo traduzido</h1>
+                <LoadingState Message="Montando o currículo…" />
+            </div>
+        }
+        else if (loadFailed)
+        {
+            <div class="container">
+                <ErrorState Title="Não foi possível montar o currículo" Message="Tente novamente em instantes." HeadingLevel="1" OnRetry="LoadAsync" />
+            </div>
+        }
+        else if (viewer is null || localized is null || variant is null)
+        {
+            <div class="container">
+                <EmptyState Icon="alert" Title="Versão não disponível" Message="Ela não existe mais ou pertence a outra conta." HeadingLevel="1">
+                    <a class="btn btn-primary" href="/curriculos">Voltar para meus currículos</a>
+                </EmptyState>
+            </div>
+        }
+        else
+        {
+            <div class="container">
+                <PageHeader Title="@($"CV em {ResumeVariantFields.LocaleLabel(variant.Locale).ToLowerInvariant()}: {localized.Title}")" TestId="cv-toolbar"
+                            BackHref="@($"/curriculos/{ResumeId}/versoes")" BackText="Voltar à tradução">
+                    <Actions>
+                        <button type="button" class="btn btn-primary" @onclick="PrintAsync" data-testid="cv-print"><Icon Name="download" Size="16" />Imprimir ou salvar PDF</button>
+                    </Actions>
+                    <ChildContent>
+                        <p class="cv-print-hint">Confira a tradução antes de enviar. Na janela de impressão, escolha <strong>Salvar como PDF</strong>.</p>
+                    </ChildContent>
+                </PageHeader>
+            </div>
+
+            <div class="container my-4 cv-print-area" lang="@variant.Locale">
+                <ResumeDocument Resume="localized" Name="@viewer.Name" Email="@viewer.Email" Phone="@viewer.Phone" LinkedIn="@viewer.LinkedIn" HeadingLevel="2" />
+            </div>
+        }
+    </ChildContent>
+    <Disabled>
+        <div class="container">
+            <EmptyState Icon="lock" HeadingLevel="1" Title="Recurso ainda não liberado para a sua conta"
+                        Message="As versões do currículo em outro idioma estão em teste com um grupo de pessoas." />
+        </div>
+    </Disabled>
+</FeatureGate>
+
+@code {
+    [Parameter] public Guid ResumeId { get; set; }
+    [Parameter] public Guid VariantId { get; set; }
+
+    private ResumeViewerResponse? viewer;
+    private ResumeVariantResponse? variant;
+    private ResumeResponse? localized;
+    private bool isLoading = true;
+    private bool loadFailed;
+
+    protected override Task OnParametersSetAsync() => LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        isLoading = true;
+        loadFailed = false;
+        viewer = null;
+        variant = null;
+        localized = null;
+
+        var candidateId = CurrentUserHelper.GetCandidateId();
+        if (candidateId is null)
+        {
+            isLoading = false;
+            return;
+        }
+
+        var user = (await AuthenticationState.GetAuthenticationStateAsync()).User;
+        var found = await GetVariant.ExecuteAsync(new ResumeVariantByIdCommand(candidateId.Value, VariantId, user));
+        if (found.Status == EResultStatus.Success && found.Data is { } data && data.ResumeId == ResumeId)
+        {
+            var viewed = await ResumeViewer.GetAsync(ResumeId);
+            if (viewed.Status == EResultStatus.Success && viewed.Data is { IsOwner: true } owned)
+            {
+                viewer = owned;
+                variant = data;
+                localized = ResumeVariantFields.Localize(owned.Resume, data.Overrides);
+            }
+            else if (viewed.Status != EResultStatus.Success && viewed.Status != EResultStatus.EntityNotFound)
+            {
+                Logger.LogFailure(viewed, "Carregar currículo-base da versão para o CV");
+                loadFailed = true;
+            }
+        }
+        else if (found.Status is not (EResultStatus.Success or EResultStatus.EntityNotFound))
+        {
+            Logger.LogFailure(found, "Carregar versão do currículo para o CV");
+            loadFailed = true;
+        }
+
+        isLoading = false;
+    }
+
+    private async Task PrintAsync() => await JS.InvokeVoidAsync("print");
+}

@@ -79,8 +79,8 @@
                                 <th scope="col">E-mail</th>
                                 <th scope="col">Situação</th>
                                 <th scope="col">Cidade/UF</th>
-                                <th scope="col" class="text-center">Currículos</th>
-                                <th scope="col" class="text-center">Candidaturas</th>
+                                <th scope="col" class="table-num">Currículos</th>
+                                <th scope="col" class="table-num">Candidaturas</th>
                                 <th scope="col">Cadastro</th>
                                 <th scope="col">Ações</th>
                             </tr>
@@ -93,8 +93,8 @@
                                     <td data-label="E-mail">@candidate.Email</td>
                                     <td data-label="Situação"><StatusBadge Text="@StatusLabel(candidate.Status)" Tone="@StatusToneFor(candidate.Status)" /></td>
                                     <td data-label="Cidade/UF">@Place(candidate.City, candidate.State)</td>
-                                    <td data-label="Currículos" class="text-center">@candidate.ResumesCount</td>
-                                    <td data-label="Candidaturas" class="text-center">@candidate.ApplicationsCount</td>
+                                    <td data-label="Currículos" class="table-num">@candidate.ResumesCount</td>
+                                    <td data-label="Candidaturas" class="table-num">@candidate.ApplicationsCount</td>
                                     <td data-label="Cadastro">@UiLabels.FormatMomentDate(candidate.CreatedAt)</td>
                                     <td data-label="Ações">
                                         <button type="button" class="btn btn-sm btn-outline-danger" @onclick="() => DeleteAsync(candidate)"

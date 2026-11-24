@@ -188,11 +188,21 @@ public sealed class LocalAdCampaignService
     }
 
     /// <summary>Retorna um anúncio elegível e conta uma impressão. Sem cidade ou campanha compatível não exibe nada.</summary>
-    public async Task<LocalAdPlacement?> GetForJobAsync(Guid jobId, CancellationToken cancellationToken = default)
+    /// <summary>
+    /// Anúncio para a página da vaga, segmentado pela cidade e UF da vaga (nunca pela localização de quem vê).
+    /// Quem tem assinatura ativa de plano pago não vê publicidade; se não der para confirmar a assinatura, também não
+    /// vê: quem paga nunca pode receber anúncio por falha de consulta.
+    /// </summary>
+    public async Task<LocalAdPlacement?> GetForJobAsync(
+        Guid jobId,
+        Guid? viewerCandidateId = null,
+        Guid? viewerAdvertiserId = null,
+        CancellationToken cancellationToken = default)
     {
         if (!await _flags.IsEnabledAsync(FeatureName, null, cancellationToken)) return null;
 
         await using var context = await _contexts.CreateDbContextAsync(cancellationToken);
+        if (!await ViewerSeesAdsAsync(context, viewerCandidateId, viewerAdvertiserId, cancellationToken)) return null;
         var job = await context.Jobs.AsNoTracking()
             .Where(item => item.Id == Id.Create(jobId) && !item.IsDeleted && item.Status == EJobStatus.Active)
             .Select(item => new { City = item.Location!.City, State = item.Location.State })
@@ -221,6 +231,39 @@ public sealed class LocalAdCampaignService
             chosen.Description,
             chosen.ImageUrl,
             $"/ads/{chosen.Id.Value:D}/click");
+    }
+
+    private async Task<bool> ViewerSeesAdsAsync(ApplicationDbContext context, Guid? candidateId, Guid? advertiserId, CancellationToken cancellationToken)
+    {
+        if (candidateId is null && advertiserId is null)
+            return true; // visitante sem conta não tem assinatura
+
+        try
+        {
+            // Mesmo formato de consulta do SubscriptionRepository (Id não nulo por parâmetro), um perfil por vez
+            var subscriptions = new List<Subscription>();
+            if (candidateId is { } c)
+            {
+                var candidate = Id.Create(c);
+                subscriptions.AddRange(await context.Subscriptions.AsNoTracking().Include(subscription => subscription.Plan)
+                    .Where(subscription => subscription.CandidateId == candidate && subscription.Status == ESubscriptionStatus.Active && !subscription.IsDeleted)
+                    .ToListAsync(cancellationToken));
+            }
+            if (advertiserId is { } a)
+            {
+                var advertiser = Id.Create(a);
+                subscriptions.AddRange(await context.Subscriptions.AsNoTracking().Include(subscription => subscription.Plan)
+                    .Where(subscription => subscription.AdvertiserId == advertiser && subscription.Status == ESubscriptionStatus.Active && !subscription.IsDeleted)
+                    .ToListAsync(cancellationToken));
+            }
+
+            var now = _time.GetUtcNow().UtcDateTime;
+            return !subscriptions.Any(subscription => AdvertisingRules.IsAdFree(subscription, now));
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            return false;
+        }
     }
 
     /// <summary>Conta a impressão depois do primeiro render interativo, evitando duplicar a visita do prerender SSR.</summary>

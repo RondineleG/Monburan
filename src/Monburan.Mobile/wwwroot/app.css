@@ -704,6 +704,10 @@ textarea.input { min-height: 6.5rem; resize: vertical; }
 .detail-hero h1 { margin: var(--s-1) 0; }
 
 .detail-section { margin-bottom: var(--s-6); }
+.intl-list { display: grid; gap: var(--s-3); margin: 0; }
+.intl-list dt { color: var(--tx-2); font-size: var(--fs-sm); font-weight: var(--fw-semibold); }
+.intl-list dd { margin: var(--s-1) 0 0; }
+.intl-note { margin: var(--s-3) 0 0; font-size: var(--fs-sm); }
 .detail-section h2 { margin: 0 0 var(--s-2); font-size: var(--fs-lg); }
 
 .detail-section .body-text { margin: 0; color: var(--tx-2); white-space: pre-line; }

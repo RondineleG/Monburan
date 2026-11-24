@@ -14,6 +14,9 @@ public class PlanResponse
     public string Audience { get; set; } = string.Empty;
     public string Period { get; set; } = string.Empty;
     public bool HasAiAssistant { get; set; }
+
+    /// <summary>O plano não exibe publicidade (regra do servidor: plano pago).</summary>
+    public bool IsAdFree { get; set; }
 }
 
 public class AvailablePlansResponse

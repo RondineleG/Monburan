@@ -31,7 +31,7 @@
         <p class="card-snippet">@Job.Description</p>
     }
     <div class="card-meta">
-        @if (Formatters.Location(Job.City, Job.State) is { } location)
+        @if (Formatters.JobPlace(Job) is { } location)
         {
             <span class="meta-chip"><Icon Name="map-pin" Size="16" /> @location</span>
         }

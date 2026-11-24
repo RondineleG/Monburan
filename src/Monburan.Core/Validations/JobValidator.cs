@@ -1,6 +1,7 @@
 using Monburan.Core.Entities;
 using Monburan.Core.Enums;
 using Monburan.Core.Interfaces.Validations;
+using Monburan.Core.Services;
 
 namespace Monburan.Core.Validations;
 
@@ -53,6 +54,9 @@ public class JobValidator : IEntityValidator<Job>
             result.AddError("Tags deve ter no máximo 500 caracteres.", "Tags");
 
         ValidateApplicationChannel(entity, result);
+
+        foreach (var (message, field) in InternationalJobRules.Validate(entity))
+            result.AddError(message, field);
 
         return result;
     }

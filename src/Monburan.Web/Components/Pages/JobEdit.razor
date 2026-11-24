@@ -12,6 +12,7 @@
 @inject NavigationManager Navigation
 @inject IToastService Toast
 @inject ILogger<JobEdit> Logger
+@inject Monburan.Core.Interfaces.Services.IFeatureFlags FeatureFlags
 
 <PageTitle>Editar vaga - Monburan</PageTitle>
 
@@ -63,6 +64,18 @@
 </div>
 
 @code {
+    [CascadingParameter]
+    private Task<AuthenticationState>? AuthenticationStateTask { get; set; }
+
+    private JobResponse? loadedJob;
+    private bool internationalEnabled;
+
+    private async Task<bool> InternationalEnabledAsync()
+    {
+        var user = AuthenticationStateTask is null ? null : (await AuthenticationStateTask).User;
+        return await FeatureFlags.IsEnabledAsync(Monburan.Core.Services.InternationalJobRules.FeatureKey, user);
+    }
+
     [Parameter]
     public Guid JobId { get; set; }
 
@@ -99,6 +112,8 @@
         }
 
         var job = result.Data;
+        loadedJob = job;
+        internationalEnabled = await InternationalEnabledAsync();
         isJobOwner = advertiserId.HasValue && job.AdvertiserId == advertiserId.Value;
         if (!isJobOwner)
         {
@@ -125,6 +140,7 @@
             ExpirationDate = job.ExpirationDate,
             City = job.City,
             State = job.State,
+            Country = job.Country,
             Type = job.Type ?? "OnSite",
             IsRemote = job.IsRemote,
             ShowAddress = true,
@@ -132,7 +148,11 @@
             SalaryMax = job.SalaryMax,
             SalaryPeriod = Enum.TryParse<ESalaryPeriod>(job.SalaryPeriod, out var salaryPeriod) ? salaryPeriod : null,
             SalaryCurrency = job.SalaryCurrency ?? "BRL",
-            SalaryDisplay = job.SalaryDisplay
+            SalaryDisplay = job.SalaryDisplay,
+            RemoteScope = InternationalJobFields.ParseScope(job.RemoteScope),
+            EligibleCountries = job.EligibleCountries,
+            OffersRelocation = job.OffersRelocation,
+            SponsorsVisa = job.SponsorsVisa
         };
 
         isLoading = false;
@@ -148,7 +168,7 @@
 
         draft.IsRemote = draft.Type is "Remote" or "Hybrid";
 
-        var result = await UpdateJobUseCase.ExecuteAsync(new UpdateJobRequest
+        var request = new UpdateJobRequest
         {
             Id = JobId,
             Title = draft.Title,
@@ -173,8 +193,18 @@
             SalaryMax = draft.SalaryMax,
             SalaryPeriod = draft.SalaryPeriod,
             SalaryCurrency = draft.SalaryCurrency,
-            SalaryDisplay = draft.SalaryDisplay
-        });
+            SalaryDisplay = draft.SalaryDisplay,
+            RemoteScope = draft.RemoteScope,
+            EligibleCountries = draft.EligibleCountries,
+            OffersRelocation = draft.OffersRelocation,
+            SponsorsVisa = draft.SponsorsVisa
+        };
+
+        // Flag desligada no servidor: mantém o que já estava gravado em vez de apagar
+        if (loadedJob is not null)
+            InternationalJobFields.KeepExistingUnlessEnabled(request, loadedJob, await InternationalEnabledAsync());
+
+        var result = await UpdateJobUseCase.ExecuteAsync(request);
 
         if (result.Status == EResultStatus.Success)
         {

@@ -12,6 +12,7 @@ using Monburan.Core.Requests;
 using Monburan.Core.UseCases.JobAlerts;
 using Monburan.Core.UseCases.Subscriptions;
 using Monburan.Core.ValueObjects;
+using Monburan.Core.Services;
 
 namespace Monburan.Core.UseCases.Jobs;
 
@@ -74,12 +75,17 @@ public class CreateJobUseCase : IUseCase<CreateJobRequest, JobResponse>
                 Currency = request.SalaryCurrency?.Trim().ToUpperInvariant() ?? "BRL",
                 Display = request.SalaryDisplay
             },
+            RemoteScope = request.RemoteScope,
+            EligibleCountries = request.EligibleCountries,
+            OffersRelocation = request.OffersRelocation,
+            SponsorsVisa = request.SponsorsVisa,
             Moderation = new ModerationInfo { Status = EModerationStatus.Pending },
             Boost = new JobBoost { IsActive = false },
             Highlight = new JobHighlight { IsActive = false },
             Counters = new JobCounters()
         };
 
+        InternationalJobRules.Normalize(job);
         var validationResult = _jobValidator.Validate(job);
         if (!validationResult.IsValid)
         {

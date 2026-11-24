@@ -80,7 +80,7 @@
                                 <th scope="col">CNPJ/CPF</th>
                                 <th scope="col">Situação</th>
                                 <th scope="col">Cidade/UF</th>
-                                <th scope="col" class="text-center">Vagas</th>
+                                <th scope="col" class="table-num">Vagas</th>
                                 <th scope="col">Cadastro</th>
                                 <th scope="col">Ações</th>
                             </tr>
@@ -100,7 +100,7 @@
                                     <td data-label="CNPJ/CPF">@FormatTaxId(advertiser.TaxId)</td>
                                     <td data-label="Situação"><StatusBadge Text="@StatusLabel(advertiser.Status)" Tone="@StatusToneFor(advertiser.Status)" /></td>
                                     <td data-label="Cidade/UF">@Place(advertiser.City, advertiser.State)</td>
-                                    <td data-label="Vagas" class="text-center">@advertiser.JobsCount</td>
+                                    <td data-label="Vagas" class="table-num">@advertiser.JobsCount</td>
                                     <td data-label="Cadastro">@UiLabels.FormatMomentDate(advertiser.CreatedAt)</td>
                                     <td data-label="Ações">
                                         <button type="button" class="btn btn-sm btn-outline-danger" @onclick="() => DeleteAsync(advertiser)"

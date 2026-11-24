@@ -147,6 +147,28 @@
                     </section>
                 }
 
+                @if (JobDisplay.HasInternationalInfo(job))
+                {
+                    @* Só o que a empresa informou; "Não informado" é diferente de "não" e remoto nunca vira "de qualquer país" *@
+                    <section class="job-section job-intl-info" aria-labelledby="job-intl-title" data-testid="job-intl-info">
+                        <h2 id="job-intl-title">Trabalho internacional</h2>
+                        <dl class="job-intl-info__list">
+                            <div><dt>País da vaga</dt><dd>@UiLabels.CountryName(job.Country)</dd></div>
+                            @if (job.SalaryCurrency is not (null or "" or "BRL"))
+                            {
+                                <div><dt>Moeda do salário</dt><dd>@job.SalaryCurrency</dd></div>
+                            }
+                            @if (JobDisplay.RemoteScope(job) is { } scope)
+                            {
+                                <div><dt>De onde trabalhar</dt><dd data-testid="job-intl-remote">@scope</dd></div>
+                            }
+                            <div><dt>Ajuda de relocação</dt><dd data-testid="job-intl-relocation">@UiLabels.YesNoUnknown(job.OffersRelocation, "A empresa oferece", "A empresa não oferece")</dd></div>
+                            <div><dt>Patrocínio de visto</dt><dd data-testid="job-intl-visa">@UiLabels.YesNoUnknown(job.SponsorsVisa, "A empresa patrocina", "A empresa não patrocina")</dd></div>
+                        </dl>
+                        <p class="job-intl-info__note">Informações dadas pela empresa. O Monburan não presta serviço de imigração nem aconselhamento jurídico: confirme visto e exigências com a empresa e com os órgãos oficiais.</p>
+                    </section>
+                }
+
                 <aside class="job-note" role="note">
                     <Icon Name="shield" Size="20" />
                     <div>
@@ -177,13 +199,13 @@
                 else if (job.Status == "Active")
                 {
                     <section class="aside-card job-apply-card" id="candidatura" data-testid="job-apply-card">
-                        <h2 class="aside-card__title">Interessado nesta vaga?</h2>
+                        <h2 class="aside-card__title">@(existingApplication is not null ? "Sua candidatura" : "Interessado nesta vaga?")</h2>
                         @if (JobChannel.IsExternal(job))
                         {
                             <p data-testid="job-external-notice">@JobChannel.Notice(job)</p>
                             @if (JobChannel.ExternalHref(job) is { } externalLink)
                             {
-                                <a class="btn btn-primary btn-cta" href="@externalLink" target="@(externalLink.StartsWith("http", StringComparison.Ordinal) ? "_blank" : null)" rel="noopener noreferrer" data-testid="job-apply-external">@JobChannel.CtaLabel(job)</a>
+                                <a class="btn btn-primary btn-cta job-apply-card__cta" href="@externalLink" target="@(externalLink.StartsWith("http", StringComparison.Ordinal) ? "_blank" : null)" rel="noopener noreferrer" data-testid="job-apply-external">@JobChannel.CtaLabel(job)</a>
                             }
                             else
                             {
@@ -194,7 +216,11 @@
                                 Fonte: @(job.SourceName ?? job.SourceUrl ?? "não informada")
                                 @if (job.LastVerifiedAt is { } verifiedAt)
                                 {
-                                    <span> · verificada em @UiLabels.FormatDate(verifiedAt)</span>
+                                    <span> · conferida com a fonte em @UiLabels.FormatDate(verifiedAt)</span>
+                                }
+                                else
+                                {
+                                    <span> · data da última conferência não informada</span>
                                 }
                             </p>
                         }
@@ -202,22 +228,22 @@
                         {
                             <p>Você já se candidatou a esta vaga.</p>
                             <p class="mb-3">Situação: <StatusBadge Kind="StatusKind.Application" Value="@existingApplication.Status" /></p>
-                            <a class="btn btn-primary btn-cta" href="/minhas-candidaturas?aba=candidaturas" data-testid="job-track-application">Acompanhar candidatura</a>
+                            <a class="btn btn-primary btn-cta job-apply-card__cta" href="/minhas-candidaturas?aba=candidaturas" data-testid="job-track-application">Acompanhar candidatura</a>
                         }
                         else if (applicationLookupFailed)
                         {
                             <p>Não foi possível verificar se você já se candidatou.</p>
-                            <a class="btn btn-primary btn-cta" href="@applyUrl" data-testid="job-apply">Verificar candidatura</a>
+                            <a class="btn btn-primary btn-cta job-apply-card__cta" href="@applyUrl" data-testid="job-apply">Verificar candidatura</a>
                         }
                         else if (isCandidate)
                         {
                             <p>Envie sua candidatura em poucos cliques.</p>
-                            <a class="btn btn-primary btn-cta" href="@applyUrl" data-testid="job-apply">Candidatar-se</a>
+                            <a class="btn btn-primary btn-cta job-apply-card__cta" href="@applyUrl" data-testid="job-apply">Candidatar-se</a>
                         }
                         else if (!isAuthenticated)
                         {
                             <p>Entre ou crie uma conta gratuita de candidato para se candidatar.</p>
-                            <a class="btn btn-primary btn-cta" href="@loginUrl" data-testid="job-apply">Entrar para se candidatar</a>
+                            <a class="btn btn-primary btn-cta job-apply-card__cta" href="@loginUrl" data-testid="job-apply">Entrar para se candidatar</a>
                             <a class="btn btn-outline-secondary" href="@registerUrl" data-testid="job-register">Criar conta de candidato</a>
                         }
                         else
@@ -459,7 +485,8 @@
 
         if (job.Status == "Active" && !isOwner && !isAdmin)
         {
-            var matchingAd = await LocalAds.GetForJobAsync(jobId);
+            // O servidor decide: plano pago ativo não vê publicidade
+            var matchingAd = await LocalAds.GetForJobAsync(jobId, CurrentUserHelper.GetCandidateId(), CurrentUserHelper.GetAdvertiserId());
             if (generation != loadGeneration)
                 return;
             localAd = matchingAd;
