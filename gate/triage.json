@@ -1,0 +1,123 @@
+{
+  "run_id": "cycle-2-7a5dfb0b",
+  "generated_at": "2026-11-24T21:54:53.237969+00:00",
+  "verdicts": [
+    {
+      "flow_id": "MB-01",
+      "journey": "Autenticacao e registro",
+      "status": "passed",
+      "cause": null,
+      "severity": null,
+      "needs_human": false,
+      "jev_confidence": null
+    },
+    {
+      "flow_id": "MB-02",
+      "journey": "Paginas publicas",
+      "status": "passed",
+      "cause": null,
+      "severity": null,
+      "needs_human": false,
+      "jev_confidence": null
+    },
+    {
+      "flow_id": "MB-03",
+      "journey": "Experiencia de vagas",
+      "status": "passed",
+      "cause": null,
+      "severity": null,
+      "needs_human": false,
+      "jev_confidence": null
+    },
+    {
+      "flow_id": "MB-04",
+      "journey": "Fluxo do candidato",
+      "status": "passed",
+      "cause": null,
+      "severity": null,
+      "needs_human": false,
+      "jev_confidence": null
+    },
+    {
+      "flow_id": "MB-05",
+      "journey": "Fluxo do anunciante",
+      "status": "passed",
+      "cause": null,
+      "severity": null,
+      "needs_human": false,
+      "jev_confidence": null
+    },
+    {
+      "flow_id": "MB-06",
+      "journey": "Admin de vagas",
+      "status": "passed",
+      "cause": null,
+      "severity": null,
+      "needs_human": false,
+      "jev_confidence": null
+    },
+    {
+      "flow_id": "MB-07",
+      "journey": "Admin de contas",
+      "status": "passed",
+      "cause": null,
+      "severity": null,
+      "needs_human": false,
+      "jev_confidence": null
+    },
+    {
+      "flow_id": "MB-08",
+      "journey": "Admin de provedores de IA",
+      "status": "passed",
+      "cause": null,
+      "severity": null,
+      "needs_human": false,
+      "jev_confidence": null
+    },
+    {
+      "flow_id": "MB-09",
+      "journey": "Admin de auditoria",
+      "status": "passed",
+      "cause": null,
+      "severity": null,
+      "needs_human": false,
+      "jev_confidence": null
+    },
+    {
+      "flow_id": "MB-10",
+      "journey": "Hardening de seguranca",
+      "status": "passed",
+      "cause": null,
+      "severity": null,
+      "needs_human": false,
+      "jev_confidence": null
+    },
+    {
+      "flow_id": "MB-11",
+      "journey": "CSP enforcement",
+      "status": "passed",
+      "cause": null,
+      "severity": null,
+      "needs_human": false,
+      "jev_confidence": null
+    },
+    {
+      "flow_id": "MB-12",
+      "journey": "Interacao do shell",
+      "status": "passed",
+      "cause": null,
+      "severity": null,
+      "needs_human": false,
+      "jev_confidence": null
+    },
+    {
+      "flow_id": "MB-13",
+      "journey": "Varredura completa",
+      "status": "passed",
+      "cause": null,
+      "severity": null,
+      "needs_human": false,
+      "jev_confidence": null
+    }
+  ]
+}

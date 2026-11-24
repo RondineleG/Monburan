@@ -1,0 +1,37 @@
+{
+  "project": "Monburan",
+  "min_rate": 0.9,
+  "dotnet_dir": "C:\\Users\\Administrator\\dotnet",
+  "dotnet_root": "C:\\Users\\Administrator\\dotnet",
+  "steps": [
+    { "name": "build-web", "cmd": ["dotnet", "build", "src/Monburan.Web", "--nologo", "-v", "q"], "timeout": 1200 },
+    { "name": "build-unit", "cmd": ["dotnet", "build", "tests/Monburan.UnitTests", "--nologo", "-v", "q"], "timeout": 1200 },
+    { "name": "build-apitests", "cmd": ["dotnet", "build", "tests/Monburan.ApiTests", "--nologo", "-v", "q"], "timeout": 1200 },
+    { "name": "build-mobileui", "cmd": ["dotnet", "build", "tests/Monburan.MobileUiTests", "--nologo", "-v", "q"], "timeout": 1200 },
+    { "name": "build-integration", "cmd": ["dotnet", "build", "tests/Monburan.IntegrationTests", "--nologo", "-v", "q"], "timeout": 1200 },
+    { "name": "build-e2e", "cmd": ["dotnet", "build", "tests/Monburan.E2ETests", "--nologo", "-v", "q"], "timeout": 1200 },
+    { "name": "ensure-app", "cmd": ["C:\\Program Files\\Git\\bin\\bash.exe", "gate/ensure_app.sh"], "timeout": 300 },
+    { "name": "unit-core", "cmd": ["dotnet", "test", "tests/Monburan.UnitTests", "--no-build", "--nologo", "-v", "q"], "timeout": 900 },
+    { "name": "unit-api", "cmd": ["dotnet", "test", "tests/Monburan.ApiTests", "--no-build", "--nologo", "-v", "q"], "timeout": 900 },
+    { "name": "unit-mobile-ui", "cmd": ["dotnet", "test", "tests/Monburan.MobileUiTests", "--no-build", "--nologo", "-v", "q"], "timeout": 900 },
+    { "name": "integration", "cmd": ["dotnet", "test", "tests/Monburan.IntegrationTests", "--no-build", "--nologo", "-v", "q"], "timeout": 1200 }
+  ],
+  "e2e": [
+    { "name": "e2e", "cmd": ["dotnet", "test", "tests/Monburan.E2ETests", "--nologo", "-v", "n"], "timeout": 5400 }
+  ],
+  "flows": {
+    "MB-01": { "journey": "Autenticacao e registro", "matchers": ["AuthenticationTests"] },
+    "MB-02": { "journey": "Paginas publicas", "matchers": ["PublicPagesTests"] },
+    "MB-03": { "journey": "Experiencia de vagas", "matchers": ["JobsExperienceTests"] },
+    "MB-04": { "journey": "Fluxo do candidato", "matchers": ["CandidateFlowTests"] },
+    "MB-05": { "journey": "Fluxo do anunciante", "matchers": ["AdvertiserFlowTests"] },
+    "MB-06": { "journey": "Admin de vagas", "matchers": ["AdminJobsTests"] },
+    "MB-07": { "journey": "Admin de contas", "matchers": ["AdminAccountsTests"] },
+    "MB-08": { "journey": "Admin de provedores de IA", "matchers": ["AdminAiProvidersTests"] },
+    "MB-09": { "journey": "Admin de auditoria", "matchers": ["AdminAuditTests"] },
+    "MB-10": { "journey": "Hardening de seguranca", "matchers": ["SecurityHardeningTests"] },
+    "MB-11": { "journey": "CSP enforcement", "matchers": ["CspEnforcementTests"] },
+    "MB-12": { "journey": "Interacao do shell", "matchers": ["ShellInteractionTests"] },
+    "MB-13": { "journey": "Varredura completa", "matchers": ["FullSweepTests"] }
+  }
+}
