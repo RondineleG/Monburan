@@ -132,13 +132,13 @@ public static class IntegrationEndpoints
                 IFeatureFlags flags,
                 CancellationToken cancellationToken) =>
             {
-                if (!await flags.IsEnabledAsync(FeatureName, httpContext.User, cancellationToken))
-                    return Results.NotFound();
-
                 var token = await tokens.ValidateAsync(
                     ExtractBearer(httpContext), "readiness:read", cancellationToken);
                 if (token is null)
                     return Results.Unauthorized();
+
+                if (!await flags.IsEnabledAsync(FeatureName, PrincipalOf(token.UserId), cancellationToken))
+                    return Results.NotFound();
 
                 var candidate = await readiness.ResolveCandidateAsync(token.UserId, cancellationToken);
                 if (candidate is null)
@@ -178,13 +178,13 @@ public static class IntegrationEndpoints
                 [FromQuery] int size = 10,
                 CancellationToken cancellationToken = default) =>
             {
-                if (!await flags.IsEnabledAsync(FeatureName, httpContext.User, cancellationToken))
-                    return Results.NotFound();
-
                 var token = await tokens.ValidateAsync(
                     ExtractBearer(httpContext), "jobs:read", cancellationToken);
                 if (token is null)
                     return Results.Unauthorized();
+
+                if (!await flags.IsEnabledAsync(FeatureName, PrincipalOf(token.UserId), cancellationToken))
+                    return Results.NotFound();
 
                 var candidate = await readiness.ResolveCandidateAsync(token.UserId, cancellationToken);
                 if (candidate is null)
@@ -196,6 +196,10 @@ public static class IntegrationEndpoints
             })
             .AllowAnonymous();
     }
+
+    // A flag de grupo é avaliada para o dono do token, não para o chamador anônimo.
+    private static ClaimsPrincipal PrincipalOf(Guid userId) =>
+        new(new ClaimsIdentity([new Claim(ClaimTypes.NameIdentifier, userId.ToString())]));
 
     private static Guid? ResolveUserId(ClaimsPrincipal user)
     {
