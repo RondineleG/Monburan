@@ -61,7 +61,7 @@ public class CreateJobUseCase : IUseCase<CreateJobRequest, JobResponse>
             {
                 City = request.City,
                 State = request.State,
-                Country = request.Country,
+                Country = request.Country?.Trim().ToUpperInvariant() ?? "BR",
                 Type = request.Type,
                 IsRemote = request.IsRemote,
                 ShowAddress = request.ShowAddress

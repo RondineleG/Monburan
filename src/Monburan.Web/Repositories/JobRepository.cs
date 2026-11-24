@@ -367,15 +367,17 @@ public class JobRepository : IJobRepository
         // Filtro por salário mínimo: a vaga paga pelo menos esse valor
         if (salaryMin.HasValue)
         {
+            // O valor informado é sempre em reais: vaga em outra moeda não é comparável sem
+            // câmbio e passa no filtro em vez de sumir pelo valor de face.
             query = query.Where(j => j.Salary != null && j.Salary.Display
-                && (j.Salary.Max ?? j.Salary.Min) >= salaryMin.Value);
+                && (j.Salary.Currency != "BRL" || (j.Salary.Max ?? j.Salary.Min) >= salaryMin.Value));
         }
 
         // Filtro por salário máximo: o piso da vaga cabe no orçamento informado
         if (salaryMax.HasValue)
         {
             query = query.Where(j => j.Salary != null && j.Salary.Display
-                && j.Salary.Min.HasValue && j.Salary.Min <= salaryMax.Value);
+                && (j.Salary.Currency != "BRL" || (j.Salary.Min.HasValue && j.Salary.Min <= salaryMax.Value)));
         }
 
         // Filtro por categoria
@@ -407,20 +409,21 @@ public class JobRepository : IJobRepository
         if (!string.IsNullOrWhiteSpace(country))
         {
             var countryUpper = country.Trim().ToUpper();
-            query = query.Where(j => j.Location != null && j.Location.Country == countryUpper);
+            query = query.Where(j => j.Location != null && j.Location.Country != null
+                && j.Location.Country.ToUpper() == countryUpper);
         }
 
         // Só vagas internacionais: qualquer país que não seja BR
         if (international == true)
         {
-            query = query.Where(j => j.Location != null && j.Location.Country != null && j.Location.Country != "BR");
+            query = query.Where(j => j.Location != null && j.Location.Country != null && j.Location.Country.ToUpper() != "BR");
         }
 
         // Restringe aos países preferidos do candidato (normalizados em maiúsculas)
         if (countries is { Count: > 0 })
         {
             var normalized = countries.Select(code => code.ToUpper()).ToList();
-            query = query.Where(j => j.Location != null && j.Location.Country != null && normalized.Contains(j.Location.Country));
+            query = query.Where(j => j.Location != null && j.Location.Country != null && normalized.Contains(j.Location.Country.ToUpper()));
         }
 
         // Ordenação — sortBy: "createdAt" (default), "title", "salary"

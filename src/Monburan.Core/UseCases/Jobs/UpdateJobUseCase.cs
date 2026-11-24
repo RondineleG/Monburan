@@ -47,7 +47,7 @@ public class UpdateJobUseCase : IUseCase<UpdateJobRequest, JobResponse>
         {
             existingJob.Location.City = request.City;
             existingJob.Location.State = request.State;
-            existingJob.Location.Country = request.Country;
+            existingJob.Location.Country = request.Country?.Trim().ToUpperInvariant() ?? "BR";
             existingJob.Location.Type = request.Type;
             existingJob.Location.IsRemote = request.IsRemote;
             existingJob.Location.ShowAddress = request.ShowAddress;
