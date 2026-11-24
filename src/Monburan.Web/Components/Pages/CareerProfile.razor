@@ -14,6 +14,7 @@
 @inject NavigationManager Navigation
 @inject IToastService Toast
 @inject ILogger<CareerProfile> Logger
+@inject Monburan.Core.Interfaces.Services.IFeatureFlags FeatureFlags
 
 <PageTitle>Perfil de carreira - Monburan</PageTitle>
 
@@ -107,6 +108,8 @@
                                 </div>
                             </div>
 
+                            @if (internationalJobsEnabled)
+                            {
                             <div class="mt-3">
                                 <label class="form-label" for="career-countries">Países de interesse (vagas internacionais)</label>
                                 <select id="career-countries" class="form-select" multiple size="6"
@@ -122,6 +125,7 @@
                                     Vagas internacionais exigem plano Premium. Sem seleção, mostramos vagas de todos os países fora do Brasil.
                                 </div>
                             </div>
+                            }
 
                             <div class="form-actions">
                                 <button type="submit" class="btn btn-primary" disabled="@isSaving" aria-busy="@(isSaving ? "true" : null)" data-testid="career-profile-submit">
@@ -163,11 +167,14 @@
         ("MX", "México"), ("JP", "Japão"), ("AE", "Emirados Árabes"), ("CH", "Suíça")
     ];
 
+    [CascadingParameter] private Task<AuthenticationState>? AuthenticationStateTask { get; set; }
+
     private CareerProfileRequest model = new();
     private string errorMessage = string.Empty;
     private bool isLoading = true;
     private bool isSaving;
     private bool loadFailed;
+    private bool internationalJobsEnabled;
 
     protected override async Task OnInitializedAsync() => await LoadAsync();
 
@@ -175,6 +182,11 @@
     {
         isLoading = true;
         loadFailed = false;
+
+        // Flag do rollout: a preferência de países só aparece (e só é enviada) quando a
+        // funcionalidade de vagas internacionais está ligada para a conta.
+        var user = AuthenticationStateTask is null ? null : (await AuthenticationStateTask).User;
+        internationalJobsEnabled = await FeatureFlags.IsEnabledAsync("vagas-internacionais", user);
 
         var result = await GetCareerProfileUseCase.ExecuteAsync(CurrentUserHelper.GetCandidateId()!.Value);
         if (result.Status == EResultStatus.Success && result.Data is not null)
@@ -207,6 +219,10 @@
 
         isSaving = true;
         errorMessage = string.Empty;
+
+        // Com a flag desligada o campo não apareceu na tela: envia nulo para preservar o valor salvo.
+        if (!internationalJobsEnabled)
+            model.PreferredCountries = null;
 
         var result = await UpsertCareerProfileUseCase.ExecuteAsync(
             new UpsertCareerProfileCommand(CurrentUserHelper.GetCandidateId()!.Value, model));
