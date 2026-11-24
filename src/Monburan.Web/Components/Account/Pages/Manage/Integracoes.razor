@@ -108,18 +108,24 @@ else
                 </div>
                 <fieldset class="mb-3">
                     <legend class="form-label">Escopos</legend>
-                    @foreach (var scope in IIntegrationTokenService.SupportedScopes)
+                    <div class="form-check">
+                        <InputCheckbox id="scope-readiness" @bind-Value="Input.ScopeReadiness" class="form-check-input" />
+                        <label class="form-check-label" for="scope-readiness">
+                            readiness:read — resumo de prontidão para mudança
+                        </label>
+                    </div>
+                    <div class="form-check">
+                        <InputCheckbox id="scope-jobs" @bind-Value="Input.ScopeJobs" class="form-check-input" />
+                        <label class="form-check-label" for="scope-jobs">
+                            jobs:read — vagas internacionais do seu perfil
+                        </label>
+                    </div>
+                    @if (_scopesError)
                     {
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" id="scope-@scope.Replace(':', '-')"
-                                   name="Input.Scopes" value="@scope" checked="@Input.Scopes.Contains(scope)" />
-                            <label class="form-check-label" for="scope-@scope.Replace(':', '-')">
-                                @ScopeLabel(scope)
-                            </label>
-                        </div>
+                        <div class="text-danger" role="alert">Escolha ao menos um escopo.</div>
                     }
-                    <ValidationMessage For="() => Input.Scopes" class="text-danger" />
                 </fieldset>
+                <input type="hidden" name="Input.RequestId" value="@Input.RequestId" />
                 <div class="mb-3">
                     <label for="expires-days" class="form-label">Validade (dias)</label>
                     <InputNumber id="expires-days" @bind-Value="Input.ExpiresInDays" class="form-control" />
@@ -132,7 +138,12 @@ else
 }
 
 @code {
+    // Reenvio do mesmo POST (F5 na página de sucesso) não pode emitir um segundo token:
+    // o valor em claro só existe na primeira resposta, então o duplicado seria inútil.
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<Guid, DateTime> RecentCreations = new();
+
     private string? message;
+    private bool _scopesError;
     private ApplicationUser user = default!;
     private IReadOnlyList<IntegrationToken>? tokens;
     private string? newTokenValue;
@@ -167,14 +178,36 @@ else
 
     private async Task OnCreateAsync()
     {
+        var scopes = SelectedScopes();
+        _scopesError = scopes.Count == 0;
+        if (_scopesError) return;
+
+        if (!RecentCreations.TryAdd(Input.RequestId, DateTime.UtcNow))
+        {
+            message = "Este token já foi emitido — o valor completo apareceu na tela anterior.";
+            tokens = await TokenService.ListAsync(user.Id, HttpContext.RequestAborted);
+            return;
+        }
+        // Mantém o dedup pequeno: ids de mais de um dia não voltam a chegar.
+        var stale = RecentCreations.Where(kv => kv.Value < DateTime.UtcNow.AddDays(-1)).Select(kv => kv.Key).ToList();
+        foreach (var key in stale) RecentCreations.TryRemove(key, out _);
+
         var (token, rawValue) = await TokenService.CreateAsync(
-            user.Id, Input.Name, Input.Scopes, Input.ExpiresInDays, HttpContext.RequestAborted);
+            user.Id, Input.Name, scopes, Input.ExpiresInDays, HttpContext.RequestAborted);
 
         Logger.LogInformation("Usuário emitiu token de integração '{TokenName}' ({TokenPrefix}…).", token.Name, token.Prefix);
 
         newTokenValue = rawValue;
         _input = null;
         tokens = await TokenService.ListAsync(user.Id, HttpContext.RequestAborted);
+    }
+
+    private List<string> SelectedScopes()
+    {
+        var scopes = new List<string>(2);
+        if (Input.ScopeReadiness) scopes.Add("readiness:read");
+        if (Input.ScopeJobs) scopes.Add("jobs:read");
+        return scopes;
     }
 
     private async Task OnRevokeAsync()
@@ -195,13 +228,6 @@ else
         message = "Não foi possível revogar este token.";
     }
 
-    private static string ScopeLabel(string scope) => scope switch
-    {
-        "readiness:read" => "readiness:read — resumo de prontidão para mudança",
-        "jobs:read" => "jobs:read — vagas internacionais do seu perfil",
-        _ => scope
-    };
-
     private sealed class InputModel
     {
         [Required(ErrorMessage = "Dê um nome ao token.")]
@@ -209,8 +235,11 @@ else
         [Display(Name = "Nome do token")]
         public string Name { get; set; } = "HiMarshall";
 
-        [MinLength(1, ErrorMessage = "Escolha ao menos um escopo.")]
-        public string[] Scopes { get; set; } = ["readiness:read", "jobs:read"];
+        public bool ScopeReadiness { get; set; } = true;
+        public bool ScopeJobs { get; set; } = true;
+
+        /// <summary>Id único do envio: deduplica o reenvio do POST pelo navegador.</summary>
+        public Guid RequestId { get; set; } = Guid.NewGuid();
 
         [Range(1, 365, ErrorMessage = "A validade deve ficar entre {1} e {2} dias.")]
         [Display(Name = "Validade (dias)")]
