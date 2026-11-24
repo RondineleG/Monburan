@@ -46,6 +46,8 @@ services:
       - "Submissions__HashKey=${SUBMITTER_HASH_KEY:-}"
       # Base pública usada em links de e-mail (confirmação/reset)
       - "App__PublicBaseUrl=${APP_PUBLIC_BASE_URL:-https://monburan.com.br}"
+      # Base do app HiMarshall: a tela /conta/integracoes linka de volta para lá. Vazio esconde o link.
+      - "Integrations__HiMarshallUrl=${HIMARSHALL_URL:-}"
       # E-mail via SMTP (Resend). Se Smtp:Host vazio, cai no SendGrid.
       - "Smtp__Host=${SMTP_HOST:-smtp.resend.com}"
       - "Smtp__Port=${SMTP_PORT:-465}"
