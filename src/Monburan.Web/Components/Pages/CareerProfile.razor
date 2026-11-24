@@ -42,7 +42,7 @@
                             <div class="alert alert-danger" role="alert" data-testid="career-profile-error">@errorMessage</div>
                         }
 
-                        <EditForm Model="model" OnValidSubmit="SaveAsync" Context="form" novalidate>
+                        <EditForm Model="model" OnValidSubmit="SaveAsync" Context="form" @ref="editForm" novalidate>
                             <DataAnnotationsValidator />
                             <UnsavedChangesGuard HasChanges="() => form.IsModified() && !isSaving" />
                             <div class="mb-3">
@@ -170,6 +170,7 @@
     [CascadingParameter] private Task<AuthenticationState>? AuthenticationStateTask { get; set; }
 
     private CareerProfileRequest model = new();
+    private EditForm? editForm;
     private string errorMessage = string.Empty;
     private bool isLoading = true;
     private bool isSaving;
@@ -251,6 +252,8 @@
             string[] multiple => [.. multiple],
             _ => null
         };
+        editForm?.EditContext?.NotifyFieldChanged(
+            editForm.EditContext.Field(nameof(model.PreferredCountries)));
     }
 
     private void BackToDashboard() => Navigation.NavigateTo("/painel");
