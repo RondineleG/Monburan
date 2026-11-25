@@ -2,69 +2,69 @@
   "schema_version": 1,
   "project": "Monburan",
   "branch": "feat/integracao-himarshall-vagas-int",
-  "commit": "4a522d1",
-  "run_id": "cycle-1-433f62ca",
-  "generated_at": "2026-11-25T04:11:21.532274+00:00",
+  "commit": "89d1daf",
+  "run_id": "cycle-1-660b5e4f",
+  "generated_at": "2026-11-25T04:30:21.298240+00:00",
   "checks": [
     {
       "name": "build-web",
       "ok": true,
-      "detail": "\nBuild succeeded.\n    0 Warning(s)\n    0 Error(s)\n\nTime Elapsed 00:00:32.93\n"
+      "detail": "\nBuild succeeded.\n    0 Warning(s)\n    0 Error(s)\n\nTime Elapsed 00:00:19.88\n"
     },
     {
       "name": "build-unit",
       "ok": true,
-      "detail": "\nBuild succeeded.\n    0 Warning(s)\n    0 Error(s)\n\nTime Elapsed 00:00:14.14\n"
+      "detail": "\nBuild succeeded.\n    0 Warning(s)\n    0 Error(s)\n\nTime Elapsed 00:00:12.04\n"
     },
     {
       "name": "build-apitests",
       "ok": true,
-      "detail": "\nBuild succeeded.\n    0 Warning(s)\n    0 Error(s)\n\nTime Elapsed 00:00:10.48\n"
+      "detail": "\nBuild succeeded.\n    0 Warning(s)\n    0 Error(s)\n\nTime Elapsed 00:00:12.51\n"
     },
     {
       "name": "build-mobileui",
       "ok": true,
-      "detail": "\nBuild succeeded.\n    0 Warning(s)\n    0 Error(s)\n\nTime Elapsed 00:00:01.77\n"
+      "detail": "\nBuild succeeded.\n    0 Warning(s)\n    0 Error(s)\n\nTime Elapsed 00:00:01.73\n"
     },
     {
       "name": "build-integration",
       "ok": true,
-      "detail": "\nBuild succeeded.\n    0 Warning(s)\n    0 Error(s)\n\nTime Elapsed 00:00:11.15\n"
+      "detail": "\nBuild succeeded.\n    0 Warning(s)\n    0 Error(s)\n\nTime Elapsed 00:00:16.06\n"
     },
     {
       "name": "build-e2e",
       "ok": true,
-      "detail": "\nBuild succeeded.\n    0 Warning(s)\n    0 Error(s)\n\nTime Elapsed 00:00:02.18\n"
+      "detail": "\nBuild succeeded.\n    0 Warning(s)\n    0 Error(s)\n\nTime Elapsed 00:00:02.81\n"
     },
     {
       "name": "ensure-app",
       "ok": true,
-      "detail": "subindo app (pid 512)...\napp no ar\n"
+      "detail": "subindo app (pid 66)...\napp no ar\n"
     },
     {
       "name": "unit-core",
       "ok": true,
-      "detail": "Test run for C:\\Users\\Administrator\\repos\\monburan\\tests\\Monburan.UnitTests\\bin\\Debug\\net10.0\\Monburan.UnitTests.dll (.NETCoreApp,Version=v10.0)\nA total of 1 test files matched the specified pattern.\n\nPassed!  - Failed:     0, Passed:  1466, Skipped:     0, Total:  1466, Duration: 6 s - Monburan.UnitTests.dll (net10.0)\n"
+      "detail": "Test run for C:\\Users\\Administrator\\repos\\monburan\\tests\\Monburan.UnitTests\\bin\\Debug\\net10.0\\Monburan.UnitTests.dll (.NETCoreApp,Version=v10.0)\nA total of 1 test files matched the specified pattern.\n\nPassed!  - Failed:     0, Passed:  1466, Skipped:     0, Total:  1466, Duration: 3 s - Monburan.UnitTests.dll (net10.0)\n"
     },
     {
       "name": "unit-api",
       "ok": true,
-      "detail": "Test run for C:\\Users\\Administrator\\repos\\monburan\\tests\\Monburan.ApiTests\\bin\\Debug\\net10.0\\Monburan.ApiTests.dll (.NETCoreApp,Version=v10.0)\nA total of 1 test files matched the specified pattern.\n\nPassed!  - Failed:     0, Passed:   300, Skipped:     0, Total:   300, Duration: 34 s - Monburan.ApiTests.dll (net10.0)\n"
+      "detail": "Test run for C:\\Users\\Administrator\\repos\\monburan\\tests\\Monburan.ApiTests\\bin\\Debug\\net10.0\\Monburan.ApiTests.dll (.NETCoreApp,Version=v10.0)\nA total of 1 test files matched the specified pattern.\n\nPassed!  - Failed:     0, Passed:   300, Skipped:     0, Total:   300, Duration: 42 s - Monburan.ApiTests.dll (net10.0)\n"
     },
     {
       "name": "unit-mobile-ui",
       "ok": true,
-      "detail": "Test run for C:\\Users\\Administrator\\repos\\monburan\\tests\\Monburan.MobileUiTests\\bin\\Debug\\net10.0\\Monburan.MobileUiTests.dll (.NETCoreApp,Version=v10.0)\nA total of 1 test files matched the specified pattern.\n\nSkipped! - Failed:     0, Passed:     0, Skipped:    24, Total:    24, Duration: 82 ms - Monburan.MobileUiTests.dll (net10.0)\n"
+      "detail": "Test run for C:\\Users\\Administrator\\repos\\monburan\\tests\\Monburan.MobileUiTests\\bin\\Debug\\net10.0\\Monburan.MobileUiTests.dll (.NETCoreApp,Version=v10.0)\nA total of 1 test files matched the specified pattern.\n\nSkipped! - Failed:     0, Passed:     0, Skipped:    24, Total:    24, Duration: 63 ms - Monburan.MobileUiTests.dll (net10.0)\n"
     },
     {
       "name": "integration",
       "ok": true,
-      "detail": "Test run for C:\\Users\\Administrator\\repos\\monburan\\tests\\Monburan.IntegrationTests\\bin\\Debug\\net10.0\\Monburan.IntegrationTests.dll (.NETCoreApp,Version=v10.0)\nA total of 1 test files matched the specified pattern.\n\nPassed!  - Failed:     0, Passed:    64, Skipped:     0, Total:    64, Duration: 1 m 7 s - Monburan.IntegrationTests.dll (net10.0)\n"
+      "detail": "Test run for C:\\Users\\Administrator\\repos\\monburan\\tests\\Monburan.IntegrationTests\\bin\\Debug\\net10.0\\Monburan.IntegrationTests.dll (.NETCoreApp,Version=v10.0)\nA total of 1 test files matched the specified pattern.\n\nPassed!  - Failed:     0, Passed:    64, Skipped:     0, Total:    64, Duration: 1 m 6 s - Monburan.IntegrationTests.dll (net10.0)\n"
     },
     {
       "name": "e2e",
       "ok": true,
-      "detail": "s.Anonymous_IsSentToTheLogin [97 ms]\nWARNING: Overwriting results file: C:\\Users\\Administrator\\repos\\monburan\\reports\\trx\\e2e.trx\nResults File: C:\\Users\\Administrator\\repos\\monburan\\reports\\trx\\e2e.trx\n\nTest Run Successful.\nTotal tests: 102\n     Passed: 102\n Total time: 5.2619 Minutes\n     1>Done Building Project \"C:\\Users\\Administrator\\repos\\monburan\\tests\\Monburan.E2ETests\\Monburan.E2ETests.csproj\" (VSTest target(s)).\n\nBuild succeeded.\n    0 Warning(s)\n    0 Error(s)\n\nTime Elapsed 00:05:17.34\n"
+      "detail": ".Anonymous_IsSentToTheLogin [131 ms]\nWARNING: Overwriting results file: C:\\Users\\Administrator\\repos\\monburan\\reports\\trx\\e2e.trx\nResults File: C:\\Users\\Administrator\\repos\\monburan\\reports\\trx\\e2e.trx\n\nTest Run Successful.\nTotal tests: 102\n     Passed: 102\n Total time: 3.8753 Minutes\n     1>Done Building Project \"C:\\Users\\Administrator\\repos\\monburan\\tests\\Monburan.E2ETests\\Monburan.E2ETests.csproj\" (VSTest target(s)).\n\nBuild succeeded.\n    0 Warning(s)\n    0 Error(s)\n\nTime Elapsed 00:03:54.32\n"
     }
   ],
   "flows": [
@@ -73,19 +73,19 @@
       "journey": "Autenticacao e registro",
       "status": "passed",
       "tests": [
-        "Monburan.E2ETests.AuthenticationTests.Register_ShouldShowLoginLinkAndPortugueseValidation",
-        "Monburan.E2ETests.AuthenticationTests.Register_Advertiser_ShouldOpenRecruiterWorkspace",
-        "Monburan.E2ETests.AuthenticationTests.Anonymous_ShouldRedirect_ToLogin_OnProfilePages",
-        "Monburan.E2ETests.AuthenticationTests.Login_WithValidCredentials_ShouldAuthenticate",
-        "Monburan.E2ETests.AuthenticationTests.Login_EmptyFields_ShouldShowPortugueseValidation",
         "Monburan.E2ETests.AuthenticationTests.Register_NewUser_ShouldAutoLogin",
+        "Monburan.E2ETests.AuthenticationTests.Register_ShouldShowLoginLinkAndPortugueseValidation",
         "Monburan.E2ETests.AuthenticationTests.Login_Form_ShouldAuthenticateThroughBrowser",
+        "Monburan.E2ETests.AuthenticationTests.Register_WithMismatchedPassword_ShouldShowError",
+        "Monburan.E2ETests.AuthenticationTests.Login_EmptyFields_ShouldShowPortugueseValidation",
         "Monburan.E2ETests.AuthenticationTests.Login_WithInvalidCredentials_ShouldFail",
-        "Monburan.E2ETests.AuthenticationTests.Register_WithMismatchedPassword_ShouldShowError"
+        "Monburan.E2ETests.AuthenticationTests.Login_WithValidCredentials_ShouldAuthenticate",
+        "Monburan.E2ETests.AuthenticationTests.Anonymous_ShouldRedirect_ToLogin_OnProfilePages",
+        "Monburan.E2ETests.AuthenticationTests.Register_Advertiser_ShouldOpenRecruiterWorkspace"
       ],
       "failed_tests": [],
       "error": null,
-      "duration_s": 4.9602302,
+      "duration_s": 6.740708099999999,
       "cause": null,
       "severity": null,
       "needs_human": false,
@@ -96,27 +96,27 @@
       "journey": "Paginas publicas",
       "status": "passed",
       "tests": [
-        "Monburan.E2ETests.PublicPagesTests.Jobs_ShouldList_SeededJobs",
         "Monburan.E2ETests.PublicPagesTests.JobDetails_Anonymous_ShouldOpenPublicPage_WithoutLogin",
-        "Monburan.E2ETests.PublicPagesTests.JobDetails_Anonymous_Apply_ShouldRedirectToLogin_WithReturnUrl",
-        "Monburan.E2ETests.PublicPagesTests.Plans_ShouldList_SeededPlans",
-        "Monburan.E2ETests.PublicPagesTests.AnonymousHome_ShouldShowPublicLandingWithoutRecruiterMetrics",
-        "Monburan.E2ETests.PublicPagesTests.StaticPages_ShouldReturnOk(path: \"/termos\")",
-        "Monburan.E2ETests.PublicPagesTests.StaticPages_ShouldReturnOk(path: \"/enderecos\")",
-        "Monburan.E2ETests.PublicPagesTests.MobileNavigation_ShouldOpenAndClose",
-        "Monburan.E2ETests.PublicPagesTests.Health_ShouldReturnOk",
-        "Monburan.E2ETests.PublicPagesTests.Jobs_Search_ShouldFilterResults",
-        "Monburan.E2ETests.PublicPagesTests.StaticPages_ShouldReturnOk(path: \"/privacidade\")",
-        "Monburan.E2ETests.PublicPagesTests.Jobs_Mobile_ShouldFitViewport_WithoutHorizontalOverflow",
-        "Monburan.E2ETests.PublicPagesTests.AccountPages_Mobile_ShouldFitViewport(path: \"/entrar\")",
+        "Monburan.E2ETests.PublicPagesTests.Jobs_ShouldList_SeededJobs",
         "Monburan.E2ETests.PublicPagesTests.JobDetails_Anonymous_AfterLogin_ShouldOpenApplyPage",
         "Monburan.E2ETests.PublicPagesTests.Jobs_Search_NoMatch_ShouldShowEmptyState",
+        "Monburan.E2ETests.PublicPagesTests.JobDetails_Anonymous_Apply_ShouldRedirectToLogin_WithReturnUrl",
+        "Monburan.E2ETests.PublicPagesTests.AnonymousHome_ShouldShowPublicLandingWithoutRecruiterMetrics",
+        "Monburan.E2ETests.PublicPagesTests.Jobs_Mobile_ShouldFitViewport_WithoutHorizontalOverflow",
+        "Monburan.E2ETests.PublicPagesTests.StaticPages_ShouldReturnOk(path: \"/privacidade\")",
+        "Monburan.E2ETests.PublicPagesTests.StaticPages_ShouldReturnOk(path: \"/enderecos\")",
+        "Monburan.E2ETests.PublicPagesTests.AccountPages_Mobile_ShouldFitViewport(path: \"/entrar\")",
+        "Monburan.E2ETests.PublicPagesTests.AccountPages_Mobile_ShouldFitViewport(path: \"/criar-conta\")",
+        "Monburan.E2ETests.PublicPagesTests.Health_ShouldReturnOk",
         "Monburan.E2ETests.PublicPagesTests.Home_ShouldLoadDashboard",
-        "Monburan.E2ETests.PublicPagesTests.AccountPages_Mobile_ShouldFitViewport(path: \"/criar-conta\")"
+        "Monburan.E2ETests.PublicPagesTests.Jobs_Search_ShouldFilterResults",
+        "Monburan.E2ETests.PublicPagesTests.StaticPages_ShouldReturnOk(path: \"/termos\")",
+        "Monburan.E2ETests.PublicPagesTests.Plans_ShouldList_SeededPlans",
+        "Monburan.E2ETests.PublicPagesTests.MobileNavigation_ShouldOpenAndClose"
       ],
       "failed_tests": [],
       "error": null,
-      "duration_s": 15.699306100000001,
+      "duration_s": 15.5559099,
       "cause": null,
       "severity": null,
       "needs_human": false,
@@ -127,21 +127,21 @@
       "journey": "Experiencia de vagas",
       "status": "passed",
       "tests": [
-        "Monburan.E2ETests.JobsExperienceTests.JobDetails_CopyLink_ShouldPutTheJobUrlInTheClipboard",
-        "Monburan.E2ETests.JobsExperienceTests.JobDetails_Mobile_ShouldShowStickyApplyBar_WithoutHorizontalOverflow",
-        "Monburan.E2ETests.JobsExperienceTests.Jobs_SortBySalary_ShouldListHigherSalariesFirst_AndJobsWithoutSalaryLast",
         "Monburan.E2ETests.JobsExperienceTests.Jobs_BackButton_ShouldRestorePreviousSearchAndFields",
         "Monburan.E2ETests.JobsExperienceTests.Jobs_LegacyJobIdLink_ShouldRedirectToTheJobPage",
         "Monburan.E2ETests.JobsExperienceTests.Jobs_ModeFilter_ShouldNarrowResults_AndBeClearable",
-        "Monburan.E2ETests.JobsExperienceTests.Jobs_SalaryFloor_ShouldHideLowerPaidJobs",
-        "Monburan.E2ETests.JobsExperienceTests.JobDetails_Public_ShouldServeStructuredDataAndShareTagsToSearchEngines",
-        "Monburan.E2ETests.JobsExperienceTests.Jobs_Search_ShouldPutOnlyTheUsedFiltersInUrl_AndSurviveReload",
         "Monburan.E2ETests.JobsExperienceTests.JobDetails_BackToList_ShouldKeepTheSearch",
-        "Monburan.E2ETests.JobsExperienceTests.JobDetails_Unknown_ShouldReturn404_WithAWayBackToTheJobs"
+        "Monburan.E2ETests.JobsExperienceTests.Jobs_SalaryFloor_ShouldHideLowerPaidJobs",
+        "Monburan.E2ETests.JobsExperienceTests.JobDetails_Mobile_ShouldShowStickyApplyBar_WithoutHorizontalOverflow",
+        "Monburan.E2ETests.JobsExperienceTests.JobDetails_CopyLink_ShouldPutTheJobUrlInTheClipboard",
+        "Monburan.E2ETests.JobsExperienceTests.JobDetails_Unknown_ShouldReturn404_WithAWayBackToTheJobs",
+        "Monburan.E2ETests.JobsExperienceTests.JobDetails_Public_ShouldServeStructuredDataAndShareTagsToSearchEngines",
+        "Monburan.E2ETests.JobsExperienceTests.Jobs_SortBySalary_ShouldListHigherSalariesFirst_AndJobsWithoutSalaryLast",
+        "Monburan.E2ETests.JobsExperienceTests.Jobs_Search_ShouldPutOnlyTheUsedFiltersInUrl_AndSurviveReload"
       ],
       "failed_tests": [],
       "error": null,
-      "duration_s": 12.013807600000002,
+      "duration_s": 14.3406585,
       "cause": null,
       "severity": null,
       "needs_human": false,
@@ -152,20 +152,20 @@
       "journey": "Fluxo do candidato",
       "status": "passed",
       "tests": [
-        "Monburan.E2ETests.CandidateFlowTests.Candidate_DuplicateApplication_ShouldShowFriendlyFeedback",
-        "Monburan.E2ETests.CandidateFlowTests.Candidate_MyApplications_ShouldLoad",
-        "Monburan.E2ETests.CandidateFlowTests.Candidate_Resumes_ShouldLoad",
         "Monburan.E2ETests.CandidateFlowTests.Candidate_MySubscription_ShowsTheCandidatePlan",
-        "Monburan.E2ETests.CandidateFlowTests.Candidate_Profile_ShouldLoad_SeededData",
-        "Monburan.E2ETests.CandidateFlowTests.Candidate_Navigation_ShouldShowCareerLinksOnly",
-        "Monburan.E2ETests.CandidateFlowTests.Candidate_Notifications_ShouldLoad",
+        "Monburan.E2ETests.CandidateFlowTests.Candidate_Resumes_ShouldLoad",
         "Monburan.E2ETests.CandidateFlowTests.Candidate_ResumeCreate_ShouldRenderForm",
+        "Monburan.E2ETests.CandidateFlowTests.Candidate_MyApplications_ShouldLoad",
+        "Monburan.E2ETests.CandidateFlowTests.Candidate_Notifications_ShouldLoad",
+        "Monburan.E2ETests.CandidateFlowTests.Candidate_DuplicateApplication_ShouldShowFriendlyFeedback",
+        "Monburan.E2ETests.CandidateFlowTests.Candidate_Can_ApplyToJob",
         "Monburan.E2ETests.CandidateFlowTests.Candidate_Dashboard_ShouldShowCareerContentOnly",
-        "Monburan.E2ETests.CandidateFlowTests.Candidate_Can_ApplyToJob"
+        "Monburan.E2ETests.CandidateFlowTests.Candidate_Navigation_ShouldShowCareerLinksOnly",
+        "Monburan.E2ETests.CandidateFlowTests.Candidate_Profile_ShouldLoad_SeededData"
       ],
       "failed_tests": [],
       "error": null,
-      "duration_s": 15.2170128,
+      "duration_s": 16.8649831,
       "cause": null,
       "severity": null,
       "needs_human": false,
@@ -176,19 +176,19 @@
       "journey": "Fluxo do anunciante",
       "status": "passed",
       "tests": [
-        "Monburan.E2ETests.AdvertiserFlowTests.Advertiser_Profile_ShouldLoad_SeededData",
-        "Monburan.E2ETests.AdvertiserFlowTests.Advertiser_MyJobs_ShouldList_SeededJobs",
-        "Monburan.E2ETests.AdvertiserFlowTests.Advertiser_Can_CreateJob",
-        "Monburan.E2ETests.AdvertiserFlowTests.Advertiser_Navigation_ShouldShowRecruitmentLinksOnly",
-        "Monburan.E2ETests.AdvertiserFlowTests.Advertiser_ReceivedApplications_ShouldLoad",
+        "Monburan.E2ETests.AdvertiserFlowTests.Advertiser_MySubscription_ShouldLoad",
+        "Monburan.E2ETests.AdvertiserFlowTests.Address_Create_ShouldRenderForm",
         "Monburan.E2ETests.AdvertiserFlowTests.Advertiser_Dashboard_ShouldLoad",
         "Monburan.E2ETests.AdvertiserFlowTests.Advertiser_UploadLogo_PageShouldLoad",
-        "Monburan.E2ETests.AdvertiserFlowTests.Address_Create_ShouldRenderForm",
-        "Monburan.E2ETests.AdvertiserFlowTests.Advertiser_MySubscription_ShouldLoad"
+        "Monburan.E2ETests.AdvertiserFlowTests.Advertiser_Profile_ShouldLoad_SeededData",
+        "Monburan.E2ETests.AdvertiserFlowTests.Advertiser_MyJobs_ShouldList_SeededJobs",
+        "Monburan.E2ETests.AdvertiserFlowTests.Advertiser_ReceivedApplications_ShouldLoad",
+        "Monburan.E2ETests.AdvertiserFlowTests.Advertiser_Navigation_ShouldShowRecruitmentLinksOnly",
+        "Monburan.E2ETests.AdvertiserFlowTests.Advertiser_Can_CreateJob"
       ],
       "failed_tests": [],
       "error": null,
-      "duration_s": 11.1751278,
+      "duration_s": 15.7332255,
       "cause": null,
       "severity": null,
       "needs_human": false,
@@ -199,14 +199,14 @@
       "journey": "Admin de vagas",
       "status": "passed",
       "tests": [
-        "Monburan.E2ETests.AdminJobsTests.Admin_PausesAndRejects_AndTheCountersFollow",
+        "Monburan.E2ETests.AdminJobsTests.Anonymous_IsSentToTheLogin",
         "Monburan.E2ETests.AdminJobsTests.Admin_HidesAJobWithAReason_TheCompanySeesIt_AndTheAdminBringsItBack",
         "Monburan.E2ETests.AdminJobsTests.Admin_SeesTheMenuLink_AndOthersCannotOpenThePage",
-        "Monburan.E2ETests.AdminJobsTests.Anonymous_IsSentToTheLogin"
+        "Monburan.E2ETests.AdminJobsTests.Admin_PausesAndRejects_AndTheCountersFollow"
       ],
       "failed_tests": [],
       "error": null,
-      "duration_s": 10.5877001,
+      "duration_s": 12.3820981,
       "cause": null,
       "severity": null,
       "needs_human": false,
@@ -217,15 +217,15 @@
       "journey": "Admin de contas",
       "status": "passed",
       "tests": [
-        "Monburan.E2ETests.AdminAccountsTests.FiltersAndCounters_ShowTheSituationOfTheAccounts",
         "Monburan.E2ETests.AdminAccountsTests.Anonymous_IsSentToTheLogin",
         "Monburan.E2ETests.AdminAccountsTests.Admin_DeactivatesAndReactivatesAnAccount_WithTheEffectSeenAtLogin",
         "Monburan.E2ETests.AdminAccountsTests.Admin_SeesTheMenuLink_AndOthersCannotOpenThePage",
-        "Monburan.E2ETests.AdminAccountsTests.Admin_CannotDeactivateTheOwnAccount"
+        "Monburan.E2ETests.AdminAccountsTests.Admin_CannotDeactivateTheOwnAccount",
+        "Monburan.E2ETests.AdminAccountsTests.FiltersAndCounters_ShowTheSituationOfTheAccounts"
       ],
       "failed_tests": [],
       "error": null,
-      "duration_s": 10.1607158,
+      "duration_s": 12.102880499999998,
       "cause": null,
       "severity": null,
       "needs_human": false,
@@ -236,19 +236,19 @@
       "journey": "Admin de provedores de IA",
       "status": "passed",
       "tests": [
-        "Monburan.E2ETests.AdminAiProvidersTests.Form_PresetsFillTheAddressProtocolModelAndVariable",
-        "Monburan.E2ETests.AdminAiProvidersTests.Candidate_CannotOpenTheScreen_AndDoesNotSeeTheMenuLink",
-        "Monburan.E2ETests.AdminAiProvidersTests.TheScreen_NeverShowsAnyKeyValue_OnlyTheVariableName",
-        "Monburan.E2ETests.AdminAiProvidersTests.Form_ShowsTheServerErrorsNextToTheFields_AndSavesNothing",
         "Monburan.E2ETests.AdminAiProvidersTests.Anonymous_IsSentToTheLogin",
-        "Monburan.E2ETests.AdminAiProvidersTests.Advertiser_CannotOpenTheScreen",
-        "Monburan.E2ETests.AdminAiProvidersTests.Admin_SeesTheMenuLink_AndTheSeededProviders_WithTheDefaultMarked",
+        "Monburan.E2ETests.AdminAiProvidersTests.Admin_AddsTestsPromotesEditsDisablesAndDeletesAProvider",
+        "Monburan.E2ETests.AdminAiProvidersTests.Form_PresetsFillTheAddressProtocolModelAndVariable",
         "Monburan.E2ETests.AdminAiProvidersTests.Test_ExplainsWhenTheKeyVariableIsNotDefinedOnTheServer",
-        "Monburan.E2ETests.AdminAiProvidersTests.Admin_AddsTestsPromotesEditsDisablesAndDeletesAProvider"
+        "Monburan.E2ETests.AdminAiProvidersTests.Candidate_CannotOpenTheScreen_AndDoesNotSeeTheMenuLink",
+        "Monburan.E2ETests.AdminAiProvidersTests.Form_ShowsTheServerErrorsNextToTheFields_AndSavesNothing",
+        "Monburan.E2ETests.AdminAiProvidersTests.Advertiser_CannotOpenTheScreen",
+        "Monburan.E2ETests.AdminAiProvidersTests.TheScreen_NeverShowsAnyKeyValue_OnlyTheVariableName",
+        "Monburan.E2ETests.AdminAiProvidersTests.Admin_SeesTheMenuLink_AndTheSeededProviders_WithTheDefaultMarked"
       ],
       "failed_tests": [],
       "error": null,
-      "duration_s": 15.9243219,
+      "duration_s": 19.8343948,
       "cause": null,
       "severity": null,
       "needs_human": false,
@@ -259,15 +259,15 @@
       "journey": "Admin de auditoria",
       "status": "passed",
       "tests": [
-        "Monburan.E2ETests.AdminAuditTests.Admin_SeesTheMenuLink",
-        "Monburan.E2ETests.AdminAuditTests.TheFilters_NarrowTheList",
-        "Monburan.E2ETests.AdminAuditTests.Candidate_CannotOpenTheAuditTrail",
         "Monburan.E2ETests.AdminAuditTests.Anonymous_IsSentToTheLogin",
+        "Monburan.E2ETests.AdminAuditTests.TheFilters_NarrowTheList",
+        "Monburan.E2ETests.AdminAuditTests.Admin_SeesTheMenuLink",
+        "Monburan.E2ETests.AdminAuditTests.Candidate_CannotOpenTheAuditTrail",
         "Monburan.E2ETests.AdminAuditTests.ChangesToAiProviders_AppearInTheAuditTrail_WithWhoDidWhat"
       ],
       "failed_tests": [],
       "error": null,
-      "duration_s": 7.1087682999999995,
+      "duration_s": 8.0888522,
       "cause": null,
       "severity": null,
       "needs_human": false,
@@ -278,14 +278,14 @@
       "journey": "Hardening de seguranca",
       "status": "passed",
       "tests": [
-        "Monburan.E2ETests.SecurityHardeningTests.Register_CommonPassword_IsRefusedByTheServer",
         "Monburan.E2ETests.SecurityHardeningTests.Register_NineCharacterPassword_IsRefusedWithTheNewMinimum",
-        "Monburan.E2ETests.SecurityHardeningTests.Login_FiveWrongPasswords_LocksTheAccount_EvenForTheRightPassword",
-        "Monburan.E2ETests.SecurityHardeningTests.Login_WrongPassword_ShowsTheSameMessageForAnUnknownAccount"
+        "Monburan.E2ETests.SecurityHardeningTests.Login_WrongPassword_ShowsTheSameMessageForAnUnknownAccount",
+        "Monburan.E2ETests.SecurityHardeningTests.Register_CommonPassword_IsRefusedByTheServer",
+        "Monburan.E2ETests.SecurityHardeningTests.Login_FiveWrongPasswords_LocksTheAccount_EvenForTheRightPassword"
       ],
       "failed_tests": [],
       "error": null,
-      "duration_s": 3.7174962,
+      "duration_s": 5.080015599999999,
       "cause": null,
       "severity": null,
       "needs_human": false,
@@ -296,17 +296,17 @@
       "journey": "CSP enforcement",
       "status": "passed",
       "tests": [
-        "Monburan.E2ETests.CspEnforcementTests.PublicPages_LoadWithoutAnyViolation",
-        "Monburan.E2ETests.CspEnforcementTests.TheLayoutScripts_WorkUnderThePolicy_ThemeToggleAndMobileMenu",
-        "Monburan.E2ETests.CspEnforcementTests.AJobPage_LoadsWithoutAnyViolation",
-        "Monburan.E2ETests.CspEnforcementTests.CandidateArea_LoadsWithoutAnyViolation",
         "Monburan.E2ETests.CspEnforcementTests.AdvertiserArea_LoadsWithoutAnyViolation",
         "Monburan.E2ETests.CspEnforcementTests.AdminArea_LoadsWithoutAnyViolation",
-        "Monburan.E2ETests.CspEnforcementTests.AnInjectedInlineScript_IsReallyBlocked_ProvingThePolicyIsEnforced"
+        "Monburan.E2ETests.CspEnforcementTests.TheLayoutScripts_WorkUnderThePolicy_ThemeToggleAndMobileMenu",
+        "Monburan.E2ETests.CspEnforcementTests.CandidateArea_LoadsWithoutAnyViolation",
+        "Monburan.E2ETests.CspEnforcementTests.PublicPages_LoadWithoutAnyViolation",
+        "Monburan.E2ETests.CspEnforcementTests.AnInjectedInlineScript_IsReallyBlocked_ProvingThePolicyIsEnforced",
+        "Monburan.E2ETests.CspEnforcementTests.AJobPage_LoadsWithoutAnyViolation"
       ],
       "failed_tests": [],
       "error": null,
-      "duration_s": 24.6617583,
+      "duration_s": 26.3865129,
       "cause": null,
       "severity": null,
       "needs_human": false,
@@ -317,17 +317,17 @@
       "journey": "Interacao do shell",
       "status": "passed",
       "tests": [
-        "Monburan.E2ETests.ShellInteractionTests.Sidebar_Pin_ShouldKeepExpanded",
         "Monburan.E2ETests.ShellInteractionTests.Anonymous_Plans_ShouldShowPricesWithoutLogin",
-        "Monburan.E2ETests.ShellInteractionTests.Candidate_Plans_ShouldShowReadOnlyPrices",
-        "Monburan.E2ETests.ShellInteractionTests.Theme_Toggle_ShouldSwitchAndPersist",
         "Monburan.E2ETests.ShellInteractionTests.Logout_Button_ShouldSignOut",
-        "Monburan.E2ETests.ShellInteractionTests.Theme_ShouldPersist_AcrossInAppNavigation",
-        "Monburan.E2ETests.ShellInteractionTests.AddressCreate_WarnsBeforeLeavingWithUnsavedChanges"
+        "Monburan.E2ETests.ShellInteractionTests.Theme_Toggle_ShouldSwitchAndPersist",
+        "Monburan.E2ETests.ShellInteractionTests.Sidebar_Pin_ShouldKeepExpanded",
+        "Monburan.E2ETests.ShellInteractionTests.AddressCreate_WarnsBeforeLeavingWithUnsavedChanges",
+        "Monburan.E2ETests.ShellInteractionTests.Candidate_Plans_ShouldShowReadOnlyPrices",
+        "Monburan.E2ETests.ShellInteractionTests.Theme_ShouldPersist_AcrossInAppNavigation"
       ],
       "failed_tests": [],
       "error": null,
-      "duration_s": 46.9676518,
+      "duration_s": 15.0883793,
       "cause": null,
       "severity": null,
       "needs_human": false,
@@ -338,15 +338,15 @@
       "journey": "Varredura completa",
       "status": "passed",
       "tests": [
-        "Monburan.E2ETests.FullSweepTests.Sweep_Advertiser_AllRoutes",
-        "Monburan.E2ETests.FullSweepTests.Sweep_Candidate_AllRoutes",
         "Monburan.E2ETests.FullSweepTests.Flow_Candidate_Register_Profile_Apply",
+        "Monburan.E2ETests.FullSweepTests.Sweep_Candidate_AllRoutes",
         "Monburan.E2ETests.FullSweepTests.Flow_Advertiser_Register_Profile_CreateJob",
+        "Monburan.E2ETests.FullSweepTests.Sweep_Advertiser_AllRoutes",
         "Monburan.E2ETests.FullSweepTests.Sweep_Anonymous_AllPublicRoutes"
       ],
       "failed_tests": [],
       "error": null,
-      "duration_s": 53.3995147,
+      "duration_s": 51.993984999999995,
       "cause": null,
       "severity": null,
       "needs_human": false,
