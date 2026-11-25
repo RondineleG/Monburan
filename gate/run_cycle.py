@@ -160,6 +160,11 @@ def main() -> int:
     print(f"[gate] ciclo {attempt}: {report.approved}/{report.planned} "
           f"({report.rate:.0%}) — etapas {'OK' if all_steps_ok else 'com falha'}")
 
+    approved = (not needs_human and all_steps_ok and report.rate >= MIN_RATE)
+    # MAX_ATTEMPTS limita ciclos consecutivos reprovados: um ciclo aprovado zera o contador.
+    if approved:
+        state["attempts"] = 0
+
     (REPORTS / "e2e.json").write_text(
         report.model_dump_json(indent=2), encoding="utf-8")
     STATE.write_text(json.dumps(state, indent=2), encoding="utf-8")
