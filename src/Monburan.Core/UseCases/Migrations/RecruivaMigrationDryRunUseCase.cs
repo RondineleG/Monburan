@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 using Monburan.Core.Interfaces.UseCases;
 using Monburan.Core.Requests;
@@ -111,9 +112,10 @@ public sealed class BuildRecruivaMigrationDryRunUseCase : IUseCase<RecruivaMigra
             problems.Add(new("orphan", "job", job.SourceId, "Vaga referencia empresa inexistente na exportação."));
         foreach (var resume in request.Resumes.Where(resume => !candidates.Contains(resume.CandidateSourceId)))
             problems.Add(new("orphan", "resume", resume.SourceId, "Currículo referencia candidato inexistente na exportação."));
+        var resumesBySourceId = request.Resumes.ToDictionary(resume => resume.SourceId, StringComparer.Ordinal);
         foreach (var application in request.Applications)
         {
-            var linkedResume = request.Resumes.FirstOrDefault(resume => resume.SourceId == application.ResumeSourceId);
+            resumesBySourceId.TryGetValue(application.ResumeSourceId ?? string.Empty, out var linkedResume);
             if (linkedResume is not null && linkedResume.CandidateSourceId != application.CandidateSourceId)
                 problems.Add(new("collision", "application", application.SourceId, "Candidatura referencia currículo de outro candidato."));
             if (!candidates.Contains(application.CandidateSourceId))
@@ -176,12 +178,21 @@ public sealed class BuildRecruivaMigrationDryRunUseCase : IUseCase<RecruivaMigra
         return new Guid(bytes);
     }
 
+    private static readonly JsonSerializerOptions HashJsonOptions = new() { Converters = { new UtcDateTimeJsonConverter() } };
+
     private static string HashRows<T>(IReadOnlyList<T> rows) where T : RecruivaSourceRow
     {
         var ordered = rows.OrderBy(row => row.SourceId, StringComparer.Ordinal).ToArray();
-        var json = JsonSerializer.Serialize(ordered);
+        var json = JsonSerializer.Serialize(ordered, HashJsonOptions);
         return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(json))).ToLowerInvariant();
     }
+}
+
+file sealed class UtcDateTimeJsonConverter : JsonConverter<DateTime>
+{
+    public override DateTime Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options) => reader.GetDateTime();
+    public override void Write(Utf8JsonWriter writer, DateTime value, JsonSerializerOptions options) =>
+        writer.WriteStringValue(value.Kind == DateTimeKind.Unspecified ? DateTime.SpecifyKind(value, DateTimeKind.Utc) : value.ToUniversalTime());
 }
 
 public abstract record RecruivaSourceRow
