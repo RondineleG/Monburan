@@ -21,6 +21,7 @@ if (args[0] == "apply")
     if (string.IsNullOrWhiteSpace(connection)) return Usage("Defina MONBURAN_MIGRATION_CONNECTION no ambiente.");
     if (Path.GetFullPath(input) == Path.GetFullPath(output)) return Usage("A saída precisa ser diferente da exportação de entrada.");
     Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(output))!);
+    if (File.Exists(output)) return Usage("A saída já existe; artefatos de migração são imutáveis, escolha outro arquivo.");
     var export = await ReadJson<RecruivaMigrationExport>(input);
     var dryRunResult = await new BuildRecruivaMigrationDryRunUseCase().ExecuteAsync(export);
     if (dryRunResult.Status != EResultStatus.Success || dryRunResult.Data is null)
@@ -43,6 +44,7 @@ if (args[0] == "rollback")
     if (string.IsNullOrWhiteSpace(connection)) return Usage("Defina MONBURAN_MIGRATION_CONNECTION no ambiente.");
     if (Path.GetFullPath(reportPath) == Path.GetFullPath(output)) return Usage("A saída precisa ser diferente do relatório de aplicação.");
     Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(output))!);
+    if (File.Exists(output)) return Usage("A saída já existe; artefatos de migração são imutáveis, escolha outro arquivo.");
     var applyReport = await ReadJson<RecruivaMigrationApplyReport>(reportPath);
     var options = new DbContextOptionsBuilder<ApplicationDbContext>().UseNpgsql(connection).Options;
     await using var context = new ApplicationDbContext(options);
@@ -61,6 +63,8 @@ if (result.Status != EResultStatus.Success || result.Data is null)
     return Usage(result.Message);
 if (Path.GetFullPath(args[1]) == Path.GetFullPath(args[3]))
     return Usage("A saída precisa ser diferente da exportação de entrada para não sobrescrever a origem.");
+if (File.Exists(args[3]))
+    return Usage("A saída já existe; artefatos de migração são imutáveis, escolha outro arquivo.");
 await File.WriteAllTextAsync(args[3], JsonSerializer.Serialize(result.Data, jsonOptions) + Environment.NewLine);
 Console.WriteLine(result.Data.CanConfirm ? $"Dry-run reconciliado: {result.Data.Counts.Values.Sum()} registros, versão {result.Data.Version}." : $"Dry-run bloqueado: {result.Data.Problems.Count} problema(s); origem e destino não foram alterados.");
 return result.Data.CanConfirm ? 0 : 2;
