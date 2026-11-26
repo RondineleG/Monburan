@@ -82,7 +82,7 @@
                             <ul class="small mt-1">
                                 @foreach (var edu in snapshot.EducationHistory)
                                 {
-                                    <li>@edu.Course — @edu.Institution (@edu.Level, @edu.Status)</li>
+                                    <li>@edu.Course — @edu.Institution (@UiLabels.EducationLevel(edu.Level), @UiLabels.EducationStatus(edu.Status))</li>
                                 }
                             </ul>
                         </details>
@@ -98,7 +98,7 @@
                     {
                         <details class="applicant-resume__details">
                             <summary>Idiomas (@snapshot.Languages.Count)</summary>
-                            <p class="small mt-1">@string.Join(" · ", snapshot.Languages.Select(l => $"{l.Language} ({l.Level})"))</p>
+                            <p class="small mt-1">@string.Join(" · ", snapshot.Languages.Select(l => $"{l.Language} ({UiLabels.LanguageLevel(l.Level)})"))</p>
                         </details>
                     }
                 }
