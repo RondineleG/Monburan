@@ -137,7 +137,7 @@
                                         <td data-label="Ações">
                                             @* Divulgação simples (botão + lista), não role="menu": Tab percorre as ações e Esc fecha *@
                                             <div class="job-actions" @onkeydown="OnMenuKeyDown">
-                                                <a class="btn btn-outline-secondary btn-sm" href="/vagas/@job/editar.Id" data-testid="my-job-edit"
+                                                <a class="btn btn-outline-secondary btn-sm" href="/vagas/@job.Id/editar" data-testid="my-job-edit"
                                                    aria-label="Editar a vaga @job.Title">Editar</a>
                                                 <button type="button"
                                                         id="job-actions-@job.Id"
