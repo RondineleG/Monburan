@@ -17,5 +17,6 @@ public class ApplicationResponse
     public DateTime? RejectedAt { get; set; }
     public string? Notes { get; set; }
     public Guid? ResumeId { get; set; }
+    public ApplicationResumeSnapshot? ResumeSnapshot { get; set; }
     public DateTime CreatedAt { get; set; }
 }

@@ -54,6 +54,7 @@ public class CreateApplicationUseCase : IUseCase<CreateApplicationRequest, Appli
             return RequestResult<ApplicationResponse>.WithDomainError("Esta vaga recebe candidaturas fora da Monburan. Use o canal indicado na vaga.");
 
         // Currículo anexado deve existir e pertencer ao candidato
+        Resume? resume = null;
         if (request.ResumeId.HasValue)
         {
             var resumeResult = await _resumeRepository.GetByIdAsync(Id.Create(request.ResumeId.Value), cancellationToken);
@@ -63,6 +64,8 @@ public class CreateApplicationUseCase : IUseCase<CreateApplicationRequest, Appli
                 return RequestResult<ApplicationResponse>.WithValidationError(
                     "Currículo não encontrado.", nameof(request.ResumeId));
             }
+
+            resume = resumeResult.Data;
         }
 
         // Criar candidatura
@@ -75,6 +78,7 @@ public class CreateApplicationUseCase : IUseCase<CreateApplicationRequest, Appli
             AppliedAt = DateTime.UtcNow,
             Notes = request.Notes,
             ResumeId = request.ResumeId,
+            ResumeSnapshotJson = resume is null ? null : ApplicationResumeSnapshotMapper.Serialize(resume),
             TenantId = "default"
         };
 
@@ -142,6 +146,7 @@ public class CreateApplicationUseCase : IUseCase<CreateApplicationRequest, Appli
         Status = app.Status.ToString(),
         AppliedAt = app.AppliedAt,
         ResumeId = app.ResumeId,
+        ResumeSnapshot = ApplicationResumeSnapshotMapper.Deserialize(app.ResumeSnapshotJson),
         ViewedAt = app.ViewedAt,
         SelectedAt = app.SelectedAt,
         RejectedAt = app.RejectedAt,

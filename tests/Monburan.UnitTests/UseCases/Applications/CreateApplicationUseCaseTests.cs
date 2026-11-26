@@ -18,6 +18,7 @@ namespace Monburan.UnitTests.UseCases.Applications;
 public class CreateApplicationUseCaseTests
 {
     private readonly IBaseRepository<Application> _applications = Substitute.For<IBaseRepository<Application>>();
+    private readonly IBaseRepository<Resume> _resumes = Substitute.For<IBaseRepository<Resume>>();
     private readonly IJobRepository _jobs = Substitute.For<IJobRepository>();
     private readonly IApplicationStatusHistoryRepository _history = Substitute.For<IApplicationStatusHistoryRepository>();
     private readonly Guid _candidateId = Guid.NewGuid();
@@ -43,7 +44,7 @@ public class CreateApplicationUseCaseTests
         _useCase = new CreateApplicationUseCase(
             _applications,
             _jobs,
-            Substitute.For<IBaseRepository<Resume>>(),
+            _resumes,
             _history,
             notifications,
             Substitute.For<ILogger<CreateApplicationUseCase>>());
@@ -141,4 +142,63 @@ public class CreateApplicationUseCaseTests
         await _jobs.Received(1).IncrementApplicationsAsync(_jobId);
         await _jobs.DidNotReceive().UpdateAsync(Arg.Any<Job>());
     }
+    [Fact]
+    public async Task ExecuteAsync_WhenResumeIsAttached_PersistsImmutableSnapshot()
+    {
+        var resumeId = Guid.NewGuid();
+        var resume = new Resume
+        {
+            Id = Id.Create(resumeId),
+            CandidateId = Id.Create(_candidateId),
+            Title = "Currículo original",
+            Summary = "Resumo antes da candidatura",
+            IsActive = true,
+            Skills =
+            [
+                new ResumeSkill { Skill = "Atendimento", Level = "Avançado", YearsOfExperience = 4 }
+            ],
+            ExperienceHistory =
+            [
+                new Experience { Company = "Empresa A", Position = "Auxiliar", StartDate = new DateTime(2022, 1, 1), IsCurrent = true }
+            ]
+        };
+        _resumes.GetByIdAsync(Arg.Any<Id>()).Returns(RequestResult<Resume>.Success(resume));
+        var request = Request();
+        request.ResumeId = resumeId;
+
+        var result = await _useCase.ExecuteAsync(request);
+
+        resume.Title = "Currículo editado depois";
+        resume.Summary = "Resumo editado depois";
+
+        result.Status.Should().Be(EResultStatus.Success);
+        result.Data!.ResumeSnapshot.Should().NotBeNull();
+        result.Data.ResumeSnapshot!.ResumeId.Should().Be(resumeId);
+        result.Data.ResumeSnapshot.Title.Should().Be("Currículo original");
+        result.Data.ResumeSnapshot.Summary.Should().Be("Resumo antes da candidatura");
+        result.Data.ResumeSnapshot.Skills.Should().ContainSingle(s => s.Skill == "Atendimento");
+        result.Data.ResumeSnapshot.ExperienceHistory.Should().ContainSingle(e => e.Company == "Empresa A");
+        await _applications.Received(1).CreateAsync(Arg.Is<Application>(a =>
+            a.ResumeSnapshotJson != null && a.ResumeSnapshotJson.Contains("Resumo antes da candidatura")));
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_WhenResumeBelongsToAnotherCandidate_RefusesTheApplication()
+    {
+        var resumeId = Guid.NewGuid();
+        _resumes.GetByIdAsync(Arg.Any<Id>()).Returns(RequestResult<Resume>.Success(new Resume
+        {
+            Id = Id.Create(resumeId),
+            CandidateId = Id.Create(Guid.NewGuid()),
+            Title = "Currículo de outra pessoa"
+        }));
+        var request = Request();
+        request.ResumeId = resumeId;
+
+        var result = await _useCase.ExecuteAsync(request);
+
+        result.Status.Should().Be(EResultStatus.HasValidation);
+        await _applications.DidNotReceive().CreateAsync(Arg.Any<Application>());
+    }
+
 }

@@ -66,6 +66,9 @@ public class ResumeRepository : IResumeRepository
         var resume = await context.Resumes
             .AsNoTracking()
             .Include(r => r.Candidate)
+            .Include(r => r.EducationHistory)
+            .Include(r => r.ExperienceHistory)
+            .Include(r => r.Languages)
             .Include(r => r.Skills)
             .FirstOrDefaultAsync(r => r.Id == id && !r.IsDeleted, cancellationToken);
 

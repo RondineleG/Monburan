@@ -1,3 +1,4 @@
+using System.Text.Json;
 using FluentAssertions;
 
 using Microsoft.EntityFrameworkCore;
@@ -97,6 +98,33 @@ public class ApplicationRepositoryPostgresTests : IClassFixture<PostgresDatabase
 
         second.Status.Should().Be(Core.Enums.EResultStatus.Success,
             "a regra de duplicidade ignora a candidatura removida, então o índice também precisa ignorar");
+    }
+
+    [Fact]
+    public async Task CreateAsync_PersistsTheResumeSnapshotInJsonb()
+    {
+        await using var context = _database.CreateContext();
+        await context.Database.MigrateAsync();
+        var (candidateId, jobId) = await SeedAsync(context);
+        const string snapshot = """{"resumeId":"11111111-1111-1111-1111-111111111111","title":"Currículo original","summary":"Resumo imutável"}""";
+
+        var repository = new ApplicationRepository(_database.ContextFactory);
+        var created = await repository.CreateAsync(new Application
+        {
+            Id = Id.Create(Guid.NewGuid()),
+            CandidateId = Id.Create(candidateId),
+            JobId = Id.Create(jobId),
+            Status = EApplicationStatus.Sent,
+            ResumeSnapshotJson = snapshot,
+            TenantId = "default"
+        });
+
+        created.Status.Should().Be(Core.Enums.EResultStatus.Success);
+        var stored = await repository.GetByIdAsync(created.Data!.Id);
+        using var expected = JsonDocument.Parse(snapshot);
+        using var actual = JsonDocument.Parse(stored.Data!.ResumeSnapshotJson!);
+        actual.RootElement.GetProperty("title").GetString().Should().Be("Currículo original");
+        actual.RootElement.GetProperty("summary").GetString().Should().Be("Resumo imutável");
     }
 
     [Fact]

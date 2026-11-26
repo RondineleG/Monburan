@@ -27,6 +27,9 @@ public class ApplicationConfiguration : IEntityTypeConfiguration<Application>
         builder.Property(a => a.ResumeId)
             .HasColumnType("uuid");
 
+        builder.Property(a => a.ResumeSnapshotJson)
+            .HasColumnType("jsonb");
+
         builder.Property(a => a.AppliedAt)
             .HasDefaultValueSql("now()");
 

@@ -25,6 +25,9 @@ public class Application : BaseEntity
     /// <summary>Currículo anexado à candidatura (FK lógica para Resume, sem cascata).</summary>
     public Guid? ResumeId { get; set; }
 
+    /// <summary>Fotografia imutável do currículo enviado na candidatura, serializada em JSON.</summary>
+    public string? ResumeSnapshotJson { get; set; }
+
     public DateTime? RejectedAt { get; set; }
 
     public DateTime? SelectedAt { get; set; }

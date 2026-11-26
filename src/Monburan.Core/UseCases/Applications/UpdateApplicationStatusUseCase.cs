@@ -121,6 +121,7 @@ public class UpdateApplicationStatusUseCase : IUseCase<UpdateApplicationStatusRe
         Status = app.Status.ToString(),
         AppliedAt = app.AppliedAt,
         ResumeId = app.ResumeId,
+        ResumeSnapshot = ApplicationResumeSnapshotMapper.Deserialize(app.ResumeSnapshotJson),
         ViewedAt = app.ViewedAt,
         SelectedAt = app.SelectedAt,
         RejectedAt = app.RejectedAt,

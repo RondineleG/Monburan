@@ -66,28 +66,28 @@ public class ApplicationStatusHistoryBackfillTests : IClassFixture<PostgresDatab
                     {DateTime.UtcNow.AddDays(30)}, 'Active', {DateTime.UtcNow}, 'teste', '', false, 'default', '')
             """);
 
-        var application = new Application
-        {
-            Id = Id.Create(Guid.NewGuid()),
-            CandidateId = Id.Create(candidateId),
-            JobId = Id.Create(jobId),
-            Status = EApplicationStatus.Selected,
-            TenantId = "default"
-        };
-        context.Applications.Add(application);
-        await context.SaveChangesAsync();
+        // A candidatura também entra por SQL: o modelo atual já conhece colunas novas
+        // (como o snapshot do currículo) que ainda não existem neste ponto da migration.
+        var applicationId = Guid.NewGuid();
+        var appliedAt = DateTime.UtcNow;
+        await context.Database.ExecuteSqlAsync(
+            $"""
+            INSERT INTO "Applications" ("Id", "CandidateId", "JobId", "Status", "CreatedAt", "CreatedBy",
+                                        "DeletedBy", "IsDeleted", "TenantId", "UpdatedBy")
+            VALUES ({applicationId}, {candidateId}, {jobId}, 'Selected', {appliedAt}, 'teste', '', false, 'default', '')
+            """);
 
         // Agora sim: aplica a migration com o backfill
         await migrator.MigrateAsync(null);
 
         await using var check = _database.CreateContext();
         var history = await check.ApplicationStatusHistory.AsNoTracking()
-            .Where(item => item.ApplicationId == application.Id)
+            .Where(item => item.ApplicationId == Id.Create(applicationId))
             .ToListAsync();
 
         history.Should().ContainSingle("cada candidatura existente recebe uma linha");
         history[0].Status.Should().Be(EApplicationStatus.Selected);
-        history[0].Date.Should().BeCloseTo(application.CreatedAt, TimeSpan.FromMilliseconds(1), "a data da etapa é a data da candidatura");
+        history[0].Date.Should().BeCloseTo(appliedAt, TimeSpan.FromMilliseconds(1), "a data da etapa é a data da candidatura");
     }
 
     [Fact]
