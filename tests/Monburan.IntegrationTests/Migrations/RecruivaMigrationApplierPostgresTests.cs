@@ -40,7 +40,7 @@ public sealed class RecruivaMigrationApplierPostgresTests : IClassFixture<Postgr
         applied.Applied.Should().BeTrue(string.Join(';', applied.Problems.Select(p => p.Message)));
         (await context.Users.CountAsync()).Should().Be(1);
         var token = await context.Set<IdentityUserToken<Guid>>().SingleAsync();
-        token.LoginProvider.Should().Be("Authenticator");
+        token.LoginProvider.Should().Be("[AspNetUserStore]");
         token.Name.Should().Be("AuthenticatorKey");
         token.Value.Should().Be("secret-fixture");
         (await context.Candidates.CountAsync()).Should().Be(1);
@@ -86,7 +86,7 @@ public sealed class RecruivaMigrationApplierPostgresTests : IClassFixture<Postgr
     private static RecruivaMigrationExport Export(string hash, int size) => new()
     {
         TenantId = "default",
-        Users = [new() { SourceId = "user-1", UserName = "cand-mig@teste.com", NormalizedUserName = "CAND-MIG@TESTE.COM", Email = "cand-mig@teste.com", NormalizedEmail = "CAND-MIG@TESTE.COM", EmailConfirmed = true, PasswordHash = "hash-fixture", SecurityStamp = Guid.NewGuid().ToString("N"), ConcurrencyStamp = Guid.NewGuid().ToString("N"), FirstName = "Candidata", LastName = "Fixture", IsActive = true, CanMigrate = true, CreatedAtUtc = DateTime.UtcNow, Tokens = [new() { LoginProvider = "Authenticator", Name = "AuthenticatorKey", Value = "secret-fixture" }] }],
+        Users = [new() { SourceId = "user-1", UserName = "cand-mig@teste.com", NormalizedUserName = "CAND-MIG@TESTE.COM", Email = "cand-mig@teste.com", NormalizedEmail = "CAND-MIG@TESTE.COM", EmailConfirmed = true, PasswordHash = "hash-fixture", SecurityStamp = Guid.NewGuid().ToString("N"), ConcurrencyStamp = Guid.NewGuid().ToString("N"), FirstName = "Candidata", LastName = "Fixture", IsActive = true, CanMigrate = true, CreatedAtUtc = DateTime.UtcNow, Tokens = [new() { LoginProvider = "[AspNetUserStore]", Name = "AuthenticatorKey", Value = "secret-fixture" }] }],
         Candidates = [new() { SourceId = "cand-1", Email = "cand-mig@teste.com", Name = "Candidata", Status = "Active", CanMigrate = true, CreatedAtUtc = DateTime.UtcNow }],
         Advertisers = [new() { SourceId = "adv-1", Email = "adv-mig@teste.com", Name = "Empresa", Status = "Active", CanMigrate = true, CreatedAtUtc = DateTime.UtcNow }],
         Jobs = [new() { SourceId = "job-1", AdvertiserSourceId = "adv-1", Title = "Vaga", Status = "Active", Description = "Descrição", ExpirationDateUtc = DateTime.UtcNow.AddDays(30), CreatedAtUtc = DateTime.UtcNow }],

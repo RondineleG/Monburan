@@ -39,7 +39,7 @@ public static class RecruivaMigrationApplier
         if (problems.Count != 0)
         {
             CleanupNewFiles(files);
-            return Report(batch, false, dryRun, problems, files, DatabaseKey(context));
+            return Report(batch, false, dryRun, problems, files, await DatabaseKeyAsync(context, cancellationToken));
         }
 
         await using var transaction = context.Database.IsRelational() ? await context.Database.BeginTransactionAsync(cancellationToken) : null;
@@ -106,7 +106,7 @@ public static class RecruivaMigrationApplier
             }, row.CreatedAtUtc, null)));
             await context.SaveChangesAsync(cancellationToken);
             if (transaction is not null) await transaction.CommitAsync(cancellationToken);
-            return Report(batch, true, dryRun, [], files, DatabaseKey(context));
+            return Report(batch, true, dryRun, [], files, await DatabaseKeyAsync(context, cancellationToken));
         }
         catch
         {
@@ -122,7 +122,7 @@ public static class RecruivaMigrationApplier
             throw new InvalidOperationException("Relatório não representa um lote aplicado; rollback recusado.");
         if (string.IsNullOrWhiteSpace(applyReport.DatabaseKey))
             throw new InvalidOperationException("Relatório sem identificação do banco; rollback recusado antes de tocar em registros ou arquivos.");
-        if (applyReport.DatabaseKey != DatabaseKey(context))
+        if (applyReport.DatabaseKey != await DatabaseKeyAsync(context, cancellationToken))
             throw new InvalidOperationException("Relatório pertence a outro banco; rollback recusado antes de tocar em registros ou arquivos.");
         await using var transaction = context.Database.IsRelational() ? await context.Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken) : null;
         await GuardPostMigrationDependenciesAsync(context, applyReport, cancellationToken);
@@ -259,10 +259,22 @@ public static class RecruivaMigrationApplier
         foreach (var file in files.Where(file => file.Copied && File.Exists(file.TargetPath))) File.Delete(file.TargetPath);
     }
 
-    private static string DatabaseKey(ApplicationDbContext context)
+    private static async Task<string> DatabaseKeyAsync(ApplicationDbContext context, CancellationToken cancellationToken)
     {
         var connection = context.Database.GetDbConnection();
-        return string.IsNullOrWhiteSpace(connection.Database) ? string.Empty : $"{connection.DataSource}|{connection.Database}";
+        var close = connection.State != ConnectionState.Open;
+        if (close) await connection.OpenAsync(cancellationToken);
+        try
+        {
+            await using var command = connection.CreateCommand();
+            command.CommandText = "SELECT current_database()";
+            var database = Convert.ToString(await command.ExecuteScalarAsync(cancellationToken)) ?? string.Empty;
+            return $"{connection.DataSource}|{database}";
+        }
+        finally
+        {
+            if (close) await connection.CloseAsync();
+        }
     }
 
     private static T Audit<T>(T entity, DateTime? created, DateTime? updated) where T : BaseEntity
