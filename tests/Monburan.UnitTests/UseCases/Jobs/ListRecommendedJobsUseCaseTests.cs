@@ -141,6 +141,22 @@ public class ListRecommendedJobsUseCaseTests
     }
 
     [Fact]
+    public async Task ExecuteAsync_WithoutPersonalization_OrdersADraftByWhenItBecamePublic()
+    {
+        var now = DateTime.UtcNow;
+        var oldDraftPublishedNow = WithCreatedAt(JobOf("Rascunho publicado agora"), now.AddDays(-30));
+        oldDraftPublishedNow.PublishedAt = now.AddMinutes(-1);
+        var newerDraftPublishedBefore = WithCreatedAt(JobOf("Vaga publicada antes"), now.AddDays(-2));
+        newerDraftPublishedBefore.PublishedAt = now.AddDays(-1);
+        ReturnsJobs(newerDraftPublishedBefore, oldDraftPublishedNow);
+        EnableExplanation();
+
+        var result = await _useCase.ExecuteAsync(_candidateId);
+
+        result.Data!.Jobs.Select(job => job.Title).Should().Equal("Rascunho publicado agora", "Vaga publicada antes");
+    }
+
+    [Fact]
     public async Task ExecuteAsync_WithoutProfileAndWithoutSkills_KeepsTheListEmptyWhenTheFeatureIsOff()
     {
         ReturnsJobs(JobOf("Vaga recente"));

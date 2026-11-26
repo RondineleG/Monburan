@@ -87,10 +87,10 @@ public class ListRecommendedJobsUseCase : IUseCase<Guid, ListJobsResponse>
             ? candidates
                 .Where(item => item.Evaluation.Score > 0)
                 .OrderByDescending(item => item.Evaluation.Score)
-                .ThenByDescending(item => item.Job.CreatedAt)
+                .ThenByDescending(item => item.Job.PublishedAt ?? item.Job.CreatedAt)
                 .ThenBy(item => item.Job.Id.Value)
             : candidates
-                .OrderByDescending(item => item.Job.CreatedAt)
+                .OrderByDescending(item => item.Job.PublishedAt ?? item.Job.CreatedAt)
                 .ThenBy(item => item.Job.Id.Value);
 
         var jobs = ranked
