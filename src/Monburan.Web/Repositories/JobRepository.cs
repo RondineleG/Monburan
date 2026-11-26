@@ -278,7 +278,10 @@ public class JobRepository : IJobRepository
                 .Where(revision => revision.JobId == job.Id)
                 .Select(revision => (int?)revision.Revision)
                 .MaxAsync(cancellationToken);
-            var revision = JobRevision.Capture(job, (latest ?? 0) + 1, action, actorId);
+            var snapshot = attempt == 0
+                ? job
+                : await context.Jobs.AsNoTracking().FirstAsync(item => item.Id == job.Id, cancellationToken);
+            var revision = JobRevision.Capture(snapshot, (latest ?? 0) + 1, action, actorId);
             context.JobRevisions.Add(revision);
 
             // A vaga já foi gravada pelo fluxo chamador; salvar a revisão não pode regravar
@@ -342,7 +345,7 @@ public class JobRepository : IJobRepository
     /// atualização geral da vaga de propósito: são campos da administração, e uma edição
     /// da empresa não pode sobrescrever o que a administração gravou.
     /// </summary>
-    public async Task<RequestResult<Job>> UpdateModerationAsync(Job job, CancellationToken cancellationToken = default)
+    public async Task<RequestResult<Job>> UpdateModerationAsync(Job job, CancellationToken cancellationToken = default, EJobRevisionAction revisionAction = EJobRevisionAction.Moderated)
     {
         await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);
         var tracked = await context.Jobs.FirstOrDefaultAsync(item => item.Id == job.Id, cancellationToken);
@@ -358,7 +361,7 @@ public class JobRepository : IJobRepository
         tracked.Moderation.ModerationDate = job.Moderation.ModerationDate;
 
         await context.SaveChangesAsync(cancellationToken);
-        await SaveRevisionAsync(context, tracked, EJobRevisionAction.Moderated, job.Moderation.ModeratorId ?? job.UpdatedBy, cancellationToken);
+        await SaveRevisionAsync(context, tracked, revisionAction, job.Moderation.ModeratorId ?? job.UpdatedBy, cancellationToken);
         return RequestResult<Job>.Success(tracked);
     }
 

@@ -233,6 +233,15 @@ public class AdminAccountServiceApiTests : IClassFixture<ImmediateRevalidationAp
 
         var againPublic = await _factory.CreateClient().GetFromJsonAsync<ListJobsResponse>("/api/v1/jobs?size=100");
         againPublic!.Jobs.Should().Contain(job => job.AdvertiserId == advertiser.Id.Value && job.Title.StartsWith("Vaga ativa A"));
+
+        await using var check = await _factory.Services.GetRequiredService<IDbContextFactory<ApplicationDbContext>>().CreateDbContextAsync();
+        var revisionsA = await check.JobRevisions.AsNoTracking()
+            .Where(revision => revision.JobId == restored["A"].Id)
+            .OrderBy(revision => revision.Revision)
+            .ToListAsync();
+        revisionsA.Select(revision => revision.Revision).Should().Equal(Enumerable.Range(1, revisionsA.Count));
+        revisionsA.Should().Contain(revision => revision.Action == EJobRevisionAction.Moderated && revision.ActorId == Moderator.Id);
+        revisionsA.Should().Contain(revision => revision.Action == EJobRevisionAction.StatusChanged && revision.ActorId == Moderator.Id);
     }
 
     [Fact]

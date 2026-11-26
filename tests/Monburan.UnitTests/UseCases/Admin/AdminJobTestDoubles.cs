@@ -151,7 +151,7 @@ internal sealed class FakeJobRepository : IJobRepository
         return Task.FromResult(RequestResult<bool>.Success(true));
     }
 
-    public Task<RequestResult<Job>> UpdateModerationAsync(Job job, CancellationToken cancellationToken = default)
+    public Task<RequestResult<Job>> UpdateModerationAsync(Job job, CancellationToken cancellationToken = default, EJobRevisionAction revisionAction = EJobRevisionAction.Moderated)
     {
         var tracked = _jobs.FirstOrDefault(item => item.Id == job.Id && !item.IsDeleted);
         if (tracked is null)

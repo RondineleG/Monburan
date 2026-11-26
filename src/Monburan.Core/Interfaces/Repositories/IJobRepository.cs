@@ -74,5 +74,5 @@ public interface IJobRepository : IBaseRepository<Job>
     /// pela administração não ficar pela metade. Fica fora da atualização geral da vaga: uma edição
     /// da empresa não pode sobrescrever o que a administração gravou.
     /// </summary>
-    Task<RequestResult<Job>> UpdateModerationAsync(Job job, CancellationToken cancellationToken = default);
+    Task<RequestResult<Job>> UpdateModerationAsync(Job job, CancellationToken cancellationToken = default, EJobRevisionAction revisionAction = EJobRevisionAction.Moderated);
 }

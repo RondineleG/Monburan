@@ -341,6 +341,13 @@ public class JobRepositoryPostgresTests : IClassFixture<PostgresDatabase>
         var finalJob = await finalCheck.Jobs.AsNoTracking().SingleAsync(job => job.Id == Id.Create(jobId));
         finalJob.Status.Should().Be(EJobStatus.Active, "edição de conteúdo não pode voltar a vaga para rascunho");
         finalJob.Title.Should().Be("Edição iniciada antes da publicação");
+
+        var revisions = await finalCheck.JobRevisions.AsNoTracking()
+            .Where(revision => revision.JobId == Id.Create(jobId))
+            .OrderBy(revision => revision.Revision)
+            .ToListAsync();
+        revisions.Select(revision => revision.Revision).Should().Equal(Enumerable.Range(1, revisions.Count));
+        revisions.Select(revision => revision.Action).Should().Contain([EJobRevisionAction.Updated, EJobRevisionAction.StatusChanged]);
     }
 
 }
