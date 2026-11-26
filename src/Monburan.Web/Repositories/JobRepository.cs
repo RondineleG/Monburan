@@ -345,7 +345,7 @@ public class JobRepository : IJobRepository
     /// atualização geral da vaga de propósito: são campos da administração, e uma edição
     /// da empresa não pode sobrescrever o que a administração gravou.
     /// </summary>
-    public async Task<RequestResult<Job>> UpdateModerationAsync(Job job, CancellationToken cancellationToken = default, EJobRevisionAction revisionAction = EJobRevisionAction.Moderated)
+    public async Task<RequestResult<Job>> UpdateModerationAsync(Job job, CancellationToken cancellationToken = default, EJobRevisionAction revisionAction = EJobRevisionAction.Moderated, bool updateExpirationDate = true)
     {
         await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);
         var tracked = await context.Jobs.FirstOrDefaultAsync(item => item.Id == job.Id, cancellationToken);
@@ -353,7 +353,8 @@ public class JobRepository : IJobRepository
             return RequestResult<Job>.EntityNotFound("Job", job.Id.Value, "Vaga não encontrada.");
 
         tracked.Status = job.Status;
-        tracked.ExpirationDate = job.ExpirationDate;
+        if (updateExpirationDate)
+            tracked.ExpirationDate = job.ExpirationDate;
         tracked.Moderation ??= new ModerationInfo();
         tracked.Moderation.Status = job.Moderation!.Status;
         tracked.Moderation.Reason = job.Moderation.Reason;

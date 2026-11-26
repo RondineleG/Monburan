@@ -571,7 +571,7 @@ public sealed class AdminAccountService
         // Cada vaga passa pelo repositório: ele recarrega o conteúdo atual, grava moderação/status e
         // repete a numeração da revisão se uma edição concorrente ocupar o próximo número primeiro.
         foreach (var (job, action) in jobChanges)
-            await _jobs.UpdateModerationAsync(job, revisionAction: action);
+            await _jobs.UpdateModerationAsync(job, revisionAction: action, updateExpirationDate: false);
     }
 
     private Task RecordAsync(string action, AdminActor actor, ApplicationUser user, string? details = null) =>
