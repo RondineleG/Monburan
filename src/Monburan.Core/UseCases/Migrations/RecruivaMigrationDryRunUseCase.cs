@@ -249,6 +249,14 @@ public sealed record RecruivaUserExport : RecruivaSourceRow
     public DateTime? CreatedAtUtc { get; init; }
     public DateTime? LastLoginAtUtc { get; init; }
     public bool? CanMigrate { get; init; }
+    public IReadOnlyList<RecruivaUserTokenExport> Tokens { get; init; } = [];
+}
+
+public sealed record RecruivaUserTokenExport
+{
+    public required string LoginProvider { get; init; }
+    public required string Name { get; init; }
+    public string? Value { get; init; }
 }
 
 public sealed record RecruivaCandidateExport : RecruivaSourceRow

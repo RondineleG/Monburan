@@ -2,6 +2,7 @@ using System.Data;
 using System.Security.Cryptography;
 using System.Text;
 
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
 using Monburan.Core.Entities;
@@ -60,6 +61,10 @@ public static class RecruivaMigrationApplier
                 FirstName = row.FirstName, LastName = row.LastName, IsActive = row.IsActive, ProfilePicture = row.ProfilePicture,
                 CreatedAt = row.CreatedAtUtc, LastLoginAt = row.LastLoginAtUtc, MigrationBatchId = batch
             }));
+            context.Set<IdentityUserToken<Guid>>().AddRange(export.Users.SelectMany(row => row.Tokens.Select(token => new IdentityUserToken<Guid>
+            {
+                UserId = dryRun.IdMap[$"user:{row.SourceId}"], LoginProvider = token.LoginProvider, Name = token.Name, Value = token.Value
+            })));
             context.Candidates.AddRange(export.Candidates.Select(row => Audit(new Candidate
             {
                 Id = Id.Create(dryRun.IdMap[$"candidate:{row.SourceId}"]), TenantId = export.TenantId, CreatedBy = marker,
