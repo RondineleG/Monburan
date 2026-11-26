@@ -24,6 +24,8 @@ Oitava fatia, de M03: a moderação de sugestões passa a expor a proveniência 
 
 Nona fatia, de M07: o cliente tipado do app passa a cobrir os PUTs de alteração de status de vaga e candidatura. Os testes de contrato executam esses métodos contra a API real em TestServer, provando verbo, rota, payload, desserialização e preservação da razão de erro do servidor; sessão expirada/refresh e resposta não-JSON continuam cobertos.
 
+Endurecimento posterior à revisão: as escritas de conteúdo, situação e moderação da mesma vaga passaram a ser serializadas no PostgreSQL por bloqueio da linha dentro da transação. Assim a revisão seguinte fotografa o estado já combinado da operação anterior, sem ordenação falsa nem mistura de ação/ator sob corrida. Um teste dedicado de edição contra moderação comprova a fotografia final consistente. A geração de rascunho por IA também descarta retorno tardio quando o moderador troca de sugestão, e sua proveniência fica atrás da flag `proveniencia-rascunho-vaga`.
+
 ## Validação
 
 Comandos com `export PATH="$HOME/.dotnet:$PATH"`:
@@ -36,10 +38,10 @@ dotnet test tests/Monburan.UnitTests/Monburan.UnitTests.csproj --configuration R
 # 1348 passed, 0 failed
 
 dotnet test tests/Monburan.IntegrationTests/Monburan.IntegrationTests.csproj --configuration Release -v:q
-# 77 passed, 0 failed
+# 79 passed, 0 failed
 
 dotnet test tests/Monburan.ApiTests/Monburan.ApiTests.csproj --configuration Release -v:q
-# 282 passed, 0 failed; inclui round-trip API com flag ligada, reenvio idempotente, transição inválida sem histórico e recomendação explicável
+# 283 passed, 0 failed; inclui contrato mobile de PUT de status, moderação de contas e fluxos anteriores
 ```
 
 A solução completa não é buildável nesta VM porque `Monburan.Mobile` exige workload `maui-android`; não foi instalado workload novo nem usado serviço externo.
