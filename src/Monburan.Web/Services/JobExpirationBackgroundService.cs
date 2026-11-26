@@ -124,6 +124,13 @@ public class JobExpirationBackgroundService : BackgroundService
                     continue;
                 }
 
+                if (updateResult.Data?.Status != EJobStatus.Expired)
+                {
+                    _logger.LogInformation("Vaga {JobId} mudou para {Status} durante a expiração; aviso de expirada não será enviado.",
+                        job.Id.Value, updateResult.Data?.Status);
+                    continue;
+                }
+
                 // Enviar email para anunciante
                 var notifyResult = await notifyOnJobExpiredUseCase.ExecuteAsync(new NotifyOnJobExpiredRequest(job.Id.Value), cancellationToken);
                 if (notifyResult.Status != EResultStatus.Success)

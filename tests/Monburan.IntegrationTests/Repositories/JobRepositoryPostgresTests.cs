@@ -163,6 +163,7 @@ public class JobRepositoryPostgresTests : IClassFixture<PostgresDatabase>
             Description = "Edição iniciada antes do encerramento",
             ExpirationDate = DateTime.UtcNow.AddDays(30),
             Status = EJobStatus.Active,
+            UpdatedBy = advertiserId.ToString(),
             TenantId = "default"
         };
         var repository = new JobRepository(_database.ContextFactory);
@@ -174,6 +175,7 @@ public class JobRepositoryPostgresTests : IClassFixture<PostgresDatabase>
         var stored = await check.Jobs.AsNoTracking().SingleAsync(job => job.Id == Id.Create(jobId));
         stored.Status.Should().Be(EJobStatus.Closed);
         stored.Title.Should().Be("Edição concorrente");
+        stored.UpdatedBy.Should().Be(advertiserId.ToString());
     }
 
 }

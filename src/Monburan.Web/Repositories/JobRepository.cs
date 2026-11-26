@@ -186,6 +186,7 @@ public class JobRepository : IJobRepository
         if (tracked.Status != EJobStatus.Closed)
             tracked.Status = entity.Status;
         tracked.AdvertiserId = entity.AdvertiserId;
+        tracked.UpdatedBy = entity.UpdatedBy;
 
         CopyLocation(tracked.Location, entity.Location);
         CopySalary(tracked.Salary, entity.Salary);

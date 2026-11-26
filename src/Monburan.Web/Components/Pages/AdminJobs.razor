@@ -130,11 +130,11 @@
                         {
                             <button type="button" class="btn btn-outline-secondary btn-sm" @onclick="PauseAsync" disabled="@busy" data-testid="job-pause">Pausar</button>
                         }
-                        @if (selected.Status != "Hidden")
+                        @if (selected.Status is not "Hidden" and not "Closed")
                         {
                             <button type="button" class="btn btn-outline-danger btn-sm" @onclick="() => StartReason(PendingAction.Hide)" disabled="@busy" data-testid="job-hide">Ocultar</button>
                         }
-                        @if (selected.Status != "Rejected")
+                        @if (selected.Status is not "Rejected" and not "Closed")
                         {
                             <button type="button" class="btn btn-outline-danger btn-sm" @onclick="() => StartReason(PendingAction.Reject)" disabled="@busy" data-testid="job-reject">Reprovar</button>
                         }
