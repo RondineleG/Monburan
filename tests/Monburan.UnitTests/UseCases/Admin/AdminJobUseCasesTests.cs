@@ -305,7 +305,7 @@ public class AdminListJobsUseCaseTests
         result.Data!.TotalCount.Should().Be(4);
         result.Data.StatusCounts.Should().Equal(new Dictionary<string, int>
         {
-            ["Active"] = 2, ["Expired"] = 0, ["Hidden"] = 1, ["Rejected"] = 0, ["Paused"] = 1
+            ["Active"] = 2, ["Expired"] = 0, ["Hidden"] = 1, ["Rejected"] = 0, ["Paused"] = 1, ["Closed"] = 0
         });
     }
 

@@ -14,6 +14,8 @@ Terceira fatia, de M04: a recomendação passa a calcular não só a pontuação
 
 Quarta fatia, de M06: alertas de vagas passam a carregar `JobAlertId` e `JobId` na notificação, com índice único parcial para deduplicar regra/vaga mesmo sob repetição ou concorrência. A avaliação consulta a deduplicação antes de criar `NewJob`; vaga inativa/expirada continua sem gerar alerta.
 
+Quinta fatia, de M02: o ciclo de vida do anunciante ganha `Closed` como encerramento terminal, separado de pausa, expiração e exclusão. Vaga ativa, pausada ou expirada pode ser encerrada; encerrada sai da busca e não pode ser reativada. A tela Minhas vagas passa a ter aba de encerradas e ação confirmada de encerramento.
+
 ## Validação
 
 Comandos com `export PATH="$HOME/.dotnet:$PATH"`:
@@ -23,7 +25,7 @@ dotnet build src/Monburan.Web/Monburan.Web.csproj --configuration Release -v:q
 # 0 warnings, 0 errors
 
 dotnet test tests/Monburan.UnitTests/Monburan.UnitTests.csproj --configuration Release -v:q
-# 1336 passed, 0 failed
+# 1339 passed, 0 failed
 
 dotnet test tests/Monburan.IntegrationTests/Monburan.IntegrationTests.csproj --configuration Release -v:q
 # 71 passed, 0 failed

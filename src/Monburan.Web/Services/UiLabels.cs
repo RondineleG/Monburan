@@ -41,6 +41,7 @@ public static class UiLabels
     {
         "Active" => "Ativa",
         "Expired" => "Expirada",
+        "Closed" => "Encerrada",
         "Hidden" => "Oculta",
         "Rejected" => "Reprovada",
         "Paused" => "Pausada",
@@ -52,6 +53,7 @@ public static class UiLabels
     {
         "Active" => "Ativas",
         "Expired" => "Expiradas",
+        "Closed" => "Encerradas",
         "Hidden" => "Ocultas",
         "Rejected" => "Reprovadas",
         "Paused" => "Pausadas",

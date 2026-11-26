@@ -68,6 +68,41 @@ public class ChangeJobStatusUseCaseTests
         result.Message.Should().Contain("5 vagas ativas");
     }
 
+
+    [Fact]
+    public async Task Close_ActiveJob_Succeeds()
+    {
+        var job = Arrange(EJobStatus.Active, DateTime.UtcNow.AddDays(10));
+
+        var result = await _useCase.ExecuteAsync(new ChangeJobStatusRequest(job.Id.Value, _advertiserId, EJobStatus.Closed));
+
+        result.Status.Should().Be(EResultStatus.Success);
+        result.Data!.Status.Should().Be("Closed");
+    }
+
+    [Fact]
+    public async Task Close_ExpiredJob_SucceedsWithoutPlanLimitCheck()
+    {
+        var job = Arrange(EJobStatus.Expired, DateTime.UtcNow.AddDays(-2));
+        _jobQueries.CountActiveByAdvertiserAsync(_advertiserId).Returns(5);
+
+        var result = await _useCase.ExecuteAsync(new ChangeJobStatusRequest(job.Id.Value, _advertiserId, EJobStatus.Closed));
+
+        result.Status.Should().Be(EResultStatus.Success);
+        result.Data!.Status.Should().Be("Closed");
+    }
+
+    [Fact]
+    public async Task Reactivate_ClosedJob_IsRejected()
+    {
+        var job = Arrange(EJobStatus.Closed, DateTime.UtcNow.AddDays(10));
+
+        var result = await _useCase.ExecuteAsync(new ChangeJobStatusRequest(job.Id.Value, _advertiserId, EJobStatus.Active));
+
+        result.Status.Should().Be(EResultStatus.DomainError);
+        await _jobs.DidNotReceive().UpdateAsync(Arg.Any<Job>());
+    }
+
     [Fact]
     public async Task JobOfAnotherAdvertiser_IsReportedAsNotFound()
     {
