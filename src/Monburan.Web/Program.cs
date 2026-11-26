@@ -459,6 +459,7 @@ builder.Services.AddScoped<ExtractJobDraftUseCase>();
 // Registrar CurrentUserHelper
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<CircuitUserAccessor>();
+builder.Services.AddScoped<Monburan.Core.Interfaces.Services.ICurrentPrincipalAccessor, CurrentUserPrincipalAccessor>();
 builder.Services.TryAddEnumerable(ServiceDescriptor.Scoped<Microsoft.AspNetCore.Components.Server.Circuits.CircuitHandler, UserCircuitHandler>());
 builder.Services.AddScoped<CurrentUserHelper>();
 builder.Services.AddScoped<ICurrentUserHelper>(services =>

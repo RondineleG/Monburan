@@ -1,6 +1,5 @@
 using Monburan.Core.DTOs.Request;
 using Monburan.Core.Interfaces.Repositories;
-using Monburan.Core.Interfaces.Services;
 using Monburan.Core.UseCases.Applications;
 using Monburan.Core.UseCases.Jobs;
 using Monburan.Web.Services;
@@ -17,9 +16,7 @@ public static class ApplicationEndpoints
         // IDOR-safe: CandidateId sempre da claim, nunca do body
         group.MapPost("/", async (
             CreateApplicationRequest request,
-            HttpContext http,
             ICurrentUserHelper currentUser,
-            IFeatureFlags featureFlags,
             CreateApplicationUseCase useCase,
             CancellationToken cancellationToken) =>
         {
@@ -28,8 +25,6 @@ public static class ApplicationEndpoints
                 return Results.Problem(statusCode: StatusCodes.Status403Forbidden, title: "Perfil de candidato necessário");
 
             request.CandidateId = candidateId.Value;
-            request.CaptureResumeSnapshot = await featureFlags.IsEnabledAsync(
-                CreateApplicationUseCase.ResumeSnapshotFeature, http.User, cancellationToken);
             var result = await useCase.ExecuteAsync(request, cancellationToken);
             return result.ToHttpResult(StatusCodes.Status201Created);
         })

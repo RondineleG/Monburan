@@ -1,3 +1,5 @@
+using System.Security.Claims;
+
 using FluentAssertions;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
@@ -21,6 +23,8 @@ public class CreateApplicationUseCaseTests
     private readonly IBaseRepository<Resume> _resumes = Substitute.For<IBaseRepository<Resume>>();
     private readonly IJobRepository _jobs = Substitute.For<IJobRepository>();
     private readonly IApplicationStatusHistoryRepository _history = Substitute.For<IApplicationStatusHistoryRepository>();
+    private readonly IFeatureFlags _featureFlags = Substitute.For<IFeatureFlags>();
+    private readonly ICurrentPrincipalAccessor _currentPrincipal = Substitute.For<ICurrentPrincipalAccessor>();
     private readonly Guid _candidateId = Guid.NewGuid();
     private readonly Guid _jobId = Guid.NewGuid();
     private readonly CreateApplicationUseCase _useCase;
@@ -41,12 +45,16 @@ public class CreateApplicationUseCaseTests
             new CreateNotificationUseCase(Substitute.For<IBaseRepository<Notification>>()),
             Substitute.For<ILogger<NotifyOnApplicationCreatedUseCase>>());
 
+        _currentPrincipal.User.Returns(new ClaimsPrincipal(new ClaimsIdentity("teste")));
+        _featureFlags.IsEnabledAsync(CreateApplicationUseCase.ResumeSnapshotFeature, Arg.Any<ClaimsPrincipal?>(), Arg.Any<CancellationToken>()).Returns(false);
         _useCase = new CreateApplicationUseCase(
             _applications,
             _jobs,
             _resumes,
             _history,
             notifications,
+            _featureFlags,
+            _currentPrincipal,
             Substitute.For<ILogger<CreateApplicationUseCase>>());
     }
 
@@ -165,7 +173,7 @@ public class CreateApplicationUseCaseTests
         _resumes.GetByIdAsync(Arg.Any<Id>()).Returns(RequestResult<Resume>.Success(resume));
         var request = Request();
         request.ResumeId = resumeId;
-        request.CaptureResumeSnapshot = true;
+        _featureFlags.IsEnabledAsync(CreateApplicationUseCase.ResumeSnapshotFeature, Arg.Any<ClaimsPrincipal?>(), Arg.Any<CancellationToken>()).Returns(true);
 
         var result = await _useCase.ExecuteAsync(request);
 

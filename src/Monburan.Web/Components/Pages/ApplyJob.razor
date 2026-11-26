@@ -4,7 +4,6 @@
 @using Monburan.Core.DTOs.Request
 @using Monburan.Core.DTOs.Response
 @using Monburan.Core.Enums
-@using Monburan.Core.Interfaces.Services
 @using Monburan.Core.Requests
 @using Monburan.Core.UseCases.Applications
 @using Monburan.Core.UseCases.Jobs
@@ -16,8 +15,6 @@
 @inject ApplicationLookupService ApplicationLookup
 @inject ILogger<ApplyJob> Logger
 @inject ICurrentUserHelper CurrentUserHelper
-@inject IFeatureFlags FeatureFlags
-@inject AuthenticationStateProvider AuthenticationStateProvider
 @inject NavigationManager Navigation
 @inject IToastService Toast
 @inject IJSRuntime JS
@@ -364,10 +361,6 @@
 
         isSubmitting = true;
         errorMessage = string.Empty;
-
-        var user = (await AuthenticationStateProvider.GetAuthenticationStateAsync()).User;
-        model.CaptureResumeSnapshot = await FeatureFlags.IsEnabledAsync(
-            CreateApplicationUseCase.ResumeSnapshotFeature, user);
 
         var result = await CreateApplicationUseCase.ExecuteAsync(model);
 

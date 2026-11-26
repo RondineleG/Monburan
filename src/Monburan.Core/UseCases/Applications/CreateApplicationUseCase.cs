@@ -6,6 +6,7 @@ using Monburan.Core.Entities;
 using Monburan.Core.Enums;
 using Monburan.Core.Interfaces.Repositories;
 using Monburan.Core.Interfaces.Repositories.Base;
+using Monburan.Core.Interfaces.Services;
 using Monburan.Core.Interfaces.UseCases;
 using Monburan.Core.Requests;
 using Monburan.Core.UseCases.Notifications;
@@ -22,6 +23,8 @@ public class CreateApplicationUseCase : IUseCase<CreateApplicationRequest, Appli
     private readonly IBaseRepository<Resume> _resumeRepository;
     private readonly IApplicationStatusHistoryRepository _historyRepository;
     private readonly NotifyOnApplicationCreatedUseCase _notifyOnCreatedUseCase;
+    private readonly IFeatureFlags _featureFlags;
+    private readonly ICurrentPrincipalAccessor _currentPrincipal;
     private readonly ILogger<CreateApplicationUseCase> _logger;
 
     public CreateApplicationUseCase(
@@ -30,6 +33,8 @@ public class CreateApplicationUseCase : IUseCase<CreateApplicationRequest, Appli
         IBaseRepository<Resume> resumeRepository,
         IApplicationStatusHistoryRepository historyRepository,
         NotifyOnApplicationCreatedUseCase notifyOnCreatedUseCase,
+        IFeatureFlags featureFlags,
+        ICurrentPrincipalAccessor currentPrincipal,
         ILogger<CreateApplicationUseCase> logger)
     {
         _applicationRepository = applicationRepository;
@@ -37,6 +42,8 @@ public class CreateApplicationUseCase : IUseCase<CreateApplicationRequest, Appli
         _resumeRepository = resumeRepository;
         _historyRepository = historyRepository;
         _notifyOnCreatedUseCase = notifyOnCreatedUseCase;
+        _featureFlags = featureFlags;
+        _currentPrincipal = currentPrincipal;
         _logger = logger;
     }
 
@@ -71,6 +78,9 @@ public class CreateApplicationUseCase : IUseCase<CreateApplicationRequest, Appli
         }
 
         // Criar candidatura
+        var captureResumeSnapshot = resume is not null && await _featureFlags.IsEnabledAsync(
+            ResumeSnapshotFeature, _currentPrincipal.User, cancellationToken);
+
         var application = new Application
         {
             Id = Id.Create(Guid.NewGuid()),
@@ -80,7 +90,7 @@ public class CreateApplicationUseCase : IUseCase<CreateApplicationRequest, Appli
             AppliedAt = DateTime.UtcNow,
             Notes = request.Notes,
             ResumeId = request.ResumeId,
-            ResumeSnapshotJson = resume is null || !request.CaptureResumeSnapshot ? null : ApplicationResumeSnapshotMapper.Serialize(resume),
+            ResumeSnapshotJson = resume is null || !captureResumeSnapshot ? null : ApplicationResumeSnapshotMapper.Serialize(resume),
             TenantId = "default"
         };
 
