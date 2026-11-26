@@ -8,6 +8,7 @@
 @using Monburan.Web.Services
 @inject GetJobByIdUseCase GetJobByIdUseCase
 @inject UpdateJobUseCase UpdateJobUseCase
+@inject ListJobRevisionsUseCase ListJobRevisionsUseCase
 @inject ICurrentUserHelper CurrentUserHelper
 @inject NavigationManager Navigation
 @inject IToastService Toast
@@ -59,6 +60,30 @@
                 </div>
             </div>
         </div>
+
+        <FeatureGate Feature="@ListJobRevisionsUseCase.JobHistoryFeature">
+            <section class="card page-form-card mt-4" aria-labelledby="job-revisions-title" data-testid="job-revisions">
+                <div class="card-body">
+                    <h2 id="job-revisions-title" class="h5">Histórico da vaga</h2>
+                    @if (revisions.Count == 0)
+                    {
+                        <p class="text-muted mb-0">Nenhuma revisão registrada ainda.</p>
+                    }
+                    else
+                    {
+                        <ul class="list-group list-group-flush">
+                            @foreach (var revision in revisions)
+                            {
+                                <li class="list-group-item px-0">
+                                    <strong>#@revision.Revision</strong> — @RevisionAction(revision.Action) · situação @RevisionStatus(revision.Status) · @Actor(revision.ActorKind)
+                                    <div class="text-muted small">@UiLabels.FormatMoment(revision.CreatedAt)</div>
+                                </li>
+                            }
+                        </ul>
+                    }
+                </div>
+            </section>
+        </FeatureGate>
     }
 </div>
 
@@ -73,6 +98,7 @@
     private bool isJobOwner;
     private bool isSubmitting;
     private string? companyName;
+    private IReadOnlyList<JobRevisionResponse> revisions = [];
     private JobWizard wizard = default!;
 
     protected override async Task OnInitializedAsync() => await LoadAsync();
@@ -107,6 +133,11 @@
         }
 
         companyName = job.AdvertiserName;
+        var revisionsResult = await ListJobRevisionsUseCase.ExecuteAsync(new ListJobRevisionsRequest(JobId, advertiserId!.Value));
+        revisions = revisionsResult.Status == EResultStatus.Success && revisionsResult.Data is not null
+            ? revisionsResult.Data
+            : [];
+
         // Vaga antiga com categoria em texto livre e sem contrato/período continua editável
         draft = new CreateJobRequest
         {
@@ -193,6 +224,35 @@
 
         isSubmitting = false;
     }
+
+    private static string RevisionAction(string action) => action switch
+    {
+        "Created" => "criação",
+        "Updated" => "edição",
+        "StatusChanged" => "mudança de situação",
+        "Moderated" => "moderação",
+        _ => action.ToLowerInvariant()
+    };
+
+    private static string RevisionStatus(string status) => status switch
+    {
+        "Draft" => "rascunho",
+        "Active" => "ativa",
+        "Paused" => "pausada",
+        "Expired" => "expirada",
+        "Hidden" => "oculta",
+        "Rejected" => "rejeitada",
+        "Closed" => "encerrada",
+        _ => status
+    };
+
+    private static string Actor(string actorKind) => actorKind switch
+    {
+        "Advertiser" => "pela empresa",
+        "Admin" => "pela administração",
+        "System" => "pelo sistema",
+        _ => actorKind
+    };
 
     private void Cancel()
     {

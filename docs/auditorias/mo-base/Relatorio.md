@@ -18,7 +18,7 @@ Quinta fatia, de M02: o ciclo de vida do anunciante ganha `Closed` como encerram
 
 Sexta fatia, ainda de M02: criação, edição e mudança de situação passam a carimbar autoria do anunciante em `CreatedBy`/`UpdatedBy`. O encerramento ficou atrás da flag `encerramento-vaga`, a administração não reabre vaga encerrada e uma edição concorrente não desfaz o encerramento no repositório.
 
-Sétima fatia, de M02: a vaga ganha `Draft` atrás da flag `rascunho-vaga`. Rascunho não consome vaga ativa nem dispara alertas; a publicação posterior passa pelo limite do plano e então avalia alertas. Minhas vagas ganha aba de rascunhos e ação de publicação, e a API recebe `PUT /jobs/{id}/status` para o mesmo ciclo no mobile. O repositório protege encerramento e moderação em atualização condicional no PostgreSQL, preservando autoria e evitando confirmação falsa quando a moderação vence a corrida. A publicação passou a ter data própria (`PublishedAt`), edição e mudança de situação foram separadas para não se sobrescreverem, rascunho só é publicado pelo dono com rollout, e a API de status tem rollout próprio. Criação, edição, mudança de situação e moderação gravam revisões imutáveis com snapshot jsonb e autoria traduzida por papel na API protegida por `historico-vaga`.
+Sétima fatia, de M02: a vaga ganha `Draft` atrás da flag `rascunho-vaga`. Rascunho não consome vaga ativa nem dispara alertas; a publicação posterior passa pelo limite do plano e então avalia alertas. Minhas vagas ganha aba de rascunhos e ação de publicação, e a API recebe `PUT /jobs/{id}/status` para o mesmo ciclo no mobile. O repositório protege encerramento e moderação em atualização condicional no PostgreSQL, preservando autoria e evitando confirmação falsa quando a moderação vence a corrida. A publicação passou a ter data própria (`PublishedAt`), edição e mudança de situação foram separadas para não se sobrescreverem, rascunho só é publicado pelo dono com rollout, e a API de status tem rollout próprio. Criação, edição, mudança de situação e moderação gravam revisões imutáveis com snapshot jsonb e autoria traduzida por papel na API e na tela de edição, ambas protegidas por `historico-vaga` com checagem também no caso de uso.
 
 ## Validação
 
@@ -29,7 +29,7 @@ dotnet build src/Monburan.Web/Monburan.Web.csproj --configuration Release -v:q
 # 0 warnings, 0 errors
 
 dotnet test tests/Monburan.UnitTests/Monburan.UnitTests.csproj --configuration Release -v:q
-# 1339 passed, 0 failed
+# 1348 passed, 0 failed
 
 dotnet test tests/Monburan.IntegrationTests/Monburan.IntegrationTests.csproj --configuration Release -v:q
 # 71 passed, 0 failed

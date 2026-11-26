@@ -4,6 +4,7 @@ using Monburan.Core.DTOs.Response;
 using Monburan.Core.Entities;
 using Monburan.Core.Enums;
 using Monburan.Core.Interfaces.Repositories;
+using Monburan.Core.Interfaces.Services;
 using Monburan.Core.Interfaces.UseCases;
 using Monburan.Core.Requests;
 using Monburan.Core.ValueObjects;
@@ -16,14 +17,22 @@ public sealed class ListJobRevisionsUseCase : IUseCase<ListJobRevisionsRequest, 
     public const string JobHistoryFeature = "historico-vaga";
 
     private readonly IJobRepository _jobs;
+    private readonly IFeatureFlags _featureFlags;
+    private readonly ICurrentPrincipalAccessor _currentPrincipal;
 
-    public ListJobRevisionsUseCase(IJobRepository jobs)
+    public ListJobRevisionsUseCase(IJobRepository jobs, IFeatureFlags featureFlags, ICurrentPrincipalAccessor currentPrincipal)
     {
         _jobs = jobs;
+        _featureFlags = featureFlags;
+        _currentPrincipal = currentPrincipal;
     }
 
     public async Task<RequestResult<IReadOnlyList<JobRevisionResponse>>> ExecuteAsync(ListJobRevisionsRequest request, CancellationToken cancellationToken = default)
     {
+        var enabled = await _featureFlags.IsEnabledAsync(JobHistoryFeature, _currentPrincipal.User, cancellationToken);
+        if (!enabled)
+            return RequestResult<IReadOnlyList<JobRevisionResponse>>.WithDomainError("O histórico de revisões ainda não está liberado para esta conta.");
+
         var jobResult = await _jobs.GetByIdAsync(Id.Create(request.JobId), cancellationToken);
         if (jobResult.Status != EResultStatus.Success || jobResult.Data is null)
             return RequestResult<IReadOnlyList<JobRevisionResponse>>.FromResult(jobResult);
