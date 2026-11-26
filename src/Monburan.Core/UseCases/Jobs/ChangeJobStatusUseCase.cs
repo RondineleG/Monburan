@@ -2,6 +2,7 @@ using Monburan.Core.DTOs.Response;
 using Monburan.Core.Entities;
 using Monburan.Core.Enums;
 using Monburan.Core.Interfaces.Repositories.Base;
+using Monburan.Core.Interfaces.Services;
 using Monburan.Core.Interfaces.UseCases;
 using Monburan.Core.Mappers;
 using Monburan.Core.Requests;
@@ -18,13 +19,22 @@ public sealed record ChangeJobStatusRequest(Guid JobId, Guid AdvertiserId, EJobS
 /// </summary>
 public sealed class ChangeJobStatusUseCase : IUseCase<ChangeJobStatusRequest, JobResponse>
 {
+    public const string CloseJobFeature = "encerramento-vaga";
     private readonly IBaseRepository<Job> _jobRepository;
     private readonly CheckJobLimitUseCase _checkJobLimit;
+    private readonly IFeatureFlags _featureFlags;
+    private readonly ICurrentPrincipalAccessor _currentPrincipal;
 
-    public ChangeJobStatusUseCase(IBaseRepository<Job> jobRepository, CheckJobLimitUseCase checkJobLimit)
+    public ChangeJobStatusUseCase(
+        IBaseRepository<Job> jobRepository,
+        CheckJobLimitUseCase checkJobLimit,
+        IFeatureFlags featureFlags,
+        ICurrentPrincipalAccessor currentPrincipal)
     {
         _jobRepository = jobRepository;
         _checkJobLimit = checkJobLimit;
+        _featureFlags = featureFlags;
+        _currentPrincipal = currentPrincipal;
     }
 
     public async Task<RequestResult<JobResponse>> ExecuteAsync(ChangeJobStatusRequest request, CancellationToken cancellationToken = default)
@@ -47,8 +57,15 @@ public sealed class ChangeJobStatusUseCase : IUseCase<ChangeJobStatusRequest, Jo
         if (request.NewStatus == EJobStatus.Paused && job.Status != EJobStatus.Active)
             return RequestResult<JobResponse>.WithDomainError("Só é possível pausar vagas ativas.");
 
-        if (request.NewStatus == EJobStatus.Closed && job.Status is not (EJobStatus.Active or EJobStatus.Paused or EJobStatus.Expired))
-            return RequestResult<JobResponse>.WithDomainError("Esta vaga não pode ser encerrada.");
+        if (request.NewStatus == EJobStatus.Closed)
+        {
+            if (job.Status is not (EJobStatus.Active or EJobStatus.Paused or EJobStatus.Expired))
+                return RequestResult<JobResponse>.WithDomainError("Esta vaga não pode ser encerrada.");
+
+            var enabled = await _featureFlags.IsEnabledAsync(CloseJobFeature, _currentPrincipal.User, cancellationToken);
+            if (!enabled)
+                return RequestResult<JobResponse>.WithDomainError("O encerramento de vagas ainda não está liberado para esta conta.");
+        }
 
         if (request.NewStatus == EJobStatus.Active)
         {
@@ -71,6 +88,7 @@ public sealed class ChangeJobStatusUseCase : IUseCase<ChangeJobStatusRequest, Jo
         }
 
         job.Status = request.NewStatus;
+        job.UpdatedBy = request.AdvertiserId.ToString();
         var updateResult = await _jobRepository.UpdateAsync(job, cancellationToken);
         if (updateResult.Status != EResultStatus.Success)
             return RequestResult<JobResponse>.FromResult(updateResult);

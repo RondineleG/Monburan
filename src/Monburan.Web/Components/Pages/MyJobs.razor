@@ -171,7 +171,7 @@
                                                         }
                                                         @if (job.Status is "Active" or "Paused" or "Expired")
                                                         {
-                                                            <li><button type="button" class="job-actions__item job-actions__item--danger" @onclick="() => CloseAsync(job)" disabled="@(changingId == job.Id)" data-testid="my-job-close">Encerrar</button></li>
+                                                            <li><FeatureGate Feature="encerramento-vaga"><button type="button" class="job-actions__item job-actions__item--danger" @onclick="() => CloseAsync(job)" disabled="@(changingId == job.Id)" data-testid="my-job-close">Encerrar</button></FeatureGate></li>
                                                         }
                                                         <li>
                                                             <button type="button" class="job-actions__item job-actions__item--danger"

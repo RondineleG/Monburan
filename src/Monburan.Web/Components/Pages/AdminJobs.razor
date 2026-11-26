@@ -122,7 +122,7 @@
                         <a class="btn btn-outline-secondary btn-sm" href="/jobs/@selected.Id" target="_blank" rel="noopener" data-testid="job-open">
                             Abrir a página da vaga <Icon Name="external" Size="14" /><span class="visually-hidden"> (abre em nova aba)</span>
                         </a>
-                        @if (selected.Status != "Active")
+                        @if (selected.Status is not "Active" and not "Closed")
                         {
                             <button type="button" class="btn btn-primary btn-sm" @onclick="StartActivation" disabled="@busy" data-testid="job-activate">@(selected.Status == "Paused" ? "Reativar" : "Aprovar e ativar")</button>
                         }

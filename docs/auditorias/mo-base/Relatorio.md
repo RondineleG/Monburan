@@ -16,6 +16,8 @@ Quarta fatia, de M06: alertas de vagas passam a carregar `JobAlertId` e `JobId` 
 
 Quinta fatia, de M02: o ciclo de vida do anunciante ganha `Closed` como encerramento terminal, separado de pausa, expiração e exclusão. Vaga ativa, pausada ou expirada pode ser encerrada; encerrada sai da busca e não pode ser reativada. A tela Minhas vagas passa a ter aba de encerradas e ação confirmada de encerramento.
 
+Sexta fatia, ainda de M02: criação, edição e mudança de situação passam a carimbar autoria do anunciante em `CreatedBy`/`UpdatedBy`. O encerramento ficou atrás da flag `encerramento-vaga`, a administração não reabre vaga encerrada e uma edição concorrente não desfaz o encerramento no repositório.
+
 ## Validação
 
 Comandos com `export PATH="$HOME/.dotnet:$PATH"`:

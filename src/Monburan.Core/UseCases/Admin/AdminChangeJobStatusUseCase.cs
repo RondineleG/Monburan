@@ -66,6 +66,9 @@ public sealed class AdminChangeJobStatusUseCase : IUseCase<AdminChangeJobStatusR
             return RequestResult<AdminJobResponse>.EntityNotFound("Job", request.JobId, "Vaga não encontrada.");
 
         var job = found.Data;
+        if (job.Status == EJobStatus.Closed)
+            return RequestResult<AdminJobResponse>.WithDomainError("Vaga encerrada é terminal e não pode mudar de situação pela administração.");
+
         var now = _time.GetUtcNow().UtcDateTime;
         var today = now.Date;
         var previous = job.Status;

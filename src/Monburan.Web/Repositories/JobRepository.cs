@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 
 using Monburan.Core.DTOs.Response;
 using Monburan.Core.Entities;
+using Monburan.Core.Enums;
 using Monburan.Core.Interfaces.Repositories;
 using Monburan.Core.Interfaces.Repositories.Base;
 using Monburan.Core.Requests;
@@ -181,7 +182,9 @@ public class JobRepository : IJobRepository
         tracked.Tags = entity.Tags;
         tracked.ContractType = entity.ContractType;
         tracked.ExpirationDate = entity.ExpirationDate;
-        tracked.Status = entity.Status;
+        // Encerramento é terminal: uma edição montada antes do encerramento não pode reabrir a vaga.
+        if (tracked.Status != EJobStatus.Closed)
+            tracked.Status = entity.Status;
         tracked.AdvertiserId = entity.AdvertiserId;
 
         CopyLocation(tracked.Location, entity.Location);

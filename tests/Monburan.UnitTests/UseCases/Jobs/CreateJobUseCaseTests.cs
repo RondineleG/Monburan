@@ -145,7 +145,8 @@ public class CreateJobUseCaseTests
         result.Data.SalaryMax.Should().Be(8000);
 
         _mockValidator.Received(1).Validate(Arg.Any<Job>());
-        await _mockRepository.Received(1).CreateAsync(Arg.Any<Job>());
+        await _mockRepository.Received(1).CreateAsync(Arg.Is<Job>(job =>
+            job.CreatedBy == request.AdvertiserId.ToString() && job.UpdatedBy == request.AdvertiserId.ToString()));
         await _mockAlerts.Received(1).ListActiveAsync();
     }
 

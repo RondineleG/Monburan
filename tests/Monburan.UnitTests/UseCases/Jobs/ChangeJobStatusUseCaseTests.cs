@@ -4,6 +4,7 @@ using Monburan.Core.Entities;
 using Monburan.Core.Enums;
 using Monburan.Core.Interfaces.Repositories;
 using Monburan.Core.Interfaces.Repositories.Base;
+using Monburan.Core.Interfaces.Services;
 using Monburan.Core.Requests;
 using Monburan.Core.UseCases.Jobs;
 using Monburan.Core.UseCases.Subscriptions;
@@ -30,7 +31,9 @@ public class ChangeJobStatusUseCaseTests
         _jobQueries.CountActiveByAdvertiserAsync(Arg.Any<Guid>()).Returns(1);
 
         _jobs.UpdateAsync(Arg.Any<Job>()).Returns(call => RequestResult<Job>.Success(call.Arg<Job>()));
-        _useCase = new ChangeJobStatusUseCase(_jobs, new CheckJobLimitUseCase(subscriptions, plans, _jobQueries));
+        var flags = Substitute.For<IFeatureFlags>();
+        flags.IsEnabledAsync(Arg.Any<string>(), Arg.Any<System.Security.Claims.ClaimsPrincipal?>(), Arg.Any<CancellationToken>()).Returns(true);
+        _useCase = new ChangeJobStatusUseCase(_jobs, new CheckJobLimitUseCase(subscriptions, plans, _jobQueries), flags, Substitute.For<ICurrentPrincipalAccessor>());
     }
 
     [Fact]
@@ -42,6 +45,7 @@ public class ChangeJobStatusUseCaseTests
 
         result.Status.Should().Be(EResultStatus.Success);
         result.Data!.Status.Should().Be("Paused");
+        job.UpdatedBy.Should().Be(_advertiserId.ToString());
     }
 
     [Fact]
@@ -98,6 +102,23 @@ public class ChangeJobStatusUseCaseTests
         var job = Arrange(EJobStatus.Closed, DateTime.UtcNow.AddDays(10));
 
         var result = await _useCase.ExecuteAsync(new ChangeJobStatusRequest(job.Id.Value, _advertiserId, EJobStatus.Active));
+
+        result.Status.Should().Be(EResultStatus.DomainError);
+        await _jobs.DidNotReceive().UpdateAsync(Arg.Any<Job>());
+    }
+
+
+    [Fact]
+    public async Task Close_WhenFeatureIsDisabled_IsRejected()
+    {
+        var job = Arrange(EJobStatus.Active, DateTime.UtcNow.AddDays(10));
+        var flags = Substitute.For<IFeatureFlags>();
+        flags.IsEnabledAsync(Arg.Any<string>(), Arg.Any<System.Security.Claims.ClaimsPrincipal?>(), Arg.Any<CancellationToken>()).Returns(false);
+        var subscriptions = Substitute.For<ISubscriptionRepository>();
+        var plans = Substitute.For<IBaseRepository<SubscriptionPlan>>();
+        var useCase = new ChangeJobStatusUseCase(_jobs, new CheckJobLimitUseCase(subscriptions, plans, _jobQueries), flags, Substitute.For<ICurrentPrincipalAccessor>());
+
+        var result = await useCase.ExecuteAsync(new ChangeJobStatusRequest(job.Id.Value, _advertiserId, EJobStatus.Closed));
 
         result.Status.Should().Be(EResultStatus.DomainError);
         await _jobs.DidNotReceive().UpdateAsync(Arg.Any<Job>());

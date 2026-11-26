@@ -145,4 +145,36 @@ public class JobRepositoryPostgresTests : IClassFixture<PostgresDatabase>
             $"""UPDATE "Jobs" SET "IsDeleted" = true WHERE "Id" IN ({older}, {newer})""");
     }
 
+    [Fact]
+    public async Task UpdateAsync_WhenStoredJobIsClosed_DoesNotReopenIt()
+    {
+        await using var context = _database.CreateContext();
+        await context.Database.MigrateAsync();
+        var advertiserId = await SeedAdvertiserAsync(context);
+        var jobId = await SeedJobAsync(context, advertiserId);
+        await context.Database.ExecuteSqlAsync(
+            $"""UPDATE "Jobs" SET "Status" = {"Closed"} WHERE "Id" = {jobId}""");
+
+        var staleEdit = new Job
+        {
+            Id = Id.Create(jobId),
+            AdvertiserId = Id.Create(advertiserId),
+            Title = "Edição concorrente",
+            Description = "Edição iniciada antes do encerramento",
+            ExpirationDate = DateTime.UtcNow.AddDays(30),
+            Status = EJobStatus.Active,
+            TenantId = "default"
+        };
+        var repository = new JobRepository(_database.ContextFactory);
+
+        var result = await repository.UpdateAsync(staleEdit);
+
+        result.Status.Should().Be(Core.Enums.EResultStatus.Success);
+        await using var check = _database.CreateContext();
+        var stored = await check.Jobs.AsNoTracking().SingleAsync(job => job.Id == Id.Create(jobId));
+        stored.Status.Should().Be(EJobStatus.Closed);
+        stored.Title.Should().Be("Edição concorrente");
+    }
+
 }
+

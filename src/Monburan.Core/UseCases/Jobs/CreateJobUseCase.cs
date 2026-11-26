@@ -57,6 +57,8 @@ public class CreateJobUseCase : IUseCase<CreateJobRequest, JobResponse>
             ExpirationDate = request.ExpirationDate,
             Status = EJobStatus.Active,
             TenantId = "default",
+            CreatedBy = request.AdvertiserId.ToString(),
+            UpdatedBy = request.AdvertiserId.ToString(),
             Location = new JobLocation
             {
                 City = request.City,

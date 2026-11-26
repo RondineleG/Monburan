@@ -57,6 +57,7 @@ public class JobResponseMapperTests
 
         // A resposta inteira é a mesma, campo a campo
         update.Data.Should().BeEquivalentTo(detail.Data);
+        job.UpdatedBy.Should().Be(job.AdvertiserId!.Value.ToString());
     }
 
     [Fact]
@@ -120,7 +121,9 @@ public class JobResponseMapperTests
         _jobRepository.UpdateAsync(Arg.Any<Job>()).Returns(call => RequestResult<Job>.Success(call.Arg<Job>()));
 
         var detail = await new GetJobByIdUseCase(_jobRepository, _savedJobs).ExecuteAsync(job.Id.Value);
-        var status = await new ChangeJobStatusUseCase(_jobRepository, JobLimitUseCase())
+        var flags = Substitute.For<Monburan.Core.Interfaces.Services.IFeatureFlags>();
+        flags.IsEnabledAsync(Arg.Any<string>(), Arg.Any<System.Security.Claims.ClaimsPrincipal?>(), Arg.Any<CancellationToken>()).Returns(true);
+        var status = await new ChangeJobStatusUseCase(_jobRepository, JobLimitUseCase(), flags, Substitute.For<Monburan.Core.Interfaces.Services.ICurrentPrincipalAccessor>())
             .ExecuteAsync(new ChangeJobStatusRequest(job.Id.Value, job.AdvertiserId!.Value, EJobStatus.Paused));
 
         status.Status.Should().Be(EResultStatus.Success);
