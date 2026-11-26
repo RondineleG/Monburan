@@ -35,3 +35,9 @@ Critério: consolidar apenas conteúdo único, ainda não mergeado e com merge l
 - `02b4dfb` 2026-11-24 — fix(testes): asserts deterministicos e tolerancia no E2E
 - `21363c0` 2026-11-24 — feat: merge feature/ui-mobile-first na feat/integracao-himarshall-vagas-int
 - `86a1ca4` 2026-11-24 — feat(ui): move publicidade local para o topo da coluna lateral da vaga
+
+## Resultado da consolidação
+
+- `feat/integracao-himarshall-vagas-int`: merge → integrated
+
+`git diff --check main...HEAD`: warnings
