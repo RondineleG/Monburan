@@ -28,13 +28,19 @@ public sealed class ApplicationSnapshotFeatureApiTests : IClassFixture<MonburanA
     [Fact]
     public async Task Apply_WhenSnapshotFeatureEnabled_RecruiterReadsOriginalAfterResumeEdit()
     {
-        await EnableSnapshotFeatureAsync();
         var advertiser = await RegisterAsync("advertiser");
         var jobId = await CreateJobAsync(advertiser.AccessToken);
+
+        await SetSnapshotFeatureGroupsAsync("recrutador");
+        var outsideCandidate = await RegisterAsync("candidate");
+        var outsideResumeId = await CreateResumeAsync(outsideCandidate.AccessToken);
+        var outsideApplicationId = await ApplyAsync(outsideCandidate.AccessToken, jobId, outsideResumeId);
+
+        await SetSnapshotFeatureGroupsAsync("candidato");
         var candidate = await RegisterAsync("candidate");
         var resumeId = await CreateResumeAsync(candidate.AccessToken);
 
-        await ApplyAsync(candidate.AccessToken, jobId, resumeId);
+        var applicationId = await ApplyAsync(candidate.AccessToken, jobId, resumeId);
         await UpdateResumeAsync(candidate.AccessToken, resumeId);
 
         using var listRequest = new HttpRequestMessage(HttpMethod.Get, $"/api/v1/jobs/{jobId}/applications");
@@ -43,34 +49,45 @@ public sealed class ApplicationSnapshotFeatureApiTests : IClassFixture<MonburanA
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         var applications = await response.Content.ReadFromJsonAsync<List<ApplicationResponse>>();
 
-        var application = applications.Should().ContainSingle().Subject;
+        applications.Should().HaveCount(2);
+        applications.Single(a => a.Id == outsideApplicationId).ResumeSnapshot.Should().BeNull(
+            "candidato fora do grupo da flag não deve capturar snapshot");
+
+        var application = applications.Single(a => a.Id == applicationId);
         application.ResumeId.Should().Be(resumeId);
         application.ResumeSnapshot.Should().NotBeNull();
         application.ResumeSnapshot!.Title.Should().Be("Currículo original");
         application.ResumeSnapshot.Summary.Should().Be("Resumo original");
     }
 
-    private async Task EnableSnapshotFeatureAsync()
+    private async Task SetSnapshotFeatureGroupsAsync(string groups)
     {
         await using var context = await _factory.Services
             .GetRequiredService<IDbContextFactory<ApplicationDbContext>>()
             .CreateDbContextAsync();
-        if (!await context.FeatureFlags.AnyAsync(f => f.Name == CreateApplicationUseCase.ResumeSnapshotFeature))
+        var flag = await context.FeatureFlags.SingleOrDefaultAsync(f => f.Name == CreateApplicationUseCase.ResumeSnapshotFeature);
+        if (flag is null)
         {
             context.FeatureFlags.Add(new FeatureFlag
             {
                 Id = Id.Create(Guid.NewGuid()),
                 Name = CreateApplicationUseCase.ResumeSnapshotFeature,
                 Description = "Guardar fotografia do currículo enviado na candidatura",
-                EnabledForEveryone = true,
-                Groups = string.Empty,
+                EnabledForEveryone = false,
+                Groups = groups,
                 TenantId = "default",
                 CreatedBy = "teste",
                 DeletedBy = string.Empty,
                 UpdatedBy = string.Empty
             });
-            await context.SaveChangesAsync();
         }
+        else
+        {
+            flag.EnabledForEveryone = false;
+            flag.Groups = groups;
+        }
+
+        await context.SaveChangesAsync();
 
         _factory.Services.GetRequiredService<IFeatureFlags>().Invalidate();
     }
@@ -123,7 +140,7 @@ public sealed class ApplicationSnapshotFeatureApiTests : IClassFixture<MonburanA
         return (await response.Content.ReadFromJsonAsync<ResumeResponse>())!.Id;
     }
 
-    private async Task ApplyAsync(string accessToken, Guid jobId, Guid resumeId)
+    private async Task<Guid> ApplyAsync(string accessToken, Guid jobId, Guid resumeId)
     {
         using var request = new HttpRequestMessage(HttpMethod.Post, "/api/v1/applications")
         {
@@ -132,6 +149,7 @@ public sealed class ApplicationSnapshotFeatureApiTests : IClassFixture<MonburanA
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
         var response = await _client.SendAsync(request);
         response.StatusCode.Should().Be(HttpStatusCode.Created);
+        return (await response.Content.ReadFromJsonAsync<ApplicationResponse>())!.Id;
     }
 
     private async Task UpdateResumeAsync(string accessToken, Guid resumeId)
