@@ -7,6 +7,7 @@ using Monburan.Core.DTOs.Request;
 using Monburan.Core.Entities;
 using Monburan.Core.Interfaces.Services;
 using Monburan.Core.UseCases.Jobs;
+using Monburan.Core.ValueObjects;
 using Monburan.Web.Data;
 using Monburan.Web.Services;
 
@@ -101,7 +102,7 @@ public static class IntegrationEndpoints
                 return Results.Problem(statusCode: StatusCodes.Status401Unauthorized, title: "Token de integração inválido, expirado ou revogado");
 
             var holderActive = await context.Candidates.AsNoTracking()
-                    .AnyAsync(candidate => candidate.Id.Value == token.CandidateId && !candidate.IsDeleted, cancellationToken)
+                    .AnyAsync(candidate => candidate.Id == Id.Create(token.CandidateId) && !candidate.IsDeleted, cancellationToken)
                 && await context.Users.AsNoTracking()
                     .AnyAsync(user => user.Id == token.UserId && user.IsActive, cancellationToken);
             if (!holderActive)

@@ -3,6 +3,7 @@ using System.Security.Cryptography;
 using Microsoft.EntityFrameworkCore;
 
 using Monburan.Core.Entities;
+using Monburan.Core.ValueObjects;
 using Monburan.Web.Data;
 
 namespace Monburan.Web.Services;
@@ -63,7 +64,7 @@ public sealed class IntegrationTokenService(ApplicationDbContext context, TimePr
     public async Task<bool> RevokeAsync(Guid id, Guid userId, CancellationToken cancellationToken)
     {
         var token = await context.IntegrationTokens
-            .SingleOrDefaultAsync(row => row.Id.Value == id && row.UserId == userId && row.RevokedAt == null, cancellationToken);
+            .SingleOrDefaultAsync(row => row.Id == Id.Create(id) && row.UserId == userId && row.RevokedAt == null, cancellationToken);
         if (token is null)
             return false;
 
