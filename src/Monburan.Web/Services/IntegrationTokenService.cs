@@ -22,8 +22,8 @@ public interface IIntegrationTokenService
         Guid userId, string name, IReadOnlyCollection<string> scopes, int expiresInDays,
         Guid? requestId = null, CancellationToken cancellationToken = default);
 
-    /// <summary>Valida o valor em claro contra um escopo exigido; devolve o token ativo ou null.</summary>
-    Task<IntegrationToken?> ValidateAsync(string rawToken, string requiredScope, CancellationToken cancellationToken = default);
+    /// <summary>Valida a credencial independentemente dos escopos; devolve o token ativo ou null.</summary>
+    Task<IntegrationToken?> ValidateAsync(string rawToken, CancellationToken cancellationToken = default);
 
     Task<IReadOnlyList<IntegrationToken>> ListAsync(Guid userId, CancellationToken cancellationToken = default);
 
@@ -71,13 +71,13 @@ public sealed class IntegrationTokenService(IIntegrationTokenRepository reposito
         return (token, rawValue);
     }
 
-    public async Task<IntegrationToken?> ValidateAsync(string rawToken, string requiredScope, CancellationToken cancellationToken = default)
+    public async Task<IntegrationToken?> ValidateAsync(string rawToken, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(rawToken) || !rawToken.StartsWith(TokenPrefix, StringComparison.Ordinal))
             return null;
 
         var token = await repository.FindByTokenHashAsync(Hash(rawToken), cancellationToken);
-        if (token is null || !token.HasScope(requiredScope))
+        if (token is null || !token.IsActive)
             return null;
 
         try { await repository.TouchLastUsedAsync(token.Id.Value, cancellationToken); }

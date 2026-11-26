@@ -19,7 +19,7 @@ Claims do *access token*: `sub`, `email`, `jti`, `iat`, `token_use=access`, os p
 
 Fora de `/api`, também anônimos: `GET /robots.txt`, `GET /sitemap.xml`, `GET /health` e `/health/live` (sem consultar o banco) e `GET /health/ready` (com o banco).
 
-As rotas `/api/v1/**` exigem `Authorization: Bearer` (policy `ApiBearer`), exceto as marcadas como anônimas na tabela abaixo. `/api/auth/*` é anônimo. As respostas são ProblemDetails; a API nunca redireciona para login em cookie.
+As rotas `/api/v1/**` exigem `Authorization: Bearer` (policy `ApiBearer`), exceto as rotas públicas e as de consulta por token pessoal indicadas abaixo. `/api/auth/*` é anônimo. As respostas são ProblemDetails; a API nunca redireciona para login em cookie.
 
 ## Endpoints `/api/v1`
 
@@ -62,6 +62,26 @@ As rotas `/api/v1/**` exigem `Authorization: Bearer` (policy `ApiBearer`), excet
 O webhook do Mercado Pago é `POST /api/v1/webhooks/mercadopago` (sem bearer; valida `x-signature`). A ativação acontece
 somente após o evento de pagamento autorizado ser consultado no provedor e conferido com o valor/ciclo do plano. A
 autorização inicial da recorrência sozinha não libera acesso.
+
+## Integração HiMarshall
+
+A gestão em `POST/GET /api/v1/integrations/tokens` e
+`DELETE /api/v1/integrations/tokens/{id}` usa o JWT da conta. O token pessoal
+`mbi_` fica disponível em texto claro na resposta de criação.
+
+As consultas abaixo usam `Authorization: Bearer <token pessoal>` e a flag
+`integracao-himarshall` para o titular.
+
+| Endpoint | Acesso |
+|----------|--------|
+| `GET /api/v1/integrations/token-info` | Retorna `{ "scopes": [...] }` para uma credencial ativa. |
+| `GET /api/v1/integrations/readiness-summary` | Requer `readiness:read`. Aceita qualquer plano. |
+| `GET /api/v1/integrations/jobs` | Requer `jobs:read`, plano elegível e a flag `vagas-internacionais`. |
+
+O corpo ProblemDetails retorna `401 token_invalid` para credencial inválida,
+expirada ou revogada. As restrições retornam `403` com um dos códigos
+`scope_missing`, `integration_disabled`, `jobs_disabled` ou
+`jobs_plan_required`.
 
 ## Configuração do JWT
 
