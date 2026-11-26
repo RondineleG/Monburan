@@ -22,3 +22,18 @@
 - `dotnet test tests/Monburan.UnitTests/Monburan.UnitTests.csproj --configuration Release`: 1315/1315.
 
 A suíte API completa foi executada no branch antes do PR; resultado final fica registrado no PR/Issue.
+
+## Ensaio E2E local HiMarshall ↔ Monburan — 2026-11-26
+
+Ambiente descartável local: `monburan_local`/`himarshall_local` em PostgreSQL de teste, sem dados reais. O ensaio usou conta fixture `joao.silva@email.com` no Monburan e `pro@himarshall.io` no HiMarshall.
+
+| Etapa | Resultado |
+|---|---|
+| Emissão `mbi_` | `POST /api/v1/integrations/tokens` → 200 |
+| Consulta direta Monburan | `GET /api/v1/integrations/jobs` → 200 com vagas públicas mínimas |
+| Consentimento HiMarshall | `POST /api/v1/integrations/monburan/consent` → `pending` |
+| Anexação protegida | `POST /api/v1/integrations/monburan/token` → 200/`attached:true` |
+| Status HiMarshall | `active`, `tokenAttached:true`, `canAttachToken:true` |
+| Consulta consentida | `GET /api/v1/integrations/monburan/jobs` → 200 com `title`, `company`, `location`, `applyUrl`; sem currículo nem dados financeiros |
+
+O primeiro ensaio expôs falha real de tradução EF nas consultas de titular/revogação (`Id.Value` em consulta SQL). A correção `dd4a00f504d9f8b7bad655fe4be8860c80db4514` foi validada pelos testes `IntegrationTokensApiTests` 4/4 e pela consulta E2E 200 acima.
