@@ -13,22 +13,38 @@ public static class JobRecommendationScorer
 
     private const int MinWordLength = 3;
 
-    public static int Score(Job job, CareerProfile? profile, IReadOnlyCollection<string> skills)
+    public sealed record Evaluation(int Score, IReadOnlyList<string> Factors);
+
+    public static int Score(Job job, CareerProfile? profile, IReadOnlyCollection<string> skills) =>
+        Evaluate(job, profile, skills).Score;
+
+    public static Evaluation Evaluate(Job job, CareerProfile? profile, IReadOnlyCollection<string> skills)
     {
         var score = 0;
+        var factors = new List<string>();
 
         if (profile is not null)
         {
-            score += ScoreDesiredRole(job, profile.DesiredRole);
-            score += ScoreCategory(job, profile.Category);
-            score += ScoreLocation(job, profile.City, profile.State);
-            score += ScoreMode(job, profile.Mode);
-            score += ScoreSalary(job, profile.MinimumSalary);
+            AddFactor(ref score, factors, ScoreDesiredRole(job, profile.DesiredRole), "Cargo desejado encontrado na vaga");
+            AddFactor(ref score, factors, ScoreCategory(job, profile.Category), "Categoria compatível com o perfil");
+            AddFactor(ref score, factors, ScoreLocation(job, profile.City, profile.State), "Localização compatível com o perfil");
+            AddFactor(ref score, factors, ScoreMode(job, profile.Mode), "Modalidade compatível com o perfil");
+            AddFactor(ref score, factors, ScoreSalary(job, profile.MinimumSalary), "Salário informado atinge o mínimo desejado");
         }
 
-        score += ScoreSkills(job, skills);
+        foreach (var skill in MatchingSkills(job, skills).Take(MaxSkillBonus))
+            AddFactor(ref score, factors, 1, $"Habilidade \"{skill}\" encontrada na vaga");
 
-        return score;
+        return new Evaluation(score, factors);
+    }
+
+    private static void AddFactor(ref int score, List<string> factors, int points, string label)
+    {
+        if (points == 0)
+            return;
+
+        score += points;
+        factors.Add($"{label} (+{points})");
     }
 
     // Qualquer palavra do cargo (3+ letras) que apareça no título, nas tags ou na categoria pontua
@@ -91,18 +107,16 @@ public static class JobRecommendationScorer
         return reference is { } value && value >= minimumSalary.Value ? 2 : 0;
     }
 
-    private static int ScoreSkills(Job job, IReadOnlyCollection<string> skills)
+    private static IEnumerable<string> MatchingSkills(Job job, IReadOnlyCollection<string> skills)
     {
         if (skills.Count == 0)
-            return 0;
+            return [];
 
         var haystack = $"{job.Title}\n{job.Tags}\n{job.Description}";
-        var hits = skills
+        return skills
             .Where(skill => !string.IsNullOrWhiteSpace(skill))
             .Select(skill => skill.Trim())
             .Distinct(StringComparer.OrdinalIgnoreCase)
-            .Count(skill => haystack.Contains(skill, StringComparison.OrdinalIgnoreCase));
-
-        return Math.Min(hits, MaxSkillBonus);
+            .Where(skill => haystack.Contains(skill, StringComparison.OrdinalIgnoreCase));
     }
 }

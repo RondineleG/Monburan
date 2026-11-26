@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace Monburan.Core.DTOs.Response;
 
 public class JobResponse
@@ -45,6 +47,14 @@ public class JobResponse
 
     /// <summary>Verdadeiro só quando o candidato autenticado salvou a vaga.</summary>
     public bool IsSaved { get; set; }
+
+    /// <summary>Pontuação da recomendação, presente apenas em respostas de recomendação com explicação liberada.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public int? RecommendationScore { get; set; }
+
+    /// <summary>Fatores estáveis da recomendação, em português, sem dados de outros candidatos.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public IReadOnlyList<string>? RecommendationFactors { get; set; }
     
     // Advertiser
     public Guid? AdvertiserId { get; set; }

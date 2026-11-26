@@ -1,4 +1,4 @@
-# MO-BASE — fatias M05 implementadas
+# MO-BASE — fatias M04/M05 implementadas
 
 Base do programa: `775373cef3d7e957a153b71119a861c8290e9619` (`origin/main`). Branch de trabalho: `devin/mo-base`, criada de `origin/dev` `b83f4c099f640d00d68f420607b20a5eabd9402f` conforme a regra do Monburan; PR contra `dev`.
 
@@ -10,6 +10,8 @@ Também foi necessário carregar formação, experiências e idiomas no reposit�
 
 Segunda fatia: candidatura passa a ser idempotente pela chave natural `CandidateId + JobId`, inclusive quando o currículo anexado foi removido depois da candidatura original. Repetir o mesmo payload (`ResumeId` e `Notes`) recupera a candidatura existente sem incrementar contador, notificar ou gravar histórico novo; repetir a mesma chave com payload divergente retorna 409. Vaga inativa também retorna 409. O ATS passa a rejeitar transições regressivas/terminais inválidas com 409 sem histórico novo, e repetição do mesmo status é no-op idempotente, sem update, notificação ou histórico duplicado. Cada transição grava versão sequencial e identidade autenticada do executor; `Applications.Version` usa concorrência otimista para impedir que duas transições lidas da mesma versão se sobrescrevam. A gaveta do recrutador só oferece ações compatíveis com a transição vigente.
 
+Terceira fatia, de M04: a recomendação passa a calcular não só a pontuação, mas os fatores objetivos que a compõem (cargo, categoria, localização, modalidade, salário e habilidades encontradas). Os fatores só são expostos quando a flag `recomendacao-explicavel` está ligada para o grupo do usuário; desligada, o contrato permanece sem os campos novos. Quando não há perfil nem habilidades úteis, o endpoint usa ranking básico determinístico por recência em vez de depender de fallback implícito da interface. Empates de pontuação usam data de criação e id como desempate estável.
+
 ## Validação
 
 Comandos com `export PATH="$HOME/.dotnet:$PATH"`:
@@ -19,13 +21,13 @@ dotnet build src/Monburan.Web/Monburan.Web.csproj --configuration Release -v:q
 # 0 warnings, 0 errors
 
 dotnet test tests/Monburan.UnitTests/Monburan.UnitTests.csproj --configuration Release -v:q
-# 1322 passed, 0 failed
+# 1332 passed, 0 failed
 
 dotnet test tests/Monburan.IntegrationTests/Monburan.IntegrationTests.csproj --configuration Release -v:q
 # 66 passed, 0 failed
 
 dotnet test tests/Monburan.ApiTests/Monburan.ApiTests.csproj --configuration Release -v:q
-# 280 passed, 0 failed; inclui round-trip API com flag ligada, reenvio idempotente e transição inválida sem histórico
+# 281 passed, 0 failed; inclui round-trip API com flag ligada, reenvio idempotente, transição inválida sem histórico e recomendação explicável
 ```
 
 A solução completa não é buildável nesta VM porque `Monburan.Mobile` exige workload `maui-android`; não foi instalado workload novo nem usado serviço externo.
@@ -48,5 +50,5 @@ dotnet test tests/Monburan.ApiTests/Monburan.ApiTests.csproj --configuration Rel
 
 - Compatibilidade: nenhum campo existente mudou de tipo ou significado; `ResumeSnapshot` é aditivo e clientes antigos podem ignorá-lo. `POST /applications` passa a responder 200 somente quando a repetição idempotente recupera exatamente a mesma candidatura; payload divergente continua erro (409).
 - Migração: `SnapshotImutavelCurriculoCandidatura` adiciona `Applications.ResumeSnapshotJson` (`jsonb`, nullable). Dados antigos permanecem com snapshot nulo.
-- Rollback: desligar `snapshot-curriculo-candidatura` interrompe novas capturas; remover a migration e o uso do snapshot restaura o caminho anterior. `ResumeId` permanece como compatibilidade. Para a segunda fatia, reverter este commit restaura o comportamento anterior de duplicidade/ATS.
+- Rollback: desligar `snapshot-curriculo-candidatura` interrompe novas capturas; remover a migration e o uso do snapshot restaura o caminho anterior. `ResumeId` permanece como compatibilidade. Para a segunda fatia, reverter este commit restaura o comportamento anterior de duplicidade/ATS. Para M04, desligar `recomendacao-explicavel` oculta score/fatores sem alterar a ordenação existente.
 - Fora de escopo: migração Recruiva, Google for Jobs, integração HiMarshall/M09 e aplicativo Android.
