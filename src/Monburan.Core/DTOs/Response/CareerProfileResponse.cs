@@ -18,5 +18,7 @@ public class CareerProfileResponse
 
     public EContractType? ContractType { get; set; }
 
+    public List<string>? PreferredCountries { get; set; }
+
     public DateTime? UpdatedAt { get; set; }
 }

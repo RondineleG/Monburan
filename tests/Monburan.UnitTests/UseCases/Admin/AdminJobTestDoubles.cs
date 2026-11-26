@@ -66,7 +66,8 @@ internal sealed class FakeJobRepository : IJobRepository
         string? searchTerm = null, string? city = null, string? state = null, bool? isRemote = null, decimal? salaryMin = null,
         decimal? salaryMax = null, string? category = null, Guid? advertiserId = null, int page = 1, int size = 10,
         string? type = null, string? sortBy = null, bool? sortDescending = null, EContractType? contractType = null,
-        ESalaryPeriod? salaryPeriod = null, int? publishedWithinDays = null,
+        ESalaryPeriod? salaryPeriod = null, int? publishedWithinDays = null, string? country = null,
+        bool? international = null, IReadOnlyCollection<string>? countries = null,
         CancellationToken cancellationToken = default) =>
         throw new NotSupportedException();
 

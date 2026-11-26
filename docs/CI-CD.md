@@ -153,6 +153,12 @@ administração e os ajustes de segurança do app: [SEGURANCA.md](SEGURANCA.md).
   dotnet test tests/Monburan.E2ETests          # E2E_BASE_URL muda a URL do app
   ```
 
+  O projeto E2E não referencia o `Monburan.Web` (usa só o framework ASP.NET Core para o servidor de IA falso). Antes,
+  a referência fazia o `dotnet test` recompilar o app que estava no ar: o build tentava reescrever a saída em uso
+  (`MSB3061`) e os manifestos de arquivos estáticos, e a navegação interna do Blazor no fim de
+  `AddressCreate_WarnsBeforeLeavingWithUnsavedChanges` estourava 20 s de forma intermitente. Reproduzido recompilando
+  durante a suíte; sem a referência, a mesma reprodução passou inteira.
+
   As varreduras (`FullSweepTests`) já falharam de forma intermitente por navegarem enquanto a página de chegada ainda
   negociava o circuito Blazor, e hoje esperam esse circuito antes da primeira rota. O job ainda repete a execução uma
   vez antes de reprovar, como proteção até a esteira acumular execuções verdes sem a retentativa.

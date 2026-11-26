@@ -94,9 +94,12 @@ public class JobsExperienceTests : E2ETestBase
         await Page.WaitForFunctionAsync("() => location.search === '?salario=8000'");
         await Page.GetByTestId("jobs-context").WaitForAsync();   // só existe depois que a lista filtrada é renderizada
 
-        // Quem aparece informa uma faixa cujo teto alcança o piso escolhido
+        // Quem aparece em reais informa uma faixa cujo teto alcança o piso escolhido.
+        // Vagas em outra moeda passam no filtro por decisão de produto: sem câmbio, o
+        // valor de face não é comparável e escondê-las eliminaria vagas internacionais.
         var maximums = await Page.EvaluateAsync<double[]>("""
             () => Array.from(document.querySelectorAll('[data-testid="job-card"] .job-facts__salary'))
+                .filter(el => el.textContent.includes('R$'))
                 .map(el => Math.max(...(el.textContent.match(/\d[\d.]*/g) || ['0']).map(n => parseFloat(n.replace(/\./g, '')))))
             """);
         Assert.All(maximums, max => Assert.True(max >= 8000, $"Vaga com teto {max} apareceu num filtro de R$ 8.000"));

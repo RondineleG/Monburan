@@ -26,6 +26,8 @@ public class ShellInteractionTests : E2ETestBase
         await Page.Locator("#street").FillAsync("Rua alterada para testar o aviso");
         await Page.Locator("#street").BlurAsync();
         Assert.Equal("Rua alterada para testar o aviso", await Page.Locator("#street").InputValueAsync());
+        // O circuito precisa registrar a alteração antes do clique; sem esperar, a máquina lenta clicava antes
+        await Page.Locator("[data-unsaved-changes='true']").WaitForAsync(new() { State = WaitForSelectorState.Attached });
         await Page.GetByTestId("page-back").ClickAsync();
 
         await browserWarning.Task.WaitAsync(TimeSpan.FromSeconds(5));
@@ -36,7 +38,13 @@ public class ShellInteractionTests : E2ETestBase
         await Page.GetByRole(AriaRole.Button, new() { Name = "Cancelar" }).ClickAsync();
         await Assertions.Expect(Page.GetByTestId("confirm-dialog")).ToBeVisibleAsync();
         await Page.GetByTestId("confirm-accept").ClickAsync();
-        await Page.WaitForURLAsync(url => url.EndsWith("/enderecos", StringComparison.OrdinalIgnoreCase));
+        // Navegação interna do Blazor: a URL muda sem evento "load" e, sob carga da suíte,
+        // o commit da navegação pode não disparar dentro do timeout — a condição observável
+        // é a tela de destino (a lista de endereços) renderizada.
+        await Assertions.Expect(Page.Locator(".address-page")).ToBeVisibleAsync(
+            new() { Timeout = 60000 });
+        Assert.EndsWith("/enderecos", Page.Url);
+        await Assertions.Expect(Page.GetByTestId("confirm-dialog")).Not.ToBeVisibleAsync();
     }
 
     [Fact]

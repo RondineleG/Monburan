@@ -8,11 +8,11 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="coverlet.collector" Version="10.1.0">
+    <PackageReference Include="coverlet.collector" Version="10.1.1">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
-    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.11.0" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.12.0" />
     <PackageReference Include="Microsoft.Playwright" Version="1.64.1" />
     <PackageReference Include="xunit" Version="2.9.3" />
     <PackageReference Include="xunit.runner.visualstudio" Version="4.0.1">
@@ -25,8 +25,11 @@
     <Using Include="Xunit" />
   </ItemGroup>
 
+
+  <!-- O servidor de IA falso dos testes usa o ASP.NET Core. Sem referência ao Monburan.Web: um dotnet test não pode
+       recompilar o app que está no ar (a saída reescrita derrubava a navegação do Blazor no meio da suíte). -->
   <ItemGroup>
-    <ProjectReference Include="..\..\src\Monburan.Web\Monburan.Web.csproj" />
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
   </ItemGroup>
 
 </Project>

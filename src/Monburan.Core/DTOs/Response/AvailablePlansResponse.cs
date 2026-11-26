@@ -14,10 +14,16 @@ public class PlanResponse
     public string Audience { get; set; } = string.Empty;
     public string Period { get; set; } = string.Empty;
     public bool HasAiAssistant { get; set; }
+
+    /// <summary>O plano não exibe publicidade (regra do servidor: plano pago).</summary>
+    public bool IsAdFree { get; set; }
 }
 
 public class AvailablePlansResponse
 {
     public List<PlanResponse> Plans { get; set; } = [];
     public SubscriptionResponse? CurrentSubscription { get; set; }
+
+    /// <summary>Checkout iniciado e ainda sem confirmação do provedor — só quando não há assinatura ativa.</summary>
+    public SubscriptionResponse? PendingSubscription { get; set; }
 }

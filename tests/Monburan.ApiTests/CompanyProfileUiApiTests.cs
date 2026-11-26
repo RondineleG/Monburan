@@ -145,6 +145,7 @@ public class CompanyProfileUiApiTests
             decimal? salaryMin, decimal? salaryMax, string? category, Guid? advertiserId,
             int page, int size, string? type, string? sortBy, bool? sortDescending,
             EContractType? contractType, ESalaryPeriod? salaryPeriod, int? publishedWithinDays,
+            string? country, bool? international, IReadOnlyCollection<string>? countries,
             CancellationToken cancellationToken) =>
             Task.FromResult(RequestResult<PagedResponse<Job>>.WithError("Falha simulada na busca de vagas"));
 

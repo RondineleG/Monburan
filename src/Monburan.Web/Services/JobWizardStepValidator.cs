@@ -1,4 +1,6 @@
 using Monburan.Core.DTOs.Request;
+using Monburan.Core.Enums;
+using Monburan.Core.Services;
 
 namespace Monburan.Web.Services;
 
@@ -20,6 +22,11 @@ public static class JobWizardStepValidator
         [nameof(CreateJobRequest.City)] = 1,
         [nameof(CreateJobRequest.State)] = 1,
         [nameof(CreateJobRequest.Tags)] = 1,
+        [nameof(CreateJobRequest.Country)] = 1,
+        [nameof(CreateJobRequest.RemoteScope)] = 1,
+        [nameof(CreateJobRequest.EligibleCountries)] = 1,
+        [nameof(CreateJobRequest.OffersRelocation)] = 1,
+        [nameof(CreateJobRequest.SponsorsVisa)] = 1,
         [nameof(CreateJobRequest.Description)] = 2,
         [nameof(CreateJobRequest.Responsibilities)] = 2,
         [nameof(CreateJobRequest.Requirements)] = 2,
@@ -75,6 +82,16 @@ public static class JobWizardStepValidator
 
             if (!string.IsNullOrWhiteSpace(model.State) && model.State.Trim().Length != 2)
                 errors.Add(new(nameof(model.State), "A UF deve ter 2 letras."));
+        }
+
+        // Remoto restrito precisa dizer de quais países (mesma regra do servidor, InternationalJobRules)
+        if (model.Type is "Remote" or "Hybrid" && model.RemoteScope == ERemoteScope.Restricted)
+        {
+            var countries = InternationalJobRules.ParseCountries(model.EligibleCountries);
+            if (countries.Count == 0)
+                errors.Add(new(nameof(model.EligibleCountries), "Informe os países de onde a pessoa pode trabalhar."));
+            else if (countries.FirstOrDefault(code => !InternationalJobRules.IsCountryCode(code)) is { } invalid)
+                errors.Add(new(nameof(model.EligibleCountries), $"\"{invalid}\" não é um código de país de duas letras (ex.: PT, ES)."));
         }
 
         return errors;

@@ -53,7 +53,11 @@ public class AdvertiserFlowTests : E2ETestBase
     [Fact]
     public async Task Advertiser_Can_CreateJob()
     {
-        await LoginAsAdvertiserAsync();
+        // Empresa nova a cada execução: a semeada acumula as vagas publicadas pelos testes anteriores até bater o
+        // limite do plano gratuito, e aí o botão de publicar fica (corretamente) desabilitado
+        var email = $"empresa-e2e-{Guid.NewGuid():N}@test.com";
+        Assert.True(await TryRegisterAsync(email, TestPassword, accountType: "advertiser"),
+            $"Não foi possível registrar a empresa {email}");
 
         await GotoAsync("/vagas/nova");
         await WaitForBlazorAsync();

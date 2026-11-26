@@ -124,6 +124,7 @@ public static class SeedData
             MaxJobs = 0,
             MaxResumes = -1,
             HasAiAssistant = true,
+            HasInternationalJobs = true,
             Audience = EPlanAudience.Candidate,
             Period = ESubscriptionPeriod.Monthly,
             IsActive = true
@@ -139,6 +140,7 @@ public static class SeedData
             MaxJobs = 0,
             MaxResumes = -1,
             HasAiAssistant = true,
+            HasInternationalJobs = true,
             Audience = EPlanAudience.Candidate,
             Period = ESubscriptionPeriod.Annual,
             IsActive = true

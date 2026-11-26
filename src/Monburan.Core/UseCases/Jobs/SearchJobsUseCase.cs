@@ -39,6 +39,7 @@ public class SearchJobsUseCase : IUseCase<ListJobsRequest, ListJobsResponse>
             contractType: ParseEnum<EContractType>(request.ContractType),
             salaryPeriod: ParseEnum<ESalaryPeriod>(request.SalaryPeriod),
             publishedWithinDays: request.PublishedWithinDays is > 0 ? request.PublishedWithinDays : null,
+            country: request.Country,
             cancellationToken: cancellationToken);
 
         if (result.Status != EResultStatus.Success || result.Data is null)

@@ -65,6 +65,65 @@ public class JobDisplayTests
     }
 
     [Theory]
+    [InlineData("Lisboa", null, "PT", "OnSite", "Lisboa, Portugal")]
+    [InlineData(null, null, "PT", "Remote", "Portugal")]
+    [InlineData(null, null, "CA", "OnSite", "Canadá")]
+    [InlineData("Toronto", "ON", "ca", "Hybrid", "Toronto, ON, Canadá")]
+    [InlineData("Curitiba", "PR", "BR", "OnSite", "Curitiba, PR")]
+    [InlineData(null, null, "ZZ", "Remote", "ZZ")]
+    public void Location_NamesTheCountryOnlyWhenAbroad(string? city, string? state, string country, string type, string expected)
+    {
+        var job = new JobResponse { City = city, State = state, Country = country, Type = type, IsRemote = type != "OnSite" };
+
+        JobDisplay.Location(job).Should().Be(expected);
+    }
+
+    [Theory]
+    [InlineData("Remote", "Global", null, "De qualquer país")]
+    [InlineData("Hybrid", "Restricted", "PT,ES", "Só de: Portugal, Espanha")]
+    [InlineData("Remote", null, null, "Não informado")] // remoto sem abrangência não vira "de qualquer país"
+    [InlineData("Remote", "Restricted", null, "Não informado")]
+    [InlineData("OnSite", "Global", null, null)]
+    public void RemoteScope_NeverAssumesGlobal(string type, string? scope, string? countries, string? expected)
+    {
+        var job = new JobResponse { Type = type, RemoteScope = scope, EligibleCountries = countries };
+
+        JobDisplay.RemoteScope(job).Should().Be(expected);
+    }
+
+    [Theory]
+    [InlineData("BR", null, null, null, false)]
+    [InlineData("PT", null, null, null, true)]
+    [InlineData("BR", null, false, null, true)] // "não oferece" também é informação
+    [InlineData("BR", null, null, true, true)]
+    [InlineData("BR", "Global", null, null, true)]
+    public void HasInternationalInfo_OnlyWhenThereIsSomethingToSay(string country, string? scope, bool? relocation, bool? visa, bool expected)
+    {
+        var job = new JobResponse { Country = country, RemoteScope = scope, OffersRelocation = relocation, SponsorsVisa = visa };
+
+        JobDisplay.HasInternationalInfo(job).Should().Be(expected);
+    }
+
+    [Theory]
+    [InlineData(true, "Oferece")]
+    [InlineData(false, "Não oferece")]
+    [InlineData(null, "Não informado")]
+    public void YesNoUnknown_KeepsNotInformedApartFromNo(bool? value, string expected) =>
+        UiLabels.YesNoUnknown(value, "Oferece", "Não oferece").Should().Be(expected);
+
+    [Theory]
+    [InlineData("GBP", "£ 1.000 – 2.000")]
+    [InlineData("CAD", "CAD 1.000 – 2.000")]
+    [InlineData("usd", "US$ 1.000 – 2.000")]
+    [InlineData(null, "R$ 1.000 – 2.000")]
+    public void Salary_NeverShowsAnUnknownCurrencyAsReal(string? currency, string expected)
+    {
+        var job = new JobResponse { SalaryMin = 1000, SalaryMax = 2000, SalaryDisplay = true, SalaryCurrency = currency! };
+
+        JobDisplay.Salary(job).Should().Be(expected);
+    }
+
+    [Theory]
     [InlineData("2026-10-18T09:00:00Z", "hoje")]
     [InlineData("2026-10-17T20:00:00Z", "ontem")]
     [InlineData("2026-10-15T12:00:00Z", "há 3 dias")]

@@ -1,8 +1,11 @@
 ﻿@using Microsoft.AspNetCore.Identity
+@using Monburan.Core.Interfaces.Services
+@using Monburan.Web.Endpoints
 @using Monburan.Web.Models
 
 @inject SignInManager<ApplicationUser> SignInManager
 @inject NavigationManager NavigationManager
+@inject IFeatureFlags FeatureFlags
 
 <nav aria-label="Seções de conta e segurança">
 <ul class="nav">
@@ -24,6 +27,12 @@
     <li class="nav-item">
         <NavLink class="nav-link" href="/conta/seguranca-2fa" aria-current="@Current("/conta/seguranca-2fa")">Verificação em duas etapas</NavLink>
     </li>
+    @if (hasIntegracoes)
+    {
+        <li class="nav-item">
+            <NavLink class="nav-link" href="/conta/integracoes" aria-current="@Current("/conta/integracoes")">Integrações</NavLink>
+        </li>
+    }
     <li class="nav-item">
         <NavLink class="nav-link" href="/conta/dados-pessoais" aria-current="@Current("/conta/dados-pessoais")">Dados pessoais</NavLink>
     </li>
@@ -32,10 +41,15 @@
 
 @code {
     private bool hasExternalLogins;
+    private bool hasIntegracoes;
+
+    [CascadingParameter]
+    private HttpContext HttpContext { get; set; } = default!;
 
     protected override async Task OnInitializedAsync()
     {
         hasExternalLogins = (await SignInManager.GetExternalAuthenticationSchemesAsync()).Any();
+        hasIntegracoes = await FeatureFlags.IsEnabledAsync(IntegrationEndpoints.FeatureName, HttpContext.User);
     }
 
     // Mesmo critério de correspondência do NavLink (classe "active"), exposto para leitores de tela.

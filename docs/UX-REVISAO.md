@@ -238,3 +238,64 @@ pixel-a-pixel claro/escuro (capturas existem, sem baseline de referência).
 regex, agora passa). Real `http://localhost:5095` capturado (`/tmp/monburan-anon-5095/`): anônimo
 1440/390/320 e com preferência `rail` → `sidebar=0`, `publicHeader=1`, `scrollWidth=viewport`;
 autenticado mantém `sidebar=1` + menu mobile; `/resumes/upload` com 2 botões e sem nome de provedor.
+
+## Revisão mobile-first, publicidade, planos e carreira internacional (novembro de 2026)
+
+Revisão com a captura `tests/ux-smoke` (visitante, candidato, empresa e administração em 390, 834 e 1440px, nos dois
+temas, e o app pela pré-visualização), sobre a monetização desta branch (checkout, campanhas locais e planos de
+candidato).
+
+### O que mais atrapalhava no celular e foi corrigido
+
+- **Página da vaga:** abaixo de 992px o cartão de candidatura inteiro sumia por causa da barra fixa, levando junto o
+  salvar, a fonte e a conferência da vaga externa, a situação da candidatura e o cadastro de candidato. Agora só o botão
+  repetido na barra sai. O cartão de quem já se candidatou se chama "Sua candidatura". O anúncio local segue a coluna
+  única no celular.
+- **Cartão de vaga:** os selos "Nova" e "Vaga direta" espremiam o título; fica só o selo de vaga externa, abaixo do título.
+- **Busca:** empilhada no celular (o local era cortado). **Assistentes:** etapas em uma linha. **Erro e 404:** com margem.
+- **Candidaturas recebidas:** filtros em duas colunas; listas que viram cartões sem borda dupla; colunas numéricas da
+  administração alinhadas (o utilitário `.text-center` vencia a regra do celular).
+- **Valores:** moeda desconhecida virava "R$"; o país da vaga aparece quando não é o Brasil; vaga remota sem endereço
+  mostra o país da vaga, nunca "qualquer lugar".
+
+### Publicidade e planos
+
+- **Plano pago não vê anúncio** (ver `docs/ANUNCIOS-LOCAIS.md`): antes, a escolha do anúncio ignorava quem estava vendo.
+- **Planos:** abas por perfil na URL, visíveis para visitantes; resumo do que é gratuito; cada plano lista só o que o
+  servidor aplica (limite de vagas, limite de currículos, assistente de IA, sem publicidade). Saiu o selo "Mais
+  escolhido". O checkout do Mercado Pago não mudou.
+- **Limite de currículos:** `MaxResumes` passou a ser aplicado na criação e na importação de PDF
+  (`CheckResumeLimitUseCase`): o da assinatura ativa ou, sem ela, o do plano gratuito de candidato.
+- **Minha assinatura:** resumo único com os mesmos recursos da tela de planos.
+
+### Carreira internacional (flag `carreira-internacional`)
+
+- **Vaga:** abrangência do remoto (qualquer país ou países listados), países elegíveis, relocação e visto, com "não
+  informado" separado de "não"; país e moeda no cadastro. A página mostra a seção "Trabalho internacional" só quando há
+  algo a dizer e avisa que o Monburan não presta serviço de imigração. Flag desligada: a criação descarta os campos e a
+  edição mantém o que estava gravado. O app mostra o país no local e a mesma seção na página da vaga.
+- **Currículo em outro idioma (es-ES):** `/curriculos/{id}/versoes` traduz campo a campo com o original ao lado; a
+  sugestão da IA fica pendente numa revisão explícita; impressão pelo mesmo documento de CV. O original nunca muda.
+  No app, a mesma tela fica em `/resumes/{id}/translation` (a impressão continua pelo site).
+  Limitação: as traduções são presas à posição de cada item; se o currículo-base ganhar ou perder uma experiência, as
+  traduções seguintes deslocam e precisam ser revistas.
+
+### Dependências que continuam fora desta entrega
+
+| Requisito | Situação |
+|---|---|
+| Cobrança da IA de tradução ("Carreira Global" no PRD) | Hipótese de produto; a sugestão usa só a cota de uso da IA |
+| Outros idiomas além de es-ES | Dependência formal registrada abaixo |
+
+#### Dependência formal: idiomas do currículo além de es-ES
+
+- **Decisão (13/11/2026):** a versão em outro idioma oferece só **espanhol (es-ES)**, confirmada pelo dono do produto
+  duas vezes nesta revisão, conforme o PRD de carreira internacional ("Primeiro país para currículo localizado: Espanha";
+  "mais locales e países após validar Espanha").
+- **Critério para abrir outros idiomas:** validação da Espanha pelas métricas do PRD (variante criada, editada e
+  exportada; perfil internacional concluído) e decisão do produto sobre quais países entram a seguir.
+- **O que já está pronto:** a API aceita qualquer tag BCP-47 (`ResumeVariantLocalization.IsValidLocale`) e a regra de
+  campos é a mesma para qualquer idioma (`ResumeVariantFields`, usada pela web e pelo app).
+- **O que falta para entregar um idioma novo:** incluir o par código/nome em `ResumeVariantFields.Locales` (web e app
+  passam a oferecer o botão), revisar os textos das telas para o idioma e repetir a captura e os testes de API.
+

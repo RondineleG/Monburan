@@ -76,7 +76,7 @@ public class SecurityHardeningTests : E2ETestBase
         await Page.GetByTestId("register-confirm-password").FillAsync("Abc12345x");
         await Page.GetByTestId("register-submit").ClickAsync();
 
-        await Page.WaitForFunctionAsync("() => document.body.innerText.includes('pelo menos 10 caracteres')");
+        await Page.WaitForFunctionAsync("() => document.body?.innerText.includes('pelo menos 10 caracteres')");
         Assert.Contains("/criar-conta", Page.Url, StringComparison.OrdinalIgnoreCase);
     }
 
@@ -92,7 +92,7 @@ public class SecurityHardeningTests : E2ETestBase
         await Page.GetByTestId("register-confirm-password").FillAsync("Senha12345");
         await Page.GetByTestId("register-submit").ClickAsync();
 
-        await Page.WaitForFunctionAsync("() => document.body.innerText.includes('muito comum')");
+        await Page.WaitForFunctionAsync("() => document.body?.innerText.includes('muito comum')");
         Assert.Contains("/criar-conta", Page.Url, StringComparison.OrdinalIgnoreCase);
     }
 }

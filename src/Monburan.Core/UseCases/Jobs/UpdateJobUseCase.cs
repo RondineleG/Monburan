@@ -8,6 +8,7 @@ using Monburan.Core.Interfaces.Validations;
 using Monburan.Core.Mappers;
 using Monburan.Core.Requests;
 using Monburan.Core.ValueObjects;
+using Monburan.Core.Services;
 
 namespace Monburan.Core.UseCases.Jobs;
 
@@ -47,7 +48,7 @@ public class UpdateJobUseCase : IUseCase<UpdateJobRequest, JobResponse>
         {
             existingJob.Location.City = request.City;
             existingJob.Location.State = request.State;
-            existingJob.Location.Country = request.Country;
+            existingJob.Location.Country = request.Country?.Trim().ToUpperInvariant() ?? "BR";
             existingJob.Location.Type = request.Type;
             existingJob.Location.IsRemote = request.IsRemote;
             existingJob.Location.ShowAddress = request.ShowAddress;
@@ -58,10 +59,16 @@ public class UpdateJobUseCase : IUseCase<UpdateJobRequest, JobResponse>
             existingJob.Salary.Min = request.SalaryMin;
             existingJob.Salary.Max = request.SalaryMax;
             existingJob.Salary.Period = request.SalaryPeriod;
-            existingJob.Salary.Currency = request.SalaryCurrency;
+            existingJob.Salary.Currency = request.SalaryCurrency?.Trim().ToUpperInvariant() ?? "BRL";
             existingJob.Salary.Display = request.SalaryDisplay;
         }
 
+        existingJob.RemoteScope = request.RemoteScope;
+        existingJob.EligibleCountries = request.EligibleCountries;
+        existingJob.OffersRelocation = request.OffersRelocation;
+        existingJob.SponsorsVisa = request.SponsorsVisa;
+
+        InternationalJobRules.Normalize(existingJob);
         var validationResult = _jobValidator.ValidateUpdate(existingJob);
         if (!validationResult.IsValid)
         {

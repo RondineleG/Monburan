@@ -14,6 +14,7 @@
 @inject NavigationManager Navigation
 @inject IToastService Toast
 @inject ILogger<JobCreate> Logger
+@inject Monburan.Core.Interfaces.Services.IFeatureFlags FeatureFlags
 
 <PageTitle>Nova vaga - Monburan</PageTitle>
 
@@ -32,8 +33,16 @@
                 <div class="alert alert-warning" role="status" data-testid="job-limit-reached">
                     <strong>Você atingiu o limite do plano @UiLabels.PlanName(jobLimit.PlanName).</strong>
                     Ele permite até @jobLimit.MaxJobs vagas ativas ao mesmo tempo.
-                    Encerre uma vaga em <a href="/minhas-vagas">Minhas vagas</a> ou <a href="/plans">mude de plano</a> para publicar outra.
+                    Encerre uma vaga em <a href="/minhas-vagas">Minhas vagas</a> ou <a href="/plans?para=empresas">mude de plano</a> para publicar outra.
                 </div>
+            }
+            else if (jobLimit is { CanCreate: true, MaxJobs: > 0, RemainingSlots: <= 2 } nearLimit)
+            {
+                @* Aviso antes do fim do assistente: a empresa não descobre o limite só ao publicar *@
+                <p class="alert alert-info" role="note" data-testid="job-limit-near">
+                    O plano @UiLabels.PlanName(nearLimit.PlanName) permite até @nearLimit.MaxJobs vagas ativas ao mesmo tempo.
+                    @(nearLimit.RemainingSlots == 1 ? "Esta é a última que você pode publicar agora." : $"Você ainda pode publicar {nearLimit.RemainingSlots}.")
+                </p>
             }
 
             <div class="card page-form-card">
@@ -44,6 +53,7 @@
                                IsSubmitting="isSubmitting"
                                CanPublish="jobLimit is not { CanCreate: false }"
                                ServerError="@errorMessage"
+                               ShowInternational="internationalEnabled"
                                OnSubmit="SubmitForm"
                                OnCancel="Cancel" />
                 </div>
@@ -58,6 +68,17 @@ else
 }
 
 @code {
+    [CascadingParameter]
+    private Task<AuthenticationState>? AuthenticationStateTask { get; set; }
+
+    private bool internationalEnabled;
+
+    private async Task<bool> InternationalEnabledAsync()
+    {
+        var user = AuthenticationStateTask is null ? null : (await AuthenticationStateTask).User;
+        return await FeatureFlags.IsEnabledAsync(Monburan.Core.Services.InternationalJobRules.FeatureKey, user);
+    }
+
     private CreateJobRequest model = new()
     {
         NumberOfOpenings = 1,
@@ -79,6 +100,7 @@ else
 
     protected override async Task OnInitializedAsync()
     {
+        internationalEnabled = await InternationalEnabledAsync();
         var advertiserId = CurrentUserHelper.GetAdvertiserId();
         isAdvertiser = advertiserId.HasValue;
         if (!isAdvertiser)
@@ -113,6 +135,8 @@ else
         model.AdvertiserId = advertiserId.Value;
         model.IsRemote = model.Type is "Remote" or "Hybrid";
 
+        // A flag vale também no servidor: desligada, os campos internacionais não são gravados
+        InternationalJobFields.DropUnlessEnabled(model, await InternationalEnabledAsync());
         var result = await CreateJobUseCase.ExecuteAsync(model);
 
         if (result.Status == EResultStatus.Success)

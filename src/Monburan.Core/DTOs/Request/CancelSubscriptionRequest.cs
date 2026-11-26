@@ -15,4 +15,10 @@ public class CancelSubscriptionRequest
     /// requisição. A assinatura só é cancelada se for deste anunciante.
     /// </summary>
     public Guid? AdvertiserId { get; set; }
+
+    /// <summary>
+    /// Candidato autenticado. Preenchido pelo servidor a partir da claim — nunca do corpo da
+    /// requisição. A assinatura só é cancelada se for deste candidato.
+    /// </summary>
+    public Guid? CandidateId { get; set; }
 }

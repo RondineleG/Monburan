@@ -4,48 +4,45 @@ using System.Net.Http.Json;
 
 using FluentAssertions;
 
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+
 using Monburan.Core.DTOs.Request;
 using Monburan.Core.DTOs.Response;
+using Monburan.Core.Entities;
+using Monburan.Core.Enums;
+using Monburan.Core.ValueObjects;
+using Monburan.Web.Data;
 
 namespace Monburan.ApiTests;
 
 public class SubscriptionsApiTests : IClassFixture<MonburanApiFactory>
 {
+    private readonly MonburanApiFactory _factory;
     private readonly HttpClient _client;
 
     public SubscriptionsApiTests(MonburanApiFactory factory)
     {
+        _factory = factory;
         _client = factory.CreateClient();
     }
 
     [Fact]
     public async Task CancelSubscription_FromOtherAdvertiser_Returns404()
     {
-        // Anunciante B assina um plano pago
-        var tokenB = await RegisterAdvertiserAsync("b");
-        var plans = await _client.GetFromJsonAsync<AvailablePlansResponse>("/api/v1/plans");
-        var paidPlan = plans!.Plans.First(p => p.Price > 0);
-
-        using var upgradeReq = new HttpRequestMessage(HttpMethod.Post, "/api/v1/subscriptions/upgrade")
-        {
-            Content = JsonContent.Create(new UpgradePlanRequest
-            {
-                NewPlanId = paidPlan.Id,
-                PaymentMethod = "card"
-            })
-        };
-        upgradeReq.Headers.Authorization = new AuthenticationHeaderValue("Bearer", tokenB.AccessToken);
-        var upgrade = await _client.SendAsync(upgradeReq);
-        upgrade.StatusCode.Should().Be(HttpStatusCode.OK);
-        var subscription = await upgrade.Content.ReadFromJsonAsync<SubscriptionResponse>();
+        // Anunciante B tem uma assinatura paga ativa (ativada fora do endpoint,
+        // como fica após a confirmação do webhook de pagamento)
+        var (tokenB, emailB) = await RegisterAdvertiserAsync("b");
+        var paidPlan = await PaidPlanAsync();
+        var subscriptionId = await SeedActiveSubscriptionAsync(emailB, paidPlan.Id);
 
         // Anunciante A tenta cancelar a assinatura de B — deve falhar (IDOR)
-        var tokenA = await RegisterAdvertiserAsync("a");
+        var (tokenA, _) = await RegisterAdvertiserAsync("a");
         using var cancelReq = new HttpRequestMessage(HttpMethod.Post, "/api/v1/subscriptions/cancel")
         {
             Content = JsonContent.Create(new CancelSubscriptionRequest
             {
-                SubscriptionId = subscription!.Id
+                SubscriptionId = subscriptionId
             })
         };
         cancelReq.Headers.Authorization = new AuthenticationHeaderValue("Bearer", tokenA.AccessToken);
@@ -59,7 +56,7 @@ public class SubscriptionsApiTests : IClassFixture<MonburanApiFactory>
         {
             Content = JsonContent.Create(new CancelSubscriptionRequest
             {
-                SubscriptionId = subscription.Id,
+                SubscriptionId = subscriptionId,
                 Reason = "teste"
             })
         };
@@ -70,15 +67,12 @@ public class SubscriptionsApiTests : IClassFixture<MonburanApiFactory>
     }
 
     [Fact]
-    public async Task Plans_WithAdvertiserBearer_ReturnsCurrentSubscription()
+    public async Task UpgradePlan_ToAPaidPlan_IsRefused_MustGoThroughCheckout()
     {
-        // /plans é AllowAnonymous: o bearer precisa ser autenticado explicitamente
-        // para devolver CurrentSubscription (bug: DefaultScheme=cookie ignorava o JWT)
-        var token = await RegisterAdvertiserAsync("plans");
+        // Plano pago nunca é ativado pelo upgrade manual: só via checkout + webhook do gateway
+        var (token, _) = await RegisterAdvertiserAsync("paid-upgrade");
+        var paidPlan = await PaidPlanAsync();
 
-        // Anunciante assina um plano — aí /plans deve refletir a assinatura dele
-        var plans = await _client.GetFromJsonAsync<AvailablePlansResponse>("/api/v1/plans");
-        var paidPlan = plans!.Plans.First(p => p.Price > 0);
         using var upgradeReq = new HttpRequestMessage(HttpMethod.Post, "/api/v1/subscriptions/upgrade")
         {
             Content = JsonContent.Create(new UpgradePlanRequest
@@ -88,7 +82,22 @@ public class SubscriptionsApiTests : IClassFixture<MonburanApiFactory>
             })
         };
         upgradeReq.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token.AccessToken);
-        (await _client.SendAsync(upgradeReq)).StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var response = await _client.SendAsync(upgradeReq);
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
+    [Fact]
+    public async Task Plans_WithAdvertiserBearer_ReturnsCurrentSubscription()
+    {
+        // /plans é AllowAnonymous: o bearer precisa ser autenticado explicitamente
+        // para devolver CurrentSubscription (bug: DefaultScheme=cookie ignorava o JWT)
+        var (token, email) = await RegisterAdvertiserAsync("plans");
+
+        // Anunciante com assinatura paga ativa — aí /plans deve refletir a assinatura dele
+        var paidPlan = await PaidPlanAsync();
+        await SeedActiveSubscriptionAsync(email, paidPlan.Id);
 
         using var request = new HttpRequestMessage(HttpMethod.Get, "/api/v1/plans");
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token.AccessToken);
@@ -106,7 +115,7 @@ public class SubscriptionsApiTests : IClassFixture<MonburanApiFactory>
     public async Task Plans_WithRefreshToken_DoesNotExposeCurrentSubscription()
     {
         // Refresh token não pode identificar perfil nem mesmo no endpoint anônimo
-        var token = await RegisterAdvertiserAsync("plans-refresh");
+        var (token, _) = await RegisterAdvertiserAsync("plans-refresh");
 
         using var request = new HttpRequestMessage(HttpMethod.Get, "/api/v1/plans");
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token.RefreshToken);
@@ -118,17 +127,48 @@ public class SubscriptionsApiTests : IClassFixture<MonburanApiFactory>
         body!.CurrentSubscription.Should().BeNull();
     }
 
-    private async Task<UserLoginResponse> RegisterAdvertiserAsync(string tag)
+    private async Task<(UserLoginResponse Token, string Email)> RegisterAdvertiserAsync(string tag)
     {
+        var email = $"adv.{tag}.{Guid.NewGuid():N}@teste.com";
         var response = await _client.PostAsJsonAsync("/api/auth/register", new RegisterRequest
         {
             AccountType = "advertiser",
             Name = $"Empresa {tag}",
-            Email = $"adv.{tag}.{Guid.NewGuid():N}@teste.com",
+            Email = email,
             Password = "Monburan123",
             ConfirmPassword = "Monburan123"
         });
         response.EnsureSuccessStatusCode();
-        return (await response.Content.ReadFromJsonAsync<UserLoginResponse>())!;
+        return ((await response.Content.ReadFromJsonAsync<UserLoginResponse>())!, email);
+    }
+
+    private async Task<PlanResponse> PaidPlanAsync()
+    {
+        var plans = await _client.GetFromJsonAsync<AvailablePlansResponse>("/api/v1/plans");
+        return plans!.Plans.First(p => p.Price > 0);
+    }
+
+    /// <summary>Cria a assinatura paga ativa como ela fica depois do webhook confirmar o pagamento.</summary>
+    private async Task<Guid> SeedActiveSubscriptionAsync(string advertiserEmail, Guid planId)
+    {
+        await using var context = await _factory.Services
+            .GetRequiredService<IDbContextFactory<ApplicationDbContext>>()
+            .CreateDbContextAsync();
+        var advertiser = await context.Advertisers.SingleAsync(item => item.Email == advertiserEmail);
+        var plan = await context.SubscriptionPlans.SingleAsync(item => item.Id.Value == planId);
+        var subscription = new Subscription
+        {
+            Id = Id.Create(Guid.NewGuid()),
+            TenantId = "default",
+            AdvertiserId = advertiser.Id,
+            PlanId = plan.Id,
+            StartDate = DateTime.UtcNow,
+            Status = ESubscriptionStatus.Active,
+            PaymentId = "manual_card"
+        };
+        advertiser.ActivePlan = plan.Name;
+        context.Subscriptions.Add(subscription);
+        await context.SaveChangesAsync();
+        return subscription.Id.Value;
     }
 }

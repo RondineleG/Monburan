@@ -1,0 +1,265 @@
+@page "/conta/integracoes"
+
+@using System.ComponentModel.DataAnnotations
+@using Microsoft.AspNetCore.Identity
+@using Monburan.Core.Interfaces.Services
+@using Monburan.Web.Endpoints
+@using Monburan.Web.Models
+
+@inject IIntegrationTokenService TokenService
+@inject IFeatureFlags FeatureFlags
+@inject IConfiguration Configuration
+@inject IdentityUserAccessor UserAccessor
+@inject IdentityRedirectManager RedirectManager
+@inject ILogger<Integracoes> Logger
+
+<PageTitle>Integrações - Monburan</PageTitle>
+
+<h2>Integrações</h2>
+<StatusMessage Message="@message" IsError="true" />
+
+<p>
+    Emita tokens de acesso para aplicativos parceiros, como o HiMarshall. Cada token vale só
+    para os escopos escolhidos: você pode revogá-lo aqui a qualquer momento.
+</p>
+
+@if (tokens is null)
+{
+    <p>Carregando…</p>
+}
+else
+{
+    @if (!string.IsNullOrEmpty(newTokenValue))
+    {
+        <div class="alert alert-success" role="alert">
+            <h3 class="h6">Token criado — copie agora</h3>
+            <p class="mb-2">
+                Este é o único momento em que o token aparece por inteiro. Cole-o no aplicativo
+                parceiro (ex.: painel de integrações do HiMarshall).
+            </p>
+            <code class="user-select-all d-block p-2 border rounded bg-body text-break">@newTokenValue</code>
+            @if (HiMarshallUrl is { } hm)
+            {
+                <p class="mt-2 mb-0">
+                    <a href="@hm" target="_blank" rel="noopener noreferrer">Colar o token no HiMarshall (Conta → Integrações)</a>
+                </p>
+            }
+        </div>
+    }
+
+    @if (tokens.Count > 0)
+    {
+        <div class="table-responsive">
+        <table class="table table-cards">
+            <caption class="visually-hidden">Tokens de integração emitidos pela sua conta</caption>
+            <thead>
+                <tr>
+                    <th scope="col">Nome</th>
+                    <th scope="col">Escopos</th>
+                    <th scope="col">Validade</th>
+                    <th scope="col">Status</th>
+                    <th scope="col">Ações</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var token in tokens)
+                {
+                    <tr>
+                        <td data-label="Nome">
+                            @token.Name<br />
+                            <small class="text-body-secondary"><code>@token.Prefix…</code></small>
+                        </td>
+                        <td data-label="Escopos">@string.Join(", ", token.ScopeList)</td>
+                        <td data-label="Validade">@token.ExpiresAt.ToString("dd/MM/yyyy")</td>
+                        <td data-label="Status">
+                            @if (token.RevokedAt is not null)
+                            {
+                                <span>Revogado</span>
+                            }
+                            else if (!token.IsActive)
+                            {
+                                <span>Expirado</span>
+                            }
+                            else
+                            {
+                                <span>Ativo</span>
+                            }
+                        </td>
+                        <td data-label="Ações">
+                            @if (token.RevokedAt is null && token.IsActive)
+                            {
+                                <form @formname="@($"revoke-token-{token.Id.Value}")" @onsubmit="OnRevokeAsync" method="post">
+                                    <AntiforgeryToken />
+                                    <input type="hidden" name="@nameof(TokenId)" value="@token.Id.Value" />
+                                    <button type="submit" class="btn btn-outline-danger" aria-label="Revogar token @token.Name">Revogar</button>
+                                </form>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+        </div>
+    }
+
+    @if (HiMarshallUrl is { } himarshall)
+    {
+        <p class="mt-3">
+            Integre com o HiMarshall, o app de gestão de vida: gerencie finanças, mudança,
+            objetivos e mercado — e veja suas vagas internacionais lá.
+            <a href="@himarshall" target="_blank" rel="noopener noreferrer">Abrir o HiMarshall</a>
+        </p>
+    }
+
+    <h3>Novo token</h3>
+    <div class="row">
+        <div class="col-md-6">
+            <EditForm Model="Input" FormName="create-integration-token" OnValidSubmit="OnCreateAsync" method="post">
+                <DataAnnotationsValidator />
+                <ValidationSummary class="text-danger" role="alert" />
+                <div class="mb-3">
+                    <label for="token-name" class="form-label">Nome do token</label>
+                    <InputText id="token-name" @bind-Value="Input.Name" class="form-control" autocomplete="off" aria-required="true" placeholder="Ex.: HiMarshall" />
+                    <ValidationMessage For="() => Input.Name" class="text-danger" />
+                </div>
+                <fieldset class="mb-3">
+                    <legend class="form-label">Escopos</legend>
+                    <div class="form-check">
+                        <InputCheckbox id="scope-readiness" @bind-Value="Input.ScopeReadiness" class="form-check-input" />
+                        <label class="form-check-label" for="scope-readiness">
+                            readiness:read — resumo de prontidão para mudança
+                        </label>
+                    </div>
+                    <div class="form-check">
+                        <InputCheckbox id="scope-jobs" @bind-Value="Input.ScopeJobs" class="form-check-input" />
+                        <label class="form-check-label" for="scope-jobs">
+                            jobs:read — vagas internacionais do seu perfil
+                        </label>
+                    </div>
+                    @if (_scopesError)
+                    {
+                        <div class="text-danger" role="alert">Escolha ao menos um escopo.</div>
+                    }
+                </fieldset>
+                <input type="hidden" name="Input.RequestId" value="@Input.RequestId" />
+                <div class="mb-3">
+                    <label for="expires-days" class="form-label">Validade (dias)</label>
+                    <InputNumber id="expires-days" @bind-Value="Input.ExpiresInDays" class="form-control" />
+                    <ValidationMessage For="() => Input.ExpiresInDays" class="text-danger" />
+                </div>
+                <button type="submit" class="w-100 btn btn-lg btn-primary">Emitir token</button>
+            </EditForm>
+        </div>
+    </div>
+}
+
+@code {
+    private string? message;
+    private bool _scopesError;
+
+    private string? HiMarshallUrl => Configuration["Integrations:HiMarshallUrl"] is { Length: > 0 } url
+        ? url.TrimEnd('/') + "/conta"
+        : null;
+    private ApplicationUser user = default!;
+    private IReadOnlyList<IntegrationToken>? tokens;
+    private string? newTokenValue;
+
+    [CascadingParameter]
+    private HttpContext HttpContext { get; set; } = default!;
+
+    [SupplyParameterFromForm(FormName = "create-integration-token")]
+    private InputModel Input
+    {
+        get => _input ??= new();
+        set => _input = value;
+    }
+
+    private InputModel? _input;
+
+    [SupplyParameterFromForm]
+    private string? TokenId { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        user = await UserAccessor.GetRequiredUserAsync(HttpContext);
+
+        if (!await FeatureFlags.IsEnabledAsync(IntegrationEndpoints.FeatureName, HttpContext.User))
+        {
+            RedirectManager.RedirectTo("/conta");
+            return;
+        }
+
+        tokens = await TokenService.ListAsync(user.Id, HttpContext.RequestAborted);
+    }
+
+    private async Task OnCreateAsync()
+    {
+        var scopes = SelectedScopes();
+        _scopesError = scopes.Count == 0;
+        if (_scopesError) return;
+
+        // Reenvio do mesmo POST (F5 na página de sucesso) não emite um segundo token:
+        // o RequestId vai para o banco junto do token, então o dedup sobrevive a restart
+        // e só é consumido quando a emissão realmente acontece.
+        var (token, rawValue) = await TokenService.CreateAsync(
+            user.Id, Input.Name, scopes, Input.ExpiresInDays, Input.RequestId, HttpContext.RequestAborted);
+
+        if (rawValue is null)
+        {
+            message = "Este token já foi emitido — o valor completo apareceu na tela anterior.";
+            Input.RequestId = Guid.NewGuid();
+            tokens = await TokenService.ListAsync(user.Id, HttpContext.RequestAborted);
+            return;
+        }
+
+        Logger.LogInformation("Usuário emitiu token de integração '{TokenName}' ({TokenPrefix}…).", token!.Name, token.Prefix);
+
+        newTokenValue = rawValue;
+        _input = null;
+        tokens = await TokenService.ListAsync(user.Id, HttpContext.RequestAborted);
+    }
+
+    private List<string> SelectedScopes()
+    {
+        var scopes = new List<string>(2);
+        if (Input.ScopeReadiness) scopes.Add("readiness:read");
+        if (Input.ScopeJobs) scopes.Add("jobs:read");
+        return scopes;
+    }
+
+    private async Task OnRevokeAsync()
+    {
+        if (!Guid.TryParse(TokenId, out var tokenId))
+        {
+            message = "Token não identificado. Recarregue a página e tente de novo.";
+            return;
+        }
+
+        if (await TokenService.RevokeAsync(user.Id, tokenId, HttpContext.RequestAborted))
+        {
+            Logger.LogInformation("Usuário revogou token de integração {TokenId}.", tokenId);
+            tokens = await TokenService.ListAsync(user.Id, HttpContext.RequestAborted);
+            return;
+        }
+
+        message = "Não foi possível revogar este token.";
+    }
+
+    private sealed class InputModel
+    {
+        [Required(ErrorMessage = "Dê um nome ao token.")]
+        [StringLength(120, ErrorMessage = "O nome do token deve ter até {1} caracteres.", MinimumLength = 1)]
+        [Display(Name = "Nome do token")]
+        public string Name { get; set; } = "HiMarshall";
+
+        public bool ScopeReadiness { get; set; } = true;
+        public bool ScopeJobs { get; set; } = true;
+
+        /// <summary>Id único do envio: deduplica o reenvio do POST pelo navegador.</summary>
+        public Guid RequestId { get; set; } = Guid.NewGuid();
+
+        [Range(1, 365, ErrorMessage = "A validade deve ficar entre {1} e {2} dias.")]
+        [Display(Name = "Validade (dias)")]
+        public int ExpiresInDays { get; set; } = 90;
+    }
+}
