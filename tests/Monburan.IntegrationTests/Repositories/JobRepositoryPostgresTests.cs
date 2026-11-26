@@ -179,5 +179,38 @@ public class JobRepositoryPostgresTests : IClassFixture<PostgresDatabase>
         stored.UpdatedBy.Should().Be(closedBy);
     }
 
+
+    [Fact]
+    public async Task UpdateAsync_WhenModerationHidesJob_DoesNotReopenIt()
+    {
+        await using var context = _database.CreateContext();
+        await context.Database.MigrateAsync();
+        var advertiserId = await SeedAdvertiserAsync(context);
+        var jobId = await SeedJobAsync(context, advertiserId);
+        await context.Database.ExecuteSqlAsync(
+            $"""UPDATE "Jobs" SET "Status" = {"Hidden"} WHERE "Id" = {jobId}""");
+
+        var staleEdit = new Job
+        {
+            Id = Id.Create(jobId),
+            AdvertiserId = Id.Create(advertiserId),
+            Title = "Edição durante moderação",
+            Description = "Edição iniciada antes da ocultação",
+            ExpirationDate = DateTime.UtcNow.AddDays(30),
+            Status = EJobStatus.Active,
+            UpdatedBy = advertiserId.ToString(),
+            TenantId = "default"
+        };
+        var repository = new JobRepository(_database.ContextFactory);
+
+        var result = await repository.UpdateAsync(staleEdit);
+
+        result.Status.Should().Be(Core.Enums.EResultStatus.Success);
+        await using var check = _database.CreateContext();
+        var stored = await check.Jobs.AsNoTracking().SingleAsync(job => job.Id == Id.Create(jobId));
+        stored.Status.Should().Be(EJobStatus.Hidden);
+        stored.Title.Should().Be("Edição durante moderação");
+    }
+
 }
 

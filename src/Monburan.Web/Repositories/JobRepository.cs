@@ -187,28 +187,46 @@ public class JobRepository : IJobRepository
         CopyLocation(tracked.Location, entity.Location);
         CopySalary(tracked.Salary, entity.Salary);
 
+        var relational = context.Database.IsRelational();
+        if (!relational)
+        {
+            // O provedor em memória dos testes não executa SQL condicional; a corrida real é coberta no PostgreSQL.
+            if (!IsStatusLocked(tracked.Status))
+                tracked.Status = entity.Status;
+            if (tracked.Status != EJobStatus.Closed)
+                tracked.UpdatedBy = entity.UpdatedBy;
+        }
+
         await context.SaveChangesAsync(cancellationToken);
 
-        // Status e autor da mudança ficam fora do SaveChanges principal e são gravados em uma única
-        // atualização condicional. Se o encerramento acontecer depois da leitura e antes desta escrita,
-        // a condição no banco impede que uma edição/expiração antiga reabra a vaga ou apague quem a encerrou.
-        var now = DateTime.UtcNow;
-        var changed = await context.Jobs
-            .Where(job => job.Id == entity.Id && job.Status != EJobStatus.Closed)
-            .ExecuteUpdateAsync(setters => setters
-                .SetProperty(job => job.Status, entity.Status)
-                .SetProperty(job => job.UpdatedBy, entity.UpdatedBy)
-                .SetProperty(job => job.UpdatedAt, now),
-                cancellationToken);
+        if (relational)
+        {
+            // Em produção, status e autor da mudança ficam fora do SaveChanges principal e são gravados em
+            // atualizações condicionais. Uma edição/expiração antiga não reabre vaga encerrada nem desfaz
+            // ocultação/reprovação da moderação na janela entre leitura e escrita.
+            var now = DateTime.UtcNow;
+            var statusChanged = await context.Jobs
+                .Where(job => job.Id == entity.Id
+                    && job.Status != EJobStatus.Closed
+                    && job.Status != EJobStatus.Hidden
+                    && job.Status != EJobStatus.Rejected)
+                .ExecuteUpdateAsync(setters => setters
+                    .SetProperty(job => job.Status, entity.Status),
+                    cancellationToken);
 
-        if (changed > 0)
-        {
-            tracked.Status = entity.Status;
-            tracked.UpdatedBy = entity.UpdatedBy;
-        }
-        else
-        {
-            await context.Entry(tracked).ReloadAsync(cancellationToken);
+            var authorshipChanged = await context.Jobs
+                .Where(job => job.Id == entity.Id && job.Status != EJobStatus.Closed)
+                .ExecuteUpdateAsync(setters => setters
+                    .SetProperty(job => job.UpdatedBy, entity.UpdatedBy)
+                    .SetProperty(job => job.UpdatedAt, now),
+                    cancellationToken);
+
+            if (statusChanged > 0)
+                tracked.Status = entity.Status;
+            if (authorshipChanged > 0)
+                tracked.UpdatedBy = entity.UpdatedBy;
+            if (statusChanged == 0)
+                await context.Entry(tracked).ReloadAsync(cancellationToken);
         }
 
         return RequestResult<Job>.Success(tracked);
@@ -216,6 +234,10 @@ public class JobRepository : IJobRepository
 
     // Local e salário são "owned" (tabelas próprias): só são gravados quando o valor
     // recebido é diferente do que já está no banco.
+
+    private static bool IsStatusLocked(EJobStatus status) =>
+        status is EJobStatus.Closed or EJobStatus.Hidden or EJobStatus.Rejected;
+
     private static void CopyLocation(JobLocation? target, JobLocation? source)
     {
         if (target is null || source is null)
