@@ -130,6 +130,19 @@ public class UpdateApplicationStatusUseCaseTests
         await _applications.DidNotReceiveWithAnyArgs().GetByIdAsync(default!, default);
     }
 
+
+    [Fact]
+    public async Task ExecuteAsync_WhenUnicodeTextFitsTheCharacterLimit_UpdatesTheStatus()
+    {
+        _applications.GetByIdAsync(Arg.Any<Id>()).Returns(RequestResult<Application>.Success(ApplicationOf()));
+        var request = Request(EApplicationStatus.Viewed);
+        request.Notes = new string('x', ApplicationStatusHistory.MaxNoteLength - 1) + "😀";
+
+        var result = await _useCase.ExecuteAsync(request);
+
+        result.Status.Should().Be(EResultStatus.Success);
+    }
+
     [Fact]
     public async Task ExecuteAsync_WhenTheApplicationBelongsToAnotherAdvertiser_ReturnsNotFoundAndNeverWrites()
     {
