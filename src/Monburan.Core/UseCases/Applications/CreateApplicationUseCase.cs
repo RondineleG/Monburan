@@ -56,7 +56,7 @@ public class CreateApplicationUseCase : IUseCase<CreateApplicationRequest, Appli
 
         var job = jobResult.Data!;
         if (job.Status != EJobStatus.Active)
-            return RequestResult<ApplicationResponse>.WithDomainError("Vaga não está mais ativa.");
+            return RequestResult<ApplicationResponse>.WithConflict("Vaga não está mais ativa.");
 
         // Vaga externa recebe candidatura no canal da fonte (site, WhatsApp, e-mail ou presencial), nunca na Monburan
         if (job.PublicationType == EPublicationType.External)
@@ -97,6 +97,13 @@ public class CreateApplicationUseCase : IUseCase<CreateApplicationRequest, Appli
         var result = await _applicationRepository.CreateAsync(application, cancellationToken);
         if (result.Status != EResultStatus.Success)
             return RequestResult<ApplicationResponse>.FromResult(result);
+
+        if (result.Data!.Id.Value != application.Id.Value)
+        {
+            var existing = MapToResponse(result.Data);
+            existing.ExistingApplication = true;
+            return RequestResult<ApplicationResponse>.Success(existing);
+        }
 
         // Histórico de etapas (não bloqueante: a candidatura existe mesmo se o histórico falhar)
         await TryWriteHistoryAsync(application, note: null, responsible: null);

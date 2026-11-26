@@ -26,7 +26,9 @@ public static class ApplicationEndpoints
 
             request.CandidateId = candidateId.Value;
             var result = await useCase.ExecuteAsync(request, cancellationToken);
-            return result.ToHttpResult(StatusCodes.Status201Created);
+            return result.ToHttpResult(result.Data?.ExistingApplication == true
+                ? StatusCodes.Status200OK
+                : StatusCodes.Status201Created);
         })
         .WithSummary("Candidata o usuário autenticado a uma vaga");
 

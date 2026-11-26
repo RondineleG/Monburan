@@ -19,16 +19,9 @@ public class ApplicationRepository : IApplicationRepository
     public async Task<RequestResult<Application>> CreateAsync(Application entity, CancellationToken cancellationToken = default)
     {
         await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);
-        var alreadyApplied = await context.Applications
-            .AsNoTracking()
-            .AnyAsync(application => !application.IsDeleted &&
-                application.CandidateId == entity.CandidateId &&
-                application.JobId == entity.JobId,
-                cancellationToken);
-        if (alreadyApplied)
-            return RequestResult<Application>.EntityAlreadyExists(
-                "Application", $"{entity.CandidateId.Value}/{entity.JobId.Value}",
-                "Você já se candidatou a esta vaga.");
+        var existing = await FindCurrentAsync(context, entity.CandidateId, entity.JobId, cancellationToken);
+        if (existing is not null)
+            return DuplicateResult(existing, entity);
 
         try
         {
@@ -39,9 +32,33 @@ public class ApplicationRepository : IApplicationRepository
         catch (DbUpdateException)
         {
             context.Entry(entity).State = EntityState.Detached;
+            existing = await FindCurrentAsync(context, entity.CandidateId, entity.JobId, cancellationToken);
+            if (existing is not null)
+                return DuplicateResult(existing, entity);
+
             return RequestResult<Application>.WithDomainError("Não foi possível concluir sua candidatura. Você pode já ter se candidatado a esta vaga.");
         }
     }
+
+
+    private static Task<Application?> FindCurrentAsync(ApplicationDbContext context, Id candidateId, Id jobId, CancellationToken cancellationToken) =>
+        context.Applications
+            .AsNoTracking()
+            .FirstOrDefaultAsync(application => !application.IsDeleted &&
+                application.CandidateId == candidateId &&
+                application.JobId == jobId,
+                cancellationToken);
+
+    private static RequestResult<Application> DuplicateResult(Application existing, Application requested) =>
+        SamePayload(existing, requested)
+            ? RequestResult<Application>.Success(existing)
+            : RequestResult<Application>.EntityAlreadyExists(
+                "Application", $"{requested.CandidateId.Value}/{requested.JobId.Value}",
+                "Você já se candidatou a esta vaga com outros dados.");
+
+    private static bool SamePayload(Application existing, Application requested) =>
+        existing.ResumeId == requested.ResumeId
+        && string.Equals(existing.Notes ?? string.Empty, requested.Notes ?? string.Empty, StringComparison.Ordinal);
 
     public async Task<RequestResult<Application>> DeleteAsync(Id id, CancellationToken cancellationToken = default)
     {

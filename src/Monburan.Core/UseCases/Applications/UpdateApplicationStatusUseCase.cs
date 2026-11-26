@@ -45,6 +45,14 @@ public class UpdateApplicationStatusUseCase : IUseCase<UpdateApplicationStatusRe
             return RequestResult<ApplicationResponse>.EntityNotFound("Application", request.ApplicationId, "Candidatura não encontrada.");
 
         var oldStatus = application.Status;
+        if (oldStatus == request.NewStatus)
+            return RequestResult<ApplicationResponse>.Success(MapToResponse(application));
+
+        if (!IsAllowedTransition(oldStatus, request.NewStatus))
+        {
+            return RequestResult<ApplicationResponse>.WithConflict(
+                $"Transição de candidatura inválida: {oldStatus} → {request.NewStatus}.");
+        }
 
         application.Status = request.NewStatus;
 
@@ -85,6 +93,16 @@ public class UpdateApplicationStatusUseCase : IUseCase<UpdateApplicationStatusRe
 
         return RequestResult<ApplicationResponse>.Success(MapToResponse(updateResult.Data!));
     }
+
+
+    private static bool IsAllowedTransition(EApplicationStatus current, EApplicationStatus next) =>
+        current switch
+        {
+            EApplicationStatus.Sent => next is EApplicationStatus.Viewed or EApplicationStatus.Selected or EApplicationStatus.Rejected or EApplicationStatus.Archived,
+            EApplicationStatus.Viewed => next is EApplicationStatus.Selected or EApplicationStatus.Rejected or EApplicationStatus.Archived,
+            EApplicationStatus.Selected or EApplicationStatus.Rejected => next is EApplicationStatus.Archived,
+            _ => false
+        };
 
     // Falha na gravação do histórico fica no log: a trilha é um extra e não pode derrubar a mudança de etapa
     private async Task TryWriteHistoryAsync(Application application, string? note, string? responsible, CancellationToken cancellationToken = default)

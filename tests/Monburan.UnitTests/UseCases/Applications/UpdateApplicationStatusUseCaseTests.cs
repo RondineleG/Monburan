@@ -98,6 +98,7 @@ public class UpdateApplicationStatusUseCaseTests
         var result = await _useCase.ExecuteAsync(Request(EApplicationStatus.Viewed));
 
         result.Status.Should().Be(EResultStatus.Success);
+        await _applications.DidNotReceiveWithAnyArgs().UpdateAsync(default!);
         await _history.DidNotReceiveWithAnyArgs().CreateAsync(default!);
     }
 
@@ -127,4 +128,27 @@ public class UpdateApplicationStatusUseCaseTests
         await _applications.DidNotReceiveWithAnyArgs().UpdateAsync(default!);
         await _history.DidNotReceiveWithAnyArgs().CreateAsync(default!);
     }
+    [Fact]
+    public async Task ExecuteAsync_WhenTheTransitionGoesBackward_ReturnsConflictWithoutWriting()
+    {
+        _applications.GetByIdAsync(Arg.Any<Id>()).Returns(RequestResult<Application>.Success(ApplicationOf(EApplicationStatus.Rejected)));
+
+        var result = await _useCase.ExecuteAsync(Request(EApplicationStatus.Viewed));
+
+        result.Status.Should().Be(EResultStatus.Conflict);
+        await _applications.DidNotReceiveWithAnyArgs().UpdateAsync(default!);
+        await _history.DidNotReceiveWithAnyArgs().CreateAsync(default!);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_WhenTheTerminalStateIsArchived_AllowsTheTransition()
+    {
+        _applications.GetByIdAsync(Arg.Any<Id>()).Returns(RequestResult<Application>.Success(ApplicationOf(EApplicationStatus.Selected)));
+
+        var result = await _useCase.ExecuteAsync(Request(EApplicationStatus.Archived));
+
+        result.Status.Should().Be(EResultStatus.Success);
+        await _applications.Received(1).UpdateAsync(Arg.Is<Application>(a => a.Status == EApplicationStatus.Archived));
+    }
+
 }

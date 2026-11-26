@@ -128,7 +128,7 @@ public class ApplicationRepositoryPostgresTests : IClassFixture<PostgresDatabase
     }
 
     [Fact]
-    public async Task CreateAsync_TwiceForTheSameJob_IsRejected()
+    public async Task CreateAsync_TwiceForTheSameJobWithTheSamePayload_RecoversTheExistingApplication()
     {
         await using var context = _database.CreateContext();
         await context.Database.MigrateAsync();
@@ -155,8 +155,43 @@ public class ApplicationRepositoryPostgresTests : IClassFixture<PostgresDatabase
             TenantId = "default"
         });
 
-        second.Status.Should().NotBe(Core.Enums.EResultStatus.Success,
-            "a mesma pessoa não pode se candidatar duas vezes à mesma vaga");
+        second.Status.Should().Be(Core.Enums.EResultStatus.Success,
+            "reenvio com o mesmo payload recupera a candidatura sem criar efeito novo");
+        second.Data!.Id.Should().Be(first.Data!.Id);
+    }
+
+    [Fact]
+    public async Task CreateAsync_TwiceForTheSameJobWithDifferentPayload_IsRejected()
+    {
+        await using var context = _database.CreateContext();
+        await context.Database.MigrateAsync();
+        var (candidateId, jobId) = await SeedAsync(context);
+
+        var repository = new ApplicationRepository(_database.ContextFactory);
+
+        var first = await repository.CreateAsync(new Application
+        {
+            Id = Id.Create(Guid.NewGuid()),
+            CandidateId = Id.Create(candidateId),
+            JobId = Id.Create(jobId),
+            Status = EApplicationStatus.Sent,
+            Notes = "primeiro payload",
+            TenantId = "default"
+        });
+        first.Status.Should().Be(Core.Enums.EResultStatus.Success);
+
+        var second = await repository.CreateAsync(new Application
+        {
+            Id = Id.Create(Guid.NewGuid()),
+            CandidateId = Id.Create(candidateId),
+            JobId = Id.Create(jobId),
+            Status = EApplicationStatus.Sent,
+            Notes = "payload divergente",
+            TenantId = "default"
+        });
+
+        second.Status.Should().Be(Core.Enums.EResultStatus.EntityAlreadyExists,
+            "mesma chave natural com payload divergente é conflito");
     }
 
     [Fact]

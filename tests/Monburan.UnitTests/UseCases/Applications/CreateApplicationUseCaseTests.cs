@@ -231,4 +231,41 @@ public class CreateApplicationUseCaseTests
         await _applications.Received(1).CreateAsync(Arg.Is<Application>(a => a.ResumeSnapshotJson == null));
     }
 
+    [Fact]
+    public async Task ExecuteAsync_WhenTheRepositoryRecoversTheSameApplication_SkipsNewSideEffects()
+    {
+        var existingId = Guid.NewGuid();
+        _applications.CreateAsync(Arg.Any<Application>()).Returns(RequestResult<Application>.Success(new Application
+        {
+            Id = Id.Create(existingId),
+            CandidateId = Id.Create(_candidateId),
+            JobId = Id.Create(_jobId),
+            Status = EApplicationStatus.Sent,
+            AppliedAt = DateTime.UtcNow.AddMinutes(-5),
+            Notes = "Tenho interesse.",
+            TenantId = "default"
+        }));
+
+        var result = await _useCase.ExecuteAsync(Request());
+
+        result.Status.Should().Be(EResultStatus.Success);
+        result.Data!.Id.Should().Be(existingId);
+        result.Data.ExistingApplication.Should().BeTrue();
+        await _history.DidNotReceive().CreateAsync(Arg.Any<ApplicationStatusHistory>());
+        await _jobs.DidNotReceive().IncrementApplicationsAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_WhenTheJobIsClosed_ReturnsConflict()
+    {
+        var job = ActiveJob();
+        job.Status = EJobStatus.Expired;
+        _jobs.GetByIdAsync(Arg.Any<Id>()).Returns(RequestResult<Job>.Success(job));
+
+        var result = await _useCase.ExecuteAsync(Request());
+
+        result.Status.Should().Be(EResultStatus.Conflict);
+        await _applications.DidNotReceive().CreateAsync(Arg.Any<Application>());
+    }
+
 }

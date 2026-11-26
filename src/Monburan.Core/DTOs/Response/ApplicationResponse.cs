@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace Monburan.Core.DTOs.Response;
 
 public class ApplicationResponse
@@ -19,4 +21,8 @@ public class ApplicationResponse
     public Guid? ResumeId { get; set; }
     public ApplicationResumeSnapshot? ResumeSnapshot { get; set; }
     public DateTime CreatedAt { get; set; }
+
+    /// <summary>Controle interno do endpoint: indica repetição idempotente, sem expor no contrato JSON.</summary>
+    [JsonIgnore]
+    public bool ExistingApplication { get; set; }
 }
