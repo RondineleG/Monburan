@@ -4,6 +4,7 @@
 @using Monburan.Core.DTOs.Request
 @using Monburan.Core.DTOs.Response
 @using Monburan.Core.Enums
+@using Monburan.Core.Interfaces.Services
 @using Monburan.Core.Requests
 @using Monburan.Core.UseCases.Applications
 @using Monburan.Core.UseCases.Jobs
@@ -15,6 +16,7 @@
 @inject ApplicationLookupService ApplicationLookup
 @inject ILogger<ApplyJob> Logger
 @inject ICurrentUserHelper CurrentUserHelper
+@inject IFeatureFlags FeatureFlags
 @inject NavigationManager Navigation
 @inject IToastService Toast
 @inject IJSRuntime JS
@@ -217,6 +219,9 @@
     [Parameter]
     public Guid JobId { get; set; }
 
+    [CascadingParameter]
+    private Task<AuthenticationState>? AuthenticationStateTask { get; set; }
+
     private CreateApplicationRequest model = new();
     private JobResponse? job;
     private string? salary;
@@ -361,6 +366,10 @@
 
         isSubmitting = true;
         errorMessage = string.Empty;
+
+        var user = AuthenticationStateTask is null ? null : (await AuthenticationStateTask).User;
+        model.CaptureResumeSnapshot = await FeatureFlags.IsEnabledAsync(
+            CreateApplicationUseCase.ResumeSnapshotFeature, user);
 
         var result = await CreateApplicationUseCase.ExecuteAsync(model);
 

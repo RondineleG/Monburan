@@ -15,6 +15,8 @@ namespace Monburan.Core.UseCases.Applications;
 
 public class CreateApplicationUseCase : IUseCase<CreateApplicationRequest, ApplicationResponse>
 {
+    public const string ResumeSnapshotFeature = "snapshot-curriculo-candidatura";
+
     private readonly IBaseRepository<Application> _applicationRepository;
     private readonly IJobRepository _jobRepository;
     private readonly IBaseRepository<Resume> _resumeRepository;
@@ -78,7 +80,7 @@ public class CreateApplicationUseCase : IUseCase<CreateApplicationRequest, Appli
             AppliedAt = DateTime.UtcNow,
             Notes = request.Notes,
             ResumeId = request.ResumeId,
-            ResumeSnapshotJson = resume is null ? null : ApplicationResumeSnapshotMapper.Serialize(resume),
+            ResumeSnapshotJson = resume is null || !request.CaptureResumeSnapshot ? null : ApplicationResumeSnapshotMapper.Serialize(resume),
             TenantId = "default"
         };
 

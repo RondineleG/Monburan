@@ -165,6 +165,7 @@ public class CreateApplicationUseCaseTests
         _resumes.GetByIdAsync(Arg.Any<Id>()).Returns(RequestResult<Resume>.Success(resume));
         var request = Request();
         request.ResumeId = resumeId;
+        request.CaptureResumeSnapshot = true;
 
         var result = await _useCase.ExecuteAsync(request);
 
@@ -199,6 +200,27 @@ public class CreateApplicationUseCaseTests
 
         result.Status.Should().Be(EResultStatus.HasValidation);
         await _applications.DidNotReceive().CreateAsync(Arg.Any<Application>());
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_WhenSnapshotFeatureIsOff_DoesNotPersistSnapshot()
+    {
+        var resumeId = Guid.NewGuid();
+        _resumes.GetByIdAsync(Arg.Any<Id>()).Returns(RequestResult<Resume>.Success(new Resume
+        {
+            Id = Id.Create(resumeId),
+            CandidateId = Id.Create(_candidateId),
+            Title = "Currículo original",
+            Summary = "Resumo"
+        }));
+        var request = Request();
+        request.ResumeId = resumeId;
+
+        var result = await _useCase.ExecuteAsync(request);
+
+        result.Status.Should().Be(EResultStatus.Success);
+        result.Data!.ResumeSnapshot.Should().BeNull();
+        await _applications.Received(1).CreateAsync(Arg.Is<Application>(a => a.ResumeSnapshotJson == null));
     }
 
 }
