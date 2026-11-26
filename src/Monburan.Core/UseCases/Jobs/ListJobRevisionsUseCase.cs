@@ -39,7 +39,7 @@ public sealed class ListJobRevisionsUseCase : IUseCase<ListJobRevisionsRequest, 
 
         var job = jobResult.Data;
         if (job.AdvertiserId?.Value != request.AdvertiserId)
-            return RequestResult<IReadOnlyList<JobRevisionResponse>>.WithDomainError("Vaga pertence a outro anunciante.");
+            return RequestResult<IReadOnlyList<JobRevisionResponse>>.EntityNotFound("Job", request.JobId, "Vaga não encontrada.");
 
         var revisions = await _jobs.ListRevisionsAsync(job.Id, cancellationToken);
         var advertiserId = job.AdvertiserId.Value.ToString();
