@@ -287,10 +287,11 @@ public class JobRepositoryPostgresTests : IClassFixture<PostgresDatabase>
             UpdatedBy = advertiserId.ToString(),
             TenantId = "default"
         };
-        (await repository.UpdateAsync(edit)).Status.Should().Be(Core.Enums.EResultStatus.Success);
-
         var publish = new Job { Id = Id.Create(jobId), Status = EJobStatus.Active, TenantId = "default" };
-        (await repository.UpdateStatusAsync(publish, EJobStatus.Draft, advertiserId.ToString())).Status.Should().Be(Core.Enums.EResultStatus.Success);
+        var editTask = repository.UpdateAsync(edit);
+        var publishTask = repository.UpdateStatusAsync(publish, EJobStatus.Draft, advertiserId.ToString());
+        var results = await Task.WhenAll(editTask, publishTask);
+        results.Should().OnlyContain(result => result.Status == Core.Enums.EResultStatus.Success);
 
         await using var check = _database.CreateContext();
         var stored = await check.Jobs.AsNoTracking().SingleAsync(job => job.Id == Id.Create(jobId));
