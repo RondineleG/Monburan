@@ -60,6 +60,18 @@ dotnet test tests/Monburan.ApiTests/Monburan.ApiTests.csproj --configuration Rel
 # 14 passed, 0 failed
 ```
 
+## Rastreabilidade M01–M07
+
+- M01: currículos múltiplos, edição pelo titular, visibilidade explícita por compartilhamento e revogação já estavam implementados no ponto KEEP e foram confirmados pelas suítes `UpdateResumeOwnershipTests`, `ResumeShareTests`, `ResumeShareDeletionTests` e contratos mobile/API.
+- M02: coberto por `JobDraftApiTests`, `AdminJobModerationApiTests`, `JobRepositoryPostgresTests` e contratos de status; draft/published/closed/expired, autoria, revisões, vigência e bloqueio de encerrada estão verdes.
+- M03: coberto por `JobSubmissionPersistenceTests`, `ModerateJobSubmissionUseCaseTests` e moderação de sugestões; rascunho preserva provedor, hash, data e campos incertos, sem publicação automática.
+- M04: coberto por `CandidateJourneyApiTests` e testes do scorer; ranking é estável, perfil incompleto cai no ranking básico e fatores só aparecem atrás da flag.
+- M05: coberto por `ApplicationsApiTests`, `ApplicationSnapshotFeatureApiTests`, `ApplicationHistoryApiTests` e testes PostgreSQL; reenvio idempotente, snapshot, transição ATS, dono e versão estão verdes.
+- M06: coberto por `JobAlertsApiTests`, `AdminJobModerationApiTests` e serviço/testes de expiração; regra/vaga é deduplicada, moderação registra estado e vaga recusada/expirada não vira novo alerta público.
+- M07: coberto por `MobileClientContractTests`, `JobDraftApiTests` e contratos históricos; web/Android usam os contratos atuais e erros do servidor continuam compreensíveis ao cliente antigo.
+
+O cenário ponta a ponta é a composição dessas provas de API/contrato na mesma base descartável: imagem/sugestão moderada, publicação, busca, candidatura, transição do recrutador e histórico do candidato. Não há etapa dependente de produção ou dado real.
+
 ## Compatibilidade e rollback
 
 - Compatibilidade: nenhum campo existente mudou de tipo ou significado; `ResumeSnapshot` é aditivo e clientes antigos podem ignorá-lo. `POST /applications` passa a responder 200 somente quando a repetição idempotente recupera exatamente a mesma candidatura; payload divergente continua erro (409).
