@@ -115,6 +115,20 @@ public sealed class RecruivaMigrationDryRunUseCaseTests
         result.Data!.IdMap.Values.Should().OnlyContain(id => id.ToString("D")[14] == '5');
     }
 
+    [Fact]
+    public async Task EquivalentTimestampsInDifferentKinds_ProduceTheSameHash()
+    {
+        var utc = new DateTime(2026, 1, 1, 12, 0, 0, DateTimeKind.Utc);
+        var local = utc.ToLocalTime();
+        var first = ValidExport() with { Candidates = [ValidExport().Candidates[0] with { CreatedAtUtc = utc }] };
+        var second = ValidExport() with { Candidates = [ValidExport().Candidates[0] with { CreatedAtUtc = local }] };
+
+        var firstResult = await _useCase.ExecuteAsync(first);
+        var secondResult = await _useCase.ExecuteAsync(second);
+
+        firstResult.Data!.Hashes["candidate"].Should().Be(secondResult.Data!.Hashes["candidate"]);
+    }
+
     private static RecruivaMigrationExport ValidExport() => new()
     {
         TenantId = "default",

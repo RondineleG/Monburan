@@ -112,10 +112,10 @@ public sealed class BuildRecruivaMigrationDryRunUseCase : IUseCase<RecruivaMigra
             problems.Add(new("orphan", "job", job.SourceId, "Vaga referencia empresa inexistente na exportação."));
         foreach (var resume in request.Resumes.Where(resume => !candidates.Contains(resume.CandidateSourceId)))
             problems.Add(new("orphan", "resume", resume.SourceId, "Currículo referencia candidato inexistente na exportação."));
-        var resumesBySourceId = request.Resumes.ToDictionary(resume => resume.SourceId, StringComparer.Ordinal);
+        var resumesBySourceId = request.Resumes.GroupBy(resume => resume.SourceId, StringComparer.Ordinal).ToDictionary(group => group.Key, group => group.First(), StringComparer.Ordinal);
         foreach (var application in request.Applications)
         {
-            resumesBySourceId.TryGetValue(application.ResumeSourceId ?? string.Empty, out var linkedResume);
+            var linkedResume = !string.IsNullOrWhiteSpace(application.ResumeSourceId) && resumesBySourceId.TryGetValue(application.ResumeSourceId, out var resume) ? resume : null;
             if (linkedResume is not null && linkedResume.CandidateSourceId != application.CandidateSourceId)
                 problems.Add(new("collision", "application", application.SourceId, "Candidatura referencia currículo de outro candidato."));
             if (!candidates.Contains(application.CandidateSourceId))
