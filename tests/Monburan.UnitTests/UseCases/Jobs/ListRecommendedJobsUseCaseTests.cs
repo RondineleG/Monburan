@@ -106,7 +106,19 @@ public class ListRecommendedJobsUseCaseTests
     {
         var older = JobOf("Vaga antiga");
         var newer = JobOf("Vaga recente");
-        ReturnsJobs(older, newer);
+        var alreadyApplied = JobOf("Vaga aplicada");
+        ReturnsJobs(older, newer, alreadyApplied);
+        _applications.ListByCandidateAsync(_candidateId).Returns(RequestResult<IEnumerable<Application>>.Success(
+        [
+            new Application
+            {
+                Id = Id.Create(Guid.NewGuid()),
+                CandidateId = Id.Create(_candidateId),
+                JobId = alreadyApplied.Id,
+                Status = EApplicationStatus.Sent,
+                TenantId = "default"
+            }
+        ]));
 
         EnableExplanation();
 
@@ -114,7 +126,10 @@ public class ListRecommendedJobsUseCaseTests
 
         result.Status.Should().Be(EResultStatus.Success);
         result.Data!.Jobs.Select(job => job.Title).Should().ContainInOrder("Vaga recente", "Vaga antiga");
-        await _jobs.Received(1).ListRecentForRecommendationsAsync(ListRecommendedJobsUseCase.MaxResults, Arg.Any<IReadOnlyCollection<Id>>(), Arg.Any<CancellationToken>());
+        await _jobs.Received(1).ListRecentForRecommendationsAsync(
+            ListRecommendedJobsUseCase.MaxResults,
+            Arg.Is<IReadOnlyCollection<Id>>(ids => ids.Contains(alreadyApplied.Id)),
+            Arg.Any<CancellationToken>());
     }
 
     [Fact]

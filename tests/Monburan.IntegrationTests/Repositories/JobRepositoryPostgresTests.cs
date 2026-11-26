@@ -120,7 +120,7 @@ public class JobRepositoryPostgresTests : IClassFixture<PostgresDatabase>
             $"""UPDATE "Jobs" SET "CreatedAt" = {DateTime.UtcNow.AddDays(-40)} WHERE "Id" = {old}""");
 
         var repository = new JobRepository(_database.ContextFactory);
-        var result = await repository.SearchAsync(publishedWithinDays: 7);
+        var result = await repository.SearchAsync(advertiserId: advertiserId, publishedWithinDays: 7);
 
         result.Data!.Data.Select(job => job.Id.Value).Should().BeEquivalentTo([recent]);
     }
@@ -138,6 +138,9 @@ public class JobRepositoryPostgresTests : IClassFixture<PostgresDatabase>
 
         result.Status.Should().Be(Core.Enums.EResultStatus.Success);
         result.Data!.Select(job => job.Id.Value).Should().BeEquivalentTo([older]);
+
+        await context.Database.ExecuteSqlAsync(
+            $"""UPDATE "Jobs" SET "IsDeleted" = true WHERE "Id" IN ({older}, {newer})""");
     }
 
 }
