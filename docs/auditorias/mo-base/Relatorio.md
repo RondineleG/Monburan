@@ -23,10 +23,10 @@ dotnet build src/Monburan.Web/Monburan.Web.csproj --configuration Release -v:q
 # 0 warnings, 0 errors
 
 dotnet test tests/Monburan.UnitTests/Monburan.UnitTests.csproj --configuration Release -v:q
-# 1332 passed, 0 failed
+# 1336 passed, 0 failed
 
 dotnet test tests/Monburan.IntegrationTests/Monburan.IntegrationTests.csproj --configuration Release -v:q
-# 66 passed, 0 failed
+# 71 passed, 0 failed
 
 dotnet test tests/Monburan.ApiTests/Monburan.ApiTests.csproj --configuration Release -v:q
 # 281 passed, 0 failed; inclui round-trip API com flag ligada, reenvio idempotente, transição inválida sem histórico e recomendação explicável
