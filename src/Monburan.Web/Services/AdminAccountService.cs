@@ -530,6 +530,7 @@ public sealed class AdminAccountService
                     job.Moderation.Reason = JobsHiddenReason;
                     job.Moderation.ModeratorId = actor.Id;
                     job.Moderation.ModerationDate = _time.GetUtcNow().UtcDateTime;
+                    await AddJobRevisionAsync(context, job, EJobRevisionAction.Moderated, actor.Id);
                 }
             }
             else
@@ -543,11 +544,21 @@ public sealed class AdminAccountService
                     job.Moderation!.Reason = null;
                     job.Moderation.ModeratorId = null;
                     job.Moderation.ModerationDate = null;
+                    await AddJobRevisionAsync(context, job, EJobRevisionAction.StatusChanged, actor.Id);
                 }
             }
         }
 
         await context.SaveChangesAsync();
+    }
+
+    private static async Task AddJobRevisionAsync(Data.ApplicationDbContext context, Monburan.Core.Entities.Job job, EJobRevisionAction action, string actorId)
+    {
+        var latest = await context.JobRevisions
+            .Where(revision => revision.JobId == job.Id)
+            .Select(revision => (int?)revision.Revision)
+            .MaxAsync();
+        context.JobRevisions.Add(JobRevision.Capture(job, (latest ?? 0) + 1, action, actorId));
     }
 
     private Task RecordAsync(string action, AdminActor actor, ApplicationUser user, string? details = null) =>
