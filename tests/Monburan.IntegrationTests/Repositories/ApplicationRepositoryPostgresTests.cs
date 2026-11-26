@@ -382,4 +382,48 @@ public class ApplicationRepositoryPostgresTests : IClassFixture<PostgresDatabase
         history.Should().BeEmpty();
     }
 
+    [Fact]
+    public async Task UpdateStatusWithHistoryAsync_WithUnicodeAtTheCharacterLimit_PersistsTheHistory()
+    {
+        await using var context = _database.CreateContext();
+        await context.Database.MigrateAsync();
+        var (candidateId, jobId) = await SeedAsync(context);
+
+        var repository = new ApplicationRepository(_database.ContextFactory);
+        var created = await repository.CreateAsync(new Application
+        {
+            Id = Id.Create(Guid.NewGuid()),
+            CandidateId = Id.Create(candidateId),
+            JobId = Id.Create(jobId),
+            Status = EApplicationStatus.Sent,
+            TenantId = "default"
+        });
+        created.Status.Should().Be(Core.Enums.EResultStatus.Success);
+
+        var application = (await repository.GetByIdAsync(created.Data!.Id)).Data!;
+        application.Status = EApplicationStatus.Viewed;
+        application.Version++;
+        var note = new string('x', ApplicationStatusHistory.MaxNoteLength - 1) + "😀";
+        var responsible = new string('r', ApplicationStatusHistory.MaxResponsibleLength - 1) + "😀";
+        var historyEntry = new ApplicationStatusHistory
+        {
+            Id = Id.Create(Guid.NewGuid()),
+            ApplicationId = application.Id,
+            Status = application.Status,
+            Version = application.Version,
+            Date = DateTime.UtcNow,
+            Note = note,
+            Responsible = responsible,
+            TenantId = application.TenantId
+        };
+
+        var result = await repository.UpdateStatusWithHistoryAsync(application, historyEntry);
+
+        result.Status.Should().Be(Core.Enums.EResultStatus.Success);
+        await using var check = _database.CreateContext();
+        var storedHistory = await check.ApplicationStatusHistory.AsNoTracking().SingleAsync(item => item.ApplicationId == application.Id);
+        storedHistory.Note.Should().Be(note);
+        storedHistory.Responsible.Should().Be(responsible);
+    }
+
 }
