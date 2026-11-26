@@ -1,3 +1,4 @@
+using System.Data;
 using System.Security.Cryptography;
 using System.Text;
 
@@ -45,10 +46,14 @@ public static class RecruivaMigrationApplier
         {
             var logoByOwner = files.Where(file => file.OwnerType == "advertiser")
                 .GroupBy(file => file.OwnerSourceId).ToDictionary(group => group.Key, group => group.OrderBy(file => file.SourceId).First().TargetUrl);
+            var profileEmails = export.Candidates.Select(row => row.Email.Trim())
+                .Concat(export.Advertisers.Select(row => row.Email.Trim()))
+                .GroupBy(email => email, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(group => group.Key.ToUpperInvariant(), group => group.First().Trim(), StringComparer.Ordinal);
             context.Users.AddRange(export.Users.Select(row => new ApplicationUser
             {
-                Id = dryRun.IdMap[$"user:{row.SourceId}"], UserName = row.UserName, NormalizedUserName = row.NormalizedUserName,
-                Email = row.Email, NormalizedEmail = row.NormalizedEmail, EmailConfirmed = row.EmailConfirmed,
+                Id = dryRun.IdMap[$"user:{row.SourceId}"], UserName = row.UserName.Trim(), NormalizedUserName = row.NormalizedUserName ?? row.UserName.Trim().ToUpperInvariant(),
+                Email = profileEmails.GetValueOrDefault(row.Email.Trim().ToUpperInvariant()) ?? row.Email.Trim(), NormalizedEmail = row.NormalizedEmail ?? row.Email.Trim().ToUpperInvariant(), EmailConfirmed = row.EmailConfirmed,
                 PasswordHash = row.PasswordHash, SecurityStamp = row.SecurityStamp, ConcurrencyStamp = row.ConcurrencyStamp,
                 PhoneNumber = row.PhoneNumber, PhoneNumberConfirmed = row.PhoneNumberConfirmed, TwoFactorEnabled = row.TwoFactorEnabled,
                 LockoutEnd = row.LockoutEndUtc, LockoutEnabled = row.LockoutEnabled, AccessFailedCount = row.AccessFailedCount,
@@ -110,8 +115,8 @@ public static class RecruivaMigrationApplier
     {
         if (!applyReport.Applied)
             throw new InvalidOperationException("Relatório não representa um lote aplicado; rollback recusado.");
+        await using var transaction = context.Database.IsRelational() ? await context.Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken) : null;
         await GuardPostMigrationDependenciesAsync(context, applyReport, cancellationToken);
-        await using var transaction = context.Database.IsRelational() ? await context.Database.BeginTransactionAsync(cancellationToken) : null;
         var removed = new Dictionary<string, int>();
         removed["transition"] = await DeleteRowsAsync(context, "ApplicationStatusHistory", Ids(applyReport, "transition"), $"migration:recruiva:{applyReport.BatchId:D}", cancellationToken);
         removed["application"] = await DeleteRowsAsync(context, "Applications", Ids(applyReport, "application"), $"migration:recruiva:{applyReport.BatchId:D}", cancellationToken);
