@@ -39,7 +39,7 @@ public static class RecruivaMigrationApplier
         if (problems.Count != 0)
         {
             CleanupNewFiles(files);
-            return Report(batch, false, dryRun, problems, files);
+            return Report(batch, false, dryRun, problems, files, DatabaseKey(context));
         }
 
         await using var transaction = context.Database.IsRelational() ? await context.Database.BeginTransactionAsync(cancellationToken) : null;
@@ -106,7 +106,7 @@ public static class RecruivaMigrationApplier
             }, row.CreatedAtUtc, null)));
             await context.SaveChangesAsync(cancellationToken);
             if (transaction is not null) await transaction.CommitAsync(cancellationToken);
-            return Report(batch, true, dryRun, [], files);
+            return Report(batch, true, dryRun, [], files, DatabaseKey(context));
         }
         catch
         {
@@ -120,6 +120,8 @@ public static class RecruivaMigrationApplier
     {
         if (!applyReport.Applied)
             throw new InvalidOperationException("Relatório não representa um lote aplicado; rollback recusado.");
+        if (applyReport.DatabaseKey is not null && applyReport.DatabaseKey != DatabaseKey(context))
+            throw new InvalidOperationException("Relatório pertence a outro banco; rollback recusado antes de tocar em registros ou arquivos.");
         await using var transaction = context.Database.IsRelational() ? await context.Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken) : null;
         await GuardPostMigrationDependenciesAsync(context, applyReport, cancellationToken);
         var removed = new Dictionary<string, int>();
@@ -133,8 +135,6 @@ public static class RecruivaMigrationApplier
         await context.SaveChangesAsync(cancellationToken);
         if (transaction is not null) await transaction.CommitAsync(cancellationToken);
         var files = 0;
-        if (removed.Values.Sum() == 0)
-            return new RecruivaMigrationRollbackReport { BatchId = applyReport.BatchId, RemovedCounts = removed, RemovedFiles = files };
         foreach (var file in applyReport.Files.Where(file => file.Copied))
         {
             if (File.Exists(file.TargetPath)) { File.Delete(file.TargetPath); files++; }
@@ -252,6 +252,12 @@ public static class RecruivaMigrationApplier
         foreach (var file in files.Where(file => file.Copied && File.Exists(file.TargetPath))) File.Delete(file.TargetPath);
     }
 
+    private static string DatabaseKey(ApplicationDbContext context)
+    {
+        var connection = context.Database.GetDbConnection();
+        return string.IsNullOrWhiteSpace(connection.Database) ? string.Empty : $"{connection.DataSource}|{connection.Database}";
+    }
+
     private static T Audit<T>(T entity, DateTime? created, DateTime? updated) where T : BaseEntity
     {
         if (created.HasValue) typeof(BaseEntity).GetProperty(nameof(BaseEntity.CreatedAt))!.SetValue(entity, Utc(created.Value));
@@ -266,8 +272,8 @@ public static class RecruivaMigrationApplier
         DateTimeKind.Local => value.ToUniversalTime(),
         _ => DateTime.SpecifyKind(value, DateTimeKind.Utc)
     };
-    private static RecruivaMigrationApplyReport Report(Guid batch, bool applied, RecruivaMigrationDryRunReport dryRun, IReadOnlyList<RecruivaMigrationProblem> problems, IReadOnlyList<RecruivaMigrationFileResult> files) => new()
-    { BatchId = batch, Applied = applied, Version = dryRun.Version, Counts = dryRun.Counts, Hashes = dryRun.Hashes, IdMap = dryRun.IdMap, Problems = problems, Files = files };
+    private static RecruivaMigrationApplyReport Report(Guid batch, bool applied, RecruivaMigrationDryRunReport dryRun, IReadOnlyList<RecruivaMigrationProblem> problems, IReadOnlyList<RecruivaMigrationFileResult> files, string databaseKey) => new()
+    { BatchId = batch, Applied = applied, DatabaseKey = databaseKey, Version = dryRun.Version, Counts = dryRun.Counts, Hashes = dryRun.Hashes, IdMap = dryRun.IdMap, Problems = problems, Files = files };
 }
 
 public sealed record RecruivaMigrationFileResult(string SourceId, string OwnerType, string OwnerSourceId, string SourcePath, string TargetPath, string TargetUrl, bool Copied);
@@ -275,6 +281,7 @@ public sealed record RecruivaMigrationApplyReport
 {
     public required Guid BatchId { get; init; }
     public required bool Applied { get; init; }
+    public string? DatabaseKey { get; init; }
     public required string Version { get; init; }
     public required IReadOnlyDictionary<string, int> Counts { get; init; }
     public required IReadOnlyDictionary<string, string> Hashes { get; init; }
