@@ -22,6 +22,7 @@ public sealed class BuildRecruivaMigrationDryRunUseCase : IUseCase<RecruivaMigra
         var problems = new List<RecruivaMigrationProblem>();
         ValidateTenant(request, problems);
 
+        AddDuplicateSourceIds(request.Users, "user", problems);
         AddDuplicateSourceIds(request.Candidates, "candidate", problems);
         AddDuplicateSourceIds(request.Advertisers, "advertiser", problems);
         AddDuplicateSourceIds(request.Jobs, "job", problems);
@@ -40,6 +41,7 @@ public sealed class BuildRecruivaMigrationDryRunUseCase : IUseCase<RecruivaMigra
             CanConfirm = problems.Count == 0,
             Counts = new Dictionary<string, int>
             {
+                ["user"] = request.Users.Count,
                 ["candidate"] = request.Candidates.Count,
                 ["advertiser"] = request.Advertisers.Count,
                 ["job"] = request.Jobs.Count,
@@ -50,6 +52,7 @@ public sealed class BuildRecruivaMigrationDryRunUseCase : IUseCase<RecruivaMigra
             },
             Hashes = new Dictionary<string, string>
             {
+                ["user"] = HashRows(request.Users),
                 ["candidate"] = HashRows(request.Candidates),
                 ["advertiser"] = HashRows(request.Advertisers),
                 ["job"] = HashRows(request.Jobs),
@@ -79,6 +82,9 @@ public sealed class BuildRecruivaMigrationDryRunUseCase : IUseCase<RecruivaMigra
 
     private static void AddEmailCollisions(RecruivaMigrationExport request, List<RecruivaMigrationProblem> problems)
     {
+        foreach (var group in request.Users.Where(row => !string.IsNullOrWhiteSpace(row.Email))
+                     .GroupBy(row => row.Email.Trim(), StringComparer.OrdinalIgnoreCase).Where(group => group.Count() > 1))
+            problems.Add(new("collision", "user", group.Key, "E-mail de conta repetido na exportação."));
         foreach (var group in request.Candidates.Where(row => !string.IsNullOrWhiteSpace(row.Email))
                      .GroupBy(row => row.Email.Trim(), StringComparer.OrdinalIgnoreCase).Where(group => group.Count() > 1))
             problems.Add(new("collision", "candidate", group.Key, "E-mail de candidato repetido na exportação."));
@@ -92,6 +98,8 @@ public sealed class BuildRecruivaMigrationDryRunUseCase : IUseCase<RecruivaMigra
 
     private static void AddPermissionProblems(RecruivaMigrationExport request, List<RecruivaMigrationProblem> problems)
     {
+        foreach (var row in request.Users.Where(row => row.CanMigrate != true))
+            problems.Add(new("permission", "user", row.SourceId, "Conta sem permissão registrada para migração."));
         foreach (var row in request.Candidates.Where(row => row.CanMigrate != true))
             problems.Add(new("permission", "candidate", row.SourceId, "Candidato sem permissão registrada para migração."));
         foreach (var row in request.Advertisers.Where(row => row.CanMigrate != true))
@@ -125,6 +133,9 @@ public sealed class BuildRecruivaMigrationDryRunUseCase : IUseCase<RecruivaMigra
             if (!string.IsNullOrWhiteSpace(application.ResumeSourceId) && !resumes.Contains(application.ResumeSourceId))
                 problems.Add(new("orphan", "application", application.SourceId, "Candidatura referencia currículo inexistente."));
         }
+        var profileEmails = request.Candidates.Select(row => row.Email.Trim()).Concat(request.Advertisers.Select(row => row.Email.Trim())).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        foreach (var user in request.Users.Where(user => !profileEmails.Contains(user.Email.Trim())))
+            problems.Add(new("orphan", "user", user.SourceId, "Conta não corresponde a candidato ou empresa da exportação."));
         foreach (var transition in request.Transitions.Where(row => !applications.Contains(row.ApplicationSourceId)))
             problems.Add(new("orphan", "transition", transition.SourceId, "Transição referencia candidatura inexistente."));
     }
@@ -153,6 +164,7 @@ public sealed class BuildRecruivaMigrationDryRunUseCase : IUseCase<RecruivaMigra
     private static IReadOnlyDictionary<string, Guid> BuildIdMap(RecruivaMigrationExport request)
     {
         var map = new Dictionary<string, Guid>(StringComparer.Ordinal);
+        AddRows(map, request.TenantId, "user", request.Users);
         AddRows(map, request.TenantId, "candidate", request.Candidates);
         AddRows(map, request.TenantId, "advertiser", request.Advertisers);
         AddRows(map, request.TenantId, "job", request.Jobs);
@@ -204,6 +216,7 @@ public abstract record RecruivaSourceRow
 public sealed record RecruivaMigrationExport
 {
     public required string TenantId { get; init; }
+    public IReadOnlyList<RecruivaUserExport> Users { get; init; } = [];
     public IReadOnlyList<RecruivaCandidateExport> Candidates { get; init; } = [];
     public IReadOnlyList<RecruivaAdvertiserExport> Advertisers { get; init; } = [];
     public IReadOnlyList<RecruivaJobExport> Jobs { get; init; } = [];
@@ -211,6 +224,31 @@ public sealed record RecruivaMigrationExport
     public IReadOnlyList<RecruivaFileExport> Files { get; init; } = [];
     public IReadOnlyList<RecruivaApplicationExport> Applications { get; init; } = [];
     public IReadOnlyList<RecruivaTransitionExport> Transitions { get; init; } = [];
+}
+
+public sealed record RecruivaUserExport : RecruivaSourceRow
+{
+    public required string UserName { get; init; }
+    public string? NormalizedUserName { get; init; }
+    public required string Email { get; init; }
+    public string? NormalizedEmail { get; init; }
+    public bool EmailConfirmed { get; init; }
+    public string? PasswordHash { get; init; }
+    public string? SecurityStamp { get; init; }
+    public string? ConcurrencyStamp { get; init; }
+    public string? PhoneNumber { get; init; }
+    public bool PhoneNumberConfirmed { get; init; }
+    public bool TwoFactorEnabled { get; init; }
+    public DateTimeOffset? LockoutEndUtc { get; init; }
+    public bool LockoutEnabled { get; init; }
+    public int AccessFailedCount { get; init; }
+    public string FirstName { get; init; } = string.Empty;
+    public string LastName { get; init; } = string.Empty;
+    public bool IsActive { get; init; } = true;
+    public byte[] ProfilePicture { get; init; } = [];
+    public DateTime? CreatedAtUtc { get; init; }
+    public DateTime? LastLoginAtUtc { get; init; }
+    public bool? CanMigrate { get; init; }
 }
 
 public sealed record RecruivaCandidateExport : RecruivaSourceRow

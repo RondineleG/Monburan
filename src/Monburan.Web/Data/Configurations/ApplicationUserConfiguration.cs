@@ -64,6 +64,9 @@ public class ApplicationUserConfiguration : IEntityTypeConfiguration<Application
         builder.HasIndex(u => u.IsActive)
             .HasDatabaseName("IX_Users_IsActive");
 
+        builder.HasIndex(u => u.MigrationBatchId)
+            .HasDatabaseName("IX_Users_MigrationBatchId");
+
         builder.HasIndex(u => u.CreatedAt)
             .HasDatabaseName("IX_Users_CreatedAt");
     }

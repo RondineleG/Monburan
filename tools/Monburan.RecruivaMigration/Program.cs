@@ -19,6 +19,8 @@ if (args[0] == "apply")
         return Usage("apply --input exportacao.json --uploads-source <dir> --uploads-target <dir> --output relatorio.json [--batch guid]; defina MONBURAN_MIGRATION_CONNECTION no ambiente");
     var connection = Environment.GetEnvironmentVariable("MONBURAN_MIGRATION_CONNECTION");
     if (string.IsNullOrWhiteSpace(connection)) return Usage("Defina MONBURAN_MIGRATION_CONNECTION no ambiente.");
+    if (Path.GetFullPath(input) == Path.GetFullPath(output)) return Usage("A saída precisa ser diferente da exportação de entrada.");
+    Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(output))!);
     var export = await ReadJson<RecruivaMigrationExport>(input);
     var dryRunResult = await new BuildRecruivaMigrationDryRunUseCase().ExecuteAsync(export);
     if (dryRunResult.Status != EResultStatus.Success || dryRunResult.Data is null)
@@ -39,6 +41,8 @@ if (args[0] == "rollback")
         return Usage("rollback --report aplicacao.json --output rollback.json; defina MONBURAN_MIGRATION_CONNECTION no ambiente");
     var connection = Environment.GetEnvironmentVariable("MONBURAN_MIGRATION_CONNECTION");
     if (string.IsNullOrWhiteSpace(connection)) return Usage("Defina MONBURAN_MIGRATION_CONNECTION no ambiente.");
+    if (Path.GetFullPath(reportPath) == Path.GetFullPath(output)) return Usage("A saída precisa ser diferente do relatório de aplicação.");
+    Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(output))!);
     var applyReport = await ReadJson<RecruivaMigrationApplyReport>(reportPath);
     var options = new DbContextOptionsBuilder<ApplicationDbContext>().UseNpgsql(connection).Options;
     await using var context = new ApplicationDbContext(options);

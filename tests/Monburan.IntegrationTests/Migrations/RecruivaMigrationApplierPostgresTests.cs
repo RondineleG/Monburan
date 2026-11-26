@@ -5,7 +5,10 @@ using FluentAssertions;
 
 using Microsoft.EntityFrameworkCore;
 
+using Monburan.Core.Entities;
+using Monburan.Core.Enums;
 using Monburan.Core.UseCases.Migrations;
+using Monburan.Core.ValueObjects;
 using Monburan.IntegrationTests.Infrastructure;
 using Monburan.RecruivaMigration;
 
@@ -34,6 +37,7 @@ public sealed class RecruivaMigrationApplierPostgresTests : IClassFixture<Postgr
         var applied = await RecruivaMigrationApplier.ApplyAsync(context, export, dry, source.FullName, target.FullName, batch);
 
         applied.Applied.Should().BeTrue(string.Join(';', applied.Problems.Select(p => p.Message)));
+        (await context.Users.CountAsync()).Should().Be(1);
         (await context.Candidates.CountAsync()).Should().Be(1);
         (await context.Advertisers.CountAsync()).Should().Be(1);
         (await context.Jobs.CountAsync()).Should().Be(1);
@@ -41,11 +45,22 @@ public sealed class RecruivaMigrationApplierPostgresTests : IClassFixture<Postgr
         (await context.Applications.CountAsync()).Should().Be(1);
         (await context.ApplicationStatusHistory.CountAsync()).Should().Be(1);
         applied.Files.Should().ContainSingle(file => file.Copied && File.Exists(file.TargetPath));
+        (await context.Jobs.SingleAsync()).PublicationType.Should().Be(EPublicationType.Direct);
+        (await context.Jobs.SingleAsync()).ApplicationChannel.Should().Be(EApplicationChannel.InternalPlatform);
+        var blockedRollback = async () => await RecruivaMigrationApplier.RollbackAsync(context, applied with { Applied = false });
+        await blockedRollback.Should().ThrowAsync<InvalidOperationException>();
+        context.SavedJobs.Add(new SavedJob { Id = Id.Create(Guid.NewGuid()), CandidateId = Id.Create(applied.IdMap["candidate:cand-1"]), JobId = Id.Create(applied.IdMap["job:job-1"]), TenantId = "default" });
+        await context.SaveChangesAsync();
+        var dependentRollback = async () => await RecruivaMigrationApplier.RollbackAsync(context, applied);
+        await dependentRollback.Should().ThrowAsync<InvalidOperationException>();
+        context.SavedJobs.RemoveRange(context.SavedJobs);
+        await context.SaveChangesAsync();
 
         var rollback = await RecruivaMigrationApplier.RollbackAsync(context, applied);
 
-        rollback.RemovedCounts.Values.Sum().Should().Be(6);
+        rollback.RemovedCounts.Values.Sum().Should().Be(7);
         rollback.RemovedFiles.Should().Be(1);
+        (await context.Users.CountAsync()).Should().Be(0);
         (await context.Candidates.CountAsync()).Should().Be(0);
         (await context.Applications.CountAsync()).Should().Be(0);
         applied.Files.Should().OnlyContain(file => !File.Exists(file.TargetPath));
@@ -54,6 +69,7 @@ public sealed class RecruivaMigrationApplierPostgresTests : IClassFixture<Postgr
     private static RecruivaMigrationExport Export(string hash, int size) => new()
     {
         TenantId = "default",
+        Users = [new() { SourceId = "user-1", UserName = "cand-mig@teste.com", NormalizedUserName = "CAND-MIG@TESTE.COM", Email = "cand-mig@teste.com", NormalizedEmail = "CAND-MIG@TESTE.COM", EmailConfirmed = true, PasswordHash = "hash-fixture", SecurityStamp = Guid.NewGuid().ToString("N"), ConcurrencyStamp = Guid.NewGuid().ToString("N"), FirstName = "Candidata", LastName = "Fixture", IsActive = true, CanMigrate = true, CreatedAtUtc = DateTime.UtcNow }],
         Candidates = [new() { SourceId = "cand-1", Email = "cand-mig@teste.com", Name = "Candidata", Status = "Active", CanMigrate = true, CreatedAtUtc = DateTime.UtcNow }],
         Advertisers = [new() { SourceId = "adv-1", Email = "adv-mig@teste.com", Name = "Empresa", Status = "Active", CanMigrate = true, CreatedAtUtc = DateTime.UtcNow }],
         Jobs = [new() { SourceId = "job-1", AdvertiserSourceId = "adv-1", Title = "Vaga", Status = "Active", Description = "Descrição", ExpirationDateUtc = DateTime.UtcNow.AddDays(30), CreatedAtUtc = DateTime.UtcNow }],

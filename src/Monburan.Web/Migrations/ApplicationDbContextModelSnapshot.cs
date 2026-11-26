@@ -17,7 +17,7 @@ namespace Monburan.Web.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "10.0.13")
+                .HasAnnotation("ProductVersion", "10.0.14")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -2330,6 +2330,9 @@ namespace Monburan.Web.Migrations
                     b.Property<DateTimeOffset?>("LockoutEnd")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<Guid?>("MigrationBatchId")
+                        .HasColumnType("uuid");
+
                     b.Property<string>("NormalizedEmail")
                         .HasMaxLength(256)
                         .HasColumnType("character varying(256)");
@@ -2369,6 +2372,9 @@ namespace Monburan.Web.Migrations
 
                     b.HasIndex("IsActive")
                         .HasDatabaseName("IX_Users_IsActive");
+
+                    b.HasIndex("MigrationBatchId")
+                        .HasDatabaseName("IX_Users_MigrationBatchId");
 
                     b.HasIndex("NormalizedEmail")
                         .IsUnique()

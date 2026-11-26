@@ -21,5 +21,8 @@ namespace Monburan.Web.Models
         public string LastName { get; set; } = string.Empty;
 
         public byte[] ProfilePicture { get; set; } = [];
+
+        /// <summary>Lote de migração que criou a conta; nulo em contas nativas do Monburan.</summary>
+        public Guid? MigrationBatchId { get; set; }
     }
 }
