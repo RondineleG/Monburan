@@ -126,12 +126,14 @@ public sealed class BuildRecruivaMigrationDryRunUseCase : IUseCase<RecruivaMigra
     private static void AddFileProblems(RecruivaMigrationExport request, List<RecruivaMigrationProblem> problems)
     {
         var candidates = request.Candidates.Select(row => row.SourceId).ToHashSet(StringComparer.Ordinal);
+        var advertisers = request.Advertisers.Select(row => row.SourceId).ToHashSet(StringComparer.Ordinal);
         var jobs = request.Jobs.Select(row => row.SourceId).ToHashSet(StringComparer.Ordinal);
         foreach (var file in request.Files)
         {
             var ownerExists = file.OwnerType switch
             {
                 "candidate" => candidates.Contains(file.OwnerSourceId),
+                "advertiser" => advertisers.Contains(file.OwnerSourceId),
                 "job" => jobs.Contains(file.OwnerSourceId),
                 _ => false
             };
@@ -226,6 +228,7 @@ public sealed record RecruivaFileExport : RecruivaSourceRow
 {
     public required string OwnerType { get; init; }
     public required string OwnerSourceId { get; init; }
+    public string? SourceUrl { get; init; }
     public required string ContentHash { get; init; }
     public long SizeBytes { get; init; }
     public bool CanMigrate { get; init; } = true;

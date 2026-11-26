@@ -48,6 +48,20 @@ public sealed class RecruivaMigrationDryRunUseCaseTests
     }
 
     [Fact]
+    public async Task AdvertiserOwnedFile_IsAcceptedAsMigratableAttachment()
+    {
+        var export = ValidExport() with
+        {
+            Files = [new RecruivaFileExport { SourceId = "file-adv", OwnerType = "advertiser", OwnerSourceId = "adv-1", SourceUrl = "/uploads/logo.png", ContentHash = "abc123", SizeBytes = 10 }]
+        };
+
+        var result = await _useCase.ExecuteAsync(export);
+
+        result.Data!.CanConfirm.Should().BeTrue();
+        result.Data.Problems.Should().BeEmpty();
+    }
+
+    [Fact]
     public async Task DuplicateNaturalKeys_AreReportedAsCollisions()
     {
         var valid = ValidExport();
