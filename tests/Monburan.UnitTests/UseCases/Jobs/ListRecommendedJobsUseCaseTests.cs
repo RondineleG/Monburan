@@ -125,7 +125,7 @@ public class ListRecommendedJobsUseCaseTests
         var result = await _useCase.ExecuteAsync(_candidateId);
 
         result.Status.Should().Be(EResultStatus.Success);
-        result.Data!.Jobs.Select(job => job.Title).Should().ContainInOrder("Vaga recente", "Vaga antiga");
+        result.Data!.Jobs.Select(job => job.Title).Should().Equal("Vaga recente", "Vaga antiga");
         await _jobs.Received(1).ListRecentForRecommendationsAsync(
             ListRecommendedJobsUseCase.MaxResults,
             Arg.Is<IReadOnlyCollection<Id>>(ids => ids.Contains(alreadyApplied.Id)),

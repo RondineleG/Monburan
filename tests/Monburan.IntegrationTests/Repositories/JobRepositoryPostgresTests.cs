@@ -31,13 +31,14 @@ public class JobRepositoryPostgresTests : IClassFixture<PostgresDatabase>
         EContractType? contractType = null,
         ESalaryPeriod? salaryPeriod = null,
         decimal? salaryMin = null,
-        decimal? salaryMax = null)
+        decimal? salaryMax = null,
+        string? title = null)
     {
         var job = new Job
         {
             Id = Id.Create(Guid.NewGuid()),
             AdvertiserId = Id.Create(advertiserId),
-            Title = "Desenvolvedor .NET",
+            Title = title ?? "Desenvolvedor .NET",
             Description = "Descrição da vaga",
             ExpirationDate = DateTime.UtcNow.AddDays(30),
             Status = EJobStatus.Active,
@@ -113,14 +114,15 @@ public class JobRepositoryPostgresTests : IClassFixture<PostgresDatabase>
         await using var context = _database.CreateContext();
         await context.Database.MigrateAsync();
         var advertiserId = await SeedAdvertiserAsync(context);
-        var recent = await SeedJobAsync(context, advertiserId);
-        var old = await SeedJobAsync(context, advertiserId);
+        var marker = $"Filtro {Guid.NewGuid():N}";
+        var recent = await SeedJobAsync(context, advertiserId, title: marker);
+        var old = await SeedJobAsync(context, advertiserId, title: marker);
 
         await context.Database.ExecuteSqlAsync(
             $"""UPDATE "Jobs" SET "CreatedAt" = {DateTime.UtcNow.AddDays(-40)} WHERE "Id" = {old}""");
 
         var repository = new JobRepository(_database.ContextFactory);
-        var result = await repository.SearchAsync(advertiserId: advertiserId, publishedWithinDays: 7);
+        var result = await repository.SearchAsync(searchTerm: marker, publishedWithinDays: 7);
 
         result.Data!.Data.Select(job => job.Id.Value).Should().BeEquivalentTo([recent]);
     }
