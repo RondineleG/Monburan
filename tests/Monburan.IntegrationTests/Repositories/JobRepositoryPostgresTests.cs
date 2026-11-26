@@ -110,6 +110,12 @@ public class JobRepositoryPostgresTests : IClassFixture<PostgresDatabase>
 
         result.Status.Should().Be(Core.Enums.EResultStatus.Success);
         job.PublishedAt.Should().NotBeNull();
+
+        await using var check = _database.CreateContext();
+        var persisted = await check.Jobs.AsNoTracking().SingleAsync(item => item.Id == job.Id);
+        persisted.PublishedAt.Should().BeCloseTo(job.PublishedAt!.Value, TimeSpan.FromSeconds(1));
+        var revision = await check.JobRevisions.AsNoTracking().SingleAsync(item => item.JobId == job.Id);
+        revision.SnapshotJson.Should().Contain("\"PublishedAt\"", "a fotografia da criação precisa preservar a primeira publicação");
     }
 
     [Fact]
