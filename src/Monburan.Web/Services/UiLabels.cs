@@ -39,6 +39,7 @@ public static class UiLabels
 
     public static string JobStatus(string? status) => status switch
     {
+        "Draft" => "Rascunho",
         "Active" => "Ativa",
         "Expired" => "Expirada",
         "Closed" => "Encerrada",
@@ -51,6 +52,7 @@ public static class UiLabels
     /// <summary>Plural para contagens de vagas: "Rejected" de vaga é reprovação na moderação.</summary>
     public static string JobStatusPlural(string? status) => status switch
     {
+        "Draft" => "Rascunhos",
         "Active" => "Ativas",
         "Expired" => "Expiradas",
         "Closed" => "Encerradas",

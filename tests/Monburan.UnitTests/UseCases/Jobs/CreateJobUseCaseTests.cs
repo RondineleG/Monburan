@@ -7,6 +7,7 @@ using Monburan.Core.Entities;
 using Monburan.Core.Enums;
 using Monburan.Core.Interfaces.Repositories;
 using Monburan.Core.Interfaces.Repositories.Base;
+using Monburan.Core.Interfaces.Services;
 using Monburan.Core.Interfaces.Validations;
 using Monburan.Core.Requests;
 using Monburan.Core.UseCases.JobAlerts;
@@ -27,6 +28,7 @@ public class CreateJobUseCaseTests
     private readonly IBaseRepository<SubscriptionPlan> _mockPlanRepository;
     private readonly IJobRepository _mockJobQueries;
     private readonly IJobAlertRepository _mockAlerts;
+    private readonly NotifyJobAlertsOnJobCreatedUseCase _notifyAlerts;
     private readonly CreateJobUseCase _useCase;
 
     public CreateJobUseCaseTests()
@@ -50,7 +52,7 @@ public class CreateJobUseCaseTests
         _mockAlerts.ListActiveAsync().Returns(RequestResult<IEnumerable<JobAlert>>.Success([]));
 
         var notifications = Substitute.For<INotificationRepository>();
-        var notifyAlerts = new NotifyJobAlertsOnJobCreatedUseCase(
+        _notifyAlerts = new NotifyJobAlertsOnJobCreatedUseCase(
             _mockAlerts,
             notifications,
             new CreateNotificationUseCase(notifications),
@@ -60,8 +62,17 @@ public class CreateJobUseCaseTests
             _mockRepository,
             _mockValidator,
             new CheckJobLimitUseCase(_mockSubscriptionRepository, _mockPlanRepository, _mockJobQueries),
-            notifyAlerts,
-            Substitute.For<ILogger<CreateJobUseCase>>());
+            _notifyAlerts,
+            Substitute.For<ILogger<CreateJobUseCase>>(),
+            EnabledFlags(),
+            Substitute.For<ICurrentPrincipalAccessor>());
+    }
+
+    private static IFeatureFlags EnabledFlags()
+    {
+        var flags = Substitute.For<IFeatureFlags>();
+        flags.IsEnabledAsync(Arg.Any<string>(), Arg.Any<System.Security.Claims.ClaimsPrincipal?>(), Arg.Any<CancellationToken>()).Returns(true);
+        return flags;
     }
 
     [Fact]
@@ -296,6 +307,57 @@ public class CreateJobUseCaseTests
         _mockValidator.Received(1).Validate(Arg.Any<Job>());
         await _mockRepository.Received(1).CreateAsync(Arg.Any<Job>());
     }
+
+
+    [Fact]
+    public async Task ExecuteAsync_WhenSavingDraft_SkipsPlanLimitAndAlerts()
+    {
+        var request = ValidRequest();
+        request.SaveAsDraft = true;
+        _mockValidator.Validate(Arg.Any<Job>()).Returns(ValidationResult.Success());
+        _mockJobQueries.CountActiveByAdvertiserAsync(request.AdvertiserId).Returns(5);
+        _mockRepository.CreateAsync(Arg.Any<Job>())
+            .Returns(call => RequestResult<Job>.Success(call.Arg<Job>()));
+
+        var result = await _useCase.ExecuteAsync(request);
+
+        result.Status.Should().Be(EResultStatus.Success);
+        result.Data!.Status.Should().Be("Draft");
+        await _mockRepository.Received(1).CreateAsync(Arg.Is<Job>(job => job.Status == EJobStatus.Draft));
+        await _mockAlerts.DidNotReceive().ListActiveAsync(Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_WhenDraftFeatureIsDisabled_RejectsWithoutCreating()
+    {
+        var flags = Substitute.For<IFeatureFlags>();
+        flags.IsEnabledAsync(Arg.Any<string>(), Arg.Any<System.Security.Claims.ClaimsPrincipal?>(), Arg.Any<CancellationToken>()).Returns(false);
+        var useCase = new CreateJobUseCase(
+            _mockRepository,
+            _mockValidator,
+            new CheckJobLimitUseCase(_mockSubscriptionRepository, _mockPlanRepository, _mockJobQueries),
+            _notifyAlerts,
+            Substitute.For<ILogger<CreateJobUseCase>>(),
+            flags,
+            Substitute.For<ICurrentPrincipalAccessor>());
+        var request = ValidRequest();
+        request.SaveAsDraft = true;
+
+        var result = await useCase.ExecuteAsync(request);
+
+        result.Status.Should().Be(EResultStatus.DomainError);
+        await _mockRepository.DidNotReceive().CreateAsync(Arg.Any<Job>());
+    }
+
+    private static CreateJobRequest ValidRequest() => new()
+    {
+        AdvertiserId = Guid.NewGuid(),
+        Title = "Senior Developer",
+        Description = "Test description",
+        ExpirationDate = DateTime.UtcNow.AddDays(30),
+        Type = "Remote",
+        IsRemote = true
+    };
 
     [Fact]
     public async Task ExecuteAsync_WhenTheAlertEvaluationFails_StillCreatesTheJob()

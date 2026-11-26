@@ -6,8 +6,10 @@ using Monburan.Core.Interfaces.Services;
 using Monburan.Core.Interfaces.UseCases;
 using Monburan.Core.Mappers;
 using Monburan.Core.Requests;
+using Monburan.Core.UseCases.JobAlerts;
 using Monburan.Core.UseCases.Subscriptions;
 using Monburan.Core.ValueObjects;
+using Microsoft.Extensions.Logging;
 
 namespace Monburan.Core.UseCases.Jobs;
 
@@ -24,17 +26,23 @@ public sealed class ChangeJobStatusUseCase : IUseCase<ChangeJobStatusRequest, Jo
     private readonly CheckJobLimitUseCase _checkJobLimit;
     private readonly IFeatureFlags _featureFlags;
     private readonly ICurrentPrincipalAccessor _currentPrincipal;
+    private readonly NotifyJobAlertsOnJobCreatedUseCase _notifyAlerts;
+    private readonly ILogger<ChangeJobStatusUseCase> _logger;
 
     public ChangeJobStatusUseCase(
         IBaseRepository<Job> jobRepository,
         CheckJobLimitUseCase checkJobLimit,
         IFeatureFlags featureFlags,
-        ICurrentPrincipalAccessor currentPrincipal)
+        ICurrentPrincipalAccessor currentPrincipal,
+        NotifyJobAlertsOnJobCreatedUseCase notifyAlerts,
+        ILogger<ChangeJobStatusUseCase> logger)
     {
         _jobRepository = jobRepository;
         _checkJobLimit = checkJobLimit;
         _featureFlags = featureFlags;
         _currentPrincipal = currentPrincipal;
+        _notifyAlerts = notifyAlerts;
+        _logger = logger;
     }
 
     public async Task<RequestResult<JobResponse>> ExecuteAsync(ChangeJobStatusRequest request, CancellationToken cancellationToken = default)
@@ -69,7 +77,7 @@ public sealed class ChangeJobStatusUseCase : IUseCase<ChangeJobStatusRequest, Jo
 
         if (request.NewStatus == EJobStatus.Active)
         {
-            if (job.Status is not (EJobStatus.Paused or EJobStatus.Expired))
+            if (job.Status is not (EJobStatus.Draft or EJobStatus.Paused or EJobStatus.Expired))
                 return RequestResult<JobResponse>.WithDomainError("Esta vaga não pode ser reativada.");
 
             if (job.ExpirationDate.Date < DateTime.UtcNow.Date)
@@ -87,11 +95,29 @@ public sealed class ChangeJobStatusUseCase : IUseCase<ChangeJobStatusRequest, Jo
             }
         }
 
+        var previousStatus = job.Status;
         job.Status = request.NewStatus;
         job.UpdatedBy = request.AdvertiserId.ToString();
         var updateResult = await _jobRepository.UpdateAsync(job, cancellationToken);
         if (updateResult.Status != EResultStatus.Success)
             return RequestResult<JobResponse>.FromResult(updateResult);
+
+        if (updateResult.Data is not null && updateResult.Data.Status != request.NewStatus)
+            return RequestResult<JobResponse>.WithConflict("A situação da vaga mudou durante a operação. Atualize a página antes de tentar novamente.");
+
+        if (previousStatus == EJobStatus.Draft && request.NewStatus == EJobStatus.Active)
+        {
+            try
+            {
+                var notifyResult = await _notifyAlerts.ExecuteAsync(new NotifyJobAlertsOnJobCreatedRequest(job), cancellationToken);
+                if (notifyResult.Status != EResultStatus.Success)
+                    _logger.LogWarning("Rascunho {JobId} publicado, mas os alertas não foram avaliados: {Detail}", job.Id.Value, notifyResult.Message);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Falha ao avaliar os alertas do rascunho publicado {JobId}", job.Id.Value);
+            }
+        }
 
         return RequestResult<JobResponse>.Success(JobResponseMapper.ToResponse(job));
     }

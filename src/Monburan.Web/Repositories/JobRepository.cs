@@ -187,7 +187,8 @@ public class JobRepository : IJobRepository
         CopyLocation(tracked.Location, entity.Location);
         CopySalary(tracked.Salary, entity.Salary);
 
-        var relational = context.Database.IsRelational();
+        var relational = context.Database.IsRelational()
+            && context.Database.ProviderName != "Microsoft.EntityFrameworkCore.InMemory";
         if (!relational)
         {
             // O provedor em memória dos testes não executa SQL condicional; a corrida real é coberta no PostgreSQL.
@@ -211,19 +212,26 @@ public class JobRepository : IJobRepository
                     && job.Status != EJobStatus.Hidden
                     && job.Status != EJobStatus.Rejected)
                 .ExecuteUpdateAsync(setters => setters
-                    .SetProperty(job => job.Status, entity.Status),
-                    cancellationToken);
-
-            var authorshipChanged = await context.Jobs
-                .Where(job => job.Id == entity.Id && job.Status != EJobStatus.Closed)
-                .ExecuteUpdateAsync(setters => setters
+                    .SetProperty(job => job.Status, entity.Status)
                     .SetProperty(job => job.UpdatedBy, entity.UpdatedBy)
                     .SetProperty(job => job.UpdatedAt, now),
                     cancellationToken);
 
+            var authorshipChanged = 0;
+            if (statusChanged == 0)
+            {
+                // Oculta/reprovada continua protegida de reabertura, mas a autoria da edição de conteúdo ainda vale.
+                authorshipChanged = await context.Jobs
+                    .Where(job => job.Id == entity.Id && job.Status != EJobStatus.Closed)
+                    .ExecuteUpdateAsync(setters => setters
+                        .SetProperty(job => job.UpdatedBy, entity.UpdatedBy)
+                        .SetProperty(job => job.UpdatedAt, now),
+                        cancellationToken);
+            }
+
             if (statusChanged > 0)
                 tracked.Status = entity.Status;
-            if (authorshipChanged > 0)
+            if (statusChanged > 0 || authorshipChanged > 0)
                 tracked.UpdatedBy = entity.UpdatedBy;
             if (statusChanged == 0)
                 await context.Entry(tracked).ReloadAsync(cancellationToken);

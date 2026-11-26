@@ -6,9 +6,13 @@ using Monburan.Core.Interfaces.Repositories;
 using Monburan.Core.Interfaces.Repositories.Base;
 using Monburan.Core.Interfaces.Services;
 using Monburan.Core.Requests;
+using Monburan.Core.UseCases.JobAlerts;
 using Monburan.Core.UseCases.Jobs;
+using Monburan.Core.UseCases.Notifications;
 using Monburan.Core.UseCases.Subscriptions;
 using Monburan.Core.ValueObjects;
+
+using Microsoft.Extensions.Logging;
 
 using NSubstitute;
 
@@ -33,7 +37,19 @@ public class ChangeJobStatusUseCaseTests
         _jobs.UpdateAsync(Arg.Any<Job>()).Returns(call => RequestResult<Job>.Success(call.Arg<Job>()));
         var flags = Substitute.For<IFeatureFlags>();
         flags.IsEnabledAsync(Arg.Any<string>(), Arg.Any<System.Security.Claims.ClaimsPrincipal?>(), Arg.Any<CancellationToken>()).Returns(true);
-        _useCase = new ChangeJobStatusUseCase(_jobs, new CheckJobLimitUseCase(subscriptions, plans, _jobQueries), flags, Substitute.For<ICurrentPrincipalAccessor>());
+        _useCase = new ChangeJobStatusUseCase(_jobs, new CheckJobLimitUseCase(subscriptions, plans, _jobQueries), flags, Substitute.For<ICurrentPrincipalAccessor>(), AlertNotifier(), Substitute.For<ILogger<ChangeJobStatusUseCase>>());
+    }
+
+    private static NotifyJobAlertsOnJobCreatedUseCase AlertNotifier()
+    {
+        var alerts = Substitute.For<IJobAlertRepository>();
+        alerts.ListActiveAsync(Arg.Any<CancellationToken>()).Returns(RequestResult<IEnumerable<JobAlert>>.Success([]));
+        var notifications = Substitute.For<INotificationRepository>();
+        return new NotifyJobAlertsOnJobCreatedUseCase(
+            alerts,
+            notifications,
+            new CreateNotificationUseCase(notifications),
+            Substitute.For<ILogger<NotifyJobAlertsOnJobCreatedUseCase>>());
     }
 
     [Fact]
@@ -73,6 +89,18 @@ public class ChangeJobStatusUseCaseTests
     }
 
 
+
+    [Fact]
+    public async Task Publish_DraftJob_Succeeds()
+    {
+        var job = Arrange(EJobStatus.Draft, DateTime.UtcNow.AddDays(10));
+
+        var result = await _useCase.ExecuteAsync(new ChangeJobStatusRequest(job.Id.Value, _advertiserId, EJobStatus.Active));
+
+        result.Status.Should().Be(EResultStatus.Success);
+        result.Data!.Status.Should().Be("Active");
+    }
+
     [Fact]
     public async Task Close_ActiveJob_Succeeds()
     {
@@ -108,6 +136,24 @@ public class ChangeJobStatusUseCaseTests
     }
 
 
+
+    [Fact]
+    public async Task Close_WhenModerationWinsTheRace_ReturnsConflict()
+    {
+        var job = Arrange(EJobStatus.Active, DateTime.UtcNow.AddDays(10));
+        _jobs.UpdateAsync(Arg.Any<Job>()).Returns(call =>
+        {
+            var requested = call.Arg<Job>();
+            requested.Status = EJobStatus.Hidden;
+            return RequestResult<Job>.Success(requested);
+        });
+
+        var result = await _useCase.ExecuteAsync(new ChangeJobStatusRequest(job.Id.Value, _advertiserId, EJobStatus.Closed));
+
+        result.Status.Should().Be(EResultStatus.Conflict);
+        result.Data.Should().BeNull();
+    }
+
     [Fact]
     public async Task Close_WhenFeatureIsDisabled_IsRejected()
     {
@@ -116,7 +162,7 @@ public class ChangeJobStatusUseCaseTests
         flags.IsEnabledAsync(Arg.Any<string>(), Arg.Any<System.Security.Claims.ClaimsPrincipal?>(), Arg.Any<CancellationToken>()).Returns(false);
         var subscriptions = Substitute.For<ISubscriptionRepository>();
         var plans = Substitute.For<IBaseRepository<SubscriptionPlan>>();
-        var useCase = new ChangeJobStatusUseCase(_jobs, new CheckJobLimitUseCase(subscriptions, plans, _jobQueries), flags, Substitute.For<ICurrentPrincipalAccessor>());
+        var useCase = new ChangeJobStatusUseCase(_jobs, new CheckJobLimitUseCase(subscriptions, plans, _jobQueries), flags, Substitute.For<ICurrentPrincipalAccessor>(), AlertNotifier(), Substitute.For<ILogger<ChangeJobStatusUseCase>>());
 
         var result = await useCase.ExecuteAsync(new ChangeJobStatusRequest(job.Id.Value, _advertiserId, EJobStatus.Closed));
 

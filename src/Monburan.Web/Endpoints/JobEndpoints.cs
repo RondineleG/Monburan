@@ -205,6 +205,24 @@ public static class JobEndpoints
         .RequireAuthorization("ApiBearer")
         .WithSummary("Cria vaga para o anunciante autenticado");
 
+        // Bearer — mudar situação da vaga (rascunho/publicação, pausa, reativação e encerramento)
+        group.MapPut("/{id:guid}/status", async (
+            Guid id,
+            UpdateJobStatusRequest request,
+            ICurrentUserHelper currentUser,
+            ChangeJobStatusUseCase useCase,
+            CancellationToken cancellationToken) =>
+        {
+            var advertiserId = currentUser.GetAdvertiserId();
+            if (advertiserId is null)
+                return Results.Problem(statusCode: StatusCodes.Status403Forbidden, title: "Perfil de anunciante necessário");
+
+            var result = await useCase.ExecuteAsync(new ChangeJobStatusRequest(id, advertiserId.Value, request.NewStatus), cancellationToken);
+            return result.ToHttpResult();
+        })
+        .RequireAuthorization("ApiBearer")
+        .WithSummary("Muda a situação de uma vaga do anunciante autenticado");
+
         // Bearer — atualizar vaga (com checagem de propriedade)
         group.MapPut("/{id:guid}", async (
             Guid id,

@@ -212,5 +212,35 @@ public class JobRepositoryPostgresTests : IClassFixture<PostgresDatabase>
         stored.Title.Should().Be("Edição durante moderação");
     }
 
+
+    [Fact]
+    public async Task UpdateAsync_WhenClosingJob_PersistsStatusAndAuthor()
+    {
+        await using var context = _database.CreateContext();
+        await context.Database.MigrateAsync();
+        var advertiserId = await SeedAdvertiserAsync(context);
+        var jobId = await SeedJobAsync(context, advertiserId);
+        var close = new Job
+        {
+            Id = Id.Create(jobId),
+            AdvertiserId = Id.Create(advertiserId),
+            Title = "Vaga encerrada",
+            Description = "Encerramento pelo anunciante",
+            ExpirationDate = DateTime.UtcNow.AddDays(30),
+            Status = EJobStatus.Closed,
+            UpdatedBy = advertiserId.ToString(),
+            TenantId = "default"
+        };
+        var repository = new JobRepository(_database.ContextFactory);
+
+        var result = await repository.UpdateAsync(close);
+
+        result.Status.Should().Be(Core.Enums.EResultStatus.Success);
+        await using var check = _database.CreateContext();
+        var stored = await check.Jobs.AsNoTracking().SingleAsync(job => job.Id == Id.Create(jobId));
+        stored.Status.Should().Be(EJobStatus.Closed);
+        stored.UpdatedBy.Should().Be(advertiserId.ToString());
+    }
+
 }
 

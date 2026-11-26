@@ -123,7 +123,15 @@ public class JobResponseMapperTests
         var detail = await new GetJobByIdUseCase(_jobRepository, _savedJobs).ExecuteAsync(job.Id.Value);
         var flags = Substitute.For<Monburan.Core.Interfaces.Services.IFeatureFlags>();
         flags.IsEnabledAsync(Arg.Any<string>(), Arg.Any<System.Security.Claims.ClaimsPrincipal?>(), Arg.Any<CancellationToken>()).Returns(true);
-        var status = await new ChangeJobStatusUseCase(_jobRepository, JobLimitUseCase(), flags, Substitute.For<Monburan.Core.Interfaces.Services.ICurrentPrincipalAccessor>())
+        var alerts = Substitute.For<IJobAlertRepository>();
+        alerts.ListActiveAsync(Arg.Any<CancellationToken>()).Returns(RequestResult<IEnumerable<JobAlert>>.Success([]));
+        var notifications = Substitute.For<INotificationRepository>();
+        var notifier = new Monburan.Core.UseCases.JobAlerts.NotifyJobAlertsOnJobCreatedUseCase(
+            alerts,
+            notifications,
+            new Monburan.Core.UseCases.Notifications.CreateNotificationUseCase(notifications),
+            Substitute.For<Microsoft.Extensions.Logging.ILogger<Monburan.Core.UseCases.JobAlerts.NotifyJobAlertsOnJobCreatedUseCase>>());
+        var status = await new ChangeJobStatusUseCase(_jobRepository, JobLimitUseCase(), flags, Substitute.For<Monburan.Core.Interfaces.Services.ICurrentPrincipalAccessor>(), notifier, Substitute.For<Microsoft.Extensions.Logging.ILogger<ChangeJobStatusUseCase>>())
             .ExecuteAsync(new ChangeJobStatusRequest(job.Id.Value, job.AdvertiserId!.Value, EJobStatus.Paused));
 
         status.Status.Should().Be(EResultStatus.Success);

@@ -18,6 +18,8 @@ Quinta fatia, de M02: o ciclo de vida do anunciante ganha `Closed` como encerram
 
 Sexta fatia, ainda de M02: criação, edição e mudança de situação passam a carimbar autoria do anunciante em `CreatedBy`/`UpdatedBy`. O encerramento ficou atrás da flag `encerramento-vaga`, a administração não reabre vaga encerrada e uma edição concorrente não desfaz o encerramento no repositório.
 
+Sétima fatia, de M02: a vaga ganha `Draft` atrás da flag `rascunho-vaga`. Rascunho não consome vaga ativa nem dispara alertas; a publicação posterior passa pelo limite do plano e então avalia alertas. Minhas vagas ganha aba de rascunhos e ação de publicação, e a API recebe `PUT /jobs/{id}/status` para o mesmo ciclo no mobile. O repositório protege encerramento e moderação em atualização condicional no PostgreSQL, preservando autoria e evitando confirmação falsa quando a moderação vence a corrida.
+
 ## Validação
 
 Comandos com `export PATH="$HOME/.dotnet:$PATH"`:

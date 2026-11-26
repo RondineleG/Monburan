@@ -17,7 +17,7 @@ public sealed record NotifyJobAlertsOnJobCreatedRequest(Job Job);
 /// <summary>
 /// Avalia os alertas ativos quando uma vaga é publicada: para cada alerta que casa, cria a notificação
 /// <c>NewJob</c> ("Nova vaga para o seu alerta: &lt;nome&gt;") e atualiza <c>LastMatchedAt</c>.
-/// Só roda na criação da vaga (edição não notifica); devolve quantos alertas notificaram.
+/// Roda quando a vaga é publicada (na criação ou ao sair de rascunho; edição não notifica) e devolve quantos alertas notificaram.
 /// </summary>
 public class NotifyJobAlertsOnJobCreatedUseCase : IUseCase<NotifyJobAlertsOnJobCreatedRequest, int>
 {

@@ -166,6 +166,7 @@ public sealed class AdminChangeJobStatusUseCase : IUseCase<AdminChangeJobStatusR
         EJobStatus.Rejected => "Reprovada",
         EJobStatus.Expired => "Expirada",
         EJobStatus.Closed => "Encerrada",
+        EJobStatus.Draft => "Rascunho",
         _ => status.ToString()
     };
 }

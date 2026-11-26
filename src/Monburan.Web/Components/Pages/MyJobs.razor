@@ -154,6 +154,10 @@
                                                     <ul class="job-actions__menu" id="job-actions-list-@job.Id">
                                                         <li><a class="job-actions__item" href="@($"/jobs/{job.Id}")">Ver página da vaga</a></li>
                                                         <li><a class="job-actions__item" href="@($"/vagas/{job.Id}/candidaturas")" data-testid="my-job-applications">Ver candidaturas</a></li>
+                                                        @if (job.Status == "Draft")
+                                                        {
+                                                            <li><button type="button" class="job-actions__item" @onclick="() => ChangeStatusAsync(job, EJobStatus.Active)" disabled="@(changingId == job.Id)" data-testid="my-job-publish">Publicar</button></li>
+                                                        }
                                                         @if (job.Status == "Active")
                                                         {
                                                             <li><button type="button" class="job-actions__item" @onclick="() => ChangeStatusAsync(job, EJobStatus.Paused)" disabled="@(changingId == job.Id)" data-testid="my-job-pause">Pausar</button></li>
@@ -225,6 +229,7 @@
 @code {
     private static readonly (string Value, string Label)[] Tabs =
     [
+        ("rascunhos", "Rascunhos"),
         ("ativas", "Ativas"),
         ("pausadas", "Pausadas"),
         ("expiradas", "Expiradas"),
@@ -249,7 +254,7 @@
 
     private string Situation => SituationQuery switch
     {
-        "pausadas" or "expiradas" or "encerradas" or "ocultas" => SituationQuery,
+        "rascunhos" or "pausadas" or "expiradas" or "encerradas" or "ocultas" => SituationQuery,
         _ => "ativas"
     };
 
@@ -332,6 +337,7 @@
 
     private static bool MatchesTab(string status, string tab) => tab switch
     {
+        "rascunhos" => status == "Draft",
         "ativas" => status == "Active",
         "pausadas" => status == "Paused",
         "expiradas" => status == "Expired",

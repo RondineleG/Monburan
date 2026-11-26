@@ -7,4 +7,4 @@ public enum EJobStatus
 
 
 
-{ Active, Expired, Hidden, Rejected, Paused, Closed }
+{ Draft, Active, Expired, Hidden, Rejected, Paused, Closed }
