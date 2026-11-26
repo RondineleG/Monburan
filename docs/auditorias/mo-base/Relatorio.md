@@ -17,13 +17,13 @@ dotnet build src/Monburan.Web/Monburan.Web.csproj --configuration Release -v:q
 # 0 warnings, 0 errors
 
 dotnet test tests/Monburan.UnitTests/Monburan.UnitTests.csproj --configuration Release -v:q
-# 1317 passed, 0 failed
+# 1318 passed, 0 failed
 
 dotnet test tests/Monburan.IntegrationTests/Monburan.IntegrationTests.csproj --configuration Release -v:q
-# 64 passed, 0 failed
+# 65 passed, 0 failed
 
 dotnet test tests/Monburan.ApiTests/Monburan.ApiTests.csproj --configuration Release -v:q
-# 277 passed, 0 failed na rodada inicial; teste dirigido novo do snapshot passou após a flag
+# 278 passed, 0 failed; inclui round-trip API com flag ligada e edição posterior do currículo
 ```
 
 A solução completa não é buildável nesta VM porque `Monburan.Mobile` exige workload `maui-android`; não foi instalado workload novo nem usado serviço externo.
