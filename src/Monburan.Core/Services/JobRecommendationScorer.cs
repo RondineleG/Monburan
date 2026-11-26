@@ -100,10 +100,10 @@ public static class JobRecommendationScorer
     // Só pontua quando a vaga informa salário; o maior valor (ou o menor, sem teto) precisa atingir o mínimo pedido
     private static int ScoreSalary(Job job, decimal? minimumSalary)
     {
-        if (minimumSalary is not > 0)
+        if (minimumSalary is not > 0 || job.Salary?.Display != true)
             return 0;
 
-        var reference = job.Salary?.Max ?? job.Salary?.Min;
+        var reference = job.Salary.Max ?? job.Salary.Min;
         return reference is { } value && value >= minimumSalary.Value ? 2 : 0;
     }
 

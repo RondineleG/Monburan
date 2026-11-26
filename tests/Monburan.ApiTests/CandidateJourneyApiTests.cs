@@ -145,10 +145,12 @@ public class CandidateJourneyApiTests : IClassFixture<MonburanApiFactory>
     public async Task Recommended_WithoutProfileAndSkills_UsesBasicRanking()
     {
         var token = await RegisterCandidateAsync();
+        await SetExplainableRecommendationAsync(true);
 
         var recommended = await GetAsync<ListJobsResponse>(token.AccessToken, "/api/v1/jobs/recommended");
 
-        recommended!.Jobs.Should().NotBeEmpty("sem perfil e sem currículo a recomendação usa a ordenação básica por recência");
+        recommended!.Jobs.Should().NotBeEmpty("com a liberação ligada, perfil incompleto usa a ordenação básica por recência");
+        await SetExplainableRecommendationAsync(false);
     }
 
     [Fact]

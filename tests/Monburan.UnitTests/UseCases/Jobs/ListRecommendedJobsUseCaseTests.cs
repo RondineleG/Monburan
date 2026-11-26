@@ -28,6 +28,8 @@ public class ListRecommendedJobsUseCaseTests
         _resumes.GetActiveWithSkillsAsync(_candidateId).Returns(RequestResult<Resume?>.Success(null));
         _applications.ListByCandidateAsync(_candidateId)
             .Returns(RequestResult<IEnumerable<Application>>.Success([]));
+        _jobs.ListRecentForRecommendationsAsync(Arg.Any<int>(), Arg.Any<CancellationToken>())
+            .Returns(RequestResult<IEnumerable<Job>>.Success([]));
 
         _useCase = new ListRecommendedJobsUseCase(
             _jobs,
@@ -86,8 +88,18 @@ public class ListRecommendedJobsUseCaseTests
         TenantId = "default"
     };
 
-    private void ReturnsJobs(params Job[] jobs) =>
+    private void ReturnsJobs(params Job[] jobs)
+    {
         _jobs.ListActiveForRecommendationsAsync().Returns(RequestResult<IEnumerable<Job>>.Success(jobs));
+        _jobs.ListRecentForRecommendationsAsync(Arg.Any<int>(), Arg.Any<CancellationToken>())
+            .Returns(RequestResult<IEnumerable<Job>>.Success(jobs));
+    }
+
+    private void EnableExplanation() =>
+        _featureFlags.IsEnabledAsync(
+            ListRecommendedJobsUseCase.ExplainableRecommendationFeature,
+            Arg.Any<System.Security.Claims.ClaimsPrincipal?>(),
+            Arg.Any<CancellationToken>()).Returns(true);
 
     [Fact]
     public async Task ExecuteAsync_WithoutProfileAndWithoutSkills_UsesBasicOrderingByRecency()
@@ -96,11 +108,38 @@ public class ListRecommendedJobsUseCaseTests
         var newer = JobOf("Vaga recente");
         ReturnsJobs(older, newer);
 
+        EnableExplanation();
+
         var result = await _useCase.ExecuteAsync(_candidateId);
 
         result.Status.Should().Be(EResultStatus.Success);
         result.Data!.Jobs.Select(job => job.Title).Should().ContainInOrder("Vaga recente", "Vaga antiga");
-        await _jobs.Received(1).ListActiveForRecommendationsAsync(Arg.Any<CancellationToken>());
+        await _jobs.Received(1).ListRecentForRecommendationsAsync(ListRecommendedJobsUseCase.MaxResults, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_WithoutProfileAndWithoutSkills_KeepsTheListEmptyWhenTheFeatureIsOff()
+    {
+        ReturnsJobs(JobOf("Vaga recente"));
+
+        var result = await _useCase.ExecuteAsync(_candidateId);
+
+        result.Status.Should().Be(EResultStatus.Success);
+        result.Data!.Jobs.Should().BeEmpty();
+        await _jobs.DidNotReceiveWithAnyArgs().ListActiveForRecommendationsAsync();
+        await _jobs.DidNotReceiveWithAnyArgs().ListRecentForRecommendationsAsync(default, default);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_WithOnlyAShortDesiredRole_UsesBasicOrdering()
+    {
+        _profiles.GetByCandidateIdAsync(_candidateId).Returns(RequestResult<CareerProfile?>.Success(ProfileOf(desiredRole: "QA")));
+        ReturnsJobs(JobOf("Vaga antiga"), JobOf("Vaga recente"));
+        EnableExplanation();
+
+        var result = await _useCase.ExecuteAsync(_candidateId);
+
+        result.Data!.Jobs.Select(job => job.Title).Should().ContainInOrder("Vaga recente", "Vaga antiga");
     }
 
     [Fact]

@@ -443,15 +443,30 @@ public class JobRepository : IJobRepository
     public async Task<RequestResult<IEnumerable<Job>>> ListActiveForRecommendationsAsync(CancellationToken cancellationToken = default)
     {
         await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);
-        var now = DateTime.UtcNow;
-        var jobs = await context.Jobs
-            .AsNoTracking()
-            .Include(j => j.Advertiser)
-            .Where(j => !j.IsDeleted && j.Status == EJobStatus.Active && j.ExpirationDate >= now)
-            .OrderByDescending(j => j.CreatedAt)
+        var jobs = await ActiveRecommendationsQuery(context)
             .ToListAsync(cancellationToken);
 
         return RequestResult<IEnumerable<Job>>.Success(jobs);
+    }
+
+    public async Task<RequestResult<IEnumerable<Job>>> ListRecentForRecommendationsAsync(int take, CancellationToken cancellationToken = default)
+    {
+        await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);
+        var jobs = await ActiveRecommendationsQuery(context)
+            .Take(take)
+            .ToListAsync(cancellationToken);
+
+        return RequestResult<IEnumerable<Job>>.Success(jobs);
+    }
+
+    private static IQueryable<Job> ActiveRecommendationsQuery(ApplicationDbContext context)
+    {
+        var now = DateTime.UtcNow;
+        return context.Jobs
+            .AsNoTracking()
+            .Include(j => j.Advertiser)
+            .Where(j => !j.IsDeleted && j.Status == EJobStatus.Active && j.ExpirationDate >= now)
+            .OrderByDescending(j => j.CreatedAt);
     }
 
     public async Task<RequestResult<bool>> IncrementViewsAsync(Guid jobId, CancellationToken cancellationToken = default)

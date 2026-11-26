@@ -119,6 +119,20 @@ public class JobRecommendationScorerTests
         JobRecommendationScorer.Score(job, profile, []).Should().Be(1);
     }
 
+
+    [Fact]
+    public void Evaluate_WhenTheSalaryIsHidden_DoesNotScoreOrExplainIt()
+    {
+        var job = JobOf(salaryMin: 5000, salaryMax: 9000);
+        job.Salary!.Display = false;
+        var profile = ProfileOf(minimumSalary: 8000);
+
+        var evaluation = JobRecommendationScorer.Evaluate(job, profile, []);
+
+        evaluation.Score.Should().Be(0);
+        evaluation.Factors.Should().NotContain(factor => factor.Contains("Salário"));
+    }
+
     [Fact]
     public void Score_WhenTheJobMaximumReachesTheMinimumSalary_AddsTwo()
     {

@@ -59,8 +59,15 @@ public class ListRecommendedJobsUseCase : IUseCase<Guid, ListJobsResponse>
 
         var profile = profileResult.Data;
         var hasRecommendationInput = HasRecommendationInput(profile, skills);
+        var explain = await _featureFlags.IsEnabledAsync(
+            ExplainableRecommendationFeature, _currentPrincipal.User, cancellationToken);
 
-        var jobsResult = await _jobRepository.ListActiveForRecommendationsAsync(cancellationToken);
+        if (!hasRecommendationInput && !explain)
+            return RequestResult<ListJobsResponse>.Success(EmptyResponse());
+
+        var jobsResult = hasRecommendationInput
+            ? await _jobRepository.ListActiveForRecommendationsAsync(cancellationToken)
+            : await _jobRepository.ListRecentForRecommendationsAsync(MaxResults, cancellationToken);
         if (jobsResult.Status != EResultStatus.Success || jobsResult.Data is null)
             return RequestResult<ListJobsResponse>.FromResult(jobsResult);
 
@@ -69,9 +76,6 @@ public class ListRecommendedJobsUseCase : IUseCase<Guid, ListJobsResponse>
             return RequestResult<ListJobsResponse>.FromResult(applicationsResult);
 
         var appliedJobIds = applicationsResult.Data.Select(application => application.JobId.Value).ToHashSet();
-
-        var explain = await _featureFlags.IsEnabledAsync(
-            ExplainableRecommendationFeature, _currentPrincipal.User, cancellationToken);
 
         var candidates = jobsResult.Data
             .Where(job => !appliedJobIds.Contains(job.Id.Value))
@@ -114,12 +118,26 @@ public class ListRecommendedJobsUseCase : IUseCase<Guid, ListJobsResponse>
     private static bool HasRecommendationInput(CareerProfile? profile, IReadOnlyCollection<string> skills) =>
         skills.Count > 0
         || profile is not null && (
-            !string.IsNullOrWhiteSpace(profile.DesiredRole)
+            HasScorableDesiredRole(profile.DesiredRole)
             || !string.IsNullOrWhiteSpace(profile.Category)
             || !string.IsNullOrWhiteSpace(profile.City)
             || !string.IsNullOrWhiteSpace(profile.State)
             || !string.IsNullOrWhiteSpace(profile.Mode)
             || profile.MinimumSalary is > 0);
+
+    private static bool HasScorableDesiredRole(string? desiredRole) =>
+        !string.IsNullOrWhiteSpace(desiredRole)
+        && desiredRole
+            .Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Any(word => word.Length >= 3);
+
+    private static ListJobsResponse EmptyResponse() => new()
+    {
+        Jobs = [],
+        TotalCount = 0,
+        Page = 1,
+        Size = MaxResults
+    };
 
     private sealed record RankedJob(Job Job, JobRecommendationScorer.Evaluation Evaluation);
 }
