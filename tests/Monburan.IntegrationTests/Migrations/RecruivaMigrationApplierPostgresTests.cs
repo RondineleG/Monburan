@@ -58,6 +58,9 @@ public sealed class RecruivaMigrationApplierPostgresTests : IClassFixture<Postgr
         context.SavedJobs.RemoveRange(context.SavedJobs);
         await context.SaveChangesAsync();
 
+        var wrongDatabaseRollback = async () => await RecruivaMigrationApplier.RollbackAsync(context, applied with { DatabaseKey = "outro-host|outro-banco" });
+        await wrongDatabaseRollback.Should().ThrowAsync<InvalidOperationException>();
+
         var rollback = await RecruivaMigrationApplier.RollbackAsync(context, applied);
 
         rollback.RemovedCounts.Values.Sum().Should().Be(7);
@@ -67,6 +70,14 @@ public sealed class RecruivaMigrationApplierPostgresTests : IClassFixture<Postgr
         (await context.Candidates.CountAsync()).Should().Be(0);
         (await context.Applications.CountAsync()).Should().Be(0);
         applied.Files.Should().OnlyContain(file => !File.Exists(file.TargetPath));
+
+        var leftover = applied.Files.Single(file => file.Copied);
+        Directory.CreateDirectory(Path.GetDirectoryName(leftover.TargetPath)!);
+        await File.WriteAllTextAsync(leftover.TargetPath, "resto de falha parcial");
+        var retry = await RecruivaMigrationApplier.RollbackAsync(context, applied);
+        retry.RemovedCounts.Values.Sum().Should().Be(0);
+        retry.RemovedFiles.Should().Be(1);
+        File.Exists(leftover.TargetPath).Should().BeFalse();
     }
 
     private static RecruivaMigrationExport Export(string hash, int size) => new()
