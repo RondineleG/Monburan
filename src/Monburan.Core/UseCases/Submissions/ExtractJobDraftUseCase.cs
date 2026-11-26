@@ -22,6 +22,8 @@ namespace Monburan.Core.UseCases.Submissions;
 /// </summary>
 public sealed class ExtractJobDraftUseCase : IUseCase<ExtractJobDraftRequest, AiJobDraft>
 {
+    public const string DraftProvenanceFeature = "proveniencia-rascunho-vaga";
+
     private const string Instructions =
         "Você extrai dados de uma imagem de divulgação de vaga de emprego. Responda somente com um objeto JSON. " +
         "Para cada campo use {\"value\": texto ou null, \"confidence\": \"high\" | \"medium\" | \"low\"}. " +

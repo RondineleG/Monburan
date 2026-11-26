@@ -95,6 +95,7 @@
 
                     @if (currentDraft is not null)
                     {
+                        <FeatureGate Feature="@ExtractJobDraftUseCase.DraftProvenanceFeature">
                         <article class="card mb-3" data-testid="admin-submission-ai-provenance">
                             <h3 class="h6">Proveniência do rascunho</h3>
                             <dl class="row small mb-2">
@@ -118,6 +119,7 @@
                                 <p class="small mb-0">Todos os campos extraídos têm confiança alta; a decisão continua humana.</p>
                             }
                         </article>
+                        </FeatureGate>
                     }
 
                     @if (duplicates.Count > 0)
@@ -403,13 +405,20 @@
         drafting = true;
         decisionError = null;
         draftNotice = null;
+        var submissionId = selected.Id;
         try
         {
-            var result = await ExtractDraft.ExecuteAsync(new ExtractJobDraftRequest(selected.Id.Value));
+            var result = await ExtractDraft.ExecuteAsync(new ExtractJobDraftRequest(submissionId.Value));
             if (result.Status == EResultStatus.Success && result.Data is not null)
             {
+                if (selected?.Id != submissionId)
+                    return;
+
                 currentDraft = result.Data;
-                var refreshed = await Submissions.GetByIdAsync(selected.Id);
+                var refreshed = await Submissions.GetByIdAsync(submissionId);
+                if (selected?.Id != submissionId)
+                    return;
+
                 if (refreshed.Status == EResultStatus.Success && refreshed.Data is not null)
                     selected = refreshed.Data;
                 UpdateUncertainDraftFields();
