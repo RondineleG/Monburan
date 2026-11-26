@@ -11,8 +11,12 @@ public static class ApplicationTimelineBuilder
     /// <summary>Etapas da mais antiga para a mais nova, com notas vazias virando nulo.</summary>
     public static IReadOnlyList<ApplicationTimelineStep> Build(IEnumerable<ApplicationHistoryItemResponse> history)
     {
-        return history
-            .OrderBy(item => item.Date)
+        var items = history.ToList();
+        var ordered = items.Any(item => item.Version.HasValue)
+            ? items.OrderBy(item => item.Version ?? int.MaxValue).ThenBy(item => item.Date)
+            : items.OrderBy(item => item.Date);
+
+        return ordered
             .Select(item => new ApplicationTimelineStep(
                 item.Status,
                 UiLabels.ApplicationStatus(item.Status),
