@@ -22,15 +22,18 @@ public sealed record NotifyJobAlertsOnJobCreatedRequest(Job Job);
 public class NotifyJobAlertsOnJobCreatedUseCase : IUseCase<NotifyJobAlertsOnJobCreatedRequest, int>
 {
     private readonly IJobAlertRepository _alerts;
+    private readonly INotificationRepository _notifications;
     private readonly CreateNotificationUseCase _createNotification;
     private readonly ILogger<NotifyJobAlertsOnJobCreatedUseCase> _logger;
 
     public NotifyJobAlertsOnJobCreatedUseCase(
         IJobAlertRepository alerts,
+        INotificationRepository notifications,
         CreateNotificationUseCase createNotification,
         ILogger<NotifyJobAlertsOnJobCreatedUseCase> logger)
     {
         _alerts = alerts;
+        _notifications = notifications;
         _createNotification = createNotification;
         _logger = logger;
     }
@@ -54,12 +57,24 @@ public class NotifyJobAlertsOnJobCreatedUseCase : IUseCase<NotifyJobAlertsOnJobC
                 if (!JobAlertMatcher.Matches(job, alert))
                     continue;
 
+                var duplicateResult = await _notifications.ExistsJobAlertNotificationAsync(alert.Id.Value, job.Id.Value, cancellationToken);
+                if (duplicateResult.Status != EResultStatus.Success)
+                {
+                    _logger.LogWarning("Alerta {AlertId} casou com a vaga {JobId}, mas a deduplicação não pôde ser verificada: {Detail}",
+                        alert.Id.Value, job.Id.Value, duplicateResult.Message);
+                    continue;
+                }
+                if (duplicateResult.Data)
+                    continue;
+
                 var notificationResult = await _createNotification.ExecuteAsync(new CreateNotificationRequest
                 {
                     Title = "Nova vaga para o seu alerta",
                     Message = $"Nova vaga para o seu alerta: {alert.Name}",
                     RecipientId = alert.CandidateId.Value.ToString(),
-                    Type = ENotificationType.NewJob
+                    Type = ENotificationType.NewJob,
+                    JobAlertId = alert.Id.Value,
+                    JobId = job.Id.Value
                 },
                 cancellationToken);
                 if (notificationResult.Status != EResultStatus.Success)

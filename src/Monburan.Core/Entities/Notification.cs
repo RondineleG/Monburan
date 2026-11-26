@@ -1,4 +1,4 @@
-﻿using Monburan.Core.Entities.Base;
+using Monburan.Core.Entities.Base;
 using Monburan.Core.Enums;
 
 using System.ComponentModel.DataAnnotations;
@@ -19,4 +19,10 @@ public class Notification : BaseEntity
     public string? Title { get; set; }
 
     public ENotificationType Type { get; set; } = ENotificationType.System;
+
+    /// <summary>Alerta que originou a notificação de vaga, usado para deduplicar regra/vaga.</summary>
+    public Guid? JobAlertId { get; set; }
+
+    /// <summary>Vaga associada à notificação de alerta.</summary>
+    public Guid? JobId { get; set; }
 }

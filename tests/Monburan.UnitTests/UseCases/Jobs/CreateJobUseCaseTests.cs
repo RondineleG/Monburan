@@ -49,9 +49,11 @@ public class CreateJobUseCaseTests
         _mockAlerts = Substitute.For<IJobAlertRepository>();
         _mockAlerts.ListActiveAsync().Returns(RequestResult<IEnumerable<JobAlert>>.Success([]));
 
+        var notifications = Substitute.For<INotificationRepository>();
         var notifyAlerts = new NotifyJobAlertsOnJobCreatedUseCase(
             _mockAlerts,
-            new CreateNotificationUseCase(Substitute.For<IBaseRepository<Notification>>()),
+            notifications,
+            new CreateNotificationUseCase(notifications),
             Substitute.For<ILogger<NotifyJobAlertsOnJobCreatedUseCase>>());
 
         _useCase = new CreateJobUseCase(

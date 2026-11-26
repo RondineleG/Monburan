@@ -1650,6 +1650,12 @@ namespace Monburan.Web.Migrations
                         .HasColumnType("boolean")
                         .HasDefaultValue(false);
 
+                    b.Property<Guid?>("JobAlertId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("JobId")
+                        .HasColumnType("uuid");
+
                     b.Property<string>("Message")
                         .IsRequired()
                         .HasMaxLength(1000)
@@ -1686,6 +1692,11 @@ namespace Monburan.Web.Migrations
                         .HasColumnType("character varying(100)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("JobAlertId", "JobId")
+                        .IsUnique()
+                        .HasDatabaseName("UX_Notifications_JobAlertId_JobId")
+                        .HasFilter("\"JobAlertId\" IS NOT NULL AND \"JobId\" IS NOT NULL");
 
                     b.HasIndex("RecipientId", "Type")
                         .HasDatabaseName("IX_Notifications_RecipientId_Type");

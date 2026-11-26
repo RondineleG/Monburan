@@ -12,6 +12,8 @@ Segunda fatia: candidatura passa a ser idempotente pela chave natural `Candidate
 
 Terceira fatia, de M04: a recomendação passa a calcular não só a pontuação, mas os fatores objetivos que a compõem (cargo, categoria, localização, modalidade, salário e habilidades encontradas). Os fatores só são expostos quando a flag `recomendacao-explicavel` está ligada para o grupo do usuário; desligada, o contrato permanece sem os campos novos. Quando não há perfil nem habilidades úteis, o endpoint usa ranking básico determinístico por recência em vez de depender de fallback implícito da interface. Empates de pontuação usam data de criação e id como desempate estável.
 
+Quarta fatia, de M06: alertas de vagas passam a carregar `JobAlertId` e `JobId` na notificação, com índice único parcial para deduplicar regra/vaga mesmo sob repetição ou concorrência. A avaliação consulta a deduplicação antes de criar `NewJob`; vaga inativa/expirada continua sem gerar alerta.
+
 ## Validação
 
 Comandos com `export PATH="$HOME/.dotnet:$PATH"`:
