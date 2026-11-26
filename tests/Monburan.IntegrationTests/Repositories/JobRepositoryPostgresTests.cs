@@ -152,8 +152,9 @@ public class JobRepositoryPostgresTests : IClassFixture<PostgresDatabase>
         await context.Database.MigrateAsync();
         var advertiserId = await SeedAdvertiserAsync(context);
         var jobId = await SeedJobAsync(context, advertiserId);
+        var closedBy = Guid.NewGuid().ToString();
         await context.Database.ExecuteSqlAsync(
-            $"""UPDATE "Jobs" SET "Status" = {"Closed"} WHERE "Id" = {jobId}""");
+            $"""UPDATE "Jobs" SET "Status" = {"Closed"}, "UpdatedBy" = {closedBy} WHERE "Id" = {jobId}""");
 
         var staleEdit = new Job
         {
@@ -175,7 +176,7 @@ public class JobRepositoryPostgresTests : IClassFixture<PostgresDatabase>
         var stored = await check.Jobs.AsNoTracking().SingleAsync(job => job.Id == Id.Create(jobId));
         stored.Status.Should().Be(EJobStatus.Closed);
         stored.Title.Should().Be("Edição concorrente");
-        stored.UpdatedBy.Should().Be(advertiserId.ToString());
+        stored.UpdatedBy.Should().Be(closedBy);
     }
 
 }

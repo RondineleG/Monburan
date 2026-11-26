@@ -186,7 +186,9 @@ public class JobRepository : IJobRepository
         if (tracked.Status != EJobStatus.Closed)
             tracked.Status = entity.Status;
         tracked.AdvertiserId = entity.AdvertiserId;
-        tracked.UpdatedBy = entity.UpdatedBy;
+        // Uma edição/expiração montada antes do encerramento traz o carimbo antigo; não pode apagar quem encerrou.
+        if (tracked.Status != EJobStatus.Closed || entity.Status == EJobStatus.Closed)
+            tracked.UpdatedBy = entity.UpdatedBy;
 
         CopyLocation(tracked.Location, entity.Location);
         CopySalary(tracked.Salary, entity.Salary);
