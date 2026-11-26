@@ -183,6 +183,7 @@ public sealed class BuildRecruivaMigrationDryRunUseCase : IUseCase<RecruivaMigra
 public abstract record RecruivaSourceRow
 {
     public required string SourceId { get; init; }
+    public bool? IsDeleted { get; init; }
 }
 
 public sealed record RecruivaMigrationExport
@@ -201,14 +202,21 @@ public sealed record RecruivaCandidateExport : RecruivaSourceRow
 {
     public required string Email { get; init; }
     public required string Name { get; init; }
-    public bool CanMigrate { get; init; } = true;
+    public string? Status { get; init; }
+    public DateTime? CreatedAtUtc { get; init; }
+    public DateTime? UpdatedAtUtc { get; init; }
+    public bool? CanMigrate { get; init; }
 }
 
 public sealed record RecruivaAdvertiserExport : RecruivaSourceRow
 {
     public required string Email { get; init; }
     public required string Name { get; init; }
-    public bool CanMigrate { get; init; } = true;
+    public string? Status { get; init; }
+    public string? LogoUrl { get; init; }
+    public DateTime? CreatedAtUtc { get; init; }
+    public DateTime? UpdatedAtUtc { get; init; }
+    public bool? CanMigrate { get; init; }
 }
 
 public sealed record RecruivaJobExport : RecruivaSourceRow
@@ -216,12 +224,23 @@ public sealed record RecruivaJobExport : RecruivaSourceRow
     public required string AdvertiserSourceId { get; init; }
     public required string Title { get; init; }
     public required string Status { get; init; }
+    public string? Description { get; init; }
+    public DateTime? ExpirationDateUtc { get; init; }
+    public DateTime? PublishedAtUtc { get; init; }
+    public DateTime? CreatedAtUtc { get; init; }
+    public DateTime? UpdatedAtUtc { get; init; }
 }
 
 public sealed record RecruivaResumeExport : RecruivaSourceRow
 {
     public required string CandidateSourceId { get; init; }
     public required string Title { get; init; }
+    public string? Summary { get; init; }
+    public bool? IsActive { get; init; }
+    public string? SourceFileName { get; init; }
+    public string? SourceFileUrl { get; init; }
+    public DateTime? CreatedAtUtc { get; init; }
+    public DateTime? UpdatedAtUtc { get; init; }
 }
 
 public sealed record RecruivaFileExport : RecruivaSourceRow
@@ -231,7 +250,7 @@ public sealed record RecruivaFileExport : RecruivaSourceRow
     public string? SourceUrl { get; init; }
     public required string ContentHash { get; init; }
     public long SizeBytes { get; init; }
-    public bool CanMigrate { get; init; } = true;
+    public bool? CanMigrate { get; init; }
 }
 
 public sealed record RecruivaApplicationExport : RecruivaSourceRow
@@ -240,6 +259,14 @@ public sealed record RecruivaApplicationExport : RecruivaSourceRow
     public required string JobSourceId { get; init; }
     public string? ResumeSourceId { get; init; }
     public required string Status { get; init; }
+    public string? Notes { get; init; }
+    public int? Version { get; init; }
+    public DateTime? AppliedAtUtc { get; init; }
+    public DateTime? ViewedAtUtc { get; init; }
+    public DateTime? SelectedAtUtc { get; init; }
+    public DateTime? RejectedAtUtc { get; init; }
+    public DateTime? CreatedAtUtc { get; init; }
+    public DateTime? UpdatedAtUtc { get; init; }
 }
 
 public sealed record RecruivaTransitionExport : RecruivaSourceRow
@@ -247,6 +274,10 @@ public sealed record RecruivaTransitionExport : RecruivaSourceRow
     public required string ApplicationSourceId { get; init; }
     public required string Status { get; init; }
     public required DateTime OccurredAtUtc { get; init; }
+    public string? Note { get; init; }
+    public string? Responsible { get; init; }
+    public int? Version { get; init; }
+    public DateTime? CreatedAtUtc { get; init; }
 }
 
 public sealed record RecruivaMigrationProblem(string Kind, string Entity, string SourceId, string Message);
