@@ -88,6 +88,13 @@ public class ListRecommendedJobsUseCaseTests
         TenantId = "default"
     };
 
+
+    private static Job WithCreatedAt(Job job, DateTime createdAt)
+    {
+        typeof(Job).GetProperty(nameof(Job.CreatedAt))!.SetValue(job, createdAt);
+        return job;
+    }
+
     private void ReturnsJobs(params Job[] jobs)
     {
         _jobs.ListActiveForRecommendationsAsync().Returns(RequestResult<IEnumerable<Job>>.Success(jobs));
@@ -104,9 +111,10 @@ public class ListRecommendedJobsUseCaseTests
     [Fact]
     public async Task ExecuteAsync_WithoutProfileAndWithoutSkills_UsesBasicOrderingByRecency()
     {
-        var older = JobOf("Vaga antiga");
-        var newer = JobOf("Vaga recente");
-        var alreadyApplied = JobOf("Vaga aplicada");
+        var now = DateTime.UtcNow;
+        var older = WithCreatedAt(JobOf("Vaga antiga"), now.AddMinutes(-3));
+        var newer = WithCreatedAt(JobOf("Vaga recente"), now.AddMinutes(-2));
+        var alreadyApplied = WithCreatedAt(JobOf("Vaga aplicada"), now.AddMinutes(-1));
         ReturnsJobs(older, newer, alreadyApplied);
         _applications.ListByCandidateAsync(_candidateId).Returns(RequestResult<IEnumerable<Application>>.Success(
         [
@@ -149,7 +157,10 @@ public class ListRecommendedJobsUseCaseTests
     public async Task ExecuteAsync_WithOnlyAShortDesiredRole_UsesBasicOrdering()
     {
         _profiles.GetByCandidateIdAsync(_candidateId).Returns(RequestResult<CareerProfile?>.Success(ProfileOf(desiredRole: "QA")));
-        ReturnsJobs(JobOf("Vaga antiga"), JobOf("Vaga recente"));
+        var now = DateTime.UtcNow;
+        ReturnsJobs(
+            WithCreatedAt(JobOf("Vaga antiga"), now.AddMinutes(-2)),
+            WithCreatedAt(JobOf("Vaga recente"), now.AddMinutes(-1)));
         EnableExplanation();
 
         var result = await _useCase.ExecuteAsync(_candidateId);
