@@ -24,6 +24,15 @@ public sealed class AccountProfileService
         var normalized = Normalize(email);
         await using var context = await _contextFactory.CreateDbContextAsync();
 
+        var userIds = await context.Users
+            .Where(user => user.Email != null && user.Email.ToLower() == normalized)
+            .Select(user => user.Id)
+            .ToListAsync();
+        var integrationTokens = await context.IntegrationTokens
+            .Where(token => userIds.Contains(token.UserId))
+            .ToListAsync();
+        context.IntegrationTokens.RemoveRange(integrationTokens);
+
         var candidates = await context.Candidates
             .Where(c => !c.IsDeleted && c.Email.ToLower() == normalized)
             .ToListAsync();
