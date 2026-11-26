@@ -63,6 +63,9 @@ public sealed class IntegrationTokenService(ApplicationDbContext context, TimePr
 
     public async Task<bool> RevokeAsync(Guid id, Guid userId, CancellationToken cancellationToken)
     {
+        if (id == Guid.Empty)
+            return false;
+
         var token = await context.IntegrationTokens
             .SingleOrDefaultAsync(row => row.Id == Id.Create(id) && row.UserId == userId && row.RevokedAt == null, cancellationToken);
         if (token is null)
