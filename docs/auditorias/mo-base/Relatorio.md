@@ -1,4 +1,4 @@
-# MO-BASE — fatias M04/M05 implementadas
+# MO-BASE — fatias M02/M03/M04/M05/M06/M07 implementadas
 
 Base do programa: `775373cef3d7e957a153b71119a861c8290e9619` (`origin/main`). Branch de trabalho: `devin/mo-base`, criada de `origin/dev` `b83f4c099f640d00d68f420607b20a5eabd9402f` conforme a regra do Monburan; PR contra `dev`.
 
@@ -20,6 +20,10 @@ Sexta fatia, ainda de M02: criação, edição e mudança de situação passam a
 
 Sétima fatia, de M02: a vaga ganha `Draft` atrás da flag `rascunho-vaga`. Rascunho não consome vaga ativa nem dispara alertas; a publicação posterior passa pelo limite do plano e então avalia alertas. Minhas vagas ganha aba de rascunhos e ação de publicação, e a API recebe `PUT /jobs/{id}/status` para o mesmo ciclo no mobile. O repositório protege encerramento e moderação em atualização condicional no PostgreSQL, preservando autoria e evitando confirmação falsa quando a moderação vence a corrida. A publicação passou a ter data própria (`PublishedAt`), edição e mudança de situação foram separadas para não se sobrescreverem, rascunho só é publicado pelo dono com rollout, e a API de status tem rollout próprio. Criação, edição, mudança de situação e moderação gravam revisões imutáveis com snapshot jsonb e autoria traduzida por papel na API e na tela de edição, ambas protegidas por `historico-vaga` com checagem também no caso de uso.
 
+Oitava fatia, de M03: a moderação de sugestões passa a expor a proveniência do rascunho de IA — método multimodal, provedor, hash das evidências, data de geração e campos ausentes ou de confiança baixa/média. A aprovação de vaga externa preserva autoria interna do moderador e toda criação já ativa recebe `PublishedAt` no repositório. Imagem repetida já é detectada por hash como possível duplicata e a publicação continua exclusivamente humana; não existe publicação automática para baixa confiança.
+
+Nona fatia, de M07: o cliente tipado do app passa a cobrir os PUTs de alteração de status de vaga e candidatura. Os testes de contrato executam esses métodos contra a API real em TestServer, provando verbo, rota, payload, desserialização e preservação da razão de erro do servidor; sessão expirada/refresh e resposta não-JSON continuam cobertos.
+
 ## Validação
 
 Comandos com `export PATH="$HOME/.dotnet:$PATH"`:
@@ -32,10 +36,10 @@ dotnet test tests/Monburan.UnitTests/Monburan.UnitTests.csproj --configuration R
 # 1348 passed, 0 failed
 
 dotnet test tests/Monburan.IntegrationTests/Monburan.IntegrationTests.csproj --configuration Release -v:q
-# 71 passed, 0 failed
+# 77 passed, 0 failed
 
 dotnet test tests/Monburan.ApiTests/Monburan.ApiTests.csproj --configuration Release -v:q
-# 281 passed, 0 failed; inclui round-trip API com flag ligada, reenvio idempotente, transição inválida sem histórico e recomendação explicável
+# 282 passed, 0 failed; inclui round-trip API com flag ligada, reenvio idempotente, transição inválida sem histórico e recomendação explicável
 ```
 
 A solução completa não é buildável nesta VM porque `Monburan.Mobile` exige workload `maui-android`; não foi instalado workload novo nem usado serviço externo.
