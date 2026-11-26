@@ -93,6 +93,33 @@
                         </div>
                     </article>
 
+                    @if (currentDraft is not null)
+                    {
+                        <article class="card mb-3" data-testid="admin-submission-ai-provenance">
+                            <h3 class="h6">Proveniência do rascunho</h3>
+                            <dl class="row small mb-2">
+                                <dt class="col-sm-4">Método</dt><dd class="col-sm-8">IA multimodal</dd>
+                                <dt class="col-sm-4">Provedor</dt><dd class="col-sm-8">@(selected?.AiDraftProvider ?? "Não registrado")</dd>
+                                <dt class="col-sm-4">Hash das evidências</dt><dd class="col-sm-8"><code>@ShortHash(selected?.AiDraftEvidenceHash)</code></dd>
+                                <dt class="col-sm-4">Gerado em</dt><dd class="col-sm-8">@(selected?.AiDraftAt?.ToLocalTime().ToString("dd/MM/yyyy HH:mm") ?? "Não registrado")</dd>
+                            </dl>
+                            @if (uncertainDraftFields.Count > 0)
+                            {
+                                <p class="small mb-1"><strong>Campos que exigem revisão:</strong></p>
+                                <ul class="small mb-0">
+                                    @foreach (var field in uncertainDraftFields)
+                                    {
+                                        <li>@field.Label — @field.Reason</li>
+                                    }
+                                </ul>
+                            }
+                            else
+                            {
+                                <p class="small mb-0">Todos os campos extraídos têm confiança alta; a decisão continua humana.</p>
+                            }
+                        </article>
+                    }
+
                     @if (duplicates.Count > 0)
                     {
                         <article class="card mb-3" data-testid="admin-submission-duplicates">
@@ -234,6 +261,8 @@
     private bool messageIsError;
     private bool loading = true;
     private bool deciding;
+    private AiJobDraft? currentDraft;
+    private List<DraftFieldReview> uncertainDraftFields = [];
 
     protected override async Task OnInitializedAsync()
     {
@@ -270,6 +299,7 @@
         }
 
         selected = found.Data;
+        LoadStoredDraft();
         form.CompanyName = selected.CompanyName;
         form.Description = selected.Description;
         // Só as URLs vão para a tela: o navegador baixa cada imagem por HTTP (EvidenceEndpoints), fora do circuito
@@ -378,6 +408,11 @@
             var result = await ExtractDraft.ExecuteAsync(new ExtractJobDraftRequest(selected.Id.Value));
             if (result.Status == EResultStatus.Success && result.Data is not null)
             {
+                currentDraft = result.Data;
+                var refreshed = await Submissions.GetByIdAsync(selected.Id);
+                if (refreshed.Status == EResultStatus.Success && refreshed.Data is not null)
+                    selected = refreshed.Data;
+                UpdateUncertainDraftFields();
                 ApplyDraft(result.Data);
                 draftNotice = result.Data.NeedsReview
                     ? "Rascunho preenchido. Há campos vazios ou com confiança baixa: revise antes de aprovar."
@@ -418,6 +453,66 @@
         form.SalaryPeriod = Value(AiJobDraftParser.SalaryPeriod) ?? form.SalaryPeriod;
         decision = ESubmissionDecision.Approve;
     }
+
+    private void LoadStoredDraft()
+    {
+        currentDraft = null;
+        uncertainDraftFields = [];
+        if (string.IsNullOrWhiteSpace(selected?.AiDraftJson))
+            return;
+
+        try
+        {
+            currentDraft = JsonSerializer.Deserialize<AiJobDraft>(selected.AiDraftJson);
+            UpdateUncertainDraftFields();
+        }
+        catch (JsonException)
+        {
+            currentDraft = null;
+        }
+    }
+
+    private void UpdateUncertainDraftFields()
+    {
+        uncertainDraftFields = currentDraft?.Fields
+            .Where(pair => pair.Value.Value is null || pair.Value.Confidence != "high")
+            .Select(pair => new DraftFieldReview(
+                DraftFieldLabel(pair.Key),
+                pair.Value.Value is null ? "não encontrado na evidência" : $"confiança {ConfidenceLabel(pair.Value.Confidence)}"))
+            .ToList() ?? [];
+    }
+
+    private static string DraftFieldLabel(string name) => name switch
+    {
+        AiJobDraftParser.Title => "Título",
+        AiJobDraftParser.CompanyName => "Empresa",
+        AiJobDraftParser.City => "Cidade",
+        AiJobDraftParser.State => "UF",
+        AiJobDraftParser.Description => "Descrição",
+        AiJobDraftParser.Requirements => "Requisitos",
+        AiJobDraftParser.Benefits => "Benefícios",
+        AiJobDraftParser.SalaryMin => "Salário mínimo",
+        AiJobDraftParser.SalaryMax => "Salário máximo",
+        AiJobDraftParser.SalaryPeriod => "Período do salário",
+        AiJobDraftParser.Deadline => "Limite de candidatura",
+        AiJobDraftParser.Channel => "Canal de candidatura",
+        AiJobDraftParser.ChannelDetail => "Detalhe do canal",
+        AiJobDraftParser.Instructions => "Instruções",
+        AiJobDraftParser.CboCode => "CBO",
+        _ => name
+    };
+
+    private static string ConfidenceLabel(string confidence) => confidence switch
+    {
+        "medium" => "média",
+        "low" => "baixa",
+        _ => "não informada"
+    };
+
+    private static string ShortHash(string? hash) =>
+        string.IsNullOrWhiteSpace(hash) ? "Não registrado" : hash[..Math.Min(16, hash.Length)];
+
+    private sealed record DraftFieldReview(string Label, string Reason);
 
     private void Show(string text, bool isError)
     {
