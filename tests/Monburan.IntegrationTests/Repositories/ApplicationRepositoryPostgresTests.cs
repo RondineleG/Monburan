@@ -339,4 +339,47 @@ public class ApplicationRepositoryPostgresTests : IClassFixture<PostgresDatabase
         history[0].Status.Should().Be(EApplicationStatus.Archived);
     }
 
+    [Fact]
+    public async Task UpdateStatusWithHistoryAsync_WhenHistoryInsertIsRejected_RollsBackTheStatus()
+    {
+        await using var context = _database.CreateContext();
+        await context.Database.MigrateAsync();
+        var (candidateId, jobId) = await SeedAsync(context);
+
+        var repository = new ApplicationRepository(_database.ContextFactory);
+        var created = await repository.CreateAsync(new Application
+        {
+            Id = Id.Create(Guid.NewGuid()),
+            CandidateId = Id.Create(candidateId),
+            JobId = Id.Create(jobId),
+            Status = EApplicationStatus.Sent,
+            TenantId = "default"
+        });
+        created.Status.Should().Be(Core.Enums.EResultStatus.Success);
+
+        var application = (await repository.GetByIdAsync(created.Data!.Id)).Data!;
+        application.Status = EApplicationStatus.Viewed;
+        application.Version++;
+        var rejectedHistory = new ApplicationStatusHistory
+        {
+            Id = Id.Create(Guid.NewGuid()),
+            ApplicationId = application.Id,
+            Status = application.Status,
+            Version = application.Version,
+            Date = DateTime.UtcNow,
+            Note = new string('x', ApplicationStatusHistory.MaxNoteLength + 1),
+            TenantId = application.TenantId
+        };
+
+        await Assert.ThrowsAsync<Microsoft.EntityFrameworkCore.DbUpdateException>(() =>
+            repository.UpdateStatusWithHistoryAsync(application, rejectedHistory));
+
+        await using var check = _database.CreateContext();
+        var stored = await check.Applications.AsNoTracking().SingleAsync(item => item.Id == application.Id);
+        stored.Status.Should().Be(EApplicationStatus.Sent);
+        stored.Version.Should().Be(1);
+        var history = await check.ApplicationStatusHistory.AsNoTracking().Where(item => item.ApplicationId == application.Id).ToListAsync();
+        history.Should().BeEmpty();
+    }
+
 }
