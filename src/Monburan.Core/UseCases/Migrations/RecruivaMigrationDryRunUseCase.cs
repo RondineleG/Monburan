@@ -134,8 +134,15 @@ public sealed class BuildRecruivaMigrationDryRunUseCase : IUseCase<RecruivaMigra
                 problems.Add(new("orphan", "application", application.SourceId, "Candidatura referencia currículo inexistente."));
         }
         var profileEmails = request.Candidates.Select(row => row.Email.Trim()).Concat(request.Advertisers.Select(row => row.Email.Trim())).ToHashSet(StringComparer.OrdinalIgnoreCase);
-        foreach (var user in request.Users.Where(user => !profileEmails.Contains(user.Email.Trim())))
-            problems.Add(new("orphan", "user", user.SourceId, "Conta não corresponde a candidato ou empresa da exportação."));
+        foreach (var user in request.Users)
+        {
+            if (!profileEmails.Contains(user.Email.Trim()))
+                problems.Add(new("orphan", "user", user.SourceId, "Conta não corresponde a candidato ou empresa da exportação."));
+            foreach (var token in user.Tokens.Where(token => string.IsNullOrWhiteSpace(token.LoginProvider) || string.IsNullOrWhiteSpace(token.Name)))
+                problems.Add(new("collision", "user", user.SourceId, "Token de autenticação sem provedor ou nome não pode ser restaurado."));
+            foreach (var group in user.Tokens.GroupBy(token => $"{token.LoginProvider}\n{token.Name}", StringComparer.Ordinal).Where(group => group.Count() > 1))
+                problems.Add(new("collision", "user", user.SourceId, "Token de autenticação repetido para a mesma conta."));
+        }
         foreach (var transition in request.Transitions.Where(row => !applications.Contains(row.ApplicationSourceId)))
             problems.Add(new("orphan", "transition", transition.SourceId, "Transição referencia candidatura inexistente."));
     }

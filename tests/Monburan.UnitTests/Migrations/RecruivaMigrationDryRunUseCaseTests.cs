@@ -110,6 +110,23 @@ public sealed class RecruivaMigrationDryRunUseCaseTests
     }
 
     [Fact]
+    public async Task DuplicateIdentityToken_BlocksConfirmation()
+    {
+        var valid = ValidExport();
+        var user = new RecruivaUserExport
+        {
+            SourceId = "user-1", UserName = "cand@teste.com", Email = "cand@teste.com", CanMigrate = true,
+            Tokens = [new() { LoginProvider = "[Authenticator]", Name = "AuthenticatorKey" }, new() { LoginProvider = "[Authenticator]", Name = "AuthenticatorKey" }]
+        };
+        var export = valid with { Users = [user] };
+
+        var result = await _useCase.ExecuteAsync(export);
+
+        result.Data!.CanConfirm.Should().BeFalse();
+        result.Data.Problems.Should().Contain(problem => problem.Kind == "collision" && problem.Entity == "user" && problem.Message.Contains("Token"));
+    }
+
+    [Fact]
     public async Task IdMap_UsesUuidVersionFiveInTextForm()
     {
         var result = await _useCase.ExecuteAsync(ValidExport());
