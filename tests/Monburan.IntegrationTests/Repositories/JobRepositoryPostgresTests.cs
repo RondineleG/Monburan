@@ -88,6 +88,31 @@ public class JobRepositoryPostgresTests : IClassFixture<PostgresDatabase>
     }
 
     [Fact]
+    public async Task CreateAsync_OfAnAlreadyActiveJob_MarksTheFirstPublication()
+    {
+        await using var context = _database.CreateContext();
+        await context.Database.MigrateAsync();
+        var advertiserId = await SeedAdvertiserAsync(context);
+        var repository = new JobRepository(_database.ContextFactory);
+        var job = new Job
+        {
+            Id = Id.Create(Guid.NewGuid()),
+            AdvertiserId = Id.Create(advertiserId),
+            Title = "Vaga externa aprovada",
+            Description = "Descrição",
+            ExpirationDate = DateTime.UtcNow.AddDays(30),
+            Status = EJobStatus.Active,
+            CreatedBy = "moderador-1",
+            TenantId = "default"
+        };
+
+        var result = await repository.CreateAsync(job);
+
+        result.Status.Should().Be(Core.Enums.EResultStatus.Success);
+        job.PublishedAt.Should().NotBeNull();
+    }
+
+    [Fact]
     public async Task SearchAsync_WithContractTypeAndSalaryPeriod_FiltersOnTheDatabase()
     {
         await using var context = _database.CreateContext();

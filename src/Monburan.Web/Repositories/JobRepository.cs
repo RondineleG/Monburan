@@ -22,6 +22,7 @@ public class JobRepository : IJobRepository
     public async Task<RequestResult<Job>> CreateAsync(Job entity, CancellationToken cancellationToken = default)
     {
         await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);
+        entity.PublishedAt ??= entity.Status == EJobStatus.Active ? DateTime.UtcNow : null;
         context.Jobs.Add(entity);
         context.JobRevisions.Add(JobRevision.Capture(entity, 1, EJobRevisionAction.Created, entity.CreatedBy));
         await context.SaveChangesAsync(cancellationToken);
