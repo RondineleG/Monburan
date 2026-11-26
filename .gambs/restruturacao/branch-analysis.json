@@ -1,0 +1,585 @@
+[
+  {
+    "repo": "Monburan",
+    "base": "main",
+    "branch": "dev",
+    "sha": "b83f4c099f640d00d68f420607b20a5eabd9402f",
+    "branch_last_commit": "2026-11-02T23:03:26-03:00",
+    "merge_base": "775373cef3d7e957a153b71119a861c8290e9619",
+    "ahead": 8,
+    "behind": 0,
+    "commits": [
+      {
+        "sha": "b83f4c099f640d00d68f420607b20a5eabd9402f",
+        "date": "2026-11-02T23:03:26-03:00",
+        "author": "Rondinele Guimaraes",
+        "subject": "feat: merge pull request #111"
+      },
+      {
+        "sha": "82fd72bc3eff98f38343b696c88471123e7bccbc",
+        "date": "2026-11-02T13:13:18-03:00",
+        "author": "Rondinele Guimaraes",
+        "subject": "feat: merge pull request #89"
+      },
+      {
+        "sha": "7a02bae465a830d212f3abbe61fe400e2e030857",
+        "date": "2026-10-22T18:21:04-03:00",
+        "author": "Rondinele Guimaraes",
+        "subject": "feat: merge pull request #72"
+      },
+      {
+        "sha": "b371486870070eabb7b7d3a743ab82977a81b551",
+        "date": "2026-10-22T09:10:37-03:00",
+        "author": "Rondinele Guimaraes",
+        "subject": "feat: merge pull request #69"
+      },
+      {
+        "sha": "3c4d797cf0bc3679da2767d9b6ff75926ffb1b53",
+        "date": "2026-10-20T13:00:20-03:00",
+        "author": "Rondinele Guimaraes",
+        "subject": "feat: merge pull request #65"
+      },
+      {
+        "sha": "0bd1f8bcad868f998072b2d0fc87684a7d9be880",
+        "date": "2026-10-19T18:49:10-03:00",
+        "author": "Rondinele Guimaraes",
+        "subject": "feat: merge pull request #60"
+      },
+      {
+        "sha": "aaf2ef692d18b34485cb7e6b3fd27c5997ef9dbf",
+        "date": "2026-10-19T11:52:32-03:00",
+        "author": "Rondinele Guimaraes",
+        "subject": "feat: merge pull request #40"
+      },
+      {
+        "sha": "4640b9eec0ec5d49d1ec414eabe1fc87fd4f4bf7",
+        "date": "2026-10-18T00:07:49-03:00",
+        "author": "Rondinele Guimaraes",
+        "subject": "feat: merge pull request #35"
+      }
+    ],
+    "authors": [
+      "Rondinele Guimaraes"
+    ],
+    "files": [],
+    "files_truncated": false,
+    "files_count": 0,
+    "top_dirs": [],
+    "prs": [
+      {
+        "number": 111,
+        "state": "MERGED",
+        "title": "feat: promove a dev para a main (app 1.7.0)",
+        "url": "https://github.com/RondineleG/Monburan/pull/111"
+      },
+      {
+        "number": 89,
+        "state": "MERGED",
+        "title": "feat: promove a dev para a main (app 1.6.0)",
+        "url": "https://github.com/RondineleG/Monburan/pull/89"
+      },
+      {
+        "number": 72,
+        "state": "MERGED",
+        "title": "dev: promoção para main",
+        "url": "https://github.com/RondineleG/Monburan/pull/72"
+      },
+      {
+        "number": 69,
+        "state": "MERGED",
+        "title": "release: promove melhorias da aplicação para produção",
+        "url": "https://github.com/RondineleG/Monburan/pull/69"
+      },
+      {
+        "number": 65,
+        "state": "MERGED",
+        "title": "feat: promove a dev — correções da revisão de ponta a ponta (mobile, autenticação, infra)",
+        "url": "https://github.com/RondineleG/Monburan/pull/65"
+      },
+      {
+        "number": 60,
+        "state": "MERGED",
+        "title": "feat: promove a dev — roteiro de UX (frentes A–E), trilha do candidato e da empresa",
+        "url": "https://github.com/RondineleG/Monburan/pull/60"
+      },
+      {
+        "number": 40,
+        "state": "MERGED",
+        "title": "ci: promove dev para main com deploy automático na VPS",
+        "url": "https://github.com/RondineleG/Monburan/pull/40"
+      },
+      {
+        "number": 35,
+        "state": "MERGED",
+        "title": "chore(release): 1.4.0 (iOS sem assinatura, barras do sistema no Android 15+ e ajustes da esteira)",
+        "url": "https://github.com/RondineleG/Monburan/pull/35"
+      }
+    ],
+    "decision": "descartar",
+    "reason": "diff final vazio apesar de commits administrativos/de merge",
+    "planned_action": "none"
+  },
+  {
+    "repo": "Monburan",
+    "base": "main",
+    "branch": "feat/integracao-himarshall-vagas-int",
+    "sha": "196c0da15bf852d0f7b4ec1da8886a14bd962f09",
+    "branch_last_commit": "2026-11-25T10:48:39Z",
+    "merge_base": "775373cef3d7e957a153b71119a861c8290e9619",
+    "ahead": 98,
+    "behind": 0,
+    "commits": [
+      {
+        "sha": "196c0da15bf852d0f7b4ec1da8886a14bd962f09",
+        "date": "2026-11-25T10:48:39Z",
+        "author": "Rondinele Guimaraes",
+        "subject": "test(e2e): revalidacao do gate aprovada (13/13 fluxos)"
+      },
+      {
+        "sha": "c21343995a6021d12c50e20e01df5d851d44300b",
+        "date": "2026-11-25T05:46:57Z",
+        "author": "Rondinele Guimaraes",
+        "subject": "test(e2e): revalidacao do gate aprovada (13/13 fluxos)"
+      },
+      {
+        "sha": "b23ff280f43a88ac5e853bc9e8b5b3ca32053192",
+        "date": "2026-11-25T05:07:18Z",
+        "author": "Rondinele Guimaraes",
+        "subject": "test(e2e): revalidacao do gate aprovada (13/13 fluxos)"
+      },
+      {
+        "sha": "d0a9f24150f736a54355d169f5509e036961703c",
+        "date": "2026-11-25T04:46:26Z",
+        "author": "Rondinele Guimaraes",
+        "subject": "test(e2e): revalidacao do gate aprovada (13/13 fluxos)"
+      },
+      {
+        "sha": "89d1dafca7af978f849fb18fe8a9b8e39af63a68",
+        "date": "2026-11-25T04:26:19Z",
+        "author": "Rondinele Guimaraes",
+        "subject": "test(e2e): nova revalidacao do gate aprovada (13/13 fluxos)"
+      },
+      {
+        "sha": "4a522d18c9a9dbe49100d576e16a43bbd0626226",
+        "date": "2026-11-25T03:33:28Z",
+        "author": "Rondinele Guimaraes",
+        "subject": "fix(gate): contador de tentativas zera em ciclo aprovado + ciclo aprovado (13/13)"
+      },
+      {
+        "sha": "cea600431ee24da22a41efaa170dea9e6c7a6c7c",
+        "date": "2026-11-25T00:28:20Z",
+        "author": "Rondinele Guimaraes",
+        "subject": "test(e2e): ciclo 5 do gate aprovado (13/13 fluxos)"
+      },
+      {
+        "sha": "34e9a27327725216a771121cb5bb47952715036f",
+        "date": "2026-11-24T23:14:24Z",
+        "author": "Rondinele Guimaraes",
+        "subject": "fix(testes): espera pela tela destino no aviso de alteracoes nao salvas + ciclo 4 aprovado"
+      },
+      {
+        "sha": "a933d099d817c9bd95642d82759515c29188c85c",
+        "date": "2026-11-24T22:33:26Z",
+        "author": "Rondinele Guimaraes",
+        "subject": "test(e2e): gate de validacao com triagem Jev e docs de telas"
+      },
+      {
+        "sha": "02b4dfb133122d98c1d0e8981fae84c73af6475c",
+        "date": "2026-11-24T22:33:26Z",
+        "author": "Rondinele Guimaraes",
+        "subject": "fix(testes): asserts deterministicos e tolerancia no E2E"
+      },
+      {
+        "sha": "21363c0fd5510b4ba698d7403af3bf6a37306485",
+        "date": "2026-11-24T16:02:09-03:00",
+        "author": "RondineleG",
+        "subject": "feat: merge feature/ui-mobile-first na feat/integracao-himarshall-vagas-int"
+      },
+      {
+        "sha": "86a1ca402e3c1af9a75ed37a462f451a74a02305",
+        "date": "2026-11-24T15:41:15-03:00",
+        "author": "RondineleG",
+        "subject": "feat(ui): move publicidade local para o topo da coluna lateral da vaga"
+      },
+      {
+        "sha": "d07294a9869089fe51476c860a79c8a58bcd6b2d",
+        "date": "2026-11-24T15:23:34-03:00",
+        "author": "RondineleG",
+        "subject": "feat: merge feature/ui-mobile-first na feat/integracao-himarshall-vagas-int"
+      },
+      {
+        "sha": "a005a918046556f56e4e4cfcb485a1b08cda201c",
+        "date": "2026-11-24T15:21:54-03:00",
+        "author": "RondineleG",
+        "subject": "feat: merge feat/monetizacao-portal-appp na feat/integracao-himarshall-vagas-int"
+      },
+      {
+        "sha": "51d261d0f4aced9c0448d0b48d245566b871aa14",
+        "date": "2026-11-24T15:27:19Z",
+        "author": "Rondinele Guimaraes",
+        "subject": "fix(mobile): envia o filtro de pais na consulta de vagas"
+      },
+      {
+        "sha": "4218159a8c3ae1f92f65d16b7e24bedf7ea31009",
+        "date": "2026-11-24T15:27:19Z",
+        "author": "Rondinele Guimaraes",
+        "subject": "fix(vagas): piso salarial zero nao filtra o feed internacional"
+      },
+      {
+        "sha": "b8fce022b932b7ac066cbee4624dc12045226480",
+        "date": "2026-11-24T15:27:18Z",
+        "author": "Rondinele Guimaraes",
+        "subject": "fix(perfil): mudanca de paises preferidos marca o formulario como modificado"
+      },
+      {
+        "sha": "026dc9e120fbf48f321461c6abfb9bb7024740c0",
+        "date": "2026-11-24T15:27:18Z",
+        "author": "Rondinele Guimaraes",
+        "subject": "fix(integracao): resumo de prontidao reporta o plano da assinatura ativa"
+      },
+      {
+        "sha": "47d7e0378b798c3ee2f5948c2ecea7835c8eb887",
+        "date": "2026-11-24T15:27:18Z",
+        "author": "Rondinele Guimaraes",
+        "subject": "fix(integracao): avalia flags com o dono do token e exige vagas-internacionais no feed parceiro"
+      },
+      {
+        "sha": "f88ebe7fe30e1d9d4fd6bd68f9efba848e6ff522",
+        "date": "2026-11-24T14:25:24Z",
+        "author": "Rondinele Guimaraes",
+        "subject": "test(integracao): confere que a violacao e no indice do requestId"
+      },
+      {
+        "sha": "e15eef38e3ba176226b312b86723e67c189cb23b",
+        "date": "2026-11-24T14:22:48Z",
+        "author": "Rondinele Guimaraes",
+        "subject": "test(integracao): indice unico de requestId barra segundo insert"
+      },
+      {
+        "sha": "6dd0883b37f35c79b4add82f4a03823bc736fb26",
+        "date": "2026-11-24T14:17:31Z",
+        "author": "Rondinele Guimaraes",
+        "subject": "fix(integracao): repassa HiMarshallUrl ao container e cobre dedup de requestId"
+      },
+      {
+        "sha": "f62d45fa91070a937012506d6ccb5c67fa2ace10",
+        "date": "2026-11-24T14:13:55Z",
+        "author": "Rondinele Guimaraes",
+        "subject": "fix(integracao): dedup de emissao de token persistido e link de volta ao HiMarshall"
+      },
+      {
+        "sha": "5f6b5297bd3c47729ce4f3618d3b589026714e6f",
+        "date": "2026-11-24T14:02:49Z",
+        "author": "Rondinele Guimaraes",
+        "subject": "fix(integracao): escopos do form de token com validacao propria e dedup de reenvio"
+      },
+      {
+        "sha": "7c8d4e840e13b27a747f9a5a983a737229de88ae",
+        "date": "2026-11-24T13:55:32Z",
+        "author": "Rondinele Guimaraes",
+        "subject": "feat(integracao): pagina /conta/integracoes para emitir e revogar tokens mbi_ com escopo"
+      },
+      {
+        "sha": "0c56e65c0af022c5da59bdb502087fe1a9a5d065",
+        "date": "2026-11-24T13:20:58Z",
+        "author": "Rondinele Guimaraes",
+        "subject": "ci: jobs de iOS restauram so o workload de iOS"
+      },
+      {
+        "sha": "529ef2480f86a10fa277fdf510e226faade3d154",
+        "date": "2026-11-24T13:18:02Z",
+        "author": "Rondinele Guimaraes",
+        "subject": "ci: alinha workflows de release e mobile ao workload restore"
+      },
+      {
+        "sha": "8ad9adbc3dd6cff05ae89aabd3d675fd087641be",
+        "date": "2026-11-24T13:16:07Z",
+        "author": "Rondinele Guimaraes",
+        "subject": "ci: usa workload restore no lugar do pin de versao"
+      },
+      {
+        "sha": "e02c44c472f9e82f1fccc24247a549f3d485d030",
+        "date": "2026-11-24T13:07:15Z",
+        "author": "Rondinele Guimaraes",
+        "subject": "fix(testes): FakeJobRepository implementa nova assinatura de SearchAsync"
+      },
+      {
+        "sha": "6992d5830391aa20d0f51d1fda71f94e0fbd7ceb",
+        "date": "2026-11-24T12:25:52Z",
+        "author": "Rondinele Guimaraes",
+        "subject": "fix(deps): SmtpClient adaptado ao MailKit 5"
+      }
+    ],
+    "authors": [
+      "Rondinele Guimaraes",
+      "RondineleG"
+    ],
+    "files": [
+      ".github/workflows/android-release.yml",
+      ".github/workflows/ci-cd.yml",
+      ".github/workflows/ios-build.yml",
+      ".github/workflows/mobile-ui.yml",
+      "README.md",
+      "docs/ANUNCIOS-LOCAIS.md",
+      "docs/API.md",
+      "docs/CI-CD.md",
+      "docs/CONFIGURACAO.md",
+      "docs/UX-REVISAO.md",
+      "docs/fluxos.md",
+      "docs/pre-prod.md",
+      "docs/progresso.md",
+      "docs/telas/mb-01-autenticacao-e-registro.md",
+      "docs/telas/mb-02-paginas-publicas.md",
+      "docs/telas/mb-03-experiencia-de-vagas.md",
+      "docs/telas/mb-04-fluxo-do-candidato.md",
+      "docs/telas/mb-05-fluxo-do-anunciante.md",
+      "docs/telas/mb-06-admin-de-vagas.md",
+      "docs/telas/mb-07-admin-de-contas.md",
+      "docs/telas/mb-08-admin-de-provedores-de-ia.md",
+      "docs/telas/mb-09-admin-de-auditoria.md",
+      "docs/telas/mb-10-hardening-de-seguranca.md",
+      "docs/telas/mb-11-csp-enforcement.md",
+      "docs/telas/mb-12-interacao-do-shell.md",
+      "docs/telas/mb-13-varredura-completa.md",
+      "gate/config.json",
+      "gate/ensure_app.sh",
+      "gate/jev_triage.py",
+      "gate/models.py",
+      "gate/run_cycle.py",
+      "gate/sanitize.py",
+      "gate/triage.json",
+      "gate/trx_report.py",
+      "gate/validate.py",
+      "infra/vps/docker-compose.prod.yml",
+      "infra/vps/env.example",
+      "reports/.gitignore",
+      "reports/e2e.json",
+      "reports/gate-state.json",
+      "src/Monburan.Core/DTOs/Request/CancelSubscriptionRequest.cs",
+      "src/Monburan.Core/DTOs/Request/CandidateLanguageItem.cs",
+      "src/Monburan.Core/DTOs/Request/CandidateLanguagesRequest.cs",
+      "src/Monburan.Core/DTOs/Request/CareerProfileRequest.cs",
+      "src/Monburan.Core/DTOs/Request/CreateJobRequest.cs",
+      "src/Monburan.Core/DTOs/Request/CreateSubscriptionCheckoutRequest.cs",
+      "src/Monburan.Core/DTOs/Request/ImportCollectedJobSuggestionsRequest.cs",
+      "src/Monburan.Core/DTOs/Request/InternationalPreferencesRequest.cs",
+      "src/Monburan.Core/DTOs/Request/ListJobsRequest.cs",
+      "src/Monburan.Core/DTOs/Request/ResumeVariantRequest.cs",
+      "src/Monburan.Core/DTOs/Request/SubscriptionStatusRequest.cs",
+      "src/Monburan.Core/DTOs/Request/UpdateJobRequest.cs",
+      "src/Monburan.Core/DTOs/Response/AvailablePlansResponse.cs",
+      "src/Monburan.Core/DTOs/Response/CandidateLanguagesResponse.cs",
+      "src/Monburan.Core/DTOs/Response/CareerProfileResponse.cs",
+      "src/Monburan.Core/DTOs/Response/InternationalPreferencesResponse.cs",
+      "src/Monburan.Core/DTOs/Response/JobResponse.cs",
+      "src/Monburan.Core/DTOs/Response/ResumeVariantPreviewResponse.cs",
+      "src/Monburan.Core/DTOs/Response/ResumeVariantResponse.cs",
+      "src/Monburan.Core/DTOs/Response/SubscriptionStatusResponse.cs",
+      "src/Monburan.Core/Entities/CandidateLanguage.cs",
+      "src/Monburan.Core/Entities/CareerProfile.cs",
+      "src/Monburan.Core/Entities/IntegrationToken.cs",
+      "src/Monburan.Core/Entities/Job.cs",
+      "src/Monburan.Core/Entities/LocalAdCampaign.cs",
+      "src/Monburan.Core/Entities/ResumeVariant.cs",
+      "src/Monburan.Core/Entities/SubscriptionPlan.cs",
+      "src/Monburan.Core/Enums/EInternationalMobility.cs",
+      "src/Monburan.Core/Enums/ELanguageEvidence.cs",
+      "src/Monburan.Core/Enums/ERemoteScope.cs",
+      "src/Monburan.Core/Enums/EWorkAuthorizationStatus.cs",
+      "src/Monburan.Core/Interfaces/Repositories/ICandidateLanguageRepository.cs",
+      "src/Monburan.Core/Interfaces/Repositories/IIntegrationTokenRepository.cs",
+      "src/Monburan.Core/Interfaces/Repositories/IJobRepository.cs",
+      "src/Monburan.Core/Interfaces/Repositories/IResumeVariantRepository.cs",
+      "src/Monburan.Core/Interfaces/Repositories/ISubscriptionRepository.cs",
+      "src/Monburan.Core/Interfaces/Services/IBillingPolicy.cs",
+      "src/Monburan.Core/Interfaces/Services/IRecurringPaymentGateway.cs",
+      "src/Monburan.Core/Mappers/JobResponseMapper.cs",
+      "src/Monburan.Core/Monburan.Core.csproj",
+      "src/Monburan.Core/Services/AdminAuditActions.cs",
+      "src/Monburan.Core/Services/AdvertisingRules.cs",
+      "src/Monburan.Core/Services/InternationalJobRules.cs",
+      "src/Monburan.Core/Services/PreferredCountryCodes.cs",
+      "src/Monburan.Core/Services/ResumeVariantFields.cs",
+      "src/Monburan.Core/UseCases/Candidates/CareerProfileInputValidation.cs",
+      "src/Monburan.Core/UseCases/Candidates/CareerProfileMapper.cs",
+      "src/Monburan.Core/UseCases/Candidates/GetCandidateLanguagesUseCase.cs",
+      "src/Monburan.Core/UseCases/Candidates/GetInternationalPreferencesUseCase.cs",
+      "src/Monburan.Core/UseCases/Candidates/ReplaceCandidateLanguagesUseCase.cs",
+      "src/Monburan.Core/UseCases/Candidates/UpsertCareerProfileUseCase.cs",
+      "src/Monburan.Core/UseCases/Candidates/UpsertInternationalPreferencesUseCase.cs",
+      "src/Monburan.Core/UseCases/Jobs/CreateJobUseCase.cs",
+      "src/Monburan.Core/UseCases/Jobs/ListInternationalJobsUseCase.cs",
+      "src/Monburan.Core/UseCases/Jobs/SearchJobsUseCase.cs",
+      "src/Monburan.Core/UseCases/Jobs/UpdateJobUseCase.cs",
+      "src/Monburan.Core/UseCases/Resumes/CreateResumeUseCase.cs",
+      "src/Monburan.Core/UseCases/Resumes/ResumeVariantLocalization.cs",
+      "src/Monburan.Core/UseCases/Resumes/ResumeVariantPreviewUseCases.cs",
+      "src/Monburan.Core/UseCases/Resumes/ResumeVariantUseCases.cs",
+      "src/Monburan.Core/UseCases/Submissions/ImportCollectedJobSuggestionsUseCase.cs",
+      "src/Monburan.Core/UseCases/Subscriptions/CancelSubscriptionUseCase.cs",
+      "src/Monburan.Core/UseCases/Subscriptions/CheckResumeLimitUseCase.cs",
+      "src/Monburan.Core/UseCases/Subscriptions/GetAvailablePlansUseCase.cs",
+      "src/Monburan.Core/UseCases/Subscriptions/GetSubscriptionStatusUseCase.cs",
+      "src/Monburan.Core/UseCases/Subscriptions/UpgradePlanUseCase.cs",
+      "src/Monburan.Core/Validations/JobValidator.cs",
+      "src/Monburan.Mobile.Shared/Api/MonburanApiClient.cs",
+      "src/Monburan.Mobile.Shared/Monburan.Mobile.Shared.csproj",
+      "src/Monburan.Mobile.Shared/Ui/Formatters.cs",
+      "src/Monburan.Mobile/Components/JobCard.razor",
+      "src/Monburan.Mobile/Components/Pages/JobDetails.razor",
+      "src/Monburan.Mobile/Components/Pages/ResumeDetails.razor",
+      "src/Monburan.Mobile/Components/Pages/ResumeTranslation.razor",
+      "src/Monburan.Mobile/wwwroot/app.css",
+      "src/Monburan.Web.Client/Monburan.Web.Client.csproj",
+      "src/Monburan.Web/Components/Account/Pages/Manage/Integracoes.razor",
+      "src/Monburan.Web/Components/Account/Shared/ManageNavMenu.razor",
+      "src/Monburan.Web/Components/Layout/MainLayout.razor",
+      "src/Monburan.Web/Components/Pages/AdminCaptacaoVagas.razor",
+      "src/Monburan.Web/Components/Pages/AdminJobs.razor",
+      "src/Monburan.Web/Components/Pages/AdminPublicidadeLocal.razor",
+      "src/Monburan.Web/Components/Pages/AdminSugestoes.razor",
+      "src/Monburan.Web/Components/Pages/AdvertisersList.razor",
+      "src/Monburan.Web/Components/Pages/CandidatesList.razor",
+      "src/Monburan.Web/Components/Pages/CareerProfile.razor",
+      "src/Monburan.Web/Components/Pages/CheckoutReturn.razor",
+      "src/Monburan.Web/Components/Pages/Dashboard.razor",
+      "src/Monburan.Web/Components/Pages/Error.razor",
+      "src/Monburan.Web/Components/Pages/JobCreate.razor",
+      "src/Monburan.Web/Components/Pages/JobDetails.razor",
+      "src/Monburan.Web/Components/Pages/JobEdit.razor",
+      "src/Monburan.Web/Components/Pages/Jobs.razor",
+      "src/Monburan.Web/Components/Pages/MySubscription.razor",
+      "src/Monburan.Web/Components/Pages/NotFound.razor",
+      "src/Monburan.Web/Components/Pages/Plans.razor",
+      "src/Monburan.Web/Components/Pages/ResumeDetails.razor",
+      "src/Monburan.Web/Components/Pages/ResumeVariantCv.razor",
+      "src/Monburan.Web/Components/Pages/ResumeVariants.razor",
+      "src/Monburan.Web/Components/Shared/JobCard.razor",
+      "src/Monburan.Web/Components/Shared/JobWizard.razor",
+      "src/Monburan.Web/Components/Shared/UnsavedChangesGuard.razor",
+      "src/Monburan.Web/Components/_Imports.razor",
+      "src/Monburan.Web/Data/ApplicationDbContext.cs",
+      "src/Monburan.Web/Data/Configurations/CandidateLanguageConfiguration.cs",
+      "src/Monburan.Web/Data/Configurations/CareerProfileConfiguration.cs",
+      "src/Monburan.Web/Data/Configurations/IntegrationTokenConfiguration.cs",
+      "src/Monburan.Web/Data/Configurations/JobConfiguration.cs",
+      "src/Monburan.Web/Data/Configurations/LocalAdCampaignConfiguration.cs",
+      "src/Monburan.Web/Data/Configurations/ResumeVariantConfiguration.cs",
+      "src/Monburan.Web/Data/Configurations/SubscriptionPlanConfiguration.cs",
+      "src/Monburan.Web/Data/SeedData.cs",
+      "src/Monburan.Web/Endpoints/ApiEndpoints.cs",
+      "src/Monburan.Web/Endpoints/CandidateEndpoints.cs",
+      "src/Monburan.Web/Endpoints/IntegrationEndpoints.cs",
+      "src/Monburan.Web/Endpoints/JobEndpoints.cs",
+      "src/Monburan.Web/Endpoints/LocalAdEndpoints.cs",
+      "src/Monburan.Web/Endpoints/ResumeEndpoints.cs",
+      "src/Monburan.Web/Endpoints/SubscriptionEndpoints.cs",
+      "src/Monburan.Web/Migrations/20261112155725_AddLocalAdCampaigns.Designer.cs",
+      "src/Monburan.Web/Migrations/20261112155725_AddLocalAdCampaigns.cs",
+      "src/Monburan.Web/Migrations/20261112204319_InternacionalizacaoCandidato.Designer.cs",
+      "src/Monburan.Web/Migrations/20261112204319_InternacionalizacaoCandidato.cs",
+      "src/Monburan.Web/Migrations/20261113002301_VariantesLocalizadasDeCurriculo.Designer.cs",
+      "src/Monburan.Web/Migrations/20261113002301_VariantesLocalizadasDeCurriculo.cs",
+      "src/Monburan.Web/Migrations/20261113004335_CarreiraInternacionalDaVaga.Designer.cs",
+      "src/Monburan.Web/Migrations/20261113004335_CarreiraInternacionalDaVaga.cs",
+      "src/Monburan.Web/Migrations/20261124111825_IntegracaoHiMarshallVagasInternacionais.Designer.cs",
+      "src/Monburan.Web/Migrations/20261124111825_IntegracaoHiMarshallVagasInternacionais.cs",
+      "src/Monburan.Web/Migrations/20261124140951_IntegracaoTokenRequestId.Designer.cs",
+      "src/Monburan.Web/Migrations/20261124140951_IntegracaoTokenRequestId.cs",
+      "src/Monburan.Web/Migrations/ApplicationDbContextModelSnapshot.cs",
+      "src/Monburan.Web/Monburan.Web.csproj",
+      "src/Monburan.Web/Program.cs",
+      "src/Monburan.Web/Repositories/CandidateLanguageRepository.cs",
+      "src/Monburan.Web/Repositories/IntegrationTokenRepository.cs",
+      "src/Monburan.Web/Repositories/JobRepository.cs",
+      "src/Monburan.Web/Repositories/ResumeVariantRepository.cs",
+      "src/Monburan.Web/Repositories/SubscriptionRepository.cs",
+      "src/Monburan.Web/Services/BillingPolicy.cs",
+      "src/Monburan.Web/Services/IntegrationReadinessService.cs",
+      "src/Monburan.Web/Services/IntegrationTokenService.cs",
+      "src/Monburan.Web/Services/InternationalJobFields.cs",
+      "src/Monburan.Web/Services/JobDisplay.cs",
+      "src/Monburan.Web/Services/JobWizardStepValidator.cs",
+      "src/Monburan.Web/Services/LocalAdCampaignService.cs",
+      "src/Monburan.Web/Services/MercadoPagoBillingService.cs",
+      "src/Monburan.Web/Services/NavigationTrail.cs",
+      "src/Monburan.Web/Services/SmtpEmailSender.cs",
+      "src/Monburan.Web/Services/UiLabels.cs",
+      "src/Monburan.Web/appsettings.Development.json",
+      "src/Monburan.Web/appsettings.json",
+      "src/Monburan.Web/wwwroot/components.css",
+      "src/Monburan.Web/wwwroot/pages.css",
+      "tests/Monburan.ApiTests/BillingApiTests.cs",
+      "tests/Monburan.ApiTests/CompanyProfileUiApiTests.cs",
+      "tests/Monburan.ApiTests/InternationalJobApiTests.cs",
+      "tests/Monburan.ApiTests/LocalAdsApiTests.cs",
+      "tests/Monburan.ApiTests/MobileClientContractTests.cs",
+      "tests/Monburan.ApiTests/Monburan.ApiTests.csproj",
+      "tests/Monburan.ApiTests/MonburanApiFactory.cs",
+      "tests/Monburan.ApiTests/MonburanBillingApiFactory.cs",
+      "tests/Monburan.ApiTests/ResumeLimitApiTests.cs",
+      "tests/Monburan.ApiTests/ResumeVariantsApiTests.cs",
+      "tests/Monburan.ApiTests/StubHttpMessageHandler.cs",
+      "tests/Monburan.ApiTests/SubscriptionsApiTests.cs",
+      "tests/Monburan.E2ETests/AdminJobsTests.cs",
+      "tests/Monburan.E2ETests/AdvertiserFlowTests.cs",
+      "tests/Monburan.E2ETests/CandidateFlowTests.cs",
+      "tests/Monburan.E2ETests/FullSweepTests.cs",
+      "tests/Monburan.E2ETests/JobsExperienceTests.cs",
+      "tests/Monburan.E2ETests/Monburan.E2ETests.csproj",
+      "tests/Monburan.E2ETests/SecurityHardeningTests.cs",
+      "tests/Monburan.E2ETests/ShellInteractionTests.cs",
+      "tests/Monburan.IntegrationTests/Migrations/IntegrationTokenRequestIdIndexTests.cs",
+      "tests/Monburan.IntegrationTests/Monburan.IntegrationTests.csproj",
+      "tests/Monburan.MobileUiTests/Monburan.MobileUiTests.csproj",
+      "tests/Monburan.UnitTests/Mobile/FormattersTests.cs",
+      "tests/Monburan.UnitTests/Monburan.UnitTests.csproj",
+      "tests/Monburan.UnitTests/Services/AdminAuditActionsTests.cs",
+      "tests/Monburan.UnitTests/Services/IntegrationTokenServiceTests.cs",
+      "tests/Monburan.UnitTests/Services/InternationalJobRulesTests.cs",
+      "tests/Monburan.UnitTests/Submissions/ImportCollectedJobSuggestionsUseCaseTests.cs",
+      "tests/Monburan.UnitTests/UseCases/Admin/AdminJobTestDoubles.cs",
+      "tests/Monburan.UnitTests/UseCases/Candidates/InternationalPreferencesUseCaseTests.cs",
+      "tests/Monburan.UnitTests/UseCases/Resumes/ResumeImportTests.cs",
+      "tests/Monburan.UnitTests/UseCases/Subscriptions/CheckResumeLimitUseCaseTests.cs",
+      "tests/Monburan.UnitTests/UseCases/Subscriptions/UpgradePlanUseCaseTests.cs",
+      "tests/Monburan.UnitTests/Web/JobDisplayTests.cs",
+      "tests/Monburan.UnitTests/Web/LocalAdCampaignServiceTests.cs",
+      "tests/Monburan.UnitTests/Web/MercadoPagoBillingServiceTests.cs",
+      "tests/Monburan.UnitTests/Web/NavigationTrailTests.cs",
+      "tests/Monburan.UnitTests/Web/ResumeVariantFieldsTests.cs",
+      "tests/Monburan.UnitTests/Web/TestDbContextFactory.cs",
+      "tests/ux-smoke/Capture/CaptureRunner.cs",
+      "tools/fake-mercadopago.py",
+      "tools/job-collector/README.md",
+      "tools/job-collector/collect.mjs",
+      "tools/job-collector/package-lock.json",
+      "tools/job-collector/package.json"
+    ],
+    "files_truncated": false,
+    "files_count": 240,
+    "top_dirs": [
+      "src",
+      "tests",
+      "docs",
+      "gate",
+      "tools",
+      ".github",
+      "reports",
+      "infra",
+      "(root)"
+    ],
+    "prs": [
+      {
+        "number": 122,
+        "state": "OPEN",
+        "title": "feat(integracao): tokens por escopo, resumo de prontidao e vagas internacionais",
+        "url": "https://github.com/RondineleG/Monburan/pull/122"
+      }
+    ],
+    "merge_status": "clean",
+    "decision": "integrar",
+    "reason": "conteúdo único com merge limpo; PR aberto existe, mas ainda não está mergeado: #122",
+    "planned_action": "merge"
+  }
+]
