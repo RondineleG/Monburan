@@ -291,6 +291,16 @@ public class JobRepository : IJobRepository
         target.Display = source.Display;
     }
 
+    public async Task<IReadOnlyList<JobRevision>> ListRevisionsAsync(Id jobId, CancellationToken cancellationToken = default)
+    {
+        await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);
+        return await context.JobRevisions
+            .AsNoTracking()
+            .Where(revision => revision.JobId == jobId)
+            .OrderByDescending(revision => revision.Revision)
+            .ToListAsync(cancellationToken);
+    }
+
     /// <summary>
     /// Grava a moderação da vaga (aprovada, rejeitada ou escondida). Fica fora da
     /// atualização geral da vaga de propósito: são campos da administração, e uma edição
@@ -473,10 +483,11 @@ public class JobRepository : IJobRepository
             query = query.Where(j => (j.PublishedAt ?? j.CreatedAt) >= cutoff);
         }
 
-        // Ordenação — sortBy: "createdAt" (default), "title", "salary"
+        // Ordenação — sortBy: "publishedAt" (default/recência pública), "createdAt", "title", "salary"
         var descending = sortDescending ?? true;
         query = sortBy?.ToLowerInvariant() switch
         {
+            "createdat" => descending ? query.OrderByDescending(j => j.CreatedAt) : query.OrderBy(j => j.CreatedAt),
             "title" => descending ? query.OrderByDescending(j => j.Title) : query.OrderBy(j => j.Title),
             // Vagas sem salário visível vão sempre para o fim: no PostgreSQL o NULL vem primeiro em ordem
             // decrescente, e "maior salário" listaria antes as vagas que não informam (ou ocultam) o valor.

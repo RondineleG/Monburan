@@ -322,7 +322,7 @@ public static class JobEndpoints
             SalaryMin = salaryMin,
             SalaryMax = salaryMax,
             Category = category,
-            SortBy = string.IsNullOrWhiteSpace(sortBy) ? "CreatedAt" : sortBy,
+            SortBy = sortBy,
             SortDescending = sortDescending ?? true,
             AdvertiserId = advertiserId,
             CandidateId = candidateId,

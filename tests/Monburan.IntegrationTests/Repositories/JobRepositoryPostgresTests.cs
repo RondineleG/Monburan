@@ -130,6 +130,30 @@ public class JobRepositoryPostgresTests : IClassFixture<PostgresDatabase>
         result.Data!.Data.Select(job => job.Id.Value).Should().BeEquivalentTo([recent, oldDraftPublishedNow]);
     }
     [Fact]
+    public async Task SearchAsync_DistinguishesCreationSortFromPublicationRecency()
+    {
+        await using var context = _database.CreateContext();
+        await context.Database.MigrateAsync();
+        var advertiserId = await SeedAdvertiserAsync(context);
+        var marker = $"Ordenação {Guid.NewGuid():N}";
+        var createdRecentlyPublishedBefore = await SeedJobAsync(context, advertiserId, title: marker);
+        var createdBeforePublishedRecently = await SeedJobAsync(context, advertiserId, title: marker);
+
+        await context.Database.ExecuteSqlAsync(
+            $"""UPDATE "Jobs" SET "CreatedAt" = {DateTime.UtcNow.AddMinutes(-10)}, "PublishedAt" = {DateTime.UtcNow.AddDays(-5)} WHERE "Id" = {createdRecentlyPublishedBefore}""");
+        await context.Database.ExecuteSqlAsync(
+            $"""UPDATE "Jobs" SET "CreatedAt" = {DateTime.UtcNow.AddDays(-10)}, "PublishedAt" = {DateTime.UtcNow.AddMinutes(-1)} WHERE "Id" = {createdBeforePublishedRecently}""");
+
+        var repository = new JobRepository(_database.ContextFactory);
+
+        var byPublication = await repository.SearchAsync(searchTerm: marker, sortBy: "publishedAt");
+        byPublication.Data!.Data.Select(job => job.Id.Value).Should().Equal(createdBeforePublishedRecently, createdRecentlyPublishedBefore);
+
+        var byCreation = await repository.SearchAsync(searchTerm: marker, sortBy: "createdAt");
+        byCreation.Data!.Data.Select(job => job.Id.Value).Should().Equal(createdRecentlyPublishedBefore, createdBeforePublishedRecently);
+    }
+
+    [Fact]
     public async Task ListRecentForRecommendationsAsync_ExcludesJobsBeforeLimiting()
     {
         await using var context = _database.CreateContext();
