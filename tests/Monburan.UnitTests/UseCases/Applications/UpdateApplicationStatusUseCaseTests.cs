@@ -87,6 +87,7 @@ public class UpdateApplicationStatusUseCaseTests
         await _history.Received(1).CreateAsync(Arg.Is<ApplicationStatusHistory>(history =>
             history.ApplicationId.Value == _applicationId
             && history.Status == EApplicationStatus.Viewed
+            && history.Version == 2
             && history.Note == "Perfil aprovado."
             && history.Responsible == "ana@empresa.com"));
     }

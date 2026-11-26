@@ -114,6 +114,7 @@ public class CreateApplicationUseCaseTests
         await _history.Received(1).CreateAsync(Arg.Is<ApplicationStatusHistory>(history =>
             history.ApplicationId.Value == result.Data!.Id
             && history.Status == EApplicationStatus.Sent
+            && history.Version == 1
             && history.TenantId == "default"));
     }
 

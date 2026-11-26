@@ -333,22 +333,24 @@ public static class DemoSeedData
                 AppliedAt = applied,
                 Notes = ApplicationNotes[random.Next(ApplicationNotes.Length)]
             };
-            application.StatusHistory.Add(History(application, EApplicationStatus.Sent, applied, "Candidatura enviada"));
+            var version = 1;
+            application.StatusHistory.Add(History(application, EApplicationStatus.Sent, applied, "Candidatura enviada", version++));
             if (status != EApplicationStatus.Sent)
             {
                 application.ViewedAt = applied.AddDays(1);
-                application.StatusHistory.Add(History(application, EApplicationStatus.Viewed, application.ViewedAt.Value, "Currículo visualizado pela empresa"));
+                application.StatusHistory.Add(History(application, EApplicationStatus.Viewed, application.ViewedAt.Value, "Currículo visualizado pela empresa", version++));
             }
             if (status == EApplicationStatus.Selected)
             {
                 application.SelectedAt = applied.AddDays(3);
-                application.StatusHistory.Add(History(application, status, application.SelectedAt.Value, "Selecionado(a) para entrevista"));
+                application.StatusHistory.Add(History(application, status, application.SelectedAt.Value, "Selecionado(a) para entrevista", version++));
             }
             if (status == EApplicationStatus.Rejected)
             {
                 application.RejectedAt = applied.AddDays(3);
-                application.StatusHistory.Add(History(application, status, application.RejectedAt.Value, "Perfil não seguiu no processo"));
+                application.StatusHistory.Add(History(application, status, application.RejectedAt.Value, "Perfil não seguiu no processo", version++));
             }
+            application.Version = version - 1;
             if (status is EApplicationStatus.Selected or EApplicationStatus.Rejected)
             {
                 notifications.Add(new Notification
@@ -433,7 +435,7 @@ public static class DemoSeedData
         Counters = new JobCounters()
     };
 
-    private static ApplicationStatusHistory History(Application application, EApplicationStatus status, DateTime date, string note) => new()
+    private static ApplicationStatusHistory History(Application application, EApplicationStatus status, DateTime date, string note, int version) => new()
     {
         Id = Id.Create(Guid.NewGuid()),
         TenantId = TenantId,
@@ -441,7 +443,8 @@ public static class DemoSeedData
         Status = status,
         Date = date,
         Note = note,
-        Responsible = status == EApplicationStatus.Sent ? "Candidato" : "Empresa"
+        Responsible = status == EApplicationStatus.Sent ? "Candidato" : "Empresa",
+        Version = version
     };
 
     private static async Task<ApplicationUser> EnsureUserAsync(UserManager<ApplicationUser> userManager, string email, string password)

@@ -81,7 +81,7 @@ public class UpdateApplicationStatusUseCase : IUseCase<UpdateApplicationStatusRe
 
         // Histórico só registra mudança real de etapa (não bloqueante: a mudança já está gravada)
         if (oldStatus != application.Status)
-            await TryWriteHistoryAsync(application, request.Notes, request.Responsible);
+            await TryWriteHistoryAsync(application, request.Notes, request.Responsible, cancellationToken);
 
         // Enviar notificação por email para o candidato (não bloqueante)
         try
@@ -124,7 +124,7 @@ public class UpdateApplicationStatusUseCase : IUseCase<UpdateApplicationStatusRe
                 Note = note,
                 Responsible = responsible,
                 ActorUserId = AuthenticatedUserId.From(_currentPrincipal.User),
-                Version = await _historyRepository.GetLatestVersionAsync(application.Id.Value, cancellationToken) + 1,
+                Version = application.Version,
                 TenantId = application.TenantId
             },
             cancellationToken);

@@ -45,6 +45,15 @@ namespace Monburan.Web.Migrations
                 WHERE history."Id" = numbered."Id";
                 """);
 
+            migrationBuilder.Sql("""
+                UPDATE "Applications" AS application
+                SET "Version" = COALESCE((
+                    SELECT MAX(history."Version")
+                    FROM "ApplicationStatusHistory" AS history
+                    WHERE history."ApplicationId" = application."Id"
+                ), 1);
+                """);
+
             migrationBuilder.CreateIndex(
                 name: "UX_ApplicationStatusHistory_ApplicationId_Version",
                 table: "ApplicationStatusHistory",

@@ -161,7 +161,7 @@ public class CreateApplicationUseCase : IUseCase<CreateApplicationRequest, Appli
                 Note = note,
                 Responsible = responsible,
                 ActorUserId = AuthenticatedUserId.From(_currentPrincipal.User),
-                Version = await _historyRepository.GetLatestVersionAsync(application.Id.Value, cancellationToken) + 1,
+                Version = application.Version,
                 TenantId = application.TenantId
             },
             cancellationToken);

@@ -24,17 +24,6 @@ public class ApplicationStatusHistoryRepository : IApplicationStatusHistoryRepos
         return RequestResult<ApplicationStatusHistory>.Success(entity);
     }
 
-    public async Task<int> GetLatestVersionAsync(Guid applicationId, CancellationToken cancellationToken = default)
-    {
-        await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);
-        var applicationKey = Id.Create(applicationId);
-        return await context.ApplicationStatusHistory
-            .AsNoTracking()
-            .Where(item => !item.IsDeleted && item.ApplicationId == applicationKey)
-            .Select(item => (int?)item.Version)
-            .MaxAsync(cancellationToken) ?? 0;
-    }
-
     public async Task<RequestResult<IEnumerable<ApplicationStatusHistory>>> ListByApplicationAsync(Guid applicationId, CancellationToken cancellationToken = default)
     {
         await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);
