@@ -31,7 +31,8 @@ public sealed class JobDraftApiTests : IClassFixture<MonburanApiFactory>
     [Fact]
     public async Task Draft_IsPrivateUntilPublishedThroughTheApi()
     {
-        await EnableDraftForRecruitersAsync();
+        await EnableFeatureForRecruitersAsync(CreateJobUseCase.DraftJobFeature);
+        await EnableFeatureForRecruitersAsync(ChangeJobStatusUseCase.ApiStatusFeature);
         var advertiser = await RegisterAdvertiserAsync();
         var title = $"Rascunho API {Guid.NewGuid():N}";
 
@@ -62,18 +63,18 @@ public sealed class JobDraftApiTests : IClassFixture<MonburanApiFactory>
         publicAfter!.Jobs.Should().ContainSingle(item => item.Id == job.Id);
     }
 
-    private async Task EnableDraftForRecruitersAsync()
+    private async Task EnableFeatureForRecruitersAsync(string feature)
     {
         await using var context = await _factory.Services
             .GetRequiredService<IDbContextFactory<ApplicationDbContext>>()
             .CreateDbContextAsync();
-        var flag = await context.FeatureFlags.SingleOrDefaultAsync(item => item.Name == CreateJobUseCase.DraftJobFeature);
+        var flag = await context.FeatureFlags.SingleOrDefaultAsync(item => item.Name == feature);
         if (flag is null)
         {
             context.FeatureFlags.Add(new FeatureFlag
             {
                 Id = Id.Create(Guid.NewGuid()),
-                Name = CreateJobUseCase.DraftJobFeature,
+                Name = feature,
                 Description = "Guardar vaga como rascunho antes de publicar",
                 EnabledForEveryone = false,
                 Groups = "recrutador",

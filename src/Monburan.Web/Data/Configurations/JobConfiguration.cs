@@ -61,6 +61,8 @@ public class JobConfiguration : IEntityTypeConfiguration<Job>
         builder.Property(j => j.ExpirationDate)
             .HasColumnType("date");
 
+        builder.Property(j => j.PublishedAt);
+
         builder.Property(j => j.PublicationType)
             .HasConversion<string>()
             .HasMaxLength(20)

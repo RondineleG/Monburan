@@ -78,6 +78,9 @@ public sealed class AdminChangeJobStatusUseCase : IUseCase<AdminChangeJobStatusR
 
         if (request.NewStatus == EJobStatus.Active)
         {
+            if (previous == EJobStatus.Draft)
+                return RequestResult<AdminJobResponse>.WithDomainError("Rascunho só pode ser publicado pelo anunciante dono da vaga.");
+
             // Vaga externa (sem anunciante) não depende do status de nenhuma conta
             var advertiser = job.AdvertiserId is null ? null : await _advertisers.GetByIdAsync(job.AdvertiserId, cancellationToken);
             if (advertiser?.Data?.Status == EAdvertiserStatus.Blocked)

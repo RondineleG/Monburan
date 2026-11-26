@@ -41,7 +41,7 @@ public class NotifyJobAlertsOnJobCreatedUseCase : IUseCase<NotifyJobAlertsOnJobC
     public async Task<RequestResult<int>> ExecuteAsync(NotifyJobAlertsOnJobCreatedRequest request, CancellationToken cancellationToken = default)
     {
         var job = request.Job;
-        if (job.Status != EJobStatus.Active || job.ExpirationDate < DateTime.UtcNow)
+        if (job.Status != EJobStatus.Active || job.ExpirationDate.Date < DateTime.UtcNow.Date)
             return RequestResult<int>.Success(0);
 
         var alertsResult = await _alerts.ListActiveAsync(cancellationToken);

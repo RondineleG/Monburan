@@ -221,6 +221,7 @@ public static class JobEndpoints
             return result.ToHttpResult();
         })
         .RequireAuthorization("ApiBearer")
+        .RequireFeature(ChangeJobStatusUseCase.ApiStatusFeature)
         .WithSummary("Muda a situação de uma vaga do anunciante autenticado");
 
         // Bearer — atualizar vaga (com checagem de propriedade)

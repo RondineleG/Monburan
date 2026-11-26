@@ -23,14 +23,14 @@ namespace Monburan.UnitTests.Mappers;
 /// </summary>
 public class JobResponseMapperTests
 {
-    private readonly IBaseRepository<Job> _jobRepository;
+    private readonly IJobRepository _jobRepository;
     private readonly IJobRepository _jobQueries;
     private readonly ISavedJobRepository _savedJobs;
     private readonly IEntityValidator<Job> _validator;
 
     public JobResponseMapperTests()
     {
-        _jobRepository = Substitute.For<IBaseRepository<Job>>();
+        _jobRepository = Substitute.For<IJobRepository>();
         _jobQueries = Substitute.For<IJobRepository>();
         _savedJobs = Substitute.For<ISavedJobRepository>();
         _validator = Substitute.For<IEntityValidator<Job>>();
@@ -119,6 +119,7 @@ public class JobResponseMapperTests
         var job = JobWithCompany(EJobStatus.Active);
         _jobRepository.GetByIdAsync(Arg.Any<Id>()).Returns(RequestResult<Job>.Success(job));
         _jobRepository.UpdateAsync(Arg.Any<Job>()).Returns(call => RequestResult<Job>.Success(call.Arg<Job>()));
+        _jobRepository.UpdateStatusAsync(Arg.Any<Job>(), Arg.Any<EJobStatus>(), Arg.Any<string>()).Returns(call => RequestResult<Job>.Success(call.Arg<Job>()));
 
         var detail = await new GetJobByIdUseCase(_jobRepository, _savedJobs).ExecuteAsync(job.Id.Value);
         var flags = Substitute.For<Monburan.Core.Interfaces.Services.IFeatureFlags>();

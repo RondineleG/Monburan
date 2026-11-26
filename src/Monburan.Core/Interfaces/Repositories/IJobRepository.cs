@@ -61,6 +61,12 @@ public interface IJobRepository : IBaseRepository<Job>
     Task<RequestResult<bool>> IncrementApplicationsAsync(Guid jobId, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Muda somente a situação e a autoria da vaga quando ela ainda está na situação esperada.
+    /// Não grava conteúdo, para uma publicação/pausa não sobrescrever uma edição concorrente.
+    /// </summary>
+    Task<RequestResult<Job>> UpdateStatusAsync(Job entity, EJobStatus expectedStatus, string updatedBy, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Grava a moderação, o status e a validade da vaga numa única gravação, para a mudança feita
     /// pela administração não ficar pela metade. Fica fora da atualização geral da vaga: uma edição
     /// da empresa não pode sobrescrever o que a administração gravou.

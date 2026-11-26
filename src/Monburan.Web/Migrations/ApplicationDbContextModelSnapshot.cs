@@ -1187,6 +1187,9 @@ namespace Monburan.Web.Migrations
                         .HasColumnType("character varying(20)")
                         .HasDefaultValue("Direct");
 
+                    b.Property<DateTime?>("PublishedAt")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<string>("Requirements")
                         .HasMaxLength(2000)
                         .HasColumnType("character varying(2000)");

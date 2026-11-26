@@ -1,6 +1,7 @@
 using Monburan.Core.DTOs.Response;
 using Monburan.Core.Entities;
 using Monburan.Core.Enums;
+using Monburan.Core.Interfaces.Repositories;
 using Monburan.Core.Interfaces.Repositories.Base;
 using Monburan.Core.Interfaces.Services;
 using Monburan.Core.Interfaces.UseCases;
@@ -22,7 +23,8 @@ public sealed record ChangeJobStatusRequest(Guid JobId, Guid AdvertiserId, EJobS
 public sealed class ChangeJobStatusUseCase : IUseCase<ChangeJobStatusRequest, JobResponse>
 {
     public const string CloseJobFeature = "encerramento-vaga";
-    private readonly IBaseRepository<Job> _jobRepository;
+    public const string ApiStatusFeature = "gestao-status-vaga-api";
+    private readonly IJobRepository _jobRepository;
     private readonly CheckJobLimitUseCase _checkJobLimit;
     private readonly IFeatureFlags _featureFlags;
     private readonly ICurrentPrincipalAccessor _currentPrincipal;
@@ -30,7 +32,7 @@ public sealed class ChangeJobStatusUseCase : IUseCase<ChangeJobStatusRequest, Jo
     private readonly ILogger<ChangeJobStatusUseCase> _logger;
 
     public ChangeJobStatusUseCase(
-        IBaseRepository<Job> jobRepository,
+        IJobRepository jobRepository,
         CheckJobLimitUseCase checkJobLimit,
         IFeatureFlags featureFlags,
         ICurrentPrincipalAccessor currentPrincipal,
@@ -80,6 +82,13 @@ public sealed class ChangeJobStatusUseCase : IUseCase<ChangeJobStatusRequest, Jo
             if (job.Status is not (EJobStatus.Draft or EJobStatus.Paused or EJobStatus.Expired))
                 return RequestResult<JobResponse>.WithDomainError("Esta vaga não pode ser reativada.");
 
+            if (job.Status == EJobStatus.Draft)
+            {
+                var draftEnabled = await _featureFlags.IsEnabledAsync(CreateJobUseCase.DraftJobFeature, _currentPrincipal.User, cancellationToken);
+                if (!draftEnabled)
+                    return RequestResult<JobResponse>.WithDomainError("A publicação de rascunhos ainda não está liberada para esta conta.");
+            }
+
             if (job.ExpirationDate.Date < DateTime.UtcNow.Date)
                 return RequestResult<JobResponse>.WithDomainError("A validade da vaga já passou. Edite a data de expiração para reativá-la.");
 
@@ -97,19 +106,21 @@ public sealed class ChangeJobStatusUseCase : IUseCase<ChangeJobStatusRequest, Jo
 
         var previousStatus = job.Status;
         job.Status = request.NewStatus;
-        job.UpdatedBy = request.AdvertiserId.ToString();
-        var updateResult = await _jobRepository.UpdateAsync(job, cancellationToken);
+        var updateResult = await _jobRepository.UpdateStatusAsync(job, previousStatus, request.AdvertiserId.ToString(), cancellationToken);
         if (updateResult.Status != EResultStatus.Success)
             return RequestResult<JobResponse>.FromResult(updateResult);
 
-        if (updateResult.Data is not null && updateResult.Data.Status != request.NewStatus)
+        var updatedJob = updateResult.Data;
+        if (updatedJob is not null && updatedJob.Status != request.NewStatus)
             return RequestResult<JobResponse>.WithConflict("A situação da vaga mudou durante a operação. Atualize a página antes de tentar novamente.");
 
-        if (previousStatus == EJobStatus.Draft && request.NewStatus == EJobStatus.Active)
+        if (previousStatus == EJobStatus.Draft && request.NewStatus == EJobStatus.Active && updatedJob is not null)
         {
+            updatedJob.PublishedAt ??= DateTime.UtcNow;
+            job = updatedJob;
             try
             {
-                var notifyResult = await _notifyAlerts.ExecuteAsync(new NotifyJobAlertsOnJobCreatedRequest(job), cancellationToken);
+                var notifyResult = await _notifyAlerts.ExecuteAsync(new NotifyJobAlertsOnJobCreatedRequest(updatedJob), cancellationToken);
                 if (notifyResult.Status != EResultStatus.Success)
                     _logger.LogWarning("Rascunho {JobId} publicado, mas os alertas não foram avaliados: {Detail}", job.Id.Value, notifyResult.Message);
             }
@@ -119,6 +130,6 @@ public sealed class ChangeJobStatusUseCase : IUseCase<ChangeJobStatusRequest, Jo
             }
         }
 
-        return RequestResult<JobResponse>.Success(JobResponseMapper.ToResponse(job));
+        return RequestResult<JobResponse>.Success(JobResponseMapper.ToResponse(updatedJob ?? job));
     }
 }

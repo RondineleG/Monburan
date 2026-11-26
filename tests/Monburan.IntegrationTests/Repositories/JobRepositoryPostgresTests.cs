@@ -117,14 +117,17 @@ public class JobRepositoryPostgresTests : IClassFixture<PostgresDatabase>
         var marker = $"Filtro {Guid.NewGuid():N}";
         var recent = await SeedJobAsync(context, advertiserId, title: marker);
         var old = await SeedJobAsync(context, advertiserId, title: marker);
+        var oldDraftPublishedNow = await SeedJobAsync(context, advertiserId, title: marker);
 
         await context.Database.ExecuteSqlAsync(
             $"""UPDATE "Jobs" SET "CreatedAt" = {DateTime.UtcNow.AddDays(-40)} WHERE "Id" = {old}""");
+        await context.Database.ExecuteSqlAsync(
+            $"""UPDATE "Jobs" SET "CreatedAt" = {DateTime.UtcNow.AddDays(-40)}, "PublishedAt" = {DateTime.UtcNow} WHERE "Id" = {oldDraftPublishedNow}""");
 
         var repository = new JobRepository(_database.ContextFactory);
         var result = await repository.SearchAsync(searchTerm: marker, publishedWithinDays: 7);
 
-        result.Data!.Data.Select(job => job.Id.Value).Should().BeEquivalentTo([recent]);
+        result.Data!.Data.Select(job => job.Id.Value).Should().BeEquivalentTo([recent, oldDraftPublishedNow]);
     }
     [Fact]
     public async Task ListRecentForRecommendationsAsync_ExcludesJobsBeforeLimiting()
@@ -214,7 +217,7 @@ public class JobRepositoryPostgresTests : IClassFixture<PostgresDatabase>
 
 
     [Fact]
-    public async Task UpdateAsync_WhenClosingJob_PersistsStatusAndAuthor()
+    public async Task UpdateStatusAsync_WhenClosingJob_PersistsStatusAndAuthor()
     {
         await using var context = _database.CreateContext();
         await context.Database.MigrateAsync();
@@ -224,22 +227,70 @@ public class JobRepositoryPostgresTests : IClassFixture<PostgresDatabase>
         {
             Id = Id.Create(jobId),
             AdvertiserId = Id.Create(advertiserId),
-            Title = "Vaga encerrada",
-            Description = "Encerramento pelo anunciante",
-            ExpirationDate = DateTime.UtcNow.AddDays(30),
             Status = EJobStatus.Closed,
-            UpdatedBy = advertiserId.ToString(),
             TenantId = "default"
         };
         var repository = new JobRepository(_database.ContextFactory);
 
-        var result = await repository.UpdateAsync(close);
+        var result = await repository.UpdateStatusAsync(close, EJobStatus.Active, advertiserId.ToString());
 
         result.Status.Should().Be(Core.Enums.EResultStatus.Success);
         await using var check = _database.CreateContext();
         var stored = await check.Jobs.AsNoTracking().SingleAsync(job => job.Id == Id.Create(jobId));
         stored.Status.Should().Be(EJobStatus.Closed);
         stored.UpdatedBy.Should().Be(advertiserId.ToString());
+    }
+
+    [Fact]
+    public async Task EditAndPublication_DoNotOverwriteEachOther()
+    {
+        await using var context = _database.CreateContext();
+        await context.Database.MigrateAsync();
+        var advertiserId = await SeedAdvertiserAsync(context);
+        var jobId = await SeedJobAsync(context, advertiserId);
+        await context.Database.ExecuteSqlAsync(
+            $"""UPDATE "Jobs" SET "Status" = {"Draft"}, "PublishedAt" = NULL WHERE "Id" = {jobId}""");
+        var repository = new JobRepository(_database.ContextFactory);
+
+        var edit = new Job
+        {
+            Id = Id.Create(jobId),
+            AdvertiserId = Id.Create(advertiserId),
+            Title = "Rascunho editado",
+            Description = "Conteúdo novo do rascunho",
+            ExpirationDate = DateTime.UtcNow.AddDays(30),
+            Status = EJobStatus.Draft,
+            UpdatedBy = advertiserId.ToString(),
+            TenantId = "default"
+        };
+        (await repository.UpdateAsync(edit)).Status.Should().Be(Core.Enums.EResultStatus.Success);
+
+        var publish = new Job { Id = Id.Create(jobId), Status = EJobStatus.Active, TenantId = "default" };
+        (await repository.UpdateStatusAsync(publish, EJobStatus.Draft, advertiserId.ToString())).Status.Should().Be(Core.Enums.EResultStatus.Success);
+
+        await using var check = _database.CreateContext();
+        var stored = await check.Jobs.AsNoTracking().SingleAsync(job => job.Id == Id.Create(jobId));
+        stored.Status.Should().Be(EJobStatus.Active);
+        stored.Title.Should().Be("Rascunho editado");
+        stored.PublishedAt.Should().NotBeNull();
+
+        var staleEdit = new Job
+        {
+            Id = Id.Create(jobId),
+            AdvertiserId = Id.Create(advertiserId),
+            Title = "Edição iniciada antes da publicação",
+            Description = "Conteúdo ainda mais novo",
+            ExpirationDate = DateTime.UtcNow.AddDays(30),
+            Status = EJobStatus.Draft,
+            UpdatedBy = advertiserId.ToString(),
+            TenantId = "default"
+        };
+        (await repository.UpdateAsync(staleEdit)).Status.Should().Be(Core.Enums.EResultStatus.Success);
+
+        await using var finalCheck = _database.CreateContext();
+        var finalJob = await finalCheck.Jobs.AsNoTracking().SingleAsync(job => job.Id == Id.Create(jobId));
+        finalJob.Status.Should().Be(EJobStatus.Active, "edição de conteúdo não pode voltar a vaga para rascunho");
+        finalJob.Title.Should().Be("Edição iniciada antes da publicação");
     }
 
 }

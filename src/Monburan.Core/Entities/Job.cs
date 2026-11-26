@@ -51,6 +51,9 @@ public class Job : BaseEntity
 
     public JobHighlight? Highlight { get; set; }
 
+    /// <summary>Primeira publicação pública da vaga; nulo enquanto ela é só rascunho.</summary>
+    public DateTime? PublishedAt { get; set; }
+
     /// <summary>Data da última conferência da vaga externa com a fonte original.</summary>
     public DateTime? LastVerifiedAt { get; set; }
 

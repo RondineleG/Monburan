@@ -64,6 +64,7 @@ public class CreateJobUseCase : IUseCase<CreateJobRequest, JobResponse>
             ContractType = request.ContractType,
             ExpirationDate = request.ExpirationDate,
             Status = request.SaveAsDraft ? EJobStatus.Draft : EJobStatus.Active,
+            PublishedAt = request.SaveAsDraft ? null : DateTime.UtcNow,
             TenantId = "default",
             CreatedBy = request.AdvertiserId.ToString(),
             UpdatedBy = request.AdvertiserId.ToString(),

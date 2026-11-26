@@ -62,6 +62,20 @@ internal sealed class FakeJobRepository : IJobRepository
         return Task.FromResult(RequestResult<Job>.Success(entity));
     }
 
+    public Task<RequestResult<Job>> UpdateStatusAsync(Job entity, EJobStatus expectedStatus, string updatedBy, CancellationToken cancellationToken = default)
+    {
+        var stored = _jobs.FirstOrDefault(item => item.Id == entity.Id);
+        if (stored is null)
+            return Task.FromResult(RequestResult<Job>.EntityNotFound("Job", entity.Id.Value, "Vaga não encontrada."));
+        if (stored.Status == expectedStatus)
+        {
+            stored.Status = entity.Status;
+            stored.UpdatedBy = updatedBy;
+        }
+
+        return Task.FromResult(RequestResult<Job>.Success(stored));
+    }
+
     public Task<RequestResult<PagedResponse<Job>>> SearchAsync(
         string? searchTerm = null, string? city = null, string? state = null, bool? isRemote = null, decimal? salaryMin = null,
         decimal? salaryMax = null, string? category = null, Guid? advertiserId = null, int page = 1, int size = 10,

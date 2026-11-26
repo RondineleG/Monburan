@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging;
 
 using Monburan.Core.Entities;
 using Monburan.Core.Enums;
+using Monburan.Core.Interfaces.Repositories;
 using Monburan.Core.Interfaces.Repositories.Base;
 using Monburan.Core.UseCases.Notifications;
 using Monburan.Core.ValueObjects;
@@ -54,7 +55,7 @@ public class JobExpirationBackgroundService : BackgroundService
         _logger.LogInformation("Iniciando verificação de vagas expiradas...");
 
         using var scope = _serviceProvider.CreateScope();
-        var jobRepository = scope.ServiceProvider.GetRequiredService<IBaseRepository<Job>>();
+        var jobRepository = scope.ServiceProvider.GetRequiredService<IJobRepository>();
         var advertiserRepository = scope.ServiceProvider.GetRequiredService<IBaseRepository<Advertiser>>();
         var notifyOnJobExpiredUseCase = scope.ServiceProvider.GetRequiredService<NotifyOnJobExpiredUseCase>();
         var notificationRepository = scope.ServiceProvider.GetRequiredService<IBaseRepository<Notification>>();
@@ -114,7 +115,7 @@ public class JobExpirationBackgroundService : BackgroundService
             {
                 // Atualizar status da vaga para Expired
                 job.Status = EJobStatus.Expired;
-                var updateResult = await jobRepository.UpdateAsync(job, cancellationToken);
+                var updateResult = await jobRepository.UpdateStatusAsync(job, EJobStatus.Active, "system:job-expiration", cancellationToken);
 
                 if (updateResult.Status != EResultStatus.Success)
                 {

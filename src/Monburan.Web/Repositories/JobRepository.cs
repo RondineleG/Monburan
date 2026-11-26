@@ -163,7 +163,8 @@ public class JobRepository : IJobRepository
         // marcaria TODAS as colunas como modificadas, incluindo as que esta edição não
         // tocou — uma edição feita com dados antigos apagaria a moderação da administração
         // e os contadores da vaga. Por isso a gravação passa por uma cópia explícita: só
-        // entram as colunas que a edição da vaga de fato controla.
+        // entram as colunas que a edição da vaga de fato controla. A situação fica fora
+        // desta gravação; mudanças de ciclo de vida usam UpdateStatusAsync.
         var tracked = await context.Jobs
             .Include(job => job.Advertiser)
             .FirstOrDefaultAsync(job => job.Id == entity.Id, cancellationToken);
@@ -189,52 +190,71 @@ public class JobRepository : IJobRepository
 
         var relational = context.Database.IsRelational()
             && context.Database.ProviderName != "Microsoft.EntityFrameworkCore.InMemory";
-        if (!relational)
-        {
-            // O provedor em memória dos testes não executa SQL condicional; a corrida real é coberta no PostgreSQL.
-            if (!IsStatusLocked(tracked.Status))
-                tracked.Status = entity.Status;
-            if (tracked.Status != EJobStatus.Closed)
-                tracked.UpdatedBy = entity.UpdatedBy;
-        }
+        if (!relational && tracked.Status != EJobStatus.Closed)
+            tracked.UpdatedBy = entity.UpdatedBy;
 
         await context.SaveChangesAsync(cancellationToken);
 
         if (relational)
         {
-            // Em produção, status e autor da mudança ficam fora do SaveChanges principal e são gravados em
-            // atualizações condicionais. Uma edição/expiração antiga não reabre vaga encerrada nem desfaz
-            // ocultação/reprovação da moderação na janela entre leitura e escrita.
-            var now = DateTime.UtcNow;
-            var statusChanged = await context.Jobs
-                .Where(job => job.Id == entity.Id
-                    && job.Status != EJobStatus.Closed
-                    && job.Status != EJobStatus.Hidden
-                    && job.Status != EJobStatus.Rejected)
+            // Vaga encerrada preserva quem a encerrou; nas demais situações a autoria acompanha a edição.
+            var authorshipChanged = await context.Jobs
+                .Where(job => job.Id == entity.Id && job.Status != EJobStatus.Closed)
                 .ExecuteUpdateAsync(setters => setters
-                    .SetProperty(job => job.Status, entity.Status)
                     .SetProperty(job => job.UpdatedBy, entity.UpdatedBy)
-                    .SetProperty(job => job.UpdatedAt, now),
+                    .SetProperty(job => job.UpdatedAt, DateTime.UtcNow),
                     cancellationToken);
+            if (authorshipChanged > 0)
+                tracked.UpdatedBy = entity.UpdatedBy;
+            else
+                await context.Entry(tracked).ReloadAsync(cancellationToken);
+        }
 
-            var authorshipChanged = 0;
-            if (statusChanged == 0)
+        return RequestResult<Job>.Success(tracked);
+    }
+
+    public async Task<RequestResult<Job>> UpdateStatusAsync(Job entity, EJobStatus expectedStatus, string updatedBy, CancellationToken cancellationToken = default)
+    {
+        await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);
+        var tracked = await context.Jobs
+            .Include(job => job.Advertiser)
+            .FirstOrDefaultAsync(job => job.Id == entity.Id, cancellationToken);
+        if (tracked is null)
+            return RequestResult<Job>.EntityNotFound("Job", entity.Id.Value, "Vaga não encontrada.");
+
+        var relational = context.Database.IsRelational()
+            && context.Database.ProviderName != "Microsoft.EntityFrameworkCore.InMemory";
+        if (!relational)
+        {
+            if (tracked.Status == expectedStatus)
             {
-                // Oculta/reprovada continua protegida de reabertura, mas a autoria da edição de conteúdo ainda vale.
-                authorshipChanged = await context.Jobs
-                    .Where(job => job.Id == entity.Id && job.Status != EJobStatus.Closed)
-                    .ExecuteUpdateAsync(setters => setters
-                        .SetProperty(job => job.UpdatedBy, entity.UpdatedBy)
-                        .SetProperty(job => job.UpdatedAt, now),
-                        cancellationToken);
+                tracked.Status = entity.Status;
+                tracked.PublishedAt ??= entity.Status == EJobStatus.Active ? DateTime.UtcNow : null;
+                tracked.UpdatedBy = updatedBy;
+                await context.SaveChangesAsync(cancellationToken);
             }
 
-            if (statusChanged > 0)
-                tracked.Status = entity.Status;
-            if (statusChanged > 0 || authorshipChanged > 0)
-                tracked.UpdatedBy = entity.UpdatedBy;
-            if (statusChanged == 0)
-                await context.Entry(tracked).ReloadAsync(cancellationToken);
+            return RequestResult<Job>.Success(tracked);
+        }
+
+        var now = DateTime.UtcNow;
+        var changed = await context.Jobs
+            .Where(job => job.Id == entity.Id && job.Status == expectedStatus)
+            .ExecuteUpdateAsync(setters => setters
+                .SetProperty(job => job.Status, entity.Status)
+                .SetProperty(job => job.PublishedAt, job => job.PublishedAt ?? (entity.Status == EJobStatus.Active ? (DateTime?)now : null))
+                .SetProperty(job => job.UpdatedBy, updatedBy)
+                .SetProperty(job => job.UpdatedAt, now),
+                cancellationToken);
+        if (changed > 0)
+        {
+            tracked.Status = entity.Status;
+            tracked.PublishedAt ??= entity.Status == EJobStatus.Active ? now : null;
+            tracked.UpdatedBy = updatedBy;
+        }
+        else
+        {
+            await context.Entry(tracked).ReloadAsync(cancellationToken);
         }
 
         return RequestResult<Job>.Success(tracked);
@@ -446,11 +466,11 @@ public class JobRepository : IJobRepository
             query = query.Where(j => j.Salary != null && j.Salary.Period == salaryPeriod.Value);
         }
 
-        // Filtro por data de publicação: vagas criadas nos últimos N dias
+        // Filtro por data de publicação: rascunho antigo conta da data em que virou vaga pública.
         if (publishedWithinDays is > 0)
         {
             var cutoff = DateTime.UtcNow.AddDays(-publishedWithinDays.Value);
-            query = query.Where(j => j.CreatedAt >= cutoff);
+            query = query.Where(j => (j.PublishedAt ?? j.CreatedAt) >= cutoff);
         }
 
         // Ordenação — sortBy: "createdAt" (default), "title", "salary"
@@ -465,7 +485,7 @@ public class JobRepository : IJobRepository
                     .ThenByDescending(j => j.Salary == null || !j.Salary.Display ? null : j.Salary.Max ?? j.Salary.Min)
                 : query.OrderBy(j => j.Salary == null || !j.Salary.Display || (j.Salary.Max ?? j.Salary.Min) == null)
                     .ThenBy(j => j.Salary == null || !j.Salary.Display ? null : j.Salary.Max ?? j.Salary.Min),
-            _ => descending ? query.OrderByDescending(j => j.CreatedAt) : query.OrderBy(j => j.CreatedAt),
+            _ => descending ? query.OrderByDescending(j => j.PublishedAt ?? j.CreatedAt) : query.OrderBy(j => j.PublishedAt ?? j.CreatedAt),
         };
 
         // Paginação com OFFSET/FETCH — TotalCount é o total filtrado, não o tamanho da página
@@ -523,7 +543,7 @@ public class JobRepository : IJobRepository
             .AsNoTracking()
             .Include(j => j.Advertiser)
             .Where(j => !j.IsDeleted && j.Status == EJobStatus.Active && j.ExpirationDate >= now)
-            .OrderByDescending(j => j.CreatedAt);
+            .OrderByDescending(j => j.PublishedAt ?? j.CreatedAt);
     }
 
     public async Task<RequestResult<bool>> IncrementViewsAsync(Guid jobId, CancellationToken cancellationToken = default)
