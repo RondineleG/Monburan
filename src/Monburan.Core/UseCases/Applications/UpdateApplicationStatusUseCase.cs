@@ -35,6 +35,14 @@ public class UpdateApplicationStatusUseCase : IUseCase<UpdateApplicationStatusRe
 
     public async Task<RequestResult<ApplicationResponse>> ExecuteAsync(UpdateApplicationStatusRequest request, CancellationToken cancellationToken = default)
     {
+        var validations = new List<RequestValidation>();
+        if (request.Notes?.Length > ApplicationStatusHistory.MaxNoteLength)
+            validations.Add(new RequestValidation(nameof(request.Notes), $"A observação pode ter no máximo {ApplicationStatusHistory.MaxNoteLength} caracteres."));
+        if (request.Responsible?.Length > ApplicationStatusHistory.MaxResponsibleLength)
+            validations.Add(new RequestValidation(nameof(request.Responsible), $"O responsável pode ter no máximo {ApplicationStatusHistory.MaxResponsibleLength} caracteres."));
+        if (validations.Count > 0)
+            return RequestResult<ApplicationResponse>.WithValidations(validations);
+
         var result = await _applicationRepository.GetByIdAsync(Id.Create(request.ApplicationId), cancellationToken);
         if (result.Status != EResultStatus.Success)
             return RequestResult<ApplicationResponse>.EntityNotFound("Application", request.ApplicationId, "Candidatura não encontrada.");

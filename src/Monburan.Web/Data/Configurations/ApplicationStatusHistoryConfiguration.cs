@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore.Metadata.Builders;
+using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 using Monburan.Core.Entities;
 using Monburan.Core.ValueObjects;
@@ -28,16 +28,16 @@ public class ApplicationStatusHistoryConfiguration : IEntityTypeConfiguration<Ap
             .HasColumnType("uuid");
 
         builder.Property(h => h.Responsible)
-            .HasMaxLength(100);
+            .HasMaxLength(ApplicationStatusHistory.MaxResponsibleLength);
 
         builder.Property(h => h.ActorUserId)
-            .HasMaxLength(100);
+            .HasMaxLength(ApplicationStatusHistory.MaxActorUserIdLength);
 
         builder.Property(h => h.Version)
             .HasDefaultValue(1);
 
         builder.Property(h => h.Note)
-            .HasMaxLength(1000);
+            .HasMaxLength(ApplicationStatusHistory.MaxNoteLength);
 
         builder.Property(h => h.Status)
             .HasConversion<string>()

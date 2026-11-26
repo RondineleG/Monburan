@@ -114,6 +114,22 @@ public class UpdateApplicationStatusUseCaseTests
         result.Status.Should().Be(EResultStatus.HasError);
     }
 
+
+    [Fact]
+    public async Task ExecuteAsync_WhenTheNoteOrResponsibleIsTooLong_ReturnsValidationWithoutWriting()
+    {
+        var request = Request(EApplicationStatus.Viewed);
+        request.Notes = new string('x', ApplicationStatusHistory.MaxNoteLength + 1);
+        request.Responsible = new string('r', ApplicationStatusHistory.MaxResponsibleLength + 1);
+
+        var result = await _useCase.ExecuteAsync(request);
+
+        result.Status.Should().Be(EResultStatus.HasValidation);
+        result.ValidationResult.Errors.Should().Contain(error => error.Field == nameof(request.Notes));
+        result.ValidationResult.Errors.Should().Contain(error => error.Field == nameof(request.Responsible));
+        await _applications.DidNotReceiveWithAnyArgs().GetByIdAsync(default!, default);
+    }
+
     [Fact]
     public async Task ExecuteAsync_WhenTheApplicationBelongsToAnotherAdvertiser_ReturnsNotFoundAndNeverWrites()
     {
