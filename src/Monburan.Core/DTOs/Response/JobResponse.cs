@@ -72,5 +72,9 @@ public class JobResponse
     public string? AdvertiserLogoUrl { get; set; }
     
     public DateTime CreatedAt { get; set; }
+
+    /// <summary>Primeira publicação pública da vaga; nula enquanto ela é só rascunho.</summary>
+    public DateTime? PublishedAt { get; set; }
+
     public DateTime? UpdatedAt { get; set; }
 }

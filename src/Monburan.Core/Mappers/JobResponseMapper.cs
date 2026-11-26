@@ -62,6 +62,7 @@ public static class JobResponseMapper
             AdvertiserName = job.Advertiser?.Name,
             AdvertiserLogoUrl = job.Advertiser?.LogoUrl,
             CreatedAt = job.CreatedAt,
+            PublishedAt = job.PublishedAt,
             UpdatedAt = job.UpdatedAt,
             IsSaved = isSaved
         };

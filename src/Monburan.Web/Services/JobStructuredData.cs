@@ -43,7 +43,7 @@ public static class JobStructuredData
             ["@type"] = "JobPosting",
             ["title"] = job.Title,
             ["description"] = HtmlDescription(job),
-            ["datePosted"] = Utc(job.CreatedAt).ToString("yyyy-MM-dd"),
+            ["datePosted"] = Utc(job.PublishedAt ?? job.CreatedAt).ToString("yyyy-MM-dd"),
             ["url"] = pageUrl,
             ["directApply"] = false,
             ["hiringOrganization"] = Organization(job, pageUrl)
