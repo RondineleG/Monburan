@@ -4,6 +4,7 @@ using Monburan.Core.Entities;
 using Monburan.Core.Enums;
 using Monburan.Core.Interfaces.Repositories;
 using Monburan.Core.Interfaces.Repositories.Base;
+using Monburan.Core.Interfaces.Services;
 using Monburan.Core.Requests;
 using Monburan.Core.UseCases.Applications;
 using Monburan.Core.ValueObjects;
@@ -18,11 +19,13 @@ public class ListApplicationHistoryUseCaseTests
     private readonly Guid _candidateId = Guid.NewGuid();
     private readonly Guid _advertiserId = Guid.NewGuid();
     private readonly Guid _applicationId = Guid.NewGuid();
+    private readonly IFeatureFlags _featureFlags = Substitute.For<IFeatureFlags>();
+    private readonly ICurrentPrincipalAccessor _currentPrincipal = Substitute.For<ICurrentPrincipalAccessor>();
     private readonly ListApplicationHistoryUseCase _useCase;
 
     public ListApplicationHistoryUseCaseTests()
     {
-        _useCase = new ListApplicationHistoryUseCase(_applications, _history);
+        _useCase = new ListApplicationHistoryUseCase(_applications, _history, _featureFlags, _currentPrincipal);
     }
 
     private Application ApplicationOf() => new()
@@ -121,4 +124,35 @@ public class ListApplicationHistoryUseCaseTests
 
         result.Status.Should().Be(EResultStatus.HasError);
     }
+    [Fact]
+    public async Task ExecuteAsync_WhenVersionedAuditFeatureIsOn_ReturnsActorAndVersion()
+    {
+        _featureFlags.IsEnabledAsync(ListApplicationHistoryUseCase.VersionedAuditFeature, Arg.Any<System.Security.Claims.ClaimsPrincipal?>(), Arg.Any<CancellationToken>()).Returns(true);
+        _applications.GetByIdAsync(Arg.Any<Id>()).Returns(RequestResult<Application>.Success(ApplicationOf()));
+        var history = HistoryOf(EApplicationStatus.Sent);
+        history.ActorUserId = "user-1";
+        history.Version = 1;
+        _history.ListByApplicationAsync(_applicationId).Returns(RequestResult<IEnumerable<ApplicationStatusHistory>>.Success([history]));
+
+        var result = await _useCase.ExecuteAsync(new ListApplicationHistoryRequest(_applicationId, _candidateId, null));
+
+        result.Data!.Single().ActorUserId.Should().Be("user-1");
+        result.Data!.Single().Version.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_WhenVersionedAuditFeatureIsOff_OmitsActorAndVersion()
+    {
+        _applications.GetByIdAsync(Arg.Any<Id>()).Returns(RequestResult<Application>.Success(ApplicationOf()));
+        var history = HistoryOf(EApplicationStatus.Sent);
+        history.ActorUserId = "user-1";
+        history.Version = 1;
+        _history.ListByApplicationAsync(_applicationId).Returns(RequestResult<IEnumerable<ApplicationStatusHistory>>.Success([history]));
+
+        var result = await _useCase.ExecuteAsync(new ListApplicationHistoryRequest(_applicationId, _candidateId, null));
+
+        result.Data!.Single().ActorUserId.Should().BeNull();
+        result.Data!.Single().Version.Should().BeNull();
+    }
+
 }

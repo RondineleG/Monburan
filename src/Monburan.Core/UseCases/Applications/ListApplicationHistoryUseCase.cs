@@ -3,6 +3,7 @@ using Monburan.Core.Entities;
 using Monburan.Core.Enums;
 using Monburan.Core.Interfaces.Repositories;
 using Monburan.Core.Interfaces.Repositories.Base;
+using Monburan.Core.Interfaces.Services;
 using Monburan.Core.Interfaces.UseCases;
 using Monburan.Core.Requests;
 using Monburan.Core.ValueObjects;
@@ -14,15 +15,23 @@ public sealed record ListApplicationHistoryRequest(Guid ApplicationId, Guid? Can
 /// <summary>Histórico de etapas da candidatura, da mais antiga para a mais nova. Visível ao candidato dono e ao anunciante dono da vaga.</summary>
 public class ListApplicationHistoryUseCase : IUseCase<ListApplicationHistoryRequest, IEnumerable<ApplicationHistoryItemResponse>>
 {
+    public const string VersionedAuditFeature = "historico-ats-versionado";
+
     private readonly IBaseRepository<Application> _applicationRepository;
     private readonly IApplicationStatusHistoryRepository _historyRepository;
+    private readonly IFeatureFlags _featureFlags;
+    private readonly ICurrentPrincipalAccessor _currentPrincipal;
 
     public ListApplicationHistoryUseCase(
         IBaseRepository<Application> applicationRepository,
-        IApplicationStatusHistoryRepository historyRepository)
+        IApplicationStatusHistoryRepository historyRepository,
+        IFeatureFlags featureFlags,
+        ICurrentPrincipalAccessor currentPrincipal)
     {
         _applicationRepository = applicationRepository;
         _historyRepository = historyRepository;
+        _featureFlags = featureFlags;
+        _currentPrincipal = currentPrincipal;
     }
 
     public async Task<RequestResult<IEnumerable<ApplicationHistoryItemResponse>>> ExecuteAsync(ListApplicationHistoryRequest request, CancellationToken cancellationToken = default)
@@ -43,6 +52,9 @@ public class ListApplicationHistoryUseCase : IUseCase<ListApplicationHistoryRequ
         if (historyResult.Status != EResultStatus.Success || historyResult.Data is null)
             return RequestResult<IEnumerable<ApplicationHistoryItemResponse>>.FromResult(historyResult);
 
+        var includeVersionedAudit = await _featureFlags.IsEnabledAsync(
+            VersionedAuditFeature, _currentPrincipal.User, cancellationToken);
+
         return RequestResult<IEnumerable<ApplicationHistoryItemResponse>>.Success(
             historyResult.Data.Select(item => new ApplicationHistoryItemResponse
             {
@@ -50,8 +62,8 @@ public class ListApplicationHistoryUseCase : IUseCase<ListApplicationHistoryRequ
                 Date = item.Date,
                 Note = item.Note,
                 Responsible = item.Responsible,
-                ActorUserId = item.ActorUserId,
-                Version = item.Version
+                ActorUserId = includeVersionedAudit ? item.ActorUserId : null,
+                Version = includeVersionedAudit ? item.Version : null
             }).ToList());
     }
 
