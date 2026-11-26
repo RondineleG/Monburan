@@ -17,6 +17,7 @@
 @inject ILogger<ApplyJob> Logger
 @inject ICurrentUserHelper CurrentUserHelper
 @inject IFeatureFlags FeatureFlags
+@inject AuthenticationStateProvider AuthenticationStateProvider
 @inject NavigationManager Navigation
 @inject IToastService Toast
 @inject IJSRuntime JS
@@ -219,9 +220,6 @@
     [Parameter]
     public Guid JobId { get; set; }
 
-    [CascadingParameter]
-    private Task<AuthenticationState>? AuthenticationStateTask { get; set; }
-
     private CreateApplicationRequest model = new();
     private JobResponse? job;
     private string? salary;
@@ -367,7 +365,7 @@
         isSubmitting = true;
         errorMessage = string.Empty;
 
-        var user = AuthenticationStateTask is null ? null : (await AuthenticationStateTask).User;
+        var user = (await AuthenticationStateProvider.GetAuthenticationStateAsync()).User;
         model.CaptureResumeSnapshot = await FeatureFlags.IsEnabledAsync(
             CreateApplicationUseCase.ResumeSnapshotFeature, user);
 
