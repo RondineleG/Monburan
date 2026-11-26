@@ -1,3 +1,5 @@
+using System.Text.Json;
+
 using FluentAssertions;
 
 using Microsoft.EntityFrameworkCore;
@@ -355,6 +357,62 @@ public class JobRepositoryPostgresTests : IClassFixture<PostgresDatabase>
         revisions.Select(revision => revision.Revision).Should().Equal(Enumerable.Range(1, revisions.Count));
         revisions.Select(revision => revision.Action).Should().Contain([EJobRevisionAction.Updated, EJobRevisionAction.StatusChanged]);
     }
+
+    [Fact]
+    public async Task EditAndModeration_AreSerializedIntoAConsistentHistory()
+    {
+        await using var context = _database.CreateContext();
+        await context.Database.MigrateAsync();
+        var advertiserId = await SeedAdvertiserAsync(context);
+        var jobId = await SeedJobAsync(context, advertiserId);
+        var repository = new JobRepository(_database.ContextFactory);
+        var edit = new Job
+        {
+            Id = Id.Create(jobId),
+            AdvertiserId = Id.Create(advertiserId),
+            Title = "Título salvo na corrida",
+            Description = "Conteúdo editado",
+            ExpirationDate = DateTime.UtcNow.AddDays(30),
+            UpdatedBy = advertiserId.ToString(),
+            TenantId = "default"
+        };
+        var moderation = new Job
+        {
+            Id = Id.Create(jobId),
+            Status = EJobStatus.Hidden,
+            ExpirationDate = DateTime.UtcNow.AddDays(30),
+            UpdatedBy = "moderador-1",
+            Moderation = new ModerationInfo
+            {
+                Status = EModerationStatus.Rejected,
+                Reason = "moderação concorrente",
+                ModeratorId = "moderador-1",
+                ModerationDate = DateTime.UtcNow
+            },
+            TenantId = "default"
+        };
+
+        var results = await Task.WhenAll(
+            repository.UpdateAsync(edit),
+            repository.UpdateModerationAsync(moderation));
+
+        results.Should().OnlyContain(result => result.Status == Core.Enums.EResultStatus.Success);
+        await using var check = _database.CreateContext();
+        var revisions = await check.JobRevisions.AsNoTracking()
+            .Where(revision => revision.JobId == Id.Create(jobId))
+            .OrderBy(revision => revision.Revision)
+            .ToListAsync();
+        revisions.Select(revision => revision.Action).Should().BeEquivalentTo([EJobRevisionAction.Updated, EJobRevisionAction.Moderated]);
+        revisions.Select(revision => revision.Revision).Should().Equal(1, 2);
+
+        // Quem quer que tenha vencido a corrida, a segunda fotografia precisa conter as duas mudanças:
+        // o título editado e a situação escondida. Uma leitura fora da fila mostraria só a primeira.
+        var last = revisions[^1];
+        using var snapshot = JsonDocument.Parse(last.SnapshotJson);
+        snapshot.RootElement.GetProperty("Title").GetString().Should().Be("Título salvo na corrida");
+        snapshot.RootElement.GetProperty("Status").GetString().Should().Be("Hidden");
+    }
+
 
 }
 

@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 
 using Monburan.Core.DTOs.Response;
 using Monburan.Core.Entities;
@@ -17,6 +18,30 @@ public class JobRepository : IJobRepository
     public JobRepository(IDbContextFactory<ApplicationDbContext> contextFactory)
     {
         _contextFactory = contextFactory;
+    }
+
+    private static bool IsRelationalStore(ApplicationDbContext context) =>
+        context.Database.IsRelational()
+        && context.Database.ProviderName != "Microsoft.EntityFrameworkCore.InMemory";
+
+    /// <summary>
+    /// Serializa as escritas da mesma vaga no PostgreSQL. A leitura, a mudança e a numeração da revisão ficam na
+    /// mesma transação; outra escrita espera o fim da primeira antes de fotografar o estado.
+    /// </summary>
+    private static async Task<IDbContextTransaction?> BeginJobWriteTransactionAsync(ApplicationDbContext context, Id jobId, CancellationToken cancellationToken)
+    {
+        if (!IsRelationalStore(context))
+            return null;
+
+        var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
+        await context.Database.ExecuteSqlAsync($"""SELECT 1 FROM "Jobs" WHERE "Id" = {jobId.Value} FOR UPDATE""", cancellationToken);
+        return transaction;
+    }
+
+    private static async Task CommitAsync(IDbContextTransaction? transaction, CancellationToken cancellationToken)
+    {
+        if (transaction is not null)
+            await transaction.CommitAsync(cancellationToken);
     }
 
     public async Task<RequestResult<Job>> CreateAsync(Job entity, CancellationToken cancellationToken = default)
@@ -160,6 +185,7 @@ public class JobRepository : IJobRepository
     public async Task<RequestResult<Job>> UpdateAsync(Job entity, CancellationToken cancellationToken = default)
     {
         await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);
+        await using var transaction = await BeginJobWriteTransactionAsync(context, entity.Id, cancellationToken);
 
         // A vaga chega desanexada (lida em outra unidade de trabalho). Gravar com Update()
         // marcaria TODAS as colunas como modificadas, incluindo as que esta edição não
@@ -213,12 +239,14 @@ public class JobRepository : IJobRepository
         }
 
         await SaveRevisionAsync(context, tracked, EJobRevisionAction.Updated, entity.UpdatedBy, cancellationToken);
+        await CommitAsync(transaction, cancellationToken);
         return RequestResult<Job>.Success(tracked);
     }
 
     public async Task<RequestResult<Job>> UpdateStatusAsync(Job entity, EJobStatus expectedStatus, string updatedBy, CancellationToken cancellationToken = default)
     {
         await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);
+        await using var transaction = await BeginJobWriteTransactionAsync(context, entity.Id, cancellationToken);
         var tracked = await context.Jobs
             .Include(job => job.Advertiser)
             .FirstOrDefaultAsync(job => job.Id == entity.Id, cancellationToken);
@@ -265,38 +293,25 @@ public class JobRepository : IJobRepository
         if (changed > 0)
             await SaveRevisionAsync(context, tracked, EJobRevisionAction.StatusChanged, updatedBy, cancellationToken);
 
+        await CommitAsync(transaction, cancellationToken);
         return RequestResult<Job>.Success(tracked);
     }
 
     private static async Task SaveRevisionAsync(ApplicationDbContext context, Job job, EJobRevisionAction action, string actorId, CancellationToken cancellationToken)
     {
-        // A numeração é única por vaga. Em escritas concorrentes, duas operações podem ler o
-        // mesmo máximo; a segunda desanexa a revisão rejeitada e tenta com o próximo número.
-        for (var attempt = 0; ; attempt++)
-        {
-            var latest = await context.JobRevisions
-                .Where(revision => revision.JobId == job.Id)
-                .Select(revision => (int?)revision.Revision)
-                .MaxAsync(cancellationToken);
-            var snapshot = attempt == 0
-                ? job
-                : await context.Jobs.AsNoTracking().FirstAsync(item => item.Id == job.Id, cancellationToken);
-            var revision = JobRevision.Capture(snapshot, (latest ?? 0) + 1, action, actorId);
-            context.JobRevisions.Add(revision);
+        // No PostgreSQL a vaga está bloqueada pela transação do fluxo chamador: nenhuma outra escrita
+        // participante pode intercalar uma revisão entre a leitura do máximo e esta fotografia.
+        var latest = await context.JobRevisions
+            .Where(revision => revision.JobId == job.Id)
+            .Select(revision => (int?)revision.Revision)
+            .MaxAsync(cancellationToken);
+        var revision = JobRevision.Capture(job, (latest ?? 0) + 1, action, actorId);
+        context.JobRevisions.Add(revision);
 
-            // A vaga já foi gravada pelo fluxo chamador; salvar a revisão não pode regravar
-            // situação/autoria por cima de uma transição concorrente.
-            context.Entry(job).State = EntityState.Unchanged;
-            try
-            {
-                await context.SaveChangesAsync(cancellationToken);
-                return;
-            }
-            catch (DbUpdateException) when (attempt < 2)
-            {
-                context.Entry(revision).State = EntityState.Detached;
-            }
-        }
+        // A vaga já foi gravada pelo fluxo chamador; salvar a revisão não pode regravar
+        // situação/autoria por cima de uma transição concorrente.
+        context.Entry(job).State = EntityState.Unchanged;
+        await context.SaveChangesAsync(cancellationToken);
     }
 
     // Local e salário são "owned" (tabelas próprias): só são gravados quando o valor
@@ -348,6 +363,7 @@ public class JobRepository : IJobRepository
     public async Task<RequestResult<Job>> UpdateModerationAsync(Job job, CancellationToken cancellationToken = default, EJobRevisionAction revisionAction = EJobRevisionAction.Moderated, bool updateExpirationDate = true)
     {
         await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);
+        await using var transaction = await BeginJobWriteTransactionAsync(context, job.Id, cancellationToken);
         var tracked = await context.Jobs.FirstOrDefaultAsync(item => item.Id == job.Id, cancellationToken);
         if (tracked is null)
             return RequestResult<Job>.EntityNotFound("Job", job.Id.Value, "Vaga não encontrada.");
@@ -363,6 +379,7 @@ public class JobRepository : IJobRepository
 
         await context.SaveChangesAsync(cancellationToken);
         await SaveRevisionAsync(context, tracked, revisionAction, job.Moderation.ModeratorId ?? job.UpdatedBy, cancellationToken);
+        await CommitAsync(transaction, cancellationToken);
         return RequestResult<Job>.Success(tracked);
     }
 
