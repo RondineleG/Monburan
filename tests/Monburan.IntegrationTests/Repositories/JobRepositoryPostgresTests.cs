@@ -413,6 +413,39 @@ public class JobRepositoryPostgresTests : IClassFixture<PostgresDatabase>
         snapshot.RootElement.GetProperty("Status").GetString().Should().Be("Hidden");
     }
 
+    [Fact]
+    public async Task UpdateModeration_WhenExpirationIsOptedOut_PreservesTheStoredDeadline()
+    {
+        await using var context = _database.CreateContext();
+        await context.Database.MigrateAsync();
+        var advertiserId = await SeedAdvertiserAsync(context);
+        var jobId = await SeedJobAsync(context, advertiserId);
+        var storedDeadline = (await context.Jobs.AsNoTracking().SingleAsync(job => job.Id == Id.Create(jobId))).ExpirationDate;
+        var repository = new JobRepository(_database.ContextFactory);
+        var moderation = new Job
+        {
+            Id = Id.Create(jobId),
+            Status = EJobStatus.Hidden,
+            ExpirationDate = DateTime.UtcNow.AddDays(2),
+            UpdatedBy = "moderador-1",
+            Moderation = new ModerationInfo
+            {
+                Status = EModerationStatus.Rejected,
+                Reason = "conta bloqueada",
+                ModeratorId = "moderador-1",
+                ModerationDate = DateTime.UtcNow
+            },
+            TenantId = "default"
+        };
+
+        var result = await repository.UpdateModerationAsync(moderation, updateExpirationDate: false);
+
+        result.Status.Should().Be(Core.Enums.EResultStatus.Success);
+        await using var check = _database.CreateContext();
+        var persisted = await check.Jobs.AsNoTracking().SingleAsync(job => job.Id == Id.Create(jobId));
+        persisted.ExpirationDate.Should().BeCloseTo(storedDeadline, TimeSpan.FromSeconds(1));
+        persisted.Status.Should().Be(EJobStatus.Hidden);
+    }
 
 }
 

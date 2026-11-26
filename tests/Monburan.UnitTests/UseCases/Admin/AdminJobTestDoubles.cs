@@ -158,7 +158,8 @@ internal sealed class FakeJobRepository : IJobRepository
             return Task.FromResult(RequestResult<Job>.EntityNotFound("Job", job.Id.Value, "Vaga não encontrada."));
 
         tracked.Status = job.Status;
-        tracked.ExpirationDate = job.ExpirationDate;
+        if (updateExpirationDate)
+            tracked.ExpirationDate = job.ExpirationDate;
         tracked.Moderation ??= new ModerationInfo();
         tracked.Moderation.Status = job.Moderation!.Status;
         tracked.Moderation.Reason = job.Moderation.Reason;
