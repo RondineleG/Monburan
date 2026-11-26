@@ -64,7 +64,13 @@
                             <ul class="small mt-1">
                                 @foreach (var exp in snapshot.ExperienceHistory)
                                 {
-                                    <li><strong>@exp.Position</strong> — @exp.Company</li>
+                                    <li>
+                                        <strong>@exp.Position</strong> — @exp.Company
+                                        @if (!string.IsNullOrWhiteSpace(exp.Description))
+                                        {
+                                            <div class="resume-pre">@exp.Description</div>
+                                        }
+                                    </li>
                                 }
                             </ul>
                         </details>
@@ -76,7 +82,7 @@
                             <ul class="small mt-1">
                                 @foreach (var edu in snapshot.EducationHistory)
                                 {
-                                    <li>@edu.Course — @edu.Institution</li>
+                                    <li>@edu.Course — @edu.Institution (@edu.Level, @edu.Status)</li>
                                 }
                             </ul>
                         </details>
@@ -85,7 +91,14 @@
                     {
                         <details class="applicant-resume__details">
                             <summary>Habilidades (@snapshot.Skills.Count)</summary>
-                            <p class="small mt-1">@string.Join(" · ", snapshot.Skills.Select(s => s.Skill))</p>
+                            <p class="small mt-1">@string.Join(" · ", snapshot.Skills.Select(s => $"{s.Skill} ({s.Level})"))</p>
+                        </details>
+                    }
+                    @if (snapshot.Languages is { Count: > 0 })
+                    {
+                        <details class="applicant-resume__details">
+                            <summary>Idiomas (@snapshot.Languages.Count)</summary>
+                            <p class="small mt-1">@string.Join(" · ", snapshot.Languages.Select(l => $"{l.Language} ({l.Level})"))</p>
                         </details>
                     }
                 }
