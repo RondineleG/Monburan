@@ -182,18 +182,35 @@ public class JobRepository : IJobRepository
         tracked.Tags = entity.Tags;
         tracked.ContractType = entity.ContractType;
         tracked.ExpirationDate = entity.ExpirationDate;
-        // Encerramento é terminal: uma edição montada antes do encerramento não pode reabrir a vaga.
-        if (tracked.Status != EJobStatus.Closed)
-            tracked.Status = entity.Status;
         tracked.AdvertiserId = entity.AdvertiserId;
-        // Uma edição/expiração montada antes do encerramento traz o carimbo antigo; não pode apagar quem encerrou.
-        if (tracked.Status != EJobStatus.Closed || entity.Status == EJobStatus.Closed)
-            tracked.UpdatedBy = entity.UpdatedBy;
 
         CopyLocation(tracked.Location, entity.Location);
         CopySalary(tracked.Salary, entity.Salary);
 
         await context.SaveChangesAsync(cancellationToken);
+
+        // Status e autor da mudança ficam fora do SaveChanges principal e são gravados em uma única
+        // atualização condicional. Se o encerramento acontecer depois da leitura e antes desta escrita,
+        // a condição no banco impede que uma edição/expiração antiga reabra a vaga ou apague quem a encerrou.
+        var now = DateTime.UtcNow;
+        var changed = await context.Jobs
+            .Where(job => job.Id == entity.Id && job.Status != EJobStatus.Closed)
+            .ExecuteUpdateAsync(setters => setters
+                .SetProperty(job => job.Status, entity.Status)
+                .SetProperty(job => job.UpdatedBy, entity.UpdatedBy)
+                .SetProperty(job => job.UpdatedAt, now),
+                cancellationToken);
+
+        if (changed > 0)
+        {
+            tracked.Status = entity.Status;
+            tracked.UpdatedBy = entity.UpdatedBy;
+        }
+        else
+        {
+            await context.Entry(tracked).ReloadAsync(cancellationToken);
+        }
+
         return RequestResult<Job>.Success(tracked);
     }
 
