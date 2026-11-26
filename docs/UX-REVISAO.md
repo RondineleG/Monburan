@@ -298,4 +298,3 @@ candidato).
   campos é a mesma para qualquer idioma (`ResumeVariantFields`, usada pela web e pelo app).
 - **O que falta para entregar um idioma novo:** incluir o par código/nome em `ResumeVariantFields.Locales` (web e app
   passam a oferecer o botão), revisar os textos das telas para o idioma e repetir a captura e os testes de API.
-
