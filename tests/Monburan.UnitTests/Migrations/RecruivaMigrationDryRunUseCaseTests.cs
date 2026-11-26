@@ -1,3 +1,5 @@
+using System.Text.Json;
+
 using FluentAssertions;
 
 using Monburan.Core.Enums;
@@ -127,6 +129,18 @@ public sealed class RecruivaMigrationDryRunUseCaseTests
         var secondResult = await _useCase.ExecuteAsync(second);
 
         firstResult.Data!.Hashes["candidate"].Should().Be(secondResult.Data!.Hashes["candidate"]);
+    }
+
+    [Fact]
+    public void ExportedJson_DeserializesIdentityTokensInCamelCase()
+    {
+        const string json = """{"tenantId":"default","users":[{"sourceId":"user-1","userName":"cand@teste.com","email":"cand@teste.com","tokens":[{"loginProvider":"[Authenticator]","name":"AuthenticatorKey","value":"secret"}]}]}""";
+
+        var export = JsonSerializer.Deserialize<RecruivaMigrationExport>(json, new JsonSerializerOptions(JsonSerializerDefaults.Web));
+
+        export.Should().NotBeNull();
+        export!.Users.Should().ContainSingle();
+        export.Users[0].Tokens.Should().ContainSingle(token => token.LoginProvider == "[Authenticator]" && token.Name == "AuthenticatorKey" && token.Value == "secret");
     }
 
     private static RecruivaMigrationExport ValidExport() => new()
