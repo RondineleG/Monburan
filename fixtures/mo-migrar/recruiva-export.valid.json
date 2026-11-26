@@ -1,0 +1,24 @@
+{
+  "tenantId": "default",
+  "candidates": [
+    { "sourceId": "cand-1", "email": "candidata@example.test", "name": "Candidata Fixture", "canMigrate": true }
+  ],
+  "advertisers": [
+    { "sourceId": "adv-1", "email": "empresa@example.test", "name": "Empresa Fixture", "canMigrate": true }
+  ],
+  "jobs": [
+    { "sourceId": "job-1", "advertiserSourceId": "adv-1", "title": "Vaga Fixture", "status": "Active" }
+  ],
+  "resumes": [
+    { "sourceId": "res-1", "candidateSourceId": "cand-1", "title": "Currículo Fixture" }
+  ],
+  "files": [
+    { "sourceId": "file-1", "ownerType": "candidate", "ownerSourceId": "cand-1", "contentHash": "0123456789abcdef", "sizeBytes": 128, "canMigrate": true }
+  ],
+  "applications": [
+    { "sourceId": "app-1", "candidateSourceId": "cand-1", "jobSourceId": "job-1", "resumeSourceId": "res-1", "status": "Sent" }
+  ],
+  "transitions": [
+    { "sourceId": "transition-1", "applicationSourceId": "app-1", "status": "Sent", "occurredAtUtc": "2026-01-01T00:00:00Z" }
+  ]
+}
