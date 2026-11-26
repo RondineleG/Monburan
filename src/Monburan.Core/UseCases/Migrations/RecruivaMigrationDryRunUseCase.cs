@@ -27,6 +27,7 @@ public sealed class BuildRecruivaMigrationDryRunUseCase : IUseCase<RecruivaMigra
         AddDuplicateSourceIds(request.Resumes, "resume", problems);
         AddDuplicateSourceIds(request.Files, "file", problems);
         AddDuplicateSourceIds(request.Applications, "application", problems);
+        AddDuplicateSourceIds(request.Transitions, "transition", problems);
         AddEmailCollisions(request, problems);
         AddPermissionProblems(request, problems);
         AddReferenceProblems(request, problems);
@@ -90,11 +91,11 @@ public sealed class BuildRecruivaMigrationDryRunUseCase : IUseCase<RecruivaMigra
 
     private static void AddPermissionProblems(RecruivaMigrationExport request, List<RecruivaMigrationProblem> problems)
     {
-        foreach (var row in request.Candidates.Where(row => !row.CanMigrate))
+        foreach (var row in request.Candidates.Where(row => row.CanMigrate != true))
             problems.Add(new("permission", "candidate", row.SourceId, "Candidato sem permissão registrada para migração."));
-        foreach (var row in request.Advertisers.Where(row => !row.CanMigrate))
+        foreach (var row in request.Advertisers.Where(row => row.CanMigrate != true))
             problems.Add(new("permission", "advertiser", row.SourceId, "Empresa sem permissão registrada para migração."));
-        foreach (var row in request.Files.Where(row => !row.CanMigrate))
+        foreach (var row in request.Files.Where(row => row.CanMigrate != true))
             problems.Add(new("permission", "file", row.SourceId, "Arquivo sem direito de migração registrado."));
     }
 
@@ -112,6 +113,9 @@ public sealed class BuildRecruivaMigrationDryRunUseCase : IUseCase<RecruivaMigra
             problems.Add(new("orphan", "resume", resume.SourceId, "Currículo referencia candidato inexistente na exportação."));
         foreach (var application in request.Applications)
         {
+            var linkedResume = request.Resumes.FirstOrDefault(resume => resume.SourceId == application.ResumeSourceId);
+            if (linkedResume is not null && linkedResume.CandidateSourceId != application.CandidateSourceId)
+                problems.Add(new("collision", "application", application.SourceId, "Candidatura referencia currículo de outro candidato."));
             if (!candidates.Contains(application.CandidateSourceId))
                 problems.Add(new("orphan", "application", application.SourceId, "Candidatura referencia candidato inexistente."));
             if (!jobs.Contains(application.JobSourceId))
@@ -167,7 +171,7 @@ public sealed class BuildRecruivaMigrationDryRunUseCase : IUseCase<RecruivaMigra
     private static Guid DeterministicGuid(string tenant, string entity, string sourceId)
     {
         var bytes = SHA256.HashData(Encoding.UTF8.GetBytes($"{MapVersion}|{tenant}|{entity}|{sourceId}"))[..16];
-        bytes[6] = (byte)((bytes[6] & 0x0f) | 0x50);
+        bytes[7] = (byte)((bytes[7] & 0x0f) | 0x50);
         bytes[8] = (byte)((bytes[8] & 0x3f) | 0x80);
         return new Guid(bytes);
     }

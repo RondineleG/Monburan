@@ -36,7 +36,7 @@ public sealed class RecruivaMigrationDryRunUseCaseTests
         {
             Candidates = [new RecruivaCandidateExport { SourceId = "cand-1", Email = "cand@teste.com", Name = "Candidata", CanMigrate = false }],
             Jobs = [new RecruivaJobExport { SourceId = "job-1", AdvertiserSourceId = "empresa-sumida", Title = "Vaga", Status = "Active" }],
-            Files = [new RecruivaFileExport { SourceId = "file-1", OwnerType = "candidate", OwnerSourceId = "dono-sumido", ContentHash = "", SizeBytes = 0 }]
+            Files = [new RecruivaFileExport { SourceId = "file-1", OwnerType = "candidate", OwnerSourceId = "dono-sumido", ContentHash = "", SizeBytes = 0, CanMigrate = true }]
         };
         var originalCounts = export.Counts();
 
@@ -52,7 +52,7 @@ public sealed class RecruivaMigrationDryRunUseCaseTests
     {
         var export = ValidExport() with
         {
-            Files = [new RecruivaFileExport { SourceId = "file-adv", OwnerType = "advertiser", OwnerSourceId = "adv-1", SourceUrl = "/uploads/logo.png", ContentHash = "abc123", SizeBytes = 10 }]
+            Files = [new RecruivaFileExport { SourceId = "file-adv", OwnerType = "advertiser", OwnerSourceId = "adv-1", SourceUrl = "/uploads/logo.png", ContentHash = "abc123", SizeBytes = 10, CanMigrate = true }]
         };
 
         var result = await _useCase.ExecuteAsync(export);
@@ -69,8 +69,8 @@ public sealed class RecruivaMigrationDryRunUseCaseTests
         {
             Candidates =
             [
-                new RecruivaCandidateExport { SourceId = "cand-1", Email = "cand@teste.com", Name = "Uma" },
-                new RecruivaCandidateExport { SourceId = "cand-2", Email = "CAND@teste.com", Name = "Outra" }
+                new RecruivaCandidateExport { SourceId = "cand-1", Email = "cand@teste.com", Name = "Uma", CanMigrate = true },
+                new RecruivaCandidateExport { SourceId = "cand-2", Email = "CAND@teste.com", Name = "Outra", CanMigrate = true }
             ],
             Applications =
             [
@@ -86,14 +86,43 @@ public sealed class RecruivaMigrationDryRunUseCaseTests
         result.Data.Problems.Should().Contain(problem => problem.Kind == "collision" && problem.Entity == "application");
     }
 
+    [Fact]
+    public async Task DuplicateTransitionIds_MissingPermissionAndForeignResume_BlockConfirmation()
+    {
+        var valid = ValidExport();
+        var foreignResume = valid.Resumes[0] with { CandidateSourceId = "outro-candidato" };
+        var export = valid with
+        {
+            Candidates = [valid.Candidates[0] with { CanMigrate = null }],
+            Applications = [valid.Applications[0] with { ResumeSourceId = "res-1" }],
+            Resumes = [foreignResume],
+            Transitions = [valid.Transitions[0], valid.Transitions[0] with { OccurredAtUtc = valid.Transitions[0].OccurredAtUtc.AddMinutes(1) }]
+        };
+
+        var result = await _useCase.ExecuteAsync(export);
+
+        result.Data!.CanConfirm.Should().BeFalse();
+        result.Data.Problems.Should().Contain(problem => problem.Kind == "collision" && problem.Entity == "transition");
+        result.Data.Problems.Should().Contain(problem => problem.Kind == "permission" && problem.Entity == "candidate");
+        result.Data.Problems.Should().Contain(problem => problem.Kind == "collision" && problem.Entity == "application");
+    }
+
+    [Fact]
+    public async Task IdMap_UsesUuidVersionFiveInTextForm()
+    {
+        var result = await _useCase.ExecuteAsync(ValidExport());
+
+        result.Data!.IdMap.Values.Should().OnlyContain(id => id.ToString("D")[14] == '5');
+    }
+
     private static RecruivaMigrationExport ValidExport() => new()
     {
         TenantId = "default",
-        Candidates = [new RecruivaCandidateExport { SourceId = "cand-1", Email = "cand@teste.com", Name = "Candidata" }],
-        Advertisers = [new RecruivaAdvertiserExport { SourceId = "adv-1", Email = "empresa@teste.com", Name = "Empresa" }],
+        Candidates = [new RecruivaCandidateExport { SourceId = "cand-1", Email = "cand@teste.com", Name = "Candidata", CanMigrate = true }],
+        Advertisers = [new RecruivaAdvertiserExport { SourceId = "adv-1", Email = "empresa@teste.com", Name = "Empresa", CanMigrate = true }],
         Jobs = [new RecruivaJobExport { SourceId = "job-1", AdvertiserSourceId = "adv-1", Title = "Vaga", Status = "Active" }],
         Resumes = [new RecruivaResumeExport { SourceId = "res-1", CandidateSourceId = "cand-1", Title = "Currículo" }],
-        Files = [new RecruivaFileExport { SourceId = "file-1", OwnerType = "candidate", OwnerSourceId = "cand-1", ContentHash = "abc123", SizeBytes = 10 }],
+        Files = [new RecruivaFileExport { SourceId = "file-1", OwnerType = "candidate", OwnerSourceId = "cand-1", ContentHash = "abc123", SizeBytes = 10, CanMigrate = true }],
         Applications = [new RecruivaApplicationExport { SourceId = "app-1", CandidateSourceId = "cand-1", JobSourceId = "job-1", ResumeSourceId = "res-1", Status = "Sent" }],
         Transitions = [new RecruivaTransitionExport { SourceId = "tr-1", ApplicationSourceId = "app-1", Status = "Sent", OccurredAtUtc = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) }]
     };

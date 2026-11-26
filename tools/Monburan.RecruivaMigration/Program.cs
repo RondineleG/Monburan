@@ -34,6 +34,12 @@ if (result.Status != EResultStatus.Success || result.Data is null)
     return 1;
 }
 
+if (Path.GetFullPath(args[1]) == Path.GetFullPath(args[3]))
+{
+    Console.Error.WriteLine("A saída precisa ser diferente da exportação de entrada para não sobrescrever a origem.");
+    return 1;
+}
+
 var reportJson = JsonSerializer.Serialize(result.Data, jsonOptions);
 await File.WriteAllTextAsync(args[3], reportJson + Environment.NewLine);
 Console.WriteLine(result.Data.CanConfirm
