@@ -31,15 +31,17 @@ public static class RecruivaMigrationApplier
         var problems = dryRun.Problems.ToList();
         problems.AddRange(ValidateApplyShape(export));
         var files = new List<RecruivaMigrationFileResult>();
+        var databaseKey = string.Empty;
         if (problems.Count == 0)
         {
+            databaseKey = await DatabaseKeyAsync(context, cancellationToken);
             problems.AddRange(await TargetCollisionProblemsAsync(context, export, dryRun, cancellationToken));
             files.AddRange(await CopyFilesAsync(export, batch, uploadsSource, uploadsTarget, problems, cancellationToken));
         }
         if (problems.Count != 0)
         {
             CleanupNewFiles(files);
-            return Report(batch, false, dryRun, problems, files, await DatabaseKeyAsync(context, cancellationToken));
+            return Report(batch, false, dryRun, problems, files, databaseKey);
         }
 
         await using var transaction = context.Database.IsRelational() ? await context.Database.BeginTransactionAsync(cancellationToken) : null;
@@ -106,7 +108,7 @@ public static class RecruivaMigrationApplier
             }, row.CreatedAtUtc, null)));
             await context.SaveChangesAsync(cancellationToken);
             if (transaction is not null) await transaction.CommitAsync(cancellationToken);
-            return Report(batch, true, dryRun, [], files, await DatabaseKeyAsync(context, cancellationToken));
+            return Report(batch, true, dryRun, [], files, databaseKey);
         }
         catch
         {
