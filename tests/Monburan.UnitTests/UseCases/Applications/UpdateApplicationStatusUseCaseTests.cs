@@ -43,6 +43,7 @@ public class UpdateApplicationStatusUseCaseTests
             _applications,
             _history,
             notifications,
+            Substitute.For<ICurrentPrincipalAccessor>(),
             Substitute.For<ILogger<UpdateApplicationStatusUseCase>>());
     }
 

@@ -6,8 +6,10 @@ using Monburan.Core.Entities;
 using Monburan.Core.Enums;
 using Monburan.Core.Interfaces.Repositories;
 using Monburan.Core.Interfaces.Repositories.Base;
+using Monburan.Core.Interfaces.Services;
 using Monburan.Core.Interfaces.UseCases;
 using Monburan.Core.Requests;
+using Monburan.Core.Services;
 using Monburan.Core.UseCases.Notifications;
 using Monburan.Core.ValueObjects;
 
@@ -18,17 +20,20 @@ public class UpdateApplicationStatusUseCase : IUseCase<UpdateApplicationStatusRe
     private readonly IBaseRepository<Application> _applicationRepository;
     private readonly IApplicationStatusHistoryRepository _historyRepository;
     private readonly NotifyOnApplicationStatusChangedUseCase _notifyOnStatusChangedUseCase;
+    private readonly ICurrentPrincipalAccessor _currentPrincipal;
     private readonly ILogger<UpdateApplicationStatusUseCase> _logger;
 
     public UpdateApplicationStatusUseCase(
         IBaseRepository<Application> applicationRepository,
         IApplicationStatusHistoryRepository historyRepository,
         NotifyOnApplicationStatusChangedUseCase notifyOnStatusChangedUseCase,
+        ICurrentPrincipalAccessor currentPrincipal,
         ILogger<UpdateApplicationStatusUseCase> logger)
     {
         _applicationRepository = applicationRepository;
         _historyRepository = historyRepository;
         _notifyOnStatusChangedUseCase = notifyOnStatusChangedUseCase;
+        _currentPrincipal = currentPrincipal;
         _logger = logger;
     }
 
@@ -55,6 +60,7 @@ public class UpdateApplicationStatusUseCase : IUseCase<UpdateApplicationStatusRe
         }
 
         application.Status = request.NewStatus;
+        application.Version++;
 
         switch (request.NewStatus)
         {
@@ -95,7 +101,7 @@ public class UpdateApplicationStatusUseCase : IUseCase<UpdateApplicationStatusRe
     }
 
 
-    private static bool IsAllowedTransition(EApplicationStatus current, EApplicationStatus next) =>
+    public static bool IsAllowedTransition(EApplicationStatus current, EApplicationStatus next) =>
         current switch
         {
             EApplicationStatus.Sent => next is EApplicationStatus.Viewed or EApplicationStatus.Selected or EApplicationStatus.Rejected or EApplicationStatus.Archived,
@@ -117,6 +123,8 @@ public class UpdateApplicationStatusUseCase : IUseCase<UpdateApplicationStatusRe
                 Date = DateTime.UtcNow,
                 Note = note,
                 Responsible = responsible,
+                ActorUserId = AuthenticatedUserId.From(_currentPrincipal.User),
+                Version = await _historyRepository.GetLatestVersionAsync(application.Id.Value, cancellationToken) + 1,
                 TenantId = application.TenantId
             },
             cancellationToken);

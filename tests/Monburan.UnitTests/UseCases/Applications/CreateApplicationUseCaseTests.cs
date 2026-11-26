@@ -19,7 +19,7 @@ namespace Monburan.UnitTests.UseCases.Applications;
 
 public class CreateApplicationUseCaseTests
 {
-    private readonly IBaseRepository<Application> _applications = Substitute.For<IBaseRepository<Application>>();
+    private readonly IApplicationRepository _applications = Substitute.For<IApplicationRepository>();
     private readonly IBaseRepository<Resume> _resumes = Substitute.For<IBaseRepository<Resume>>();
     private readonly IJobRepository _jobs = Substitute.For<IJobRepository>();
     private readonly IApplicationStatusHistoryRepository _history = Substitute.For<IApplicationStatusHistoryRepository>();
@@ -46,6 +46,8 @@ public class CreateApplicationUseCaseTests
             Substitute.For<ILogger<NotifyOnApplicationCreatedUseCase>>());
 
         _currentPrincipal.User.Returns(new ClaimsPrincipal(new ClaimsIdentity("teste")));
+        _applications.FindByCandidateAndJobAsync(Arg.Any<Guid>(), Arg.Any<Guid>(), Arg.Any<CancellationToken>())
+            .Returns(RequestResult<Application?>.Success(null));
         _featureFlags.IsEnabledAsync(CreateApplicationUseCase.ResumeSnapshotFeature, Arg.Any<ClaimsPrincipal?>(), Arg.Any<CancellationToken>()).Returns(false);
         _useCase = new CreateApplicationUseCase(
             _applications,
@@ -266,6 +268,34 @@ public class CreateApplicationUseCaseTests
 
         result.Status.Should().Be(EResultStatus.Conflict);
         await _applications.DidNotReceive().CreateAsync(Arg.Any<Application>());
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_WhenReplayReferencesADeletedResume_RecoversTheExistingApplication()
+    {
+        var resumeId = Guid.NewGuid();
+        var existingId = Guid.NewGuid();
+        _applications.FindByCandidateAndJobAsync(_candidateId, _jobId, Arg.Any<CancellationToken>())
+            .Returns(RequestResult<Application?>.Success(new Application
+            {
+                Id = Id.Create(existingId),
+                CandidateId = Id.Create(_candidateId),
+                JobId = Id.Create(_jobId),
+                Status = EApplicationStatus.Sent,
+                ResumeId = resumeId,
+                Notes = "Tenho interesse.",
+                TenantId = "default"
+            }));
+        _resumes.GetByIdAsync(Arg.Any<Id>()).Returns(RequestResult<Resume>.EntityNotFound("Resume", resumeId, "Currículo não encontrado."));
+        var request = Request();
+        request.ResumeId = resumeId;
+
+        var result = await _useCase.ExecuteAsync(request);
+
+        result.Status.Should().Be(EResultStatus.Success);
+        result.Data!.Id.Should().Be(existingId);
+        result.Data.ExistingApplication.Should().BeTrue();
+        await _resumes.DidNotReceiveWithAnyArgs().GetByIdAsync(default!);
     }
 
 }

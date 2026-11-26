@@ -181,10 +181,22 @@
                 <textarea id="applicant-note" class="form-control" rows="2" @bind="statusNote" data-testid="applicant-note"></textarea>
             </div>
             <div class="d-flex flex-wrap gap-2">
-                <button type="button" class="btn btn-outline-secondary btn-sm" @onclick="() => ChangeStatusAsync(EApplicationStatus.Viewed)" disabled="@isUpdating" aria-busy="@(isUpdating ? "true" : null)" data-testid="application-viewed">Marcar como visualizada</button>
-                <button type="button" class="btn btn-primary btn-sm" @onclick="() => ChangeStatusAsync(EApplicationStatus.Selected)" disabled="@isUpdating" aria-busy="@(isUpdating ? "true" : null)" data-testid="application-select">Selecionar</button>
-                <button type="button" class="btn btn-outline-danger btn-sm" @onclick="() => ConfirmAndChangeAsync(EApplicationStatus.Rejected)" disabled="@isUpdating" data-testid="application-reject">Não selecionar</button>
-                <button type="button" class="btn btn-outline-secondary btn-sm" @onclick="() => ConfirmAndChangeAsync(EApplicationStatus.Archived)" disabled="@isUpdating" data-testid="application-archive">Arquivar</button>
+                @if (CanTransitionTo(EApplicationStatus.Viewed))
+                {
+                    <button type="button" class="btn btn-outline-secondary btn-sm" @onclick="() => ChangeStatusAsync(EApplicationStatus.Viewed)" disabled="@isUpdating" aria-busy="@(isUpdating ? "true" : null)" data-testid="application-viewed">Marcar como visualizada</button>
+                }
+                @if (CanTransitionTo(EApplicationStatus.Selected))
+                {
+                    <button type="button" class="btn btn-primary btn-sm" @onclick="() => ChangeStatusAsync(EApplicationStatus.Selected)" disabled="@isUpdating" aria-busy="@(isUpdating ? "true" : null)" data-testid="application-select">Selecionar</button>
+                }
+                @if (CanTransitionTo(EApplicationStatus.Rejected))
+                {
+                    <button type="button" class="btn btn-outline-danger btn-sm" @onclick="() => ConfirmAndChangeAsync(EApplicationStatus.Rejected)" disabled="@isUpdating" data-testid="application-reject">Não selecionar</button>
+                }
+                @if (CanTransitionTo(EApplicationStatus.Archived))
+                {
+                    <button type="button" class="btn btn-outline-secondary btn-sm" @onclick="() => ConfirmAndChangeAsync(EApplicationStatus.Archived)" disabled="@isUpdating" data-testid="application-archive">Arquivar</button>
+                }
             </div>
         </section>
 
@@ -310,6 +322,13 @@
     }
 
     // Não selecionar e arquivar tiram a candidatura do fluxo ativo: pedem confirmação com o nome da pessoa
+
+    private bool CanTransitionTo(EApplicationStatus target) =>
+        Application is not null
+        && Enum.TryParse<EApplicationStatus>(Application.Status, out var current)
+        && current != target
+        && UpdateApplicationStatusUseCase.IsAllowedTransition(current, target);
+
     private async Task ConfirmAndChangeAsync(EApplicationStatus newStatus)
     {
         if (Application is null || isUpdating)

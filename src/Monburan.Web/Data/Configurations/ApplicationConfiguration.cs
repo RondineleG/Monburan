@@ -33,6 +33,10 @@ public class ApplicationConfiguration : IEntityTypeConfiguration<Application>
         builder.Property(a => a.AppliedAt)
             .HasDefaultValueSql("now()");
 
+        builder.Property(a => a.Version)
+            .HasDefaultValue(1)
+            .IsConcurrencyToken();
+
         builder.HasOne(a => a.Candidate)
             .WithMany(c => c.Applications)
             .HasForeignKey(a => a.CandidateId)

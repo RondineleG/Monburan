@@ -9,4 +9,8 @@ public class ApplicationHistoryItemResponse
     public string? Note { get; set; }
 
     public string? Responsible { get; set; }
+
+    public string? ActorUserId { get; set; }
+
+    public int Version { get; set; }
 }

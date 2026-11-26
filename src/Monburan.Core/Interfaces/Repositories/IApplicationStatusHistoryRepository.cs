@@ -10,4 +10,7 @@ public interface IApplicationStatusHistoryRepository
 
     /// <summary>Linhas da candidatura, da mais antiga para a mais nova.</summary>
     Task<RequestResult<IEnumerable<ApplicationStatusHistory>>> ListByApplicationAsync(Guid applicationId, CancellationToken cancellationToken = default);
+
+    /// <summary>Maior versão já persistida da candidatura; zero quando ainda não há histórico.</summary>
+    Task<int> GetLatestVersionAsync(Guid applicationId, CancellationToken cancellationToken = default);
 }

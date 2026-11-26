@@ -718,6 +718,12 @@ namespace Monburan.Web.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
 
+                    b.Property<int>("Version")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(1);
+
                     b.Property<DateTime?>("ViewedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -748,6 +754,10 @@ namespace Monburan.Web.Migrations
                     b.Property<Guid>("Id")
                         .HasMaxLength(36)
                         .HasColumnType("uuid");
+
+                    b.Property<string>("ActorUserId")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
 
                     b.Property<Guid>("ApplicationId")
                         .HasColumnType("uuid");
@@ -804,10 +814,19 @@ namespace Monburan.Web.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
 
+                    b.Property<int>("Version")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(1);
+
                     b.HasKey("Id");
 
                     b.HasIndex("ApplicationId")
                         .HasDatabaseName("IX_ApplicationStatusHistory_ApplicationId");
+
+                    b.HasIndex("ApplicationId", "Version")
+                        .IsUnique()
+                        .HasDatabaseName("UX_ApplicationStatusHistory_ApplicationId_Version");
 
                     b.HasIndex("TenantId", "Id")
                         .IsUnique();

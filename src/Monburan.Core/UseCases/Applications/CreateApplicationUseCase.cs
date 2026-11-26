@@ -9,6 +9,7 @@ using Monburan.Core.Interfaces.Repositories.Base;
 using Monburan.Core.Interfaces.Services;
 using Monburan.Core.Interfaces.UseCases;
 using Monburan.Core.Requests;
+using Monburan.Core.Services;
 using Monburan.Core.UseCases.Notifications;
 using Monburan.Core.ValueObjects;
 
@@ -18,7 +19,7 @@ public class CreateApplicationUseCase : IUseCase<CreateApplicationRequest, Appli
 {
     public const string ResumeSnapshotFeature = "snapshot-curriculo-candidatura";
 
-    private readonly IBaseRepository<Application> _applicationRepository;
+    private readonly IApplicationRepository _applicationRepository;
     private readonly IJobRepository _jobRepository;
     private readonly IBaseRepository<Resume> _resumeRepository;
     private readonly IApplicationStatusHistoryRepository _historyRepository;
@@ -28,7 +29,7 @@ public class CreateApplicationUseCase : IUseCase<CreateApplicationRequest, Appli
     private readonly ILogger<CreateApplicationUseCase> _logger;
 
     public CreateApplicationUseCase(
-        IBaseRepository<Application> applicationRepository,
+        IApplicationRepository applicationRepository,
         IJobRepository jobRepository,
         IBaseRepository<Resume> resumeRepository,
         IApplicationStatusHistoryRepository historyRepository,
@@ -55,6 +56,22 @@ public class CreateApplicationUseCase : IUseCase<CreateApplicationRequest, Appli
             return RequestResult<ApplicationResponse>.EntityNotFound("Job", request.JobId, "Vaga não encontrada.");
 
         var job = jobResult.Data!;
+        var existingResult = await _applicationRepository.FindByCandidateAndJobAsync(request.CandidateId, request.JobId, cancellationToken);
+        if (existingResult.Status == EResultStatus.Success && existingResult.Data is not null)
+        {
+            var existing = existingResult.Data;
+            if (!existing.HasSamePayload(request.ResumeId, request.Notes))
+            {
+                return RequestResult<ApplicationResponse>.EntityAlreadyExists(
+                    "Application", $"{request.CandidateId}/{request.JobId}",
+                    "Você já se candidatou a esta vaga com outros dados.");
+            }
+
+            var recovered = MapToResponse(existing);
+            recovered.ExistingApplication = true;
+            return RequestResult<ApplicationResponse>.Success(recovered);
+        }
+
         if (job.Status != EJobStatus.Active)
             return RequestResult<ApplicationResponse>.WithConflict("Vaga não está mais ativa.");
 
@@ -106,7 +123,7 @@ public class CreateApplicationUseCase : IUseCase<CreateApplicationRequest, Appli
         }
 
         // Histórico de etapas (não bloqueante: a candidatura existe mesmo se o histórico falhar)
-        await TryWriteHistoryAsync(application, note: null, responsible: null);
+        await TryWriteHistoryAsync(application, note: null, responsible: null, cancellationToken);
 
         // Incrementar contador de aplicações da vaga — de forma atômica. Contar no código
         // (ler a vaga, somar, gravar a vaga inteira) perdia a contagem quando duas
@@ -143,6 +160,8 @@ public class CreateApplicationUseCase : IUseCase<CreateApplicationRequest, Appli
                 Date = DateTime.UtcNow,
                 Note = note,
                 Responsible = responsible,
+                ActorUserId = AuthenticatedUserId.From(_currentPrincipal.User),
+                Version = await _historyRepository.GetLatestVersionAsync(application.Id.Value, cancellationToken) + 1,
                 TenantId = application.TenantId
             },
             cancellationToken);

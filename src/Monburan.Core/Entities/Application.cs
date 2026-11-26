@@ -34,7 +34,14 @@ public class Application : BaseEntity
 
     public EApplicationStatus Status { get; set; } = EApplicationStatus.Sent;
 
+    /// <summary>Versão do estado da candidatura, usada para concorrência otimista e trilha do ATS.</summary>
+    public int Version { get; set; } = 1;
+
     public virtual ICollection<ApplicationStatusHistory> StatusHistory { get; set; } = [];
 
     public DateTime? ViewedAt { get; set; }
+
+    public bool HasSamePayload(Guid? resumeId, string? notes) =>
+        ResumeId == resumeId
+        && string.Equals(Notes ?? string.Empty, notes ?? string.Empty, StringComparison.Ordinal);
 }

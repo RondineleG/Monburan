@@ -8,7 +8,7 @@ Fatia pequena de M05 (candidatura e ATS): ao candidatar-se com currículo, a apl
 
 Também foi necessário carregar formação, experiências e idiomas no repositório de currículos para que o snapshot não fique incompleto, e ajustar o teste de migration histórica para inserir a candidatura antiga por SQL, pois o modelo atual agora conhece uma coluna inexistente no ponto intermediário da migration.
 
-Segunda fatia: candidatura passa a ser idempotente pela chave natural `CandidateId + JobId`. Repetir o mesmo payload (`ResumeId` e `Notes`) recupera a candidatura existente sem incrementar contador, notificar ou gravar histórico novo; repetir a mesma chave com payload divergente retorna 409. Vaga inativa também retorna 409. O ATS passa a rejeitar transições regressivas/terminais inválidas com 409 sem histórico novo, e repetição do mesmo status é no-op idempotente, sem update, notificação ou histórico duplicado.
+Segunda fatia: candidatura passa a ser idempotente pela chave natural `CandidateId + JobId`, inclusive quando o currículo anexado foi removido depois da candidatura original. Repetir o mesmo payload (`ResumeId` e `Notes`) recupera a candidatura existente sem incrementar contador, notificar ou gravar histórico novo; repetir a mesma chave com payload divergente retorna 409. Vaga inativa também retorna 409. O ATS passa a rejeitar transições regressivas/terminais inválidas com 409 sem histórico novo, e repetição do mesmo status é no-op idempotente, sem update, notificação ou histórico duplicado. Cada transição grava versão sequencial e identidade autenticada do executor; `Applications.Version` usa concorrência otimista para impedir que duas transições lidas da mesma versão se sobrescrevam. A gaveta do recrutador só oferece ações compatíveis com a transição vigente.
 
 ## Validação
 
@@ -29,6 +29,20 @@ dotnet test tests/Monburan.ApiTests/Monburan.ApiTests.csproj --configuration Rel
 ```
 
 A solução completa não é buildável nesta VM porque `Monburan.Mobile` exige workload `maui-android`; não foi instalado workload novo nem usado serviço externo.
+
+
+Validação dirigida da segunda revisão:
+
+```bash
+dotnet test tests/Monburan.UnitTests/Monburan.UnitTests.csproj --configuration Release --filter 'FullyQualifiedName~CreateApplicationUseCaseTests|FullyQualifiedName~UpdateApplicationStatusUseCaseTests' -v:q
+# 17 passed, 0 failed
+
+dotnet test tests/Monburan.IntegrationTests/Monburan.IntegrationTests.csproj --configuration Release --filter 'FullyQualifiedName~ApplicationRepositoryPostgresTests' -v:q
+# 7 passed, 0 failed; inclui concorrência otimista da transição
+
+dotnet test tests/Monburan.ApiTests/Monburan.ApiTests.csproj --configuration Release --filter 'FullyQualifiedName~ApplicationsApiTests|FullyQualifiedName~ApplicationHistoryApiTests' -v:q
+# 14 passed, 0 failed
+```
 
 ## Compatibilidade e rollback
 

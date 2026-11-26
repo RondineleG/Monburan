@@ -256,4 +256,37 @@ public class ApplicationRepositoryPostgresTests : IClassFixture<PostgresDatabase
             "a edição da empresa não pode apagar o que a administração gravou");
         job.Moderation.Reason.Should().Be("Vaga com informação indevida");
     }
+    [Fact]
+    public async Task UpdateAsync_WhenAnotherTransitionAlreadyCommitted_ReturnsConflict()
+    {
+        await using var context = _database.CreateContext();
+        await context.Database.MigrateAsync();
+        var (candidateId, jobId) = await SeedAsync(context);
+
+        var repository = new ApplicationRepository(_database.ContextFactory);
+        var created = await repository.CreateAsync(new Application
+        {
+            Id = Id.Create(Guid.NewGuid()),
+            CandidateId = Id.Create(candidateId),
+            JobId = Id.Create(jobId),
+            Status = EApplicationStatus.Sent,
+            TenantId = "default"
+        });
+        created.Status.Should().Be(Core.Enums.EResultStatus.Success);
+
+        var firstCopy = (await repository.GetByIdAsync(created.Data!.Id)).Data!;
+        var secondCopy = (await repository.GetByIdAsync(created.Data!.Id)).Data!;
+        firstCopy.Status = EApplicationStatus.Archived;
+        firstCopy.Version++;
+        secondCopy.Status = EApplicationStatus.Viewed;
+        secondCopy.Version++;
+
+        var first = await repository.UpdateAsync(firstCopy);
+        var second = await repository.UpdateAsync(secondCopy);
+
+        first.Status.Should().Be(Core.Enums.EResultStatus.Success);
+        second.Status.Should().Be(Core.Enums.EResultStatus.Conflict,
+            "a segunda operação leu a mesma versão e não pode reabrir/sobrescrever a transição já gravada");
+    }
+
 }

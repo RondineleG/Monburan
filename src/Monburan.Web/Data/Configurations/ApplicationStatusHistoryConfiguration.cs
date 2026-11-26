@@ -30,6 +30,12 @@ public class ApplicationStatusHistoryConfiguration : IEntityTypeConfiguration<Ap
         builder.Property(h => h.Responsible)
             .HasMaxLength(100);
 
+        builder.Property(h => h.ActorUserId)
+            .HasMaxLength(100);
+
+        builder.Property(h => h.Version)
+            .HasDefaultValue(1);
+
         builder.Property(h => h.Note)
             .HasMaxLength(1000);
 
@@ -47,5 +53,9 @@ public class ApplicationStatusHistoryConfiguration : IEntityTypeConfiguration<Ap
 
         builder.HasIndex(h => h.ApplicationId)
             .HasDatabaseName("IX_ApplicationStatusHistory_ApplicationId");
+
+        builder.HasIndex(h => new { h.ApplicationId, h.Version })
+            .IsUnique()
+            .HasDatabaseName("UX_ApplicationStatusHistory_ApplicationId_Version");
     }
 }

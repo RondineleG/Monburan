@@ -57,8 +57,7 @@ public class ApplicationRepository : IApplicationRepository
                 "Você já se candidatou a esta vaga com outros dados.");
 
     private static bool SamePayload(Application existing, Application requested) =>
-        existing.ResumeId == requested.ResumeId
-        && string.Equals(existing.Notes ?? string.Empty, requested.Notes ?? string.Empty, StringComparison.Ordinal);
+        existing.HasSamePayload(requested.ResumeId, requested.Notes);
 
     public async Task<RequestResult<Application>> DeleteAsync(Id id, CancellationToken cancellationToken = default)
     {
@@ -107,9 +106,19 @@ public class ApplicationRepository : IApplicationRepository
     public async Task<RequestResult<Application>> UpdateAsync(Application entity, CancellationToken cancellationToken = default)
     {
         await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);
-        context.Applications.Update(entity);
-        await context.SaveChangesAsync(cancellationToken);
-        return RequestResult<Application>.Success(entity);
+        context.Applications.Attach(entity);
+        var entry = context.Entry(entity);
+        entry.Property(application => application.Version).OriginalValue = entity.Version - 1;
+        entry.State = EntityState.Modified;
+        try
+        {
+            await context.SaveChangesAsync(cancellationToken);
+            return RequestResult<Application>.Success(entity);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            return RequestResult<Application>.WithConflict("A candidatura foi atualizada por outra operação. Recarregue antes de tentar novamente.");
+        }
     }
 
     public async Task<RequestResult<IEnumerable<Application>>> ListByCandidateAsync(Guid candidateId, int page = 1, int size = 0, CancellationToken cancellationToken = default)

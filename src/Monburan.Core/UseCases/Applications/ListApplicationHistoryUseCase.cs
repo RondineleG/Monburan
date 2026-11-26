@@ -49,7 +49,9 @@ public class ListApplicationHistoryUseCase : IUseCase<ListApplicationHistoryRequ
                 Status = item.Status.ToString(),
                 Date = item.Date,
                 Note = item.Note,
-                Responsible = item.Responsible
+                Responsible = item.Responsible,
+                ActorUserId = item.ActorUserId,
+                Version = item.Version
             }).ToList());
     }
 

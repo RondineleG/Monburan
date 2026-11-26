@@ -16,5 +16,11 @@ public class ApplicationStatusHistory : BaseEntity
 
     public string? Responsible { get; set; }
 
+    /// <summary>Identidade autenticada que executou a transição.</summary>
+    public string? ActorUserId { get; set; }
+
+    /// <summary>Versão sequencial do estado da candidatura; a candidatura inicial é a versão 1.</summary>
+    public int Version { get; set; } = 1;
+
     public EApplicationStatus Status { get; set; }
 }
