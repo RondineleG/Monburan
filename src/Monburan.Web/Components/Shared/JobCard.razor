@@ -60,7 +60,7 @@
     }
 
     <div class="job-card__foot">
-        <span>Publicada @JobDisplay.Age(Job.CreatedAt)</span>
+        <span>Publicada @JobDisplay.Age(Job.PublishedAt ?? Job.CreatedAt)</span>
         @if (closing is not null)
         {
             <span class="job-card__closing">@closing</span>
