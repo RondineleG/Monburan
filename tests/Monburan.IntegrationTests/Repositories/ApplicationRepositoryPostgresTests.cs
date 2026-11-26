@@ -289,4 +289,54 @@ public class ApplicationRepositoryPostgresTests : IClassFixture<PostgresDatabase
             "a segunda operação leu a mesma versão e não pode reabrir/sobrescrever a transição já gravada");
     }
 
+    [Fact]
+    public async Task UpdateStatusWithHistoryAsync_WhenConcurrentUpdateLoses_WritesNeitherStatusNorHistory()
+    {
+        await using var context = _database.CreateContext();
+        await context.Database.MigrateAsync();
+        var (candidateId, jobId) = await SeedAsync(context);
+
+        var repository = new ApplicationRepository(_database.ContextFactory);
+        var created = await repository.CreateAsync(new Application
+        {
+            Id = Id.Create(Guid.NewGuid()),
+            CandidateId = Id.Create(candidateId),
+            JobId = Id.Create(jobId),
+            Status = EApplicationStatus.Sent,
+            TenantId = "default"
+        });
+        created.Status.Should().Be(Core.Enums.EResultStatus.Success);
+
+        var firstCopy = (await repository.GetByIdAsync(created.Data!.Id)).Data!;
+        var secondCopy = (await repository.GetByIdAsync(created.Data!.Id)).Data!;
+        firstCopy.Status = EApplicationStatus.Archived;
+        firstCopy.Version++;
+        secondCopy.Status = EApplicationStatus.Viewed;
+        secondCopy.Version++;
+
+        static ApplicationStatusHistory HistoryFor(Application application) => new()
+        {
+            Id = Id.Create(Guid.NewGuid()),
+            ApplicationId = application.Id,
+            Status = application.Status,
+            Version = application.Version,
+            Date = DateTime.UtcNow,
+            TenantId = application.TenantId
+        };
+
+        var first = await repository.UpdateStatusWithHistoryAsync(firstCopy, HistoryFor(firstCopy));
+        var second = await repository.UpdateStatusWithHistoryAsync(secondCopy, HistoryFor(secondCopy));
+
+        first.Status.Should().Be(Core.Enums.EResultStatus.Success);
+        second.Status.Should().Be(Core.Enums.EResultStatus.Conflict);
+
+        await using var check = _database.CreateContext();
+        var stored = await check.Applications.AsNoTracking().SingleAsync(item => item.Id == created.Data!.Id);
+        stored.Status.Should().Be(EApplicationStatus.Archived);
+        var history = await check.ApplicationStatusHistory.AsNoTracking().Where(item => item.ApplicationId == created.Data!.Id).ToListAsync();
+        history.Should().ContainSingle();
+        history[0].Version.Should().Be(2);
+        history[0].Status.Should().Be(EApplicationStatus.Archived);
+    }
+
 }

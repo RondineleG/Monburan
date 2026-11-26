@@ -5,7 +5,6 @@ using Monburan.Core.DTOs.Response;
 using Monburan.Core.Entities;
 using Monburan.Core.Enums;
 using Monburan.Core.Interfaces.Repositories;
-using Monburan.Core.Interfaces.Repositories.Base;
 using Monburan.Core.Interfaces.Services;
 using Monburan.Core.Interfaces.UseCases;
 using Monburan.Core.Requests;
@@ -17,21 +16,18 @@ namespace Monburan.Core.UseCases.Applications;
 
 public class UpdateApplicationStatusUseCase : IUseCase<UpdateApplicationStatusRequest, ApplicationResponse>
 {
-    private readonly IBaseRepository<Application> _applicationRepository;
-    private readonly IApplicationStatusHistoryRepository _historyRepository;
+    private readonly IApplicationRepository _applicationRepository;
     private readonly NotifyOnApplicationStatusChangedUseCase _notifyOnStatusChangedUseCase;
     private readonly ICurrentPrincipalAccessor _currentPrincipal;
     private readonly ILogger<UpdateApplicationStatusUseCase> _logger;
 
     public UpdateApplicationStatusUseCase(
-        IBaseRepository<Application> applicationRepository,
-        IApplicationStatusHistoryRepository historyRepository,
+        IApplicationRepository applicationRepository,
         NotifyOnApplicationStatusChangedUseCase notifyOnStatusChangedUseCase,
         ICurrentPrincipalAccessor currentPrincipal,
         ILogger<UpdateApplicationStatusUseCase> logger)
     {
         _applicationRepository = applicationRepository;
-        _historyRepository = historyRepository;
         _notifyOnStatusChangedUseCase = notifyOnStatusChangedUseCase;
         _currentPrincipal = currentPrincipal;
         _logger = logger;
@@ -75,13 +71,22 @@ public class UpdateApplicationStatusUseCase : IUseCase<UpdateApplicationStatusRe
                 break;
         }
 
-        var updateResult = await _applicationRepository.UpdateAsync(application, cancellationToken);
+        var historyEntry = new ApplicationStatusHistory
+        {
+            Id = Id.Create(Guid.NewGuid()),
+            ApplicationId = application.Id,
+            Status = application.Status,
+            Date = DateTime.UtcNow,
+            Note = request.Notes,
+            Responsible = request.Responsible,
+            ActorUserId = AuthenticatedUserId.From(_currentPrincipal.User),
+            Version = application.Version,
+            TenantId = application.TenantId
+        };
+
+        var updateResult = await _applicationRepository.UpdateStatusWithHistoryAsync(application, historyEntry, cancellationToken);
         if (updateResult.Status != EResultStatus.Success)
             return RequestResult<ApplicationResponse>.FromResult(updateResult);
-
-        // Histórico só registra mudança real de etapa (não bloqueante: a mudança já está gravada)
-        if (oldStatus != application.Status)
-            await TryWriteHistoryAsync(application, request.Notes, request.Responsible, cancellationToken);
 
         // Enviar notificação por email para o candidato (não bloqueante)
         try
@@ -109,35 +114,6 @@ public class UpdateApplicationStatusUseCase : IUseCase<UpdateApplicationStatusRe
             EApplicationStatus.Selected or EApplicationStatus.Rejected => next is EApplicationStatus.Archived,
             _ => false
         };
-
-    // Falha na gravação do histórico fica no log: a trilha é um extra e não pode derrubar a mudança de etapa
-    private async Task TryWriteHistoryAsync(Application application, string? note, string? responsible, CancellationToken cancellationToken = default)
-    {
-        try
-        {
-            var historyResult = await _historyRepository.CreateAsync(new ApplicationStatusHistory
-            {
-                Id = Id.Create(Guid.NewGuid()),
-                ApplicationId = application.Id,
-                Status = application.Status,
-                Date = DateTime.UtcNow,
-                Note = note,
-                Responsible = responsible,
-                ActorUserId = AuthenticatedUserId.From(_currentPrincipal.User),
-                Version = application.Version,
-                TenantId = application.TenantId
-            },
-            cancellationToken);
-
-            if (historyResult.Status != EResultStatus.Success)
-                _logger.LogWarning("Histórico da candidatura {ApplicationId} não foi gravado: {Detail}",
-                    application.Id.Value, historyResult.Message);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Falha ao gravar o histórico da candidatura {ApplicationId}", application.Id.Value);
-        }
-    }
 
     private static ApplicationResponse MapToResponse(Application app) => new()
     {

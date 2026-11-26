@@ -1,5 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 
+using Npgsql;
+
 using Monburan.Core.Entities;
 using Monburan.Core.Interfaces.Repositories;
 using Monburan.Core.Requests;
@@ -106,10 +108,7 @@ public class ApplicationRepository : IApplicationRepository
     public async Task<RequestResult<Application>> UpdateAsync(Application entity, CancellationToken cancellationToken = default)
     {
         await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);
-        context.Applications.Attach(entity);
-        var entry = context.Entry(entity);
-        entry.Property(application => application.Version).OriginalValue = entity.Version - 1;
-        entry.State = EntityState.Modified;
+        AttachForOptimisticUpdate(context, entity);
         try
         {
             await context.SaveChangesAsync(cancellationToken);
@@ -117,9 +116,40 @@ public class ApplicationRepository : IApplicationRepository
         }
         catch (DbUpdateConcurrencyException)
         {
-            return RequestResult<Application>.WithConflict("A candidatura foi atualizada por outra operação. Recarregue antes de tentar novamente.");
+            return ConcurrencyConflict();
         }
     }
+
+    public async Task<RequestResult<Application>> UpdateStatusWithHistoryAsync(Application application, ApplicationStatusHistory historyEntry, CancellationToken cancellationToken = default)
+    {
+        await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);
+        AttachForOptimisticUpdate(context, application);
+        context.ApplicationStatusHistory.Add(historyEntry);
+        try
+        {
+            await context.SaveChangesAsync(cancellationToken);
+            return RequestResult<Application>.Success(application);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            return ConcurrencyConflict();
+        }
+        catch (DbUpdateException ex) when (ex.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation })
+        {
+            return ConcurrencyConflict();
+        }
+    }
+
+    private static void AttachForOptimisticUpdate(ApplicationDbContext context, Application entity)
+    {
+        context.Applications.Attach(entity);
+        var entry = context.Entry(entity);
+        entry.Property(application => application.Version).OriginalValue = entity.Version - 1;
+        entry.State = EntityState.Modified;
+    }
+
+    private static RequestResult<Application> ConcurrencyConflict() =>
+        RequestResult<Application>.WithConflict("A candidatura foi atualizada por outra operação. Recarregue antes de tentar novamente.");
 
     public async Task<RequestResult<IEnumerable<Application>>> ListByCandidateAsync(Guid candidateId, int page = 1, int size = 0, CancellationToken cancellationToken = default)
     {
