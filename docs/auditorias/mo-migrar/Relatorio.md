@@ -39,6 +39,6 @@ dotnet test tests/Recruiva.IntegrationTests/Recruiva.IntegrationTests.csproj --c
 
 ## Limites desta fatia
 
-- O corte reversível agora tem ensaio PostgreSQL descartável coberto por teste: aplica 7 registros, copia arquivo com hash e rollback remove os 7 registros e o arquivo copiado. Contas Identity ligadas aos perfis entram no recorte; `MigrationBatchId` marca contas importadas para rollback seguro. Vínculo conta↔perfil após troca de e-mail e estratégia de 2FA permanecem decisões operacionais abertas registradas no PR do Recruiva.
+- O corte reversível agora tem ensaio PostgreSQL descartável coberto por teste: aplica 7 registros, copia arquivo com hash e rollback remove os 7 registros e o arquivo copiado. Contas Identity ligadas aos perfis entram no recorte; `MigrationBatchId` marca contas importadas para rollback seguro. Tokens Identity das contas exportadas (autenticador/códigos) são preservados no artefato protegido e removidos no rollback junto do usuário. O vínculo conta↔perfil após troca de e-mail permanece decisão operacional aberta registrada no PR do Recruiva.
 - O exportador não adivinha arquivos órfãos em disco: só exporta arquivos referenciados por entidades. Currículos enviados sem referência persistente no banco do Recruiva precisarão de decisão/mapeamento adicional.
 - Nenhum dado real ou produção foi usado.
