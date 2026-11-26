@@ -1,10 +1,11 @@
 {
-  "diff_check": "warnings",
+  "diff_check": "pass",
   "integrated": [
     {
       "branch": "feat/integracao-himarshall-vagas-int",
       "action": "merge",
       "result": "integrated"
     }
-  ]
+  ],
+  "post_cleanup_diff_check": "pass"
 }

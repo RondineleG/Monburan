@@ -40,4 +40,4 @@ Critério: consolidar apenas conteúdo único, ainda não mergeado e com merge l
 
 - `feat/integracao-himarshall-vagas-int`: merge → integrated
 
-`git diff --check main...HEAD`: warnings
+`git diff --check main...HEAD`: pass após remoção de linhas em branco no fim de documentos
