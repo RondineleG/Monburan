@@ -50,7 +50,7 @@ public interface IJobRepository : IBaseRepository<Job>
     Task<RequestResult<IEnumerable<Job>>> ListActiveForRecommendationsAsync(CancellationToken cancellationToken = default);
 
     /// <summary>As vagas ativas e não expiradas mais recentes, limitadas no banco — ranking básico sem personalização.</summary>
-    Task<RequestResult<IEnumerable<Job>>> ListRecentForRecommendationsAsync(int take, CancellationToken cancellationToken = default);
+    Task<RequestResult<IEnumerable<Job>>> ListRecentForRecommendationsAsync(int take, IReadOnlyCollection<Id> excludedJobIds, CancellationToken cancellationToken = default);
 
     /// <summary>Incrementa o contador de visualizações de forma atômica. <c>false</c> quando a vaga não existe.</summary>
     Task<RequestResult<bool>> IncrementViewsAsync(Guid jobId, CancellationToken cancellationToken = default);

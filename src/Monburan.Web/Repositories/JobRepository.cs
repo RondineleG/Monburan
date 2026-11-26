@@ -449,10 +449,14 @@ public class JobRepository : IJobRepository
         return RequestResult<IEnumerable<Job>>.Success(jobs);
     }
 
-    public async Task<RequestResult<IEnumerable<Job>>> ListRecentForRecommendationsAsync(int take, CancellationToken cancellationToken = default)
+    public async Task<RequestResult<IEnumerable<Job>>> ListRecentForRecommendationsAsync(int take, IReadOnlyCollection<Id> excludedJobIds, CancellationToken cancellationToken = default)
     {
         await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);
-        var jobs = await ActiveRecommendationsQuery(context)
+        var query = ActiveRecommendationsQuery(context);
+        if (excludedJobIds.Count > 0)
+            query = query.Where(job => !excludedJobIds.Contains(job.Id));
+
+        var jobs = await query
             .Take(take)
             .ToListAsync(cancellationToken);
 

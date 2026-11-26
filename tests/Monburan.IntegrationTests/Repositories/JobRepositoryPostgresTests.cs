@@ -124,4 +124,20 @@ public class JobRepositoryPostgresTests : IClassFixture<PostgresDatabase>
 
         result.Data!.Data.Select(job => job.Id.Value).Should().BeEquivalentTo([recent]);
     }
+    [Fact]
+    public async Task ListRecentForRecommendationsAsync_ExcludesJobsBeforeLimiting()
+    {
+        await using var context = _database.CreateContext();
+        await context.Database.MigrateAsync();
+        var advertiserId = await SeedAdvertiserAsync(context);
+        var older = await SeedJobAsync(context, advertiserId);
+        var newer = await SeedJobAsync(context, advertiserId);
+        var repository = new JobRepository(_database.ContextFactory);
+
+        var result = await repository.ListRecentForRecommendationsAsync(1, [Id.Create(newer)]);
+
+        result.Status.Should().Be(Core.Enums.EResultStatus.Success);
+        result.Data!.Select(job => job.Id.Value).Should().BeEquivalentTo([older]);
+    }
+
 }

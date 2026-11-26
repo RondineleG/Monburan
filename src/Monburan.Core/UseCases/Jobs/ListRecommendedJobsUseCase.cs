@@ -65,17 +65,18 @@ public class ListRecommendedJobsUseCase : IUseCase<Guid, ListJobsResponse>
         if (!hasRecommendationInput && !explain)
             return RequestResult<ListJobsResponse>.Success(EmptyResponse());
 
-        var jobsResult = hasRecommendationInput
-            ? await _jobRepository.ListActiveForRecommendationsAsync(cancellationToken)
-            : await _jobRepository.ListRecentForRecommendationsAsync(MaxResults, cancellationToken);
-        if (jobsResult.Status != EResultStatus.Success || jobsResult.Data is null)
-            return RequestResult<ListJobsResponse>.FromResult(jobsResult);
-
         var applicationsResult = await _applications.ListByCandidateAsync(request, cancellationToken: cancellationToken);
         if (applicationsResult.Status != EResultStatus.Success || applicationsResult.Data is null)
             return RequestResult<ListJobsResponse>.FromResult(applicationsResult);
 
         var appliedJobIds = applicationsResult.Data.Select(application => application.JobId.Value).ToHashSet();
+        var appliedJobKeys = applicationsResult.Data.Select(application => application.JobId).ToList();
+
+        var jobsResult = hasRecommendationInput
+            ? await _jobRepository.ListActiveForRecommendationsAsync(cancellationToken)
+            : await _jobRepository.ListRecentForRecommendationsAsync(MaxResults, appliedJobKeys, cancellationToken);
+        if (jobsResult.Status != EResultStatus.Success || jobsResult.Data is null)
+            return RequestResult<ListJobsResponse>.FromResult(jobsResult);
 
         var candidates = jobsResult.Data
             .Where(job => !appliedJobIds.Contains(job.Id.Value))

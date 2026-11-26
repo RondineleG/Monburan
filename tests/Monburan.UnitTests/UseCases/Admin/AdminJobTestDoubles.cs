@@ -107,9 +107,9 @@ internal sealed class FakeJobRepository : IJobRepository
         Task.FromResult(RequestResult<IEnumerable<Job>>.Success(
             _jobs.Where(job => !job.IsDeleted && job.Status == EJobStatus.Active).ToList()));
 
-    public Task<RequestResult<IEnumerable<Job>>> ListRecentForRecommendationsAsync(int take, CancellationToken cancellationToken = default) =>
+    public Task<RequestResult<IEnumerable<Job>>> ListRecentForRecommendationsAsync(int take, IReadOnlyCollection<Id> excludedJobIds, CancellationToken cancellationToken = default) =>
         Task.FromResult(RequestResult<IEnumerable<Job>>.Success(
-            _jobs.Where(job => !job.IsDeleted && job.Status == EJobStatus.Active)
+            _jobs.Where(job => !job.IsDeleted && job.Status == EJobStatus.Active && !excludedJobIds.Contains(job.Id))
                 .OrderByDescending(job => job.CreatedAt)
                 .Take(take)
                 .ToList()));

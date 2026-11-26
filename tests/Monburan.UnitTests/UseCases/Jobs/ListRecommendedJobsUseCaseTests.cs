@@ -28,7 +28,7 @@ public class ListRecommendedJobsUseCaseTests
         _resumes.GetActiveWithSkillsAsync(_candidateId).Returns(RequestResult<Resume?>.Success(null));
         _applications.ListByCandidateAsync(_candidateId)
             .Returns(RequestResult<IEnumerable<Application>>.Success([]));
-        _jobs.ListRecentForRecommendationsAsync(Arg.Any<int>(), Arg.Any<CancellationToken>())
+        _jobs.ListRecentForRecommendationsAsync(Arg.Any<int>(), Arg.Any<IReadOnlyCollection<Id>>(), Arg.Any<CancellationToken>())
             .Returns(RequestResult<IEnumerable<Job>>.Success([]));
 
         _useCase = new ListRecommendedJobsUseCase(
@@ -91,7 +91,7 @@ public class ListRecommendedJobsUseCaseTests
     private void ReturnsJobs(params Job[] jobs)
     {
         _jobs.ListActiveForRecommendationsAsync().Returns(RequestResult<IEnumerable<Job>>.Success(jobs));
-        _jobs.ListRecentForRecommendationsAsync(Arg.Any<int>(), Arg.Any<CancellationToken>())
+        _jobs.ListRecentForRecommendationsAsync(Arg.Any<int>(), Arg.Any<IReadOnlyCollection<Id>>(), Arg.Any<CancellationToken>())
             .Returns(RequestResult<IEnumerable<Job>>.Success(jobs));
     }
 
@@ -114,7 +114,7 @@ public class ListRecommendedJobsUseCaseTests
 
         result.Status.Should().Be(EResultStatus.Success);
         result.Data!.Jobs.Select(job => job.Title).Should().ContainInOrder("Vaga recente", "Vaga antiga");
-        await _jobs.Received(1).ListRecentForRecommendationsAsync(ListRecommendedJobsUseCase.MaxResults, Arg.Any<CancellationToken>());
+        await _jobs.Received(1).ListRecentForRecommendationsAsync(ListRecommendedJobsUseCase.MaxResults, Arg.Any<IReadOnlyCollection<Id>>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -127,7 +127,7 @@ public class ListRecommendedJobsUseCaseTests
         result.Status.Should().Be(EResultStatus.Success);
         result.Data!.Jobs.Should().BeEmpty();
         await _jobs.DidNotReceiveWithAnyArgs().ListActiveForRecommendationsAsync();
-        await _jobs.DidNotReceiveWithAnyArgs().ListRecentForRecommendationsAsync(default, default);
+        await _jobs.DidNotReceiveWithAnyArgs().ListRecentForRecommendationsAsync(default, default!, default);
     }
 
     [Fact]
