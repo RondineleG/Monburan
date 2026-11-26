@@ -78,7 +78,6 @@ public static class IntegrationEndpoints
             return await tokens.RevokeAsync(id, userId, cancellationToken) ? Results.NoContent() : Results.NotFound();
         })
         .RequireAuthorization("ApiBearer")
-        .RequireFeature(Feature)
         .WithSummary("Revoga token de integração do titular");
 
         group.MapGet("/jobs", async (
@@ -96,7 +95,7 @@ public static class IntegrationEndpoints
             bool? isRemote = null) =>
         {
             var header = http.Request.Headers.Authorization.ToString();
-            var secret = header.StartsWith("Bearer ", StringComparison.Ordinal) ? header["Bearer ".Length..].Trim() : null;
+            var secret = header.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase) ? header["Bearer ".Length..].Trim() : null;
             var token = await tokens.ValidateAsync(secret, IntegrationTokenService.JobsScope, cancellationToken);
             if (token is null)
                 return Results.Problem(statusCode: StatusCodes.Status401Unauthorized, title: "Token de integração inválido, expirado ou revogado");
@@ -108,7 +107,7 @@ public static class IntegrationEndpoints
             if (!holderActive)
                 return Results.Problem(statusCode: StatusCodes.Status403Forbidden, title: "Titular do vínculo não possui conta e perfil de candidato ativos");
 
-            var principal = IntegrationPrincipal(token.UserId);
+            var principal = await IntegrationPrincipalAsync(context, token.UserId, cancellationToken);
             if (!await flags.IsEnabledAsync(Feature, principal, cancellationToken))
                 return Results.NotFound();
 
@@ -151,12 +150,22 @@ public static class IntegrationEndpoints
         return group;
     }
 
-    private static ClaimsPrincipal IntegrationPrincipal(Guid userId) =>
-        new(new ClaimsIdentity(
-        [
-            new Claim(ClaimTypes.NameIdentifier, userId.ToString("D")),
-            new Claim("user_type", "candidate")
-        ], "IntegrationToken"));
+    private static async Task<ClaimsPrincipal> IntegrationPrincipalAsync(
+        ApplicationDbContext context, Guid userId, CancellationToken cancellationToken)
+    {
+        var roleNames = await (
+            from userRole in context.UserRoles.AsNoTracking()
+            join role in context.Roles.AsNoTracking() on userRole.RoleId equals role.Id
+            where userRole.UserId == userId && role.Name != null
+            select role.Name!).ToArrayAsync(cancellationToken);
+        var claims = new List<Claim>
+        {
+            new(ClaimTypes.NameIdentifier, userId.ToString("D")),
+            new("user_type", "candidate")
+        };
+        claims.AddRange(roleNames.Select(role => new Claim(ClaimTypes.Role, role)));
+        return new ClaimsPrincipal(new ClaimsIdentity(claims, "IntegrationToken"));
+    }
 
     private static IntegrationTokenResponse ToResponse(IntegrationToken token, bool includeToken, string? secret = null) =>
         new()
