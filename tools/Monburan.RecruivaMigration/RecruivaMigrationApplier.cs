@@ -120,7 +120,9 @@ public static class RecruivaMigrationApplier
     {
         if (!applyReport.Applied)
             throw new InvalidOperationException("Relatório não representa um lote aplicado; rollback recusado.");
-        if (applyReport.DatabaseKey is not null && applyReport.DatabaseKey != DatabaseKey(context))
+        if (string.IsNullOrWhiteSpace(applyReport.DatabaseKey))
+            throw new InvalidOperationException("Relatório sem identificação do banco; rollback recusado antes de tocar em registros ou arquivos.");
+        if (applyReport.DatabaseKey != DatabaseKey(context))
             throw new InvalidOperationException("Relatório pertence a outro banco; rollback recusado antes de tocar em registros ou arquivos.");
         await using var transaction = context.Database.IsRelational() ? await context.Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken) : null;
         await GuardPostMigrationDependenciesAsync(context, applyReport, cancellationToken);
@@ -191,7 +193,12 @@ public static class RecruivaMigrationApplier
     {
         var problems = new List<RecruivaMigrationProblem>();
         foreach (var user in export.Users)
-            if (await context.Users.AnyAsync(row => row.NormalizedEmail == user.NormalizedEmail || row.Email == user.Email, cancellationToken)) problems.Add(new("collision", "user", user.SourceId, "E-mail de conta já existe no destino."));
+        {
+            var normalizedEmail = user.NormalizedEmail ?? user.Email.Trim().ToUpperInvariant();
+            var normalizedUserName = user.NormalizedUserName ?? user.UserName.Trim().ToUpperInvariant();
+            if (await context.Users.AnyAsync(row => row.NormalizedEmail == normalizedEmail || row.NormalizedUserName == normalizedUserName, cancellationToken))
+                problems.Add(new("collision", "user", user.SourceId, "Conta normalizada já existe no destino."));
+        }
         foreach (var candidate in export.Candidates)
             if (await context.Candidates.AnyAsync(row => row.Email == candidate.Email, cancellationToken)) problems.Add(new("collision", "candidate", candidate.SourceId, "E-mail já existe no destino."));
         foreach (var advertiser in export.Advertisers)

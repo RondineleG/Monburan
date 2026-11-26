@@ -116,7 +116,7 @@ public sealed class RecruivaMigrationDryRunUseCaseTests
         var user = new RecruivaUserExport
         {
             SourceId = "user-1", UserName = "cand@teste.com", Email = "cand@teste.com", CanMigrate = true,
-            Tokens = [new() { LoginProvider = "[Authenticator]", Name = "AuthenticatorKey" }, new() { LoginProvider = "[Authenticator]", Name = "AuthenticatorKey" }]
+            Tokens = [new() { LoginProvider = "Authenticator", Name = "AuthenticatorKey" }, new() { LoginProvider = "Authenticator", Name = "AuthenticatorKey" }]
         };
         var export = valid with { Users = [user] };
 
