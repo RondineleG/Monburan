@@ -22,6 +22,13 @@ dotnet run --project tools/Monburan.RecruivaMigration/Monburan.RecruivaMigration
 # exit 2; dry-run bloqueado: 4 problemas; origem e destino não alterados
 ```
 
+Ensaio PostgreSQL do corte reversível:
+
+```bash
+dotnet test tests/Monburan.IntegrationTests/Monburan.IntegrationTests.csproj --configuration Release --filter FullyQualifiedName~RecruivaMigrationApplierPostgresTests -v:q
+# 1 passed, 0 failed; aplicação e rollback voltaram ao estado anterior
+```
+
 No Recruiva, com SDK 10.0.300 porque a VM não tem o SDK 10.0.401 exigido pelo `global.json` (arquivo restaurado sem alteração):
 
 ```bash
@@ -32,6 +39,6 @@ dotnet test tests/Recruiva.IntegrationTests/Recruiva.IntegrationTests.csproj --c
 
 ## Limites desta fatia
 
-- O corte reversível (apply/rollback) ainda não foi executado; esta fatia é a fundação de reconciliação e mapa.
+- O corte reversível agora tem ensaio PostgreSQL descartável coberto por teste: aplica 6 registros, copia arquivo com hash e rollback remove os 6 registros e o arquivo copiado. Contas de login/Identity ainda não fazem parte do recorte.
 - O exportador não adivinha arquivos órfãos em disco: só exporta arquivos referenciados por entidades. Currículos enviados sem referência persistente no banco do Recruiva precisarão de decisão/mapeamento adicional.
 - Nenhum dado real ou produção foi usado.
