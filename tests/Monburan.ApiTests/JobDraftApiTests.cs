@@ -33,6 +33,7 @@ public sealed class JobDraftApiTests : IClassFixture<MonburanApiFactory>
     {
         await EnableFeatureForRecruitersAsync(CreateJobUseCase.DraftJobFeature);
         await EnableFeatureForRecruitersAsync(ChangeJobStatusUseCase.ApiStatusFeature);
+        await EnableFeatureForRecruitersAsync(ListJobRevisionsUseCase.JobHistoryFeature);
         var advertiser = await RegisterAdvertiserAsync();
         var title = $"Rascunho API {Guid.NewGuid():N}";
 
@@ -61,6 +62,13 @@ public sealed class JobDraftApiTests : IClassFixture<MonburanApiFactory>
 
         var publicAfter = await _client.GetFromJsonAsync<ListJobsResponse>($"/api/v1/jobs?searchTerm={Uri.EscapeDataString(title)}");
         publicAfter!.Jobs.Should().ContainSingle(item => item.Id == job.Id);
+
+        var revisions = await ReadAsync<List<JobRevisionResponse>>(HttpMethod.Get, $"/api/v1/jobs/{job.Id}/revisions", advertiser.AccessToken);
+        revisions.Should().NotBeNull();
+        revisions!.Select(revision => revision.Action).Should().Equal("StatusChanged", "Created");
+        revisions.Select(revision => revision.Revision).Should().Equal(2, 1);
+        revisions.Should().OnlyContain(revision => revision.ActorKind == "Advertiser");
+        revisions.Should().OnlyContain(revision => !revision.SnapshotJson.Contains("CreatedBy") && !revision.SnapshotJson.Contains("UpdatedBy"));
     }
 
     private async Task EnableFeatureForRecruitersAsync(string feature)

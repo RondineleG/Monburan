@@ -23,6 +23,7 @@ public class JobRepository : IJobRepository
     {
         await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);
         context.Jobs.Add(entity);
+        context.JobRevisions.Add(JobRevision.Capture(entity, 1, EJobRevisionAction.Created, entity.CreatedBy));
         await context.SaveChangesAsync(cancellationToken);
         return RequestResult<Job>.Success(entity);
     }
@@ -210,6 +211,7 @@ public class JobRepository : IJobRepository
                 await context.Entry(tracked).ReloadAsync(cancellationToken);
         }
 
+        await SaveRevisionAsync(context, tracked, EJobRevisionAction.Updated, entity.UpdatedBy, cancellationToken);
         return RequestResult<Job>.Success(tracked);
     }
 
@@ -226,12 +228,14 @@ public class JobRepository : IJobRepository
             && context.Database.ProviderName != "Microsoft.EntityFrameworkCore.InMemory";
         if (!relational)
         {
-            if (tracked.Status == expectedStatus)
+            var changedInMemory = tracked.Status == expectedStatus;
+            if (changedInMemory)
             {
                 tracked.Status = entity.Status;
                 tracked.PublishedAt ??= entity.Status == EJobStatus.Active ? DateTime.UtcNow : null;
                 tracked.UpdatedBy = updatedBy;
                 await context.SaveChangesAsync(cancellationToken);
+                await SaveRevisionAsync(context, tracked, EJobRevisionAction.StatusChanged, updatedBy, cancellationToken);
             }
 
             return RequestResult<Job>.Success(tracked);
@@ -257,7 +261,38 @@ public class JobRepository : IJobRepository
             await context.Entry(tracked).ReloadAsync(cancellationToken);
         }
 
+        if (changed > 0)
+            await SaveRevisionAsync(context, tracked, EJobRevisionAction.StatusChanged, updatedBy, cancellationToken);
+
         return RequestResult<Job>.Success(tracked);
+    }
+
+    private static async Task SaveRevisionAsync(ApplicationDbContext context, Job job, EJobRevisionAction action, string actorId, CancellationToken cancellationToken)
+    {
+        // A numeração é única por vaga. Em escritas concorrentes, duas operações podem ler o
+        // mesmo máximo; a segunda desanexa a revisão rejeitada e tenta com o próximo número.
+        for (var attempt = 0; ; attempt++)
+        {
+            var latest = await context.JobRevisions
+                .Where(revision => revision.JobId == job.Id)
+                .Select(revision => (int?)revision.Revision)
+                .MaxAsync(cancellationToken);
+            var revision = JobRevision.Capture(job, (latest ?? 0) + 1, action, actorId);
+            context.JobRevisions.Add(revision);
+
+            // A vaga já foi gravada pelo fluxo chamador; salvar a revisão não pode regravar
+            // situação/autoria por cima de uma transição concorrente.
+            context.Entry(job).State = EntityState.Unchanged;
+            try
+            {
+                await context.SaveChangesAsync(cancellationToken);
+                return;
+            }
+            catch (DbUpdateException) when (attempt < 2)
+            {
+                context.Entry(revision).State = EntityState.Detached;
+            }
+        }
     }
 
     // Local e salário são "owned" (tabelas próprias): só são gravados quando o valor
@@ -322,6 +357,7 @@ public class JobRepository : IJobRepository
         tracked.Moderation.ModerationDate = job.Moderation.ModerationDate;
 
         await context.SaveChangesAsync(cancellationToken);
+        await SaveRevisionAsync(context, tracked, EJobRevisionAction.Moderated, job.Moderation.ModeratorId ?? job.UpdatedBy, cancellationToken);
         return RequestResult<Job>.Success(tracked);
     }
 

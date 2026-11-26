@@ -113,6 +113,9 @@ internal sealed class FakeJobRepository : IJobRepository
         });
     }
 
+    public Task<IReadOnlyList<JobRevision>> ListRevisionsAsync(Id jobId, CancellationToken cancellationToken = default) =>
+        Task.FromResult<IReadOnlyList<JobRevision>>([]);
+
     public Task<IReadOnlyDictionary<EJobStatus, int>> CountByStatusAsync(CancellationToken cancellationToken = default) =>
         Task.FromResult<IReadOnlyDictionary<EJobStatus, int>>(
             _jobs.Where(job => !job.IsDeleted).GroupBy(job => job.Status).ToDictionary(group => group.Key, group => group.Count()));

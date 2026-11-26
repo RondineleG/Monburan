@@ -362,6 +362,7 @@ builder.Services.AddScoped<UpdateJobUseCase>();
 builder.Services.AddScoped<DeleteJobUseCase>();
 builder.Services.AddScoped<SearchJobsUseCase>();
 builder.Services.AddScoped<ChangeJobStatusUseCase>();
+builder.Services.AddScoped<ListJobRevisionsUseCase>();
 builder.Services.AddScoped<SaveJobUseCase>();
 builder.Services.AddScoped<UnsaveJobUseCase>();
 builder.Services.AddScoped<ListSavedJobsUseCase>();
