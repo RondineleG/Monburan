@@ -13,7 +13,7 @@
 
 <h2>Integrações</h2>
 
-@if (!featureEnabled)
+@if (!featureEnabled && tokens.Count == 0)
 {
     <div class="alert alert-warning">Esta funcionalidade ainda não está liberada para a sua conta.</div>
 }
@@ -23,6 +23,12 @@ else if (candidateId is null || userId is null)
 }
 else
 {
+    @if (!featureEnabled)
+    {
+        <div class="alert alert-warning">A emissão está desligada; tokens ativos ainda podem ser revogados abaixo.</div>
+    }
+    @if (featureEnabled)
+    {
     <section class="card mb-4" aria-labelledby="new-token-title">
         <div class="card-body">
             <h3 id="new-token-title">Novo token para HiMarshall</h3>
@@ -31,14 +37,7 @@ else
                 <label class="form-label" for="token-name">Nome</label>
                 <input id="token-name" class="form-control" maxlength="80" @bind="name" @bind:event="oninput" placeholder="HiMarshall" />
             </div>
-            <div class="form-check">
-                <input id="scope-jobs" class="form-check-input" type="checkbox" @bind="jobsScope" />
-                <label class="form-check-label" for="scope-jobs">Consultar vagas públicas mínimas</label>
-            </div>
-            <div class="form-check mb-3">
-                <input id="scope-readiness" class="form-check-input" type="checkbox" @bind="readinessScope" />
-                <label class="form-check-label" for="scope-readiness">Ler resumo de prontidão</label>
-            </div>
+            <p class="text-muted small">Escopos concedidos: consulta de vagas públicas mínimas e resumo de prontidão.</p>
             <button class="btn btn-primary" disabled="@busy" @onclick="CreateAsync">Gerar token</button>
             @if (!string.IsNullOrWhiteSpace(error))
             {
@@ -53,6 +52,7 @@ else
             }
         </div>
     </section>
+    }
 
     <section aria-labelledby="tokens-title">
         <h3 id="tokens-title">Tokens ativos</h3>
@@ -101,13 +101,20 @@ else
         userId = FeatureFlagService.UserIdOf(state.User);
         candidateId = state.User.GetCandidateId();
         featureEnabled = await FeatureFlags.IsEnabledAsync("integracao-himarshall", state.User);
-        if (featureEnabled && userId is not null)
+        if (userId is not null)
             tokens = await Tokens.ListActiveAsync(userId.Value, CancellationToken.None);
     }
 
     private async Task CreateAsync()
     {
         if (userId is null || candidateId is null) return;
+        var state = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        featureEnabled = await FeatureFlags.IsEnabledAsync("integracao-himarshall", state.User);
+        if (!featureEnabled)
+        {
+            error = "A emissão de tokens está desligada para esta conta.";
+            return;
+        }
         busy = true;
         error = null;
         var scopes = new List<string>();
