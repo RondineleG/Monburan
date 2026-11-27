@@ -6,6 +6,10 @@ using System.Text.Json;
 using FluentAssertions;
 
 using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
+using Monburan.Web.Data;
 using Microsoft.Extensions.DependencyInjection;
 
 using Monburan.Core.DTOs.Request;
@@ -31,6 +35,22 @@ public sealed class IntegrationTokensApiTests : IClassFixture<MonburanApiFactory
     {
         _factory = factory;
         _client = factory.CreateClient();
+    }
+
+    [Fact]
+    public void IntegrationMigrationTargetRetainsTheJobAndApplicationSchema()
+    {
+        using var context = new ApplicationDbContext(new DbContextOptionsBuilder<ApplicationDbContext>()
+            .UseNpgsql("Host=127.0.0.1;Database=fixture").Options);
+        var migrations = context.GetService<IMigrationsAssembly>();
+        var migration = migrations.CreateMigration(
+            migrations.Migrations["20261126202711_IntegracaoHiMarshall"], context.Database.ProviderName!);
+        var model = migration.TargetModel;
+
+        model.FindEntityType("Monburan.Core.Entities.IntegrationToken").Should().NotBeNull();
+        model.FindEntityType("Monburan.Core.Entities.JobRevision").Should().NotBeNull();
+        model.FindEntityType("Monburan.Core.Entities.Job")!.FindProperty("PublicationType").Should().NotBeNull();
+        model.FindEntityType("Monburan.Core.Entities.Application")!.FindProperty("ResumeSnapshotJson").Should().NotBeNull();
     }
 
     [Fact]

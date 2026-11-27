@@ -697,6 +697,9 @@ namespace Monburan.Web.Migrations
                     b.Property<Guid?>("ResumeId")
                         .HasColumnType("uuid");
 
+                    b.Property<string>("ResumeSnapshotJson")
+                        .HasColumnType("jsonb");
+
                     b.Property<DateTime?>("SelectedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -717,6 +720,12 @@ namespace Monburan.Web.Migrations
                         .IsRequired()
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
+
+                    b.Property<int>("Version")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(1);
 
                     b.Property<DateTime?>("ViewedAt")
                         .HasColumnType("timestamp with time zone");
@@ -748,6 +757,10 @@ namespace Monburan.Web.Migrations
                     b.Property<Guid>("Id")
                         .HasMaxLength(36)
                         .HasColumnType("uuid");
+
+                    b.Property<string>("ActorUserId")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
 
                     b.Property<Guid>("ApplicationId")
                         .HasColumnType("uuid");
@@ -804,10 +817,19 @@ namespace Monburan.Web.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
 
+                    b.Property<int>("Version")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(1);
+
                     b.HasKey("Id");
 
                     b.HasIndex("ApplicationId")
                         .HasDatabaseName("IX_ApplicationStatusHistory_ApplicationId");
+
+                    b.HasIndex("ApplicationId", "Version")
+                        .IsUnique()
+                        .HasDatabaseName("UX_ApplicationStatusHistory_ApplicationId_Version");
 
                     b.HasIndex("TenantId", "Id")
                         .IsUnique();
@@ -1258,6 +1280,9 @@ namespace Monburan.Web.Migrations
                         .HasColumnType("character varying(20)")
                         .HasDefaultValue("Direct");
 
+                    b.Property<DateTime?>("PublishedAt")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<string>("Requirements")
                         .HasMaxLength(2000)
                         .HasColumnType("character varying(2000)");
@@ -1412,6 +1437,83 @@ namespace Monburan.Web.Migrations
                         .IsUnique();
 
                     b.ToTable("JobAlerts", (string)null);
+                });
+
+            modelBuilder.Entity("Monburan.Core.Entities.JobRevision", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasMaxLength(36)
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Action")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)");
+
+                    b.Property<string>("ActorId")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("DeletedBy")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<bool>("IsDeleted")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
+
+                    b.Property<Guid>("JobId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("Revision")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("SnapshotJson")
+                        .IsRequired()
+                        .HasColumnType("jsonb");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("TenantId")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("UpdatedBy")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("JobId", "Revision")
+                        .IsUnique()
+                        .HasDatabaseName("UX_JobRevisions_JobId_Revision");
+
+                    b.HasIndex("TenantId", "Id")
+                        .IsUnique();
+
+                    b.ToTable("JobRevisions", (string)null);
                 });
 
             modelBuilder.Entity("Monburan.Core.Entities.JobSubmission", b =>
@@ -1721,6 +1823,12 @@ namespace Monburan.Web.Migrations
                         .HasColumnType("boolean")
                         .HasDefaultValue(false);
 
+                    b.Property<Guid?>("JobAlertId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("JobId")
+                        .HasColumnType("uuid");
+
                     b.Property<string>("Message")
                         .IsRequired()
                         .HasMaxLength(1000)
@@ -1757,6 +1865,11 @@ namespace Monburan.Web.Migrations
                         .HasColumnType("character varying(100)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("JobAlertId", "JobId")
+                        .IsUnique()
+                        .HasDatabaseName("UX_Notifications_JobAlertId_JobId")
+                        .HasFilter("\"JobAlertId\" IS NOT NULL AND \"JobId\" IS NOT NULL");
 
                     b.HasIndex("RecipientId", "Type")
                         .HasDatabaseName("IX_Notifications_RecipientId_Type");
@@ -2841,6 +2954,17 @@ namespace Monburan.Web.Migrations
                         .HasForeignKey("CandidateId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("Monburan.Core.Entities.JobRevision", b =>
+                {
+                    b.HasOne("Monburan.Core.Entities.Job", "Job")
+                        .WithMany()
+                        .HasForeignKey("JobId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Job");
                 });
 
             modelBuilder.Entity("Monburan.Core.Entities.JobSubmissionEvidence", b =>
