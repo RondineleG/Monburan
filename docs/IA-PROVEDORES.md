@@ -117,9 +117,11 @@ produção o endereço local é bloqueado (ver abaixo).
 
 ## Gateway interno multimodal (MO-GA)
 
-O adapter atual já é compatível com o Gateway interno pelo protocolo **OpenAI-compatível**: configure a URL raiz do Gateway terminada em `/v1`, o modelo como o alias de chat multimodal publicado pelo Gateway e a variável com a chave da aplicação `monburan` — nunca uma credencial de sessão de agente. Marque **Aceita imagens (multimodal)** somente depois do botão **Testar** passar e da fixture de imagem ser validada no Gateway.
+Configure o protocolo **OpenAI-compatível**, a URL raiz HTTPS terminada em `/v1` e uma variável `AI_KEY_*` com a chave da aplicação `monburan`. Em produção, o DNS do Gateway precisa resolver somente para endereços públicos aceitos pela proteção de rede. Um hostname que resolve para rede privada é recusado antes da conexão. A configuração de redes privadas fica restrita ao ambiente de desenvolvimento.
 
-Para o rascunho de vaga, o Monburan envia somente as imagens privadas da sugestão como partes `image_url` em data URI; o Gateway não busca URLs remotas. A fixture do Gateway limita JPEG/PNG/WebP, 4 imagens por mensagem, 2 MiB por imagem e 5 MiB por requisição, e os bytes entram na quota. O rascunho continua sendo apenas uma sugestão com confiança por campo para o moderador: nada é publicado automaticamente.
+Use o alias simulado para verificar o envio de imagem sintética por data URI. Habilite **Aceita imagens (multimodal)** para rascunhos reais somente quando houver um alias aprovado que devolva o JSON estruturado esperado no teste de extração. O rascunho continua sujeito à revisão humana.
+
+Para extração pelo Gateway, use JPEG, PNG ou WebP, com até 4 imagens, 2 MiB por imagem e 5 MiB no total. Os limites de anexos das sugestões no Monburan são maiores. Uma sugestão pode continuar válida para moderação e exceder o limite do Gateway. Nesse caso, preencha o rascunho manualmente com as evidências originais.
 
 Rollback: torne o provedor anterior o padrão novamente. A revisão humana, a evidência original e o preenchimento manual permanecem disponíveis; nenhuma migração ou reprocessamento é necessário.
 
