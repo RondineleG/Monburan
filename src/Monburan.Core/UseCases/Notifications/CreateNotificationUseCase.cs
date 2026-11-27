@@ -36,6 +36,8 @@ public class CreateNotificationUseCase : IUseCase<CreateNotificationRequest, Not
             Message = request.Message,
             RecipientId = request.RecipientId,
             Type = request.Type,
+            JobAlertId = request.JobAlertId,
+            JobId = request.JobId,
             IsRead = false,
             TenantId = "default"
         };

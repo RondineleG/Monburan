@@ -66,6 +66,9 @@ public sealed class AdminChangeJobStatusUseCase : IUseCase<AdminChangeJobStatusR
             return RequestResult<AdminJobResponse>.EntityNotFound("Job", request.JobId, "Vaga não encontrada.");
 
         var job = found.Data;
+        if (job.Status == EJobStatus.Closed)
+            return RequestResult<AdminJobResponse>.WithDomainError("Vaga encerrada é terminal e não pode mudar de situação pela administração.");
+
         var now = _time.GetUtcNow().UtcDateTime;
         var today = now.Date;
         var previous = job.Status;
@@ -75,6 +78,9 @@ public sealed class AdminChangeJobStatusUseCase : IUseCase<AdminChangeJobStatusR
 
         if (request.NewStatus == EJobStatus.Active)
         {
+            if (previous == EJobStatus.Draft)
+                return RequestResult<AdminJobResponse>.WithDomainError("Rascunho só pode ser publicado pelo anunciante dono da vaga.");
+
             // Vaga externa (sem anunciante) não depende do status de nenhuma conta
             var advertiser = job.AdvertiserId is null ? null : await _advertisers.GetByIdAsync(job.AdvertiserId, cancellationToken);
             if (advertiser?.Data?.Status == EAdvertiserStatus.Blocked)
@@ -162,6 +168,8 @@ public sealed class AdminChangeJobStatusUseCase : IUseCase<AdminChangeJobStatusR
         EJobStatus.Hidden => "Oculta",
         EJobStatus.Rejected => "Reprovada",
         EJobStatus.Expired => "Expirada",
+        EJobStatus.Closed => "Encerrada",
+        EJobStatus.Draft => "Rascunho",
         _ => status.ToString()
     };
 }

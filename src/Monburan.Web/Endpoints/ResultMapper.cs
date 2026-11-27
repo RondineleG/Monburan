@@ -24,7 +24,7 @@ internal static class ResultMapper
                 ToValidationErrors(result),
                 title: "Erro de validação"),
             EResultStatus.EntityNotFound => Problem(result, StatusCodes.Status404NotFound, "Recurso não encontrado"),
-            EResultStatus.EntityAlreadyExists => Problem(result, StatusCodes.Status409Conflict, "Conflito"),
+            EResultStatus.EntityAlreadyExists or EResultStatus.Conflict => Problem(result, StatusCodes.Status409Conflict, "Conflito"),
             EResultStatus.DomainError => Problem(result, StatusCodes.Status400BadRequest, "Não foi possível concluir a operação"),
             EResultStatus.EntityHasError or EResultStatus.HasError =>
                 ErrorProblem(StatusCodes.Status400BadRequest, "Erro ao processar a operação"),
@@ -45,7 +45,7 @@ internal static class ResultMapper
                 ToValidationErrors(result),
                 title: "Erro de validação"),
             EResultStatus.EntityNotFound => Problem(result, StatusCodes.Status404NotFound, "Recurso não encontrado"),
-            EResultStatus.EntityAlreadyExists => Problem(result, StatusCodes.Status409Conflict, "Conflito"),
+            EResultStatus.EntityAlreadyExists or EResultStatus.Conflict => Problem(result, StatusCodes.Status409Conflict, "Conflito"),
             EResultStatus.DomainError => Problem(result, StatusCodes.Status400BadRequest, "Não foi possível concluir a operação"),
             EResultStatus.EntityHasError or EResultStatus.HasError =>
                 ErrorProblem(StatusCodes.Status400BadRequest, "Erro ao processar a operação"),

@@ -301,15 +301,24 @@
         }
         else
         {
-            <button type="submit" class="btn btn-primary btn-lg" disabled="@(IsSubmitting || !CanPublish)" aria-busy="@(IsSubmitting ? "true" : null)" data-testid="job-create-submit">
+            @if (!IsEdit)
+            {
+                <FeatureGate Feature="rascunho-vaga">
+                    <div class="form-check mb-3">
+                        <InputCheckbox class="form-check-input" id="job-save-draft" @bind-Value="Model.SaveAsDraft" data-testid="job-save-draft" />
+                        <label class="form-check-label" for="job-save-draft">Salvar como rascunho sem publicar</label>
+                    </div>
+                </FeatureGate>
+            }
+            <button type="submit" class="btn btn-primary btn-lg" disabled="@(IsSubmitting || (!CanPublish && !Model.SaveAsDraft))" aria-busy="@(IsSubmitting ? "true" : null)" data-testid="job-create-submit">
                 @if (IsSubmitting)
                 {
                     <span class="spinner-border spinner-border-sm" aria-hidden="true"></span>
-                    <span>@(IsEdit ? "Salvando…" : "Publicando…")</span>
+                    <span>@(IsEdit ? "Salvando…" : Model.SaveAsDraft ? "Salvando rascunho…" : "Publicando…")</span>
                 }
                 else
                 {
-                    <span>@(IsEdit ? "Salvar alterações" : "Publicar vaga")</span>
+                    <span>@(IsEdit ? "Salvar alterações" : Model.SaveAsDraft ? "Salvar rascunho" : "Publicar vaga")</span>
                 }
             </button>
         }

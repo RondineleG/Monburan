@@ -5,6 +5,7 @@ using System.Text.Json.Serialization;
 
 using Monburan.Core.DTOs.Request;
 using Monburan.Core.DTOs.Response;
+using Monburan.Core.Enums;
 
 namespace Monburan.Mobile.Shared.Api;
 
@@ -31,6 +32,10 @@ public class MonburanApiClient
 
     public Task<JobResponse> GetJobAsync(Guid id, CancellationToken ct = default) =>
         SendAsync<JobResponse>(HttpMethod.Get, $"api/v1/jobs/{id}", null, ct);
+
+    /// <summary>Muda a situação da vaga pelo contrato PUT /api/v1/jobs/{id}/status.</summary>
+    public Task<JobResponse> UpdateJobStatusAsync(Guid id, EJobStatus newStatus, CancellationToken ct = default) =>
+        SendAsync<JobResponse>(HttpMethod.Put, $"api/v1/jobs/{id}/status", new UpdateJobStatusRequest(newStatus), ct);
 
     // ---- Jobs (candidato) ----
 
@@ -105,6 +110,11 @@ public class MonburanApiClient
     /// <summary>Etapas da candidatura (o servidor só devolve as do candidato dono).</summary>
     public Task<List<ApplicationHistoryItemResponse>> GetApplicationHistoryAsync(Guid applicationId, CancellationToken ct = default) =>
         SendAsync<List<ApplicationHistoryItemResponse>>(HttpMethod.Get, $"api/v1/applications/{applicationId}/history", null, ct);
+
+    /// <summary>Muda a etapa pelo contrato PUT /api/v1/applications/{id}/status; dono e responsável vêm da autenticação.</summary>
+    public Task<ApplicationResponse> UpdateApplicationStatusAsync(Guid applicationId, EApplicationStatus newStatus, string? notes = null, CancellationToken ct = default) =>
+        SendAsync<ApplicationResponse>(HttpMethod.Put, $"api/v1/applications/{applicationId}/status",
+            new UpdateApplicationStatusRequest { NewStatus = newStatus, Notes = notes }, ct);
 
     // ---- Resumes ----
 

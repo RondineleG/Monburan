@@ -160,6 +160,24 @@ public static class JobEndpoints
         .AllowAnonymous()
         .WithSummary("Registra uma visualização da vaga (a do próprio anunciante não conta)");
 
+        // Bearer — histórico imutável da vaga do anunciante
+        group.MapGet("/{id:guid}/revisions", async (
+            Guid id,
+            ICurrentUserHelper currentUser,
+            ListJobRevisionsUseCase useCase,
+            CancellationToken cancellationToken) =>
+        {
+            var advertiserId = currentUser.GetAdvertiserId();
+            if (advertiserId is null)
+                return Results.Problem(statusCode: StatusCodes.Status403Forbidden, title: "Perfil de anunciante necessário");
+
+            var result = await useCase.ExecuteAsync(new ListJobRevisionsRequest(id, advertiserId.Value), cancellationToken);
+            return result.ToHttpResult();
+        })
+        .RequireAuthorization("ApiBearer")
+        .RequireFeature(ListJobRevisionsUseCase.JobHistoryFeature)
+        .WithSummary("Lista as revisões imutáveis de uma vaga do anunciante autenticado");
+
         // Público — detalhe
         group.MapGet("/{id:guid}", async (
             Guid id,
@@ -204,6 +222,25 @@ public static class JobEndpoints
         })
         .RequireAuthorization("ApiBearer")
         .WithSummary("Cria vaga para o anunciante autenticado");
+
+        // Bearer — mudar situação da vaga (rascunho/publicação, pausa, reativação e encerramento)
+        group.MapPut("/{id:guid}/status", async (
+            Guid id,
+            UpdateJobStatusRequest request,
+            ICurrentUserHelper currentUser,
+            ChangeJobStatusUseCase useCase,
+            CancellationToken cancellationToken) =>
+        {
+            var advertiserId = currentUser.GetAdvertiserId();
+            if (advertiserId is null)
+                return Results.Problem(statusCode: StatusCodes.Status403Forbidden, title: "Perfil de anunciante necessário");
+
+            var result = await useCase.ExecuteAsync(new ChangeJobStatusRequest(id, advertiserId.Value, request.NewStatus), cancellationToken);
+            return result.ToHttpResult();
+        })
+        .RequireAuthorization("ApiBearer")
+        .RequireFeature(ChangeJobStatusUseCase.ApiStatusFeature)
+        .WithSummary("Muda a situação de uma vaga do anunciante autenticado");
 
         // Bearer — atualizar vaga (com checagem de propriedade)
         group.MapPut("/{id:guid}", async (
@@ -303,7 +340,7 @@ public static class JobEndpoints
             SalaryMin = salaryMin,
             SalaryMax = salaryMax,
             Category = category,
-            SortBy = string.IsNullOrWhiteSpace(sortBy) ? "CreatedAt" : sortBy,
+            SortBy = sortBy,
             SortDescending = sortDescending ?? true,
             AdvertiserId = advertiserId,
             CandidateId = candidateId,

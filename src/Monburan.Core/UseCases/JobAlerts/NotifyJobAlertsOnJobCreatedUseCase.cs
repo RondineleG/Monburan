@@ -17,20 +17,23 @@ public sealed record NotifyJobAlertsOnJobCreatedRequest(Job Job);
 /// <summary>
 /// Avalia os alertas ativos quando uma vaga é publicada: para cada alerta que casa, cria a notificação
 /// <c>NewJob</c> ("Nova vaga para o seu alerta: &lt;nome&gt;") e atualiza <c>LastMatchedAt</c>.
-/// Só roda na criação da vaga (edição não notifica); devolve quantos alertas notificaram.
+/// Roda quando a vaga é publicada (na criação ou ao sair de rascunho; edição não notifica) e devolve quantos alertas notificaram.
 /// </summary>
 public class NotifyJobAlertsOnJobCreatedUseCase : IUseCase<NotifyJobAlertsOnJobCreatedRequest, int>
 {
     private readonly IJobAlertRepository _alerts;
+    private readonly INotificationRepository _notifications;
     private readonly CreateNotificationUseCase _createNotification;
     private readonly ILogger<NotifyJobAlertsOnJobCreatedUseCase> _logger;
 
     public NotifyJobAlertsOnJobCreatedUseCase(
         IJobAlertRepository alerts,
+        INotificationRepository notifications,
         CreateNotificationUseCase createNotification,
         ILogger<NotifyJobAlertsOnJobCreatedUseCase> logger)
     {
         _alerts = alerts;
+        _notifications = notifications;
         _createNotification = createNotification;
         _logger = logger;
     }
@@ -38,7 +41,7 @@ public class NotifyJobAlertsOnJobCreatedUseCase : IUseCase<NotifyJobAlertsOnJobC
     public async Task<RequestResult<int>> ExecuteAsync(NotifyJobAlertsOnJobCreatedRequest request, CancellationToken cancellationToken = default)
     {
         var job = request.Job;
-        if (job.Status != EJobStatus.Active || job.ExpirationDate < DateTime.UtcNow)
+        if (job.Status != EJobStatus.Active || job.ExpirationDate.Date < DateTime.UtcNow.Date)
             return RequestResult<int>.Success(0);
 
         var alertsResult = await _alerts.ListActiveAsync(cancellationToken);
@@ -54,12 +57,24 @@ public class NotifyJobAlertsOnJobCreatedUseCase : IUseCase<NotifyJobAlertsOnJobC
                 if (!JobAlertMatcher.Matches(job, alert))
                     continue;
 
+                var duplicateResult = await _notifications.ExistsJobAlertNotificationAsync(alert.Id.Value, job.Id.Value, cancellationToken);
+                if (duplicateResult.Status != EResultStatus.Success)
+                {
+                    _logger.LogWarning("Alerta {AlertId} casou com a vaga {JobId}, mas a deduplicação não pôde ser verificada: {Detail}",
+                        alert.Id.Value, job.Id.Value, duplicateResult.Message);
+                    continue;
+                }
+                if (duplicateResult.Data)
+                    continue;
+
                 var notificationResult = await _createNotification.ExecuteAsync(new CreateNotificationRequest
                 {
                     Title = "Nova vaga para o seu alerta",
                     Message = $"Nova vaga para o seu alerta: {alert.Name}",
                     RecipientId = alert.CandidateId.Value.ToString(),
-                    Type = ENotificationType.NewJob
+                    Type = ENotificationType.NewJob,
+                    JobAlertId = alert.Id.Value,
+                    JobId = job.Id.Value
                 },
                 cancellationToken);
                 if (notificationResult.Status != EResultStatus.Success)

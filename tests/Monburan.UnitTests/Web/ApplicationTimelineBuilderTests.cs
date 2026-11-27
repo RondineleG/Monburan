@@ -22,6 +22,21 @@ public class ApplicationTimelineBuilderTests
         timeline.Select(step => step.Status).Should().ContainInOrder("Sent", "Viewed", "Selected");
     }
 
+
+    [Fact]
+    public void Build_WithVersions_OrdersByVersionEvenWhenDatesAreInverted()
+    {
+        var history = new List<ApplicationHistoryItemResponse>
+        {
+            new() { Status = "Viewed", Version = 2, Date = new DateTime(2026, 10, 10, 9, 0, 0, DateTimeKind.Utc) },
+            new() { Status = "Sent", Version = 1, Date = new DateTime(2026, 10, 10, 10, 0, 0, DateTimeKind.Utc) }
+        };
+
+        var timeline = ApplicationTimelineBuilder.Build(history);
+
+        timeline.Select(step => step.Status).Should().ContainInOrder("Sent", "Viewed");
+    }
+
     [Fact]
     public void Build_TranslatesTheStatusAndCleansTheNotes()
     {

@@ -72,12 +72,26 @@ public class AccountProfileServiceTests : IDisposable
         var candidate = await AddCandidateAsync("lgpd@email.com", phone: "(11) 91111-2222");
         await using (var context = await _factory.CreateDbContextAsync())
         {
+            var resumeId = Id.Create(Guid.NewGuid());
             context.Resumes.Add(new Resume
             {
-                Id = Id.Create(Guid.NewGuid()),
+                Id = resumeId,
                 CandidateId = candidate.Id,
                 Title = "Meu currículo",
                 Summary = "Contato: (11) 91111-2222",
+                TenantId = "default"
+            });
+            var advertiserId = Id.Create(Guid.NewGuid());
+            context.Advertisers.Add(new Advertiser { Id = advertiserId, Name = "Empresa", Email = "empresa-lgpd@teste.com", TenantId = "default" });
+            var jobId = Id.Create(Guid.NewGuid());
+            context.Jobs.Add(new Job { Id = jobId, AdvertiserId = advertiserId, Title = "Vaga", Description = "Descrição", ExpirationDate = DateTime.UtcNow.AddDays(1), TenantId = "default" });
+            context.Applications.Add(new Application
+            {
+                Id = Id.Create(Guid.NewGuid()),
+                CandidateId = candidate.Id,
+                JobId = jobId,
+                ResumeId = resumeId.Value,
+                ResumeSnapshotJson = "{\"summary\":\"Contato: (11) 91111-2222\"}",
                 TenantId = "default"
             });
             await context.SaveChangesAsync();
@@ -95,6 +109,8 @@ public class AccountProfileServiceTests : IDisposable
         var resume = await check.Resumes.SingleAsync(r => r.CandidateId == candidate.Id);
         resume.IsDeleted.Should().BeTrue();
         resume.Summary.Should().BeNull();
+        var application = await check.Applications.SingleAsync(a => a.CandidateId == candidate.Id);
+        application.ResumeSnapshotJson.Should().BeNull();
     }
 
     private async Task<Candidate> AddCandidateAsync(string email, string? phone = null)

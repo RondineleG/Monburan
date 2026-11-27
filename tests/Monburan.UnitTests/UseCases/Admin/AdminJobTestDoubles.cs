@@ -62,6 +62,20 @@ internal sealed class FakeJobRepository : IJobRepository
         return Task.FromResult(RequestResult<Job>.Success(entity));
     }
 
+    public Task<RequestResult<Job>> UpdateStatusAsync(Job entity, EJobStatus expectedStatus, string updatedBy, CancellationToken cancellationToken = default)
+    {
+        var stored = _jobs.FirstOrDefault(item => item.Id == entity.Id);
+        if (stored is null)
+            return Task.FromResult(RequestResult<Job>.EntityNotFound("Job", entity.Id.Value, "Vaga não encontrada."));
+        if (stored.Status == expectedStatus)
+        {
+            stored.Status = entity.Status;
+            stored.UpdatedBy = updatedBy;
+        }
+
+        return Task.FromResult(RequestResult<Job>.Success(stored));
+    }
+
     public Task<RequestResult<PagedResponse<Job>>> SearchAsync(
         string? searchTerm = null, string? city = null, string? state = null, bool? isRemote = null, decimal? salaryMin = null,
         decimal? salaryMax = null, string? category = null, Guid? advertiserId = null, int page = 1, int size = 10,
@@ -99,6 +113,9 @@ internal sealed class FakeJobRepository : IJobRepository
         });
     }
 
+    public Task<IReadOnlyList<JobRevision>> ListRevisionsAsync(Id jobId, CancellationToken cancellationToken = default) =>
+        Task.FromResult<IReadOnlyList<JobRevision>>([]);
+
     public Task<IReadOnlyDictionary<EJobStatus, int>> CountByStatusAsync(CancellationToken cancellationToken = default) =>
         Task.FromResult<IReadOnlyDictionary<EJobStatus, int>>(
             _jobs.Where(job => !job.IsDeleted).GroupBy(job => job.Status).ToDictionary(group => group.Key, group => group.Count()));
@@ -106,6 +123,13 @@ internal sealed class FakeJobRepository : IJobRepository
     public Task<RequestResult<IEnumerable<Job>>> ListActiveForRecommendationsAsync(CancellationToken cancellationToken = default) =>
         Task.FromResult(RequestResult<IEnumerable<Job>>.Success(
             _jobs.Where(job => !job.IsDeleted && job.Status == EJobStatus.Active).ToList()));
+
+    public Task<RequestResult<IEnumerable<Job>>> ListRecentForRecommendationsAsync(int take, IReadOnlyCollection<Id> excludedJobIds, CancellationToken cancellationToken = default) =>
+        Task.FromResult(RequestResult<IEnumerable<Job>>.Success(
+            _jobs.Where(job => !job.IsDeleted && job.Status == EJobStatus.Active && !excludedJobIds.Contains(job.Id))
+                .OrderByDescending(job => job.CreatedAt)
+                .Take(take)
+                .ToList()));
 
     public Task<RequestResult<bool>> IncrementViewsAsync(Guid jobId, CancellationToken cancellationToken = default)
     {
@@ -127,14 +151,15 @@ internal sealed class FakeJobRepository : IJobRepository
         return Task.FromResult(RequestResult<bool>.Success(true));
     }
 
-    public Task<RequestResult<Job>> UpdateModerationAsync(Job job, CancellationToken cancellationToken = default)
+    public Task<RequestResult<Job>> UpdateModerationAsync(Job job, CancellationToken cancellationToken = default, EJobRevisionAction revisionAction = EJobRevisionAction.Moderated, bool updateExpirationDate = true)
     {
         var tracked = _jobs.FirstOrDefault(item => item.Id == job.Id && !item.IsDeleted);
         if (tracked is null)
             return Task.FromResult(RequestResult<Job>.EntityNotFound("Job", job.Id.Value, "Vaga não encontrada."));
 
         tracked.Status = job.Status;
-        tracked.ExpirationDate = job.ExpirationDate;
+        if (updateExpirationDate)
+            tracked.ExpirationDate = job.ExpirationDate;
         tracked.Moderation ??= new ModerationInfo();
         tracked.Moderation.Status = job.Moderation!.Status;
         tracked.Moderation.Reason = job.Moderation.Reason;

@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace Monburan.Core.DTOs.Response;
 
 public class ApplicationHistoryItemResponse
@@ -9,4 +11,10 @@ public class ApplicationHistoryItemResponse
     public string? Note { get; set; }
 
     public string? Responsible { get; set; }
+
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? ActorUserId { get; set; }
+
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public int? Version { get; set; }
 }

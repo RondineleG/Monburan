@@ -6,8 +6,10 @@ using Monburan.Core.Entities;
 using Monburan.Core.Enums;
 using Monburan.Core.Interfaces.Repositories;
 using Monburan.Core.Interfaces.Repositories.Base;
+using Monburan.Core.Interfaces.Services;
 using Monburan.Core.Interfaces.UseCases;
 using Monburan.Core.Requests;
+using Monburan.Core.Services;
 using Monburan.Core.UseCases.Notifications;
 using Monburan.Core.ValueObjects;
 
@@ -15,19 +17,25 @@ namespace Monburan.Core.UseCases.Applications;
 
 public class CreateApplicationUseCase : IUseCase<CreateApplicationRequest, ApplicationResponse>
 {
-    private readonly IBaseRepository<Application> _applicationRepository;
+    public const string ResumeSnapshotFeature = "snapshot-curriculo-candidatura";
+
+    private readonly IApplicationRepository _applicationRepository;
     private readonly IJobRepository _jobRepository;
     private readonly IBaseRepository<Resume> _resumeRepository;
     private readonly IApplicationStatusHistoryRepository _historyRepository;
     private readonly NotifyOnApplicationCreatedUseCase _notifyOnCreatedUseCase;
+    private readonly IFeatureFlags _featureFlags;
+    private readonly ICurrentPrincipalAccessor _currentPrincipal;
     private readonly ILogger<CreateApplicationUseCase> _logger;
 
     public CreateApplicationUseCase(
-        IBaseRepository<Application> applicationRepository,
+        IApplicationRepository applicationRepository,
         IJobRepository jobRepository,
         IBaseRepository<Resume> resumeRepository,
         IApplicationStatusHistoryRepository historyRepository,
         NotifyOnApplicationCreatedUseCase notifyOnCreatedUseCase,
+        IFeatureFlags featureFlags,
+        ICurrentPrincipalAccessor currentPrincipal,
         ILogger<CreateApplicationUseCase> logger)
     {
         _applicationRepository = applicationRepository;
@@ -35,6 +43,8 @@ public class CreateApplicationUseCase : IUseCase<CreateApplicationRequest, Appli
         _resumeRepository = resumeRepository;
         _historyRepository = historyRepository;
         _notifyOnCreatedUseCase = notifyOnCreatedUseCase;
+        _featureFlags = featureFlags;
+        _currentPrincipal = currentPrincipal;
         _logger = logger;
     }
 
@@ -46,14 +56,31 @@ public class CreateApplicationUseCase : IUseCase<CreateApplicationRequest, Appli
             return RequestResult<ApplicationResponse>.EntityNotFound("Job", request.JobId, "Vaga não encontrada.");
 
         var job = jobResult.Data!;
+        var existingResult = await _applicationRepository.FindByCandidateAndJobAsync(request.CandidateId, request.JobId, cancellationToken);
+        if (existingResult.Status == EResultStatus.Success && existingResult.Data is not null)
+        {
+            var existing = existingResult.Data;
+            if (!existing.HasSamePayload(request.ResumeId, request.Notes))
+            {
+                return RequestResult<ApplicationResponse>.EntityAlreadyExists(
+                    "Application", $"{request.CandidateId}/{request.JobId}",
+                    "Você já se candidatou a esta vaga com outros dados.");
+            }
+
+            var recovered = MapToResponse(existing);
+            recovered.ExistingApplication = true;
+            return RequestResult<ApplicationResponse>.Success(recovered);
+        }
+
         if (job.Status != EJobStatus.Active)
-            return RequestResult<ApplicationResponse>.WithDomainError("Vaga não está mais ativa.");
+            return RequestResult<ApplicationResponse>.WithConflict("Vaga não está mais ativa.");
 
         // Vaga externa recebe candidatura no canal da fonte (site, WhatsApp, e-mail ou presencial), nunca na Monburan
         if (job.PublicationType == EPublicationType.External)
             return RequestResult<ApplicationResponse>.WithDomainError("Esta vaga recebe candidaturas fora da Monburan. Use o canal indicado na vaga.");
 
         // Currículo anexado deve existir e pertencer ao candidato
+        Resume? resume = null;
         if (request.ResumeId.HasValue)
         {
             var resumeResult = await _resumeRepository.GetByIdAsync(Id.Create(request.ResumeId.Value), cancellationToken);
@@ -63,9 +90,14 @@ public class CreateApplicationUseCase : IUseCase<CreateApplicationRequest, Appli
                 return RequestResult<ApplicationResponse>.WithValidationError(
                     "Currículo não encontrado.", nameof(request.ResumeId));
             }
+
+            resume = resumeResult.Data;
         }
 
         // Criar candidatura
+        var captureResumeSnapshot = resume is not null && await _featureFlags.IsEnabledAsync(
+            ResumeSnapshotFeature, _currentPrincipal.User, cancellationToken);
+
         var application = new Application
         {
             Id = Id.Create(Guid.NewGuid()),
@@ -75,6 +107,7 @@ public class CreateApplicationUseCase : IUseCase<CreateApplicationRequest, Appli
             AppliedAt = DateTime.UtcNow,
             Notes = request.Notes,
             ResumeId = request.ResumeId,
+            ResumeSnapshotJson = resume is null || !captureResumeSnapshot ? null : ApplicationResumeSnapshotMapper.Serialize(resume),
             TenantId = "default"
         };
 
@@ -82,8 +115,15 @@ public class CreateApplicationUseCase : IUseCase<CreateApplicationRequest, Appli
         if (result.Status != EResultStatus.Success)
             return RequestResult<ApplicationResponse>.FromResult(result);
 
+        if (result.Data!.Id.Value != application.Id.Value)
+        {
+            var existing = MapToResponse(result.Data);
+            existing.ExistingApplication = true;
+            return RequestResult<ApplicationResponse>.Success(existing);
+        }
+
         // Histórico de etapas (não bloqueante: a candidatura existe mesmo se o histórico falhar)
-        await TryWriteHistoryAsync(application, note: null, responsible: null);
+        await TryWriteHistoryAsync(application, note: null, responsible: null, cancellationToken);
 
         // Incrementar contador de aplicações da vaga — de forma atômica. Contar no código
         // (ler a vaga, somar, gravar a vaga inteira) perdia a contagem quando duas
@@ -120,6 +160,8 @@ public class CreateApplicationUseCase : IUseCase<CreateApplicationRequest, Appli
                 Date = DateTime.UtcNow,
                 Note = note,
                 Responsible = responsible,
+                ActorUserId = AuthenticatedUserId.From(_currentPrincipal.User),
+                Version = application.Version,
                 TenantId = application.TenantId
             },
             cancellationToken);
@@ -142,6 +184,7 @@ public class CreateApplicationUseCase : IUseCase<CreateApplicationRequest, Appli
         Status = app.Status.ToString(),
         AppliedAt = app.AppliedAt,
         ResumeId = app.ResumeId,
+        ResumeSnapshot = ApplicationResumeSnapshotMapper.Deserialize(app.ResumeSnapshotJson),
         ViewedAt = app.ViewedAt,
         SelectedAt = app.SelectedAt,
         RejectedAt = app.RejectedAt,

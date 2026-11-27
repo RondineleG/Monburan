@@ -12,7 +12,7 @@ public class ListJobsRequest
     public decimal? SalaryMin { get; set; }
     public decimal? SalaryMax { get; set; }
     public string? Category { get; set; }
-    public string? SortBy { get; set; } = "CreatedAt";
+    public string? SortBy { get; set; } = "publishedAt";
     public bool SortDescending { get; set; } = true;
     public Guid? AdvertiserId { get; set; }
 

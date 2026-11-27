@@ -90,6 +90,11 @@ public class RequestResult : IRequestValidations, IRequestError, IRequestEntityW
         return new RequestResult { Status = EResultStatus.DomainError, Message = message, RequestError = new RequestError(message) };
     }
 
+    public static RequestResult WithConflict(string message)
+    {
+        return new RequestResult { Status = EResultStatus.Conflict, Message = message, RequestError = new RequestError(message) };
+    }
+
     public static RequestResult WithNoContent()
     {
         return new RequestResult { Status = EResultStatus.NoContent };
@@ -281,6 +286,11 @@ public class RequestResult<T> : RequestResult, IRequestCustomResult<T>
     public new static RequestResult<T> WithDomainError(string message)
     {
         return new RequestResult<T> { Status = EResultStatus.DomainError, Message = message, RequestError = new RequestError(message) };
+    }
+
+    public new static RequestResult<T> WithConflict(string message)
+    {
+        return new RequestResult<T> { Status = EResultStatus.Conflict, Message = message, RequestError = new RequestError(message) };
     }
 
     // Propaga status/mensagens/erros de outro result (preserva NotFound/Conflict/validação

@@ -112,6 +112,19 @@ public class AdminChangeJobStatusUseCaseTests
     }
 
     [Fact]
+    public async Task Activate_Draft_IsRefusedBecauseOnlyTheOwnerPublishesIt()
+    {
+        var job = NewJob(EJobStatus.Draft);
+
+        var result = await UseCase().ExecuteAsync(Request(job, EJobStatus.Active));
+
+        result.Status.Should().Be(EResultStatus.DomainError);
+        job.Status.Should().Be(EJobStatus.Draft);
+        _notifications.Created.Should().BeEmpty();
+        _audit.Records.Should().BeEmpty();
+    }
+
+    [Fact]
     public async Task Activate_ApprovesTheJob_ClearsTheReason_AndTellsTheCompany()
     {
         var job = NewJob(EJobStatus.Hidden, reason: "Texto enganoso");
@@ -305,7 +318,7 @@ public class AdminListJobsUseCaseTests
         result.Data!.TotalCount.Should().Be(4);
         result.Data.StatusCounts.Should().Equal(new Dictionary<string, int>
         {
-            ["Active"] = 2, ["Expired"] = 0, ["Hidden"] = 1, ["Rejected"] = 0, ["Paused"] = 1
+            ["Active"] = 2, ["Expired"] = 0, ["Hidden"] = 1, ["Rejected"] = 0, ["Paused"] = 1, ["Closed"] = 0, ["Draft"] = 0
         });
     }
 

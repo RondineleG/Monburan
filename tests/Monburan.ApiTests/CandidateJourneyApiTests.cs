@@ -3,9 +3,16 @@ using System.Net.Http.Headers;
 using System.Net.Http.Json;
 
 using FluentAssertions;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 
 using Monburan.Core.DTOs.Request;
 using Monburan.Core.DTOs.Response;
+using Monburan.Core.Entities;
+using Monburan.Core.Interfaces.Services;
+using Monburan.Core.UseCases.Jobs;
+using Monburan.Core.ValueObjects;
+using Monburan.Web.Data;
 
 namespace Monburan.ApiTests;
 
@@ -14,10 +21,12 @@ namespace Monburan.ApiTests;
 /// </summary>
 public class CandidateJourneyApiTests : IClassFixture<MonburanApiFactory>
 {
+    private readonly MonburanApiFactory _factory;
     private readonly HttpClient _client;
 
     public CandidateJourneyApiTests(MonburanApiFactory factory)
     {
+        _factory = factory;
         _client = factory.CreateClient();
     }
 
@@ -104,14 +113,44 @@ public class CandidateJourneyApiTests : IClassFixture<MonburanApiFactory>
         recommended!.Jobs.Should().Contain(job => job.Id == target.Id, "o cargo desejado aparece no título da vaga");
     }
 
+
     [Fact]
-    public async Task Recommended_WithoutProfileAndSkills_ReturnsEmptyList()
+    public async Task Recommended_WhenExplanationFeatureIsEnabled_ReturnsFactorsAndDisablesCleanly()
     {
         var token = await RegisterCandidateAsync();
+        var jobs = await _client.GetFromJsonAsync<ListJobsResponse>("/api/v1/jobs?page=1&size=5");
+        var target = jobs!.Jobs.First();
+        var desiredRole = target.Title.Split(' ', StringSplitOptions.RemoveEmptyEntries).First(word => word.Length >= 3);
+        var profileResponse = await PutAsync(token.AccessToken, "/api/v1/candidates/me/career-profile", new CareerProfileRequest
+        {
+            DesiredRole = desiredRole
+        });
+        profileResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        await SetExplainableRecommendationAsync(true);
+        var explained = await GetAsync<ListJobsResponse>(token.AccessToken, "/api/v1/jobs/recommended");
+        var explainedJob = explained!.Jobs.Single(job => job.Id == target.Id);
+        explainedJob.RecommendationScore.Should().BeGreaterThan(0);
+        explainedJob.RecommendationFactors.Should().NotBeNullOrEmpty();
+        explainedJob.RecommendationFactors!.Should().Contain(factor => factor.Contains("Cargo desejado"));
+
+        await SetExplainableRecommendationAsync(false);
+        var plain = await GetAsync<ListJobsResponse>(token.AccessToken, "/api/v1/jobs/recommended");
+        var plainJob = plain!.Jobs.Single(job => job.Id == target.Id);
+        plainJob.RecommendationScore.Should().BeNull();
+        plainJob.RecommendationFactors.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task Recommended_WithoutProfileAndSkills_UsesBasicRanking()
+    {
+        var token = await RegisterCandidateAsync();
+        await SetExplainableRecommendationAsync(true);
 
         var recommended = await GetAsync<ListJobsResponse>(token.AccessToken, "/api/v1/jobs/recommended");
 
-        recommended!.Jobs.Should().BeEmpty("sem perfil e sem currículo não há pontuação — a UI mostra as vagas recentes");
+        recommended!.Jobs.Should().NotBeEmpty("com a liberação ligada, perfil incompleto usa a ordenação básica por recência");
+        await SetExplainableRecommendationAsync(false);
     }
 
     [Fact]
@@ -146,6 +185,38 @@ public class CandidateJourneyApiTests : IClassFixture<MonburanApiFactory>
         var response = await _client.PostAsync($"/api/v1/jobs/{Guid.NewGuid()}/views", null);
 
         response.StatusCode.Should().Be(HttpStatusCode.NotFound);
+    }
+
+
+    private async Task SetExplainableRecommendationAsync(bool enabled)
+    {
+        await using var context = await _factory.Services
+            .GetRequiredService<IDbContextFactory<ApplicationDbContext>>()
+            .CreateDbContextAsync();
+        var flag = await context.FeatureFlags.SingleOrDefaultAsync(f => f.Name == ListRecommendedJobsUseCase.ExplainableRecommendationFeature);
+        if (flag is null)
+        {
+            context.FeatureFlags.Add(new FeatureFlag
+            {
+                Id = Id.Create(Guid.NewGuid()),
+                Name = ListRecommendedJobsUseCase.ExplainableRecommendationFeature,
+                Description = "Explicar os fatores das recomendações de vagas",
+                EnabledForEveryone = enabled,
+                Groups = string.Empty,
+                TenantId = "default",
+                CreatedBy = "teste",
+                DeletedBy = string.Empty,
+                UpdatedBy = string.Empty
+            });
+        }
+        else
+        {
+            flag.EnabledForEveryone = enabled;
+            flag.Groups = string.Empty;
+        }
+
+        await context.SaveChangesAsync();
+        _factory.Services.GetRequiredService<IFeatureFlags>().Invalidate();
     }
 
     private async Task<Guid> FirstJobIdAsync()

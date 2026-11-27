@@ -1,4 +1,4 @@
-﻿namespace Monburan.Core.Enums;
+namespace Monburan.Core.Enums;
 
 public enum EJobStatus
 
@@ -7,4 +7,4 @@ public enum EJobStatus
 
 
 
-{ Active, Expired, Hidden, Rejected, Paused }
+{ Draft, Active, Expired, Hidden, Rejected, Paused, Closed }

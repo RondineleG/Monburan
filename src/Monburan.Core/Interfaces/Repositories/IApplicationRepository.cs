@@ -26,6 +26,9 @@ public interface IApplicationRepository : IBaseRepository<Application>
     /// <summary>Candidaturas do candidato agrupadas por situação, com a contagem feita no banco.</summary>
     Task<RequestResult<IReadOnlyDictionary<EApplicationStatus, int>>> CountByStatusForCandidateAsync(Guid candidateId, CancellationToken cancellationToken = default);
 
+    /// <summary>Atualiza o estado e grava a entrada do ATS na mesma unidade de persistência.</summary>
+    Task<RequestResult<Application>> UpdateStatusWithHistoryAsync(Application application, ApplicationStatusHistory historyEntry, CancellationToken cancellationToken = default);
+
     /// <summary>
     /// A candidatura do candidato em uma vaga específica (ou nulo). Consulta exata no banco,
     /// sem teto de listagem: nunca "adivinhar" pela página carregada.

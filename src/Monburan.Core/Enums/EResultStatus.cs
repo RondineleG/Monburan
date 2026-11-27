@@ -14,6 +14,8 @@ public enum EResultStatus
 
     EntityAlreadyExists,
 
+    Conflict,
+
     // Erro de domínio com mensagem segura para o usuário (não carrega internals de exceção)
     DomainError,
 

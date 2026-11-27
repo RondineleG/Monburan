@@ -1,5 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 
+using Npgsql;
+
 using Monburan.Core.Entities;
 using Monburan.Core.Interfaces.Repositories;
 using Monburan.Core.Requests;
@@ -19,16 +21,9 @@ public class ApplicationRepository : IApplicationRepository
     public async Task<RequestResult<Application>> CreateAsync(Application entity, CancellationToken cancellationToken = default)
     {
         await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);
-        var alreadyApplied = await context.Applications
-            .AsNoTracking()
-            .AnyAsync(application => !application.IsDeleted &&
-                application.CandidateId == entity.CandidateId &&
-                application.JobId == entity.JobId,
-                cancellationToken);
-        if (alreadyApplied)
-            return RequestResult<Application>.EntityAlreadyExists(
-                "Application", $"{entity.CandidateId.Value}/{entity.JobId.Value}",
-                "Você já se candidatou a esta vaga.");
+        var existing = await FindCurrentAsync(context, entity.CandidateId, entity.JobId, cancellationToken);
+        if (existing is not null)
+            return DuplicateResult(existing, entity);
 
         try
         {
@@ -39,9 +34,32 @@ public class ApplicationRepository : IApplicationRepository
         catch (DbUpdateException)
         {
             context.Entry(entity).State = EntityState.Detached;
+            existing = await FindCurrentAsync(context, entity.CandidateId, entity.JobId, cancellationToken);
+            if (existing is not null)
+                return DuplicateResult(existing, entity);
+
             return RequestResult<Application>.WithDomainError("Não foi possível concluir sua candidatura. Você pode já ter se candidatado a esta vaga.");
         }
     }
+
+
+    private static Task<Application?> FindCurrentAsync(ApplicationDbContext context, Id candidateId, Id jobId, CancellationToken cancellationToken) =>
+        context.Applications
+            .AsNoTracking()
+            .FirstOrDefaultAsync(application => !application.IsDeleted &&
+                application.CandidateId == candidateId &&
+                application.JobId == jobId,
+                cancellationToken);
+
+    private static RequestResult<Application> DuplicateResult(Application existing, Application requested) =>
+        SamePayload(existing, requested)
+            ? RequestResult<Application>.Success(existing)
+            : RequestResult<Application>.EntityAlreadyExists(
+                "Application", $"{requested.CandidateId.Value}/{requested.JobId.Value}",
+                "Você já se candidatou a esta vaga com outros dados.");
+
+    private static bool SamePayload(Application existing, Application requested) =>
+        existing.HasSamePayload(requested.ResumeId, requested.Notes);
 
     public async Task<RequestResult<Application>> DeleteAsync(Id id, CancellationToken cancellationToken = default)
     {
@@ -90,10 +108,48 @@ public class ApplicationRepository : IApplicationRepository
     public async Task<RequestResult<Application>> UpdateAsync(Application entity, CancellationToken cancellationToken = default)
     {
         await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);
-        context.Applications.Update(entity);
-        await context.SaveChangesAsync(cancellationToken);
-        return RequestResult<Application>.Success(entity);
+        AttachForOptimisticUpdate(context, entity);
+        try
+        {
+            await context.SaveChangesAsync(cancellationToken);
+            return RequestResult<Application>.Success(entity);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            return ConcurrencyConflict();
+        }
     }
+
+    public async Task<RequestResult<Application>> UpdateStatusWithHistoryAsync(Application application, ApplicationStatusHistory historyEntry, CancellationToken cancellationToken = default)
+    {
+        await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);
+        AttachForOptimisticUpdate(context, application);
+        context.ApplicationStatusHistory.Add(historyEntry);
+        try
+        {
+            await context.SaveChangesAsync(cancellationToken);
+            return RequestResult<Application>.Success(application);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            return ConcurrencyConflict();
+        }
+        catch (DbUpdateException ex) when (ex.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation })
+        {
+            return ConcurrencyConflict();
+        }
+    }
+
+    private static void AttachForOptimisticUpdate(ApplicationDbContext context, Application entity)
+    {
+        context.Applications.Attach(entity);
+        var entry = context.Entry(entity);
+        entry.Property(application => application.Version).OriginalValue = entity.Version - 1;
+        entry.State = EntityState.Modified;
+    }
+
+    private static RequestResult<Application> ConcurrencyConflict() =>
+        RequestResult<Application>.WithConflict("A candidatura foi atualizada por outra operação. Recarregue antes de tentar novamente.");
 
     public async Task<RequestResult<IEnumerable<Application>>> ListByCandidateAsync(Guid candidateId, int page = 1, int size = 0, CancellationToken cancellationToken = default)
     {

@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore.Metadata.Builders;
+using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 using Monburan.Core.Entities;
 using Monburan.Core.ValueObjects;
@@ -32,6 +32,12 @@ public class NotificationConfiguration : IEntityTypeConfiguration<Notification>
         builder.Property(n => n.Type)
             .HasMaxLength(50);
 
+        builder.Property(n => n.JobAlertId)
+            .IsRequired(false);
+
+        builder.Property(n => n.JobId)
+            .IsRequired(false);
+
         builder.Property(n => n.IsRead)
             .HasDefaultValue(false);
 
@@ -43,5 +49,10 @@ public class NotificationConfiguration : IEntityTypeConfiguration<Notification>
 
         builder.HasIndex(n => new { n.RecipientId, n.Type })
             .HasDatabaseName("IX_Notifications_RecipientId_Type");
+
+        builder.HasIndex(n => new { n.JobAlertId, n.JobId })
+            .IsUnique()
+            .HasFilter("\"JobAlertId\" IS NOT NULL AND \"JobId\" IS NOT NULL")
+            .HasDatabaseName("UX_Notifications_JobAlertId_JobId");
     }
 }
