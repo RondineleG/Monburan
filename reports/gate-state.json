@@ -1,0 +1,85 @@
+{
+  "attempts": 0,
+  "flow_failures": {
+    "MB-12": {
+      "causes": [
+        "unknown",
+        "flaky",
+        "environment"
+      ],
+      "count": 3
+    },
+    "MB-01": {
+      "causes": [
+        "environment"
+      ],
+      "count": 1
+    },
+    "MB-02": {
+      "causes": [
+        "environment"
+      ],
+      "count": 1
+    },
+    "MB-03": {
+      "causes": [
+        "environment"
+      ],
+      "count": 1
+    },
+    "MB-04": {
+      "causes": [
+        "environment"
+      ],
+      "count": 1
+    },
+    "MB-05": {
+      "causes": [
+        "environment"
+      ],
+      "count": 1
+    },
+    "MB-06": {
+      "causes": [
+        "environment"
+      ],
+      "count": 1
+    },
+    "MB-07": {
+      "causes": [
+        "environment"
+      ],
+      "count": 1
+    },
+    "MB-08": {
+      "causes": [
+        "environment"
+      ],
+      "count": 1
+    },
+    "MB-09": {
+      "causes": [
+        "environment"
+      ],
+      "count": 1
+    },
+    "MB-10": {
+      "causes": [
+        "environment"
+      ],
+      "count": 1
+    },
+    "MB-11": {
+      "causes": [
+        "environment"
+      ],
+      "count": 1
+    },
+    "MB-13": {
+      "causes": [
+        "environment"
+      ],
+      "count": 1
+    }
+  }
+}

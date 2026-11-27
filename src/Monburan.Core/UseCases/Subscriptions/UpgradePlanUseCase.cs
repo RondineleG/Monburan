@@ -16,18 +16,15 @@ public sealed class UpgradePlanUseCase : IUseCase<UpgradePlanRequest, Subscripti
     private readonly IBaseRepository<Advertiser> _advertiserRepository;
     private readonly IBaseRepository<SubscriptionPlan> _planRepository;
     private readonly ISubscriptionRepository _subscriptionRepository;
-    private readonly IBillingPolicy _billing;
 
     public UpgradePlanUseCase(
         IBaseRepository<Advertiser> advertiserRepository,
         IBaseRepository<SubscriptionPlan> planRepository,
-        ISubscriptionRepository subscriptionRepository,
-        IBillingPolicy billing)
+        ISubscriptionRepository subscriptionRepository)
     {
         _advertiserRepository = advertiserRepository;
         _planRepository = planRepository;
         _subscriptionRepository = subscriptionRepository;
-        _billing = billing;
     }
 
     public async Task<RequestResult<SubscriptionResponse>> ExecuteAsync(UpgradePlanRequest request, CancellationToken cancellationToken = default)
@@ -50,11 +47,10 @@ public sealed class UpgradePlanUseCase : IUseCase<UpgradePlanRequest, Subscripti
         if (plan.Audience != EPlanAudience.Advertiser)
             return RequestResult<SubscriptionResponse>.WithDomainError("O plano selecionado não é válido para esta conta.");
 
-        // Sem cobrança, plano pago não é ativado pelo próprio anunciante. A regra fica aqui, no servidor, e vale para o
-        // site e para a API: esconder o botão na tela não impediria chamar o endpoint
-        if (plan.Price > 0 && !_billing.AllowsSelfServicePaidPlans)
+        // Ativação via upgrade nunca cobra: planos pagos só são ativados após confirmação do webhook do gateway.
+        if (plan.Price > 0)
             return RequestResult<SubscriptionResponse>.WithDomainError(
-                "Os planos pagos ainda não estão disponíveis para contratação. Avisaremos quando a cobrança estiver ativa.");
+                "Planos pagos devem ser contratados pelo checkout para confirmar o pagamento antes da ativação.");
 
         // Cancelar assinatura anterior se existir (consulta direta — a busca antiga
         // varria só as 100 primeiras assinaturas da plataforma e podia deixar duas ativas)

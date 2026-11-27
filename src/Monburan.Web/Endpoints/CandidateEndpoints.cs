@@ -1,3 +1,5 @@
+using System.Security.Claims;
+
 using Monburan.Core.DTOs.Request;
 using Monburan.Core.Enums;
 using Monburan.Core.UseCases.Advertisers;
@@ -72,6 +74,72 @@ public static class CandidateEndpoints
             return result.ToHttpResult();
         })
         .WithSummary("Cria ou atualiza o perfil de carreira do candidato autenticado");
+
+        group.MapGet("/me/international-preferences", async (
+            ICurrentUserHelper currentUser,
+            ClaimsPrincipal user,
+            GetInternationalPreferencesUseCase useCase,
+            CancellationToken cancellationToken) =>
+        {
+            var candidateId = currentUser.GetCandidateId();
+            if (candidateId is null)
+                return Results.Problem(statusCode: StatusCodes.Status403Forbidden, title: "Perfil de candidato necessário");
+
+            var result = await useCase.ExecuteAsync(new GetInternationalPreferencesCommand(candidateId.Value), user, cancellationToken);
+            return result.ToHttpResult();
+        })
+        .RequireFeature("carreira-internacional")
+        .WithSummary("Preferências internacionais do candidato (MI-01 — feature flag)");
+
+        group.MapPut("/me/international-preferences", async (
+            InternationalPreferencesRequest request,
+            ICurrentUserHelper currentUser,
+            ClaimsPrincipal user,
+            UpsertInternationalPreferencesUseCase useCase,
+            CancellationToken cancellationToken) =>
+        {
+            var candidateId = currentUser.GetCandidateId();
+            if (candidateId is null)
+                return Results.Problem(statusCode: StatusCodes.Status403Forbidden, title: "Perfil de candidato necessário");
+
+            var result = await useCase.ExecuteAsync(new UpsertInternationalPreferencesCommand(candidateId.Value, request), user, cancellationToken);
+            return result.ToHttpResult();
+        })
+        .RequireFeature("carreira-internacional")
+        .WithSummary("Cria ou atualiza preferências internacionais (países, mobilidade, autorização autodeclarada)");
+
+        group.MapGet("/me/languages", async (
+            ICurrentUserHelper currentUser,
+            ClaimsPrincipal user,
+            GetCandidateLanguagesUseCase useCase,
+            CancellationToken cancellationToken) =>
+        {
+            var candidateId = currentUser.GetCandidateId();
+            if (candidateId is null)
+                return Results.Problem(statusCode: StatusCodes.Status403Forbidden, title: "Perfil de candidato necessário");
+
+            var result = await useCase.ExecuteAsync(new GetCandidateLanguagesCommand(candidateId.Value), user, cancellationToken);
+            return result.ToHttpResult();
+        })
+        .RequireFeature("carreira-internacional")
+        .WithSummary("Idiomas autodeclarados do candidato (MI-01 — feature flag)");
+
+        group.MapPut("/me/languages", async (
+            CandidateLanguagesRequest request,
+            ICurrentUserHelper currentUser,
+            ClaimsPrincipal user,
+            ReplaceCandidateLanguagesUseCase useCase,
+            CancellationToken cancellationToken) =>
+        {
+            var candidateId = currentUser.GetCandidateId();
+            if (candidateId is null)
+                return Results.Problem(statusCode: StatusCodes.Status403Forbidden, title: "Perfil de candidato necessário");
+
+            var result = await useCase.ExecuteAsync(new ReplaceCandidateLanguagesCommand(candidateId.Value, request), user, cancellationToken);
+            return result.ToHttpResult();
+        })
+        .RequireFeature("carreira-internacional")
+        .WithSummary("Substitui o conjunto de idiomas autodeclarados do candidato");
 
         group.MapGet("/me/progress", async (
             ICurrentUserHelper currentUser,

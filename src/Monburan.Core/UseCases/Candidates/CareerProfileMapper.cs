@@ -1,5 +1,6 @@
 using Monburan.Core.DTOs.Response;
 using Monburan.Core.Entities;
+using Monburan.Core.Services;
 
 namespace Monburan.Core.UseCases.Candidates;
 
@@ -14,6 +15,7 @@ internal static class CareerProfileMapper
         Category = profile?.Category,
         MinimumSalary = profile?.MinimumSalary,
         ContractType = profile?.ContractType,
+        PreferredCountries = PreferredCountryCodes.Parse(profile?.PreferredCountries),
         UpdatedAt = profile?.UpdatedAt
     };
 }

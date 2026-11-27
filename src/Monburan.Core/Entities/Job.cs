@@ -70,6 +70,18 @@ public class Job : BaseEntity
 
     public SalaryRange? Salary { get; set; }
 
+    /// <summary>Abrangência do trabalho remoto; nulo = não informado. Só vale para vaga remota ou híbrida.</summary>
+    public ERemoteScope? RemoteScope { get; set; }
+
+    /// <summary>Países de onde se pode trabalhar (códigos ISO separados por vírgula), quando o remoto é restrito.</summary>
+    public string? EligibleCountries { get; set; }
+
+    /// <summary>A empresa oferece ajuda de relocação; nulo = não informado (diferente de "não").</summary>
+    public bool? OffersRelocation { get; set; }
+
+    /// <summary>A empresa patrocina visto de trabalho; nulo = não informado (diferente de "não").</summary>
+    public bool? SponsorsVisa { get; set; }
+
     /// <summary>Nome da fonte da vaga externa (ex.: nome do site ou da agência).</summary>
     public string? SourceName { get; set; }
 

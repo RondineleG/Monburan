@@ -6,6 +6,8 @@ using Monburan.Core.DTOs.Response;
 using Monburan.Core.Requests;
 using Monburan.Core.UseCases.Jobs;
 using Monburan.Web.Services;
+using Monburan.Core.Interfaces.Services;
+using Monburan.Core.Services;
 
 namespace Monburan.Web.Endpoints;
 
@@ -26,13 +28,14 @@ public static class JobEndpoints
             bool? isRemote = null, string? type = null,
             decimal? salaryMin = null, decimal? salaryMax = null,
             string? category = null, string? sortBy = null, bool? sortDescending = null,
-            string? contractType = null, string? salaryPeriod = null, int? publishedWithinDays = null) =>
+            string? contractType = null, string? salaryPeriod = null, int? publishedWithinDays = null,
+            string? country = null) =>
         {
             var (candidateId, _) = await ResolveApiIdentityAsync(httpContext, currentUser);
             var result = await useCase.ExecuteAsync(BuildRequest(
                 page, size, searchTerm, city, state, isRemote, type, salaryMin, salaryMax,
                 category, sortBy, sortDescending, advertiserId: null, candidateId,
-                contractType, salaryPeriod, publishedWithinDays), cancellationToken);
+                contractType, salaryPeriod, publishedWithinDays, country), cancellationToken);
             if (result.Data is not null)
             {
                 foreach (var job in result.Data.Jobs)
@@ -66,6 +69,35 @@ public static class JobEndpoints
         })
         .RequireAuthorization("ApiBearer")
         .WithSummary("Lista vagas do anunciante autenticado");
+
+        // Bearer — vagas internacionais do candidato, filtradas pelo perfil de carreira (plano Premium)
+        group.MapGet("/international", async (
+            ICurrentUserHelper currentUser,
+            ListInternationalJobsUseCase useCase,
+            Core.Interfaces.Services.IFeatureFlags flags,
+            HttpContext httpContext,
+            CancellationToken cancellationToken,
+            int? page = null, int? size = null) =>
+        {
+            if (!await flags.IsEnabledAsync(InternationalJobsFeature, httpContext.User, cancellationToken))
+                return Results.NotFound();
+
+            var candidateId = currentUser.GetCandidateId();
+            if (candidateId is null)
+                return Results.Problem(statusCode: StatusCodes.Status403Forbidden, title: "Perfil de candidato necessário");
+
+            var result = await useCase.ExecuteAsync(
+                new ListInternationalJobsQuery(candidateId.Value, page ?? 1, size ?? 10), cancellationToken);
+            if (result.Data is not null)
+            {
+                foreach (var job in result.Data.Data)
+                    HideUndisclosedSalary(job);
+            }
+
+            return result.ToHttpResult();
+        })
+        .RequireAuthorization("ApiBearer")
+        .WithSummary("Lista vagas internacionais filtradas pelo perfil de carreira (plano Premium)");
 
         // Bearer — recomendações para o candidato autenticado
         group.MapGet("/recommended", async (
@@ -190,7 +222,9 @@ public static class JobEndpoints
         // Bearer — criar vaga (AdvertiserId sempre vem da claim, nunca do body)
         group.MapPost("/", async (
             CreateJobRequest request,
+            HttpContext httpContext,
             ICurrentUserHelper currentUser,
+            IFeatureFlags featureFlags,
             CreateJobUseCase useCase,
             CancellationToken cancellationToken) =>
         {
@@ -199,6 +233,8 @@ public static class JobEndpoints
                 return Results.Problem(statusCode: StatusCodes.Status403Forbidden, title: "Perfil de anunciante necessário");
 
             request.AdvertiserId = advertiserId.Value;
+            InternationalJobFields.DropUnlessEnabled(request,
+                await featureFlags.IsEnabledAsync(InternationalJobRules.FeatureKey, httpContext.User, cancellationToken));
             var result = await useCase.ExecuteAsync(request, cancellationToken);
             return result.ToHttpResult(StatusCodes.Status201Created);
         })
@@ -209,7 +245,9 @@ public static class JobEndpoints
         group.MapPut("/{id:guid}", async (
             Guid id,
             UpdateJobRequest request,
+            HttpContext httpContext,
             ICurrentUserHelper currentUser,
+            IFeatureFlags featureFlags,
             GetJobByIdUseCase getJob,
             UpdateJobUseCase useCase,
             CancellationToken cancellationToken) =>
@@ -226,6 +264,8 @@ public static class JobEndpoints
                 return Results.Problem(statusCode: StatusCodes.Status403Forbidden, title: "Vaga pertence a outro anunciante");
 
             request.Id = id;
+            InternationalJobFields.KeepExistingUnlessEnabled(request, existing.Data,
+                await featureFlags.IsEnabledAsync(InternationalJobRules.FeatureKey, httpContext.User, cancellationToken));
             var result = await useCase.ExecuteAsync(request, cancellationToken);
             return result.ToHttpResult();
         })
@@ -260,6 +300,9 @@ public static class JobEndpoints
         return api;
     }
 
+    /// <summary>Feature flag das vagas internacionais (lado servidor).</summary>
+    internal const string InternationalJobsFeature = "vagas-internacionais";
+
     // O bearer não é o scheme padrão da aplicação (o site usa cookie): em rota anônima, só a autenticação
     // explícita do JWT devolve quem está chamando — sem isso o app mobile nunca veria IsSaved nem o dono
     // da vaga seria reconhecido na contagem de visualizações.
@@ -289,7 +332,8 @@ public static class JobEndpoints
         int? page, int? size, string? searchTerm, string? city, string? state,
         bool? isRemote, string? type, decimal? salaryMin, decimal? salaryMax,
         string? category, string? sortBy, bool? sortDescending, Guid? advertiserId, Guid? candidateId,
-        string? contractType = null, string? salaryPeriod = null, int? publishedWithinDays = null)
+        string? contractType = null, string? salaryPeriod = null, int? publishedWithinDays = null,
+        string? country = null)
     {
         return new ListJobsRequest
         {
@@ -309,7 +353,8 @@ public static class JobEndpoints
             CandidateId = candidateId,
             ContractType = contractType,
             SalaryPeriod = salaryPeriod,
-            PublishedWithinDays = publishedWithinDays is > 0 ? publishedWithinDays : null
+            PublishedWithinDays = publishedWithinDays is > 0 ? publishedWithinDays : null,
+            Country = country
         };
     }
 }

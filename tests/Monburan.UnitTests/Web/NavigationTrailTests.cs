@@ -35,6 +35,7 @@ public class NavigationTrailTests
     [InlineData("/enderecos/2b1c6e0e-6a3a-4f2b-9a51-0b8f2d0b4c11/editar", "Endereços", "/enderecos", "Editar endereço")]
     [InlineData("/conta/alterar-senha", "Conta e segurança", "/conta", "Alterar senha")]
     [InlineData("/admin/auditoria", "Administração", "/", "Auditoria")]
+    [InlineData("/curriculos/3fa85f64-5717-4562-b3fc-2c963f66afa6/versoes", "Meus currículos", "/curriculos", "Em outro idioma")]
     [InlineData("/empresa/logo", "Perfil da empresa", "/perfil/empresa", "Logo")]
     public void Subpages_LinkOneLevelUp_AndEndOnTheCurrentPage(string path, string parent, string parentHref, string current)
     {

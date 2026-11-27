@@ -19,6 +19,8 @@ static class CaptureRunner
 
     static (string Name, int W, int H)[] WebViewports = [("desktop", 1440, 900), ("tablet", 834, 1112), ("mobile", 390, 844)];
     static readonly (string Name, int W, int H)[] AppViewports = [("small", 360, 800), ("medium", 390, 844), ("large", 412, 915)];
+    // O app Android também roda em tablet, em retrato e em paisagem (telas médias e grandes)
+    static readonly (string Name, int W, int H)[] AppTabletViewports = [("tablet", 800, 1280), ("tablet-landscape", 1280, 800)];
 
     sealed record Shot(string Role, string Name, string Path);
 
@@ -64,7 +66,7 @@ static class CaptureRunner
         return i >= 0 && i + 1 < args.Length && !args[i + 1].StartsWith("--") ? args[i + 1] : null;
     }
 
-    sealed record Seed(Guid ResumeId, Guid AppliedJobId);
+    sealed record Seed(Guid ResumeId, Guid AppliedJobId, Guid IntlJobId, Guid AdJobId, Guid VariantId);
 
     // Fixture só no banco InMemory: currículo ativo e uma candidatura recebida pela empresa seedada
     static async Task<Seed> SeedAsync(IServiceProvider services)
@@ -85,7 +87,63 @@ static class CaptureRunner
         if (!await db.Applications.AnyAsync(a => a.CandidateId == candidate.Id && a.JobId == job.Id))
             db.Applications.Add(new Application { CandidateId = candidate.Id, JobId = job.Id, ResumeId = resume.Id, Status = EApplicationStatus.Sent, AppliedAt = DateTime.UtcNow });
         await db.SaveChangesAsync();
-        return new Seed(resume.Id.Value, job.Id.Value);
+
+        // Funcionalidades em teste ligadas só neste banco de captura
+        foreach (var flag in new[] { "publicidade-local", "carreira-internacional" })
+            if (!await db.FeatureFlags.AnyAsync(f => f.Name == flag))
+                db.FeatureFlags.Add(new FeatureFlag { Name = flag, Description = "Captura", EnabledForEveryone = true, TenantId = "default" });
+
+        // Vaga fora do Brasil com os dados internacionais informados (relocação sim, visto não informado)
+        var intlJob = new Job
+        {
+            AdvertiserId = advertiser.Id,
+            Title = "Desenvolvedor Backend (Lisboa)",
+            Description = "Time de produto em Lisboa, com trabalho híbrido. Aceitamos pessoas de Portugal e Espanha no remoto.",
+            ExpirationDate = DateTime.UtcNow.Date.AddDays(40),
+            Status = EJobStatus.Active,
+            TenantId = "default",
+            Location = new JobLocation { City = "Lisboa", Country = "PT", Type = "Hybrid", IsRemote = true },
+            Salary = new SalaryRange { Min = 3500, Max = 4500, Currency = "EUR", Period = ESalaryPeriod.Month },
+            RemoteScope = ERemoteScope.Restricted,
+            EligibleCountries = "PT,ES",
+            OffersRelocation = true,
+            Moderation = new ModerationInfo { Status = EModerationStatus.Approved },
+            Boost = new JobBoost(),
+            Highlight = new JobHighlight(),
+            Counters = new JobCounters()
+        };
+        db.Jobs.Add(intlJob);
+
+        // Campanha local ativa para as vagas do Rio de Janeiro (visitante e plano gratuito veem; plano pago não)
+        var adJob = await db.Jobs.FirstAsync(j => j.Location!.City == "Rio de Janeiro" && j.Status == EJobStatus.Active && !j.IsDeleted);
+        if (!await db.LocalAdCampaigns.AnyAsync())
+            db.LocalAdCampaigns.Add(new LocalAdCampaign
+            {
+                SponsorName = "Padaria Central",
+                Headline = "Café da manhã para quem vai à entrevista",
+                Description = "10% de desconto mostrando o convite da entrevista.",
+                TargetUrl = "https://padaria.exemplo.com.br",
+                TargetLocationsJson = "[{\"city\":\"Rio de Janeiro\",\"state\":\"RJ\"}]",
+                TargetStates = "|RJ|",
+                StartsAt = DateTime.UtcNow.AddDays(-1),
+                EndsAt = DateTime.UtcNow.AddDays(20),
+                IsActive = true,
+                TenantId = "default"
+            });
+
+        // Versão es-ES do currículo com um título traduzido
+        var variant = new ResumeVariant
+        {
+            ResumeId = resume.Id,
+            CandidateId = candidate.Id,
+            Locale = "es-ES",
+            OverridesJson = "{\"title\":\"Desarrollador .NET\"}",
+            TenantId = "default"
+        };
+        db.ResumeVariants.Add(variant);
+        await db.SaveChangesAsync();
+
+        return new Seed(resume.Id.Value, job.Id.Value, intlJob.Id.Value, adJob.Id.Value, variant.Id.Value);
     }
 
     sealed class Session(IBrowser browser, string baseUrl, string outDir, string metricsJs)
@@ -243,6 +301,7 @@ static class CaptureRunner
             ("register-confirmation", "/criar-conta/confirmacao?email=x%40y.com", false), ("forgot-confirmation", "/esqueci-senha/enviado", false),
             ("reset-confirmation", "/redefinir-senha/concluido", false), ("invalid-reset", "/redefinir-senha/invalido", false), ("invalid-user", "/conta/usuario-invalido", false),
             ("job-notfound", "/jobs/00000000-0000-0000-0000-000000000001", false), ("company-notfound", "/empresas/00000000-0000-0000-0000-000000000001", false),
+            ("job-intl", "/jobs/" + seed.IntlJobId, false), ("job-ad", "/jobs/" + seed.AdJobId, false),
             ("protected-redirect", "/minhas-candidaturas", false), ("error", "/Error", false),
         };
         if (jobPath is not null) visitor.Add(("job-details", jobPath, true));
@@ -271,7 +330,7 @@ static class CaptureRunner
             ("dashboard", "/", true), ("jobs", "/jobs", false), ("my-applications", "/minhas-candidaturas", true), ("my-applications-saved", "/minhas-candidaturas?aba=salvas", false),
             ("my-applications-alerts", "/minhas-candidaturas?aba=alertas", false), ("career-profile", "/perfil-profissional", false), ("profile", "/perfil/candidato", false),
             ("resumes", "/curriculos", false), ("resume-new", "/curriculos/novo", false), ("resume-wizard", "/curriculos/assistente", false), ("resume-upload", "/curriculos/upload", false),
-            ("resume-details", resumePath, true), ("resume-edit", resumePath + "/edit", false), ("resume-cv", resumePath + "/cv", false), ("resume-wizard-edit", resumePath + "/wizard", false),
+            ("resume-details", resumePath, true), ("resume-edit", resumePath + "/editar", false), ("resume-cv", resumePath + "/cv", false), ("resume-wizard-edit", resumePath + "/assistente", false), ("resume-variants", resumePath + "/versoes", false), ("resume-variant-cv", resumePath + "/versoes/" + seed.VariantId + "/cv", false), ("job-ad-paid", "/jobs/" + seed.AdJobId, false),
             ("notifications", "/notifications", false), ("address-list", "/enderecos", false), ("address-create", "/enderecos/novo", false),
             ("address-edit-missing", "/enderecos/00000000-0000-0000-0000-000000000009/editar", false), ("address-delete-missing", "/enderecos/00000000-0000-0000-0000-000000000009/excluir", false),
             ("manage-index", "/conta", false), ("manage-email", "/conta/email", false), ("manage-password", "/conta/alterar-senha", false),
@@ -330,6 +389,7 @@ static class CaptureRunner
         {
             ("dashboard", "/", false), ("accounts", "/admin/contas", true), ("jobs", "/admin/vagas", false), ("audit", "/admin/auditoria", false),
             ("ai-providers", "/admin/provedores-ia", false), ("candidates", "/admin/candidatos", false), ("advertisers", "/admin/empresas", false),
+            ("local-ads", "/admin/publicidade-local", false),
         };
         await RoleAsync("admin", "admin@monburan.com.br", admin);
     }
@@ -392,15 +452,16 @@ static class CaptureRunner
         var jobs = new List<(string, string)>
         {
             ("home", "/"), ("jobs", "/jobs"), ("job-details", "/jobs/" + seed.AppliedJobId), ("login", "/login"), ("register", "/register"),
+            ("job-intl", "/jobs/" + seed.IntlJobId),
             ("forgot-password", "/forgot-password"), ("not-found", "/not-found"), ("protected", "/applications"),
         };
         var candidate = new List<(string, string)>
         {
-            ("home", "/"), ("jobs", "/jobs"), ("job-details", "/jobs/" + seed.AppliedJobId), ("apply-done", "/candidatar/" + seed.AppliedJobId),
+            ("home", "/"), ("jobs", "/jobs"), ("job-details", "/jobs/" + seed.AppliedJobId), ("apply-done", "/apply/" + seed.AppliedJobId),
             ("applications", "/applications"), ("saved-jobs", "/applications?aba=salvas"), ("job-alerts", "/applications?aba=alertas"),
-            ("notifications", "/notifications"), ("profile", "/profile"), ("career-profile", "/perfil-profissional"), ("plans", "/plans"),
-            ("resumes", "/curriculos"), ("resume-details", "/curriculos/" + seed.ResumeId), ("resume-edit", "/curriculos/" + seed.ResumeId + "/edit"),
-            ("resume-new", "/curriculos/novo"),
+            ("notifications", "/notifications"), ("profile", "/profile"), ("career-profile", "/career-profile"), ("plans", "/plans"),
+            ("resumes", "/resumes"), ("resume-details", "/resumes/" + seed.ResumeId), ("resume-edit", "/resumes/" + seed.ResumeId + "/edit"), ("resume-translation", "/resumes/" + seed.ResumeId + "/translation"),
+            ("resume-new", "/resumes/new"),
         };
 
         // Uma pessoa por processo (as sessões do app são singletons): visitante e candidato em processos separados
@@ -427,7 +488,7 @@ static class CaptureRunner
                 }
             Logged:
                 foreach (var (name, path) in pages)
-                    await s.CaptureAsync(ctx, "app", role, name, preview.Url + path, theme == "dark" ? AppViewports : [AppViewports[1]], theme, keyboard: theme == "dark");
+                    await s.CaptureAsync(ctx, "app", role, name, preview.Url + path, theme == "dark" ? [.. AppViewports, .. AppTabletViewports] : [AppViewports[1], .. AppTabletViewports], theme, keyboard: theme == "dark");
                 await ctx.CloseAsync();
             }
         }

@@ -27,4 +27,7 @@ public class ListJobsRequest
 
     /// <summary>Vagas publicadas nos últimos N dias; nulo/zero não filtra.</summary>
     public int? PublishedWithinDays { get; set; }
+
+    /// <summary>País da vaga (código ISO, ex.: BR, ES). Vazio não filtra.</summary>
+    public string? Country { get; set; }
 }

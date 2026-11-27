@@ -59,7 +59,7 @@ jobs:
           nuget-${{ runner.os }}-
 
     - name: Install MAUI Android workload
-      run: dotnet workload install maui-android --version 10.0.402
+      run: dotnet workload restore Monburan.sln
 
     - name: Testar a conferência do deploy antes do APK
       run: bash .github/scripts/tests/wait-for-server-deploy.sh
@@ -247,7 +247,7 @@ jobs:
         echo "Nenhum segredo de formato conhecido nos arquivos versionados."
 
     - name: Install MAUI Android workload
-      run: dotnet workload install maui-android --version 10.0.402
+      run: dotnet workload restore Monburan.sln
 
     - name: Restore dependencies
       run: dotnet restore Monburan.sln

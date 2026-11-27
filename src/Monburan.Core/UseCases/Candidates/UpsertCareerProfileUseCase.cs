@@ -48,6 +48,10 @@ public class UpsertCareerProfileUseCase : IUseCase<UpsertCareerProfileCommand, C
         profile.Category = request.Profile.Category?.Trim();
         profile.MinimumSalary = request.Profile.MinimumSalary;
         profile.ContractType = request.Profile.ContractType;
+        // Nulo = campo não enviado (ex.: app mobile): preserva a escolha já salva. Lista
+        // (mesmo vazia) = o usuário definiu de propósito — serializa para atualizar/limpar.
+        if (request.Profile.PreferredCountries is not null)
+            profile.PreferredCountries = PreferredCountryCodes.Serialize(request.Profile.PreferredCountries);
 
         var result = isNew
             ? await _profiles.CreateAsync(profile, cancellationToken)

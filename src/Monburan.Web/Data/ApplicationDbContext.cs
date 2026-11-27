@@ -27,6 +27,10 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
 
     public DbSet<FeatureFlag> FeatureFlags => Set<FeatureFlag>();
 
+    public DbSet<IntegrationToken> IntegrationTokens => Set<IntegrationToken>();
+
+    public DbSet<LocalAdCampaign> LocalAdCampaigns => Set<LocalAdCampaign>();
+
     public DbSet<AccessGroup> AccessGroups => Set<AccessGroup>();
 
     public DbSet<Advertiser> Advertisers => Set<Advertiser>();
@@ -39,6 +43,8 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
 
     public DbSet<CareerProfile> CareerProfiles => Set<CareerProfile>();
 
+    public DbSet<CandidateLanguage> CandidateLanguages => Set<CandidateLanguage>();
+
     public DbSet<Job> Jobs => Set<Job>();
 
     public DbSet<JobAlert> JobAlerts => Set<JobAlert>();
@@ -50,6 +56,8 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
     public DbSet<JobSubmissionHistory> JobSubmissionHistories => Set<JobSubmissionHistory>();
 
     public DbSet<ResumeShare> ResumeShares => Set<ResumeShare>();
+
+    public DbSet<ResumeVariant> ResumeVariants => Set<ResumeVariant>();
 
     public DbSet<Notification> Notifications => Set<Notification>();
 

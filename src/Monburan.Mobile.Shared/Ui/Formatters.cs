@@ -30,11 +30,14 @@ public static class Formatters
         };
     }
 
-    public static string CurrencySymbol(string? currency) => currency switch
+    /// <summary>Mesma regra da web (UiLabels.CurrencySymbol): moeda desconhecida aparece pelo código, nunca como "R$".</summary>
+    public static string CurrencySymbol(string? currency) => currency?.Trim().ToUpperInvariant() switch
     {
+        null or "" or "BRL" => "R$",
         "USD" => "US$",
         "EUR" => "€",
-        _ => "R$"
+        "GBP" => "£",
+        var code => code
     };
 
     public static string JobType(string? type) => type switch
@@ -102,6 +105,68 @@ public static class Formatters
             (true, false) => state,
             _ => null
         };
+
+    /// <summary>Nome do país pelo código ISO (mesma lista da web, UiLabels.CountryName).</summary>
+    public static string CountryName(string? code) => code?.Trim().ToUpperInvariant() switch
+    {
+        null or "" or "BR" => "Brasil",
+        "PT" => "Portugal",
+        "US" => "Estados Unidos",
+        "CA" => "Canadá",
+        "GB" or "UK" => "Reino Unido",
+        "IE" => "Irlanda",
+        "DE" => "Alemanha",
+        "ES" => "Espanha",
+        "FR" => "França",
+        "IT" => "Itália",
+        "NL" => "Países Baixos",
+        "AR" => "Argentina",
+        "CL" => "Chile",
+        "UY" => "Uruguai",
+        "MX" => "México",
+        "AU" => "Austrália",
+        "JP" => "Japão",
+        var other => other
+    };
+
+    public static bool IsAbroad(string? countryCode) =>
+        !string.IsNullOrWhiteSpace(countryCode) && !string.Equals(countryCode.Trim(), "BR", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>Local da vaga para o app: cidade/UF e o país quando a vaga não é no Brasil; remota sem endereço, o país.</summary>
+    public static string? JobPlace(JobResponse job)
+    {
+        var place = Location(job.City, job.State);
+        if (place is not null)
+            return IsAbroad(job.Country) ? $"{place}, {CountryName(job.Country)}" : place;
+        return job.IsRemote || job.Type == "Remote" || IsAbroad(job.Country) ? CountryName(job.Country) : null;
+    }
+
+    /// <summary>Tem algo de carreira internacional a mostrar (mesma regra da web, JobDisplay.HasInternationalInfo).</summary>
+    public static bool HasInternationalInfo(JobResponse job) =>
+        IsAbroad(job.Country) || job.RemoteScope is not null || job.OffersRelocation is not null || job.SponsorsVisa is not null;
+
+    /// <summary>De onde trabalhar no remoto; sem informação diz isso, e remoto nunca vira "de qualquer país".</summary>
+    public static string? RemoteScope(JobResponse job)
+    {
+        if (job.Type is not ("Remote" or "Hybrid"))
+            return null;
+
+        var countries = string.Join(", ", Monburan.Core.Services.InternationalJobRules.ParseCountries(job.EligibleCountries).Select(CountryName));
+        return job.RemoteScope switch
+        {
+            "Global" => "De qualquer país",
+            "Restricted" when countries.Length > 0 => $"Só de: {countries}",
+            _ => "Não informado"
+        };
+    }
+
+    /// <summary>Sim/não que pode não ter sido informado: nulo nunca vira "não".</summary>
+    public static string YesNoUnknown(bool? value, string yes, string no) => value switch
+    {
+        true => yes,
+        false => no,
+        null => "Não informado"
+    };
 
     /// <summary>Rótulos pt-BR do tipo de contrato (mesmos da web).</summary>
     public static string ContractType(string? contractType) => contractType switch

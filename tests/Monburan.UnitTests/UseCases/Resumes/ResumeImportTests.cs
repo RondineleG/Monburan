@@ -221,7 +221,19 @@ public class ImportResumeFromPdfUseCaseTests
         });
 
         _useCase = new ImportResumeFromPdfUseCase(
-            _extractor, _ai, _limiter, new CreateResumeUseCase(_resumes, _validator));
+            _extractor, _ai, _limiter, new CreateResumeUseCase(_resumes, _validator, UnlimitedResumes()));
+    }
+
+    // Sem assinatura e sem catálogo de planos o limite de currículos não trava ninguém
+    private static Monburan.Core.UseCases.Subscriptions.CheckResumeLimitUseCase UnlimitedResumes()
+    {
+        var subscriptions = Substitute.For<Monburan.Core.Interfaces.Repositories.ISubscriptionRepository>();
+        subscriptions.GetActiveByCandidateIdAsync(Arg.Any<Id>(), Arg.Any<CancellationToken>()).Returns(RequestResult<Subscription?>.Success(null));
+        var plans = Substitute.For<IBaseRepository<SubscriptionPlan>>();
+        plans.GetAllAsync(Arg.Any<int>(), Arg.Any<int>(), Arg.Any<CancellationToken>()).Returns(RequestResult<IEnumerable<SubscriptionPlan>>.Success([]));
+        var resumes = Substitute.For<Monburan.Core.Interfaces.Repositories.IResumeRepository>();
+        resumes.CountByCandidateAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>()).Returns(RequestResult<int>.Success(0));
+        return new Monburan.Core.UseCases.Subscriptions.CheckResumeLimitUseCase(subscriptions, plans, resumes);
     }
 
     private ImportResumeRequest Request(bool consent = false) => new()

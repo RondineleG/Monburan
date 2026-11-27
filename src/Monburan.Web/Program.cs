@@ -161,6 +161,10 @@ builder.Services.AddAuthorizationBuilder()
     .AddPolicy("AdvertiserOnly", policy => policy
         .RequireAuthenticatedUser()
         .RequireClaim(ClaimsExtensions.UserTypeClaimType, "advertiser"))
+    // Páginas de assinatura: abertas a empresa e candidato — o conteúdo se adapta ao perfil
+    .AddPolicy("AccountProfile", policy => policy
+        .RequireAuthenticatedUser()
+        .RequireClaim(ClaimsExtensions.UserTypeClaimType, "advertiser", "candidate"))
     // token_use=access impede que um refresh token (JWT válido por 30 dias)
     // autentique como bearer em endpoints que só exigem RequireAuthenticatedUser
     .AddPolicy("ApiBearer", policy => policy
@@ -332,6 +336,11 @@ builder.Services.AddScoped<IResumeRepository, ResumeRepository>();
 builder.Services.AddScoped<ISavedJobRepository, SavedJobRepository>();
 builder.Services.AddScoped<IJobAlertRepository, JobAlertRepository>();
 builder.Services.AddScoped<ICareerProfileRepository, CareerProfileRepository>();
+builder.Services.AddScoped<IIntegrationTokenRepository, IntegrationTokenRepository>();
+builder.Services.AddScoped<IIntegrationTokenService, IntegrationTokenService>();
+builder.Services.AddScoped<IIntegrationReadinessService, IntegrationReadinessService>();
+builder.Services.AddScoped<ICandidateLanguageRepository, CandidateLanguageRepository>();
+builder.Services.AddScoped<IResumeVariantRepository, ResumeVariantRepository>();
 builder.Services.AddScoped<IAiProviderRepository, AiProviderRepository>();
 builder.Services.AddScoped<IAdminAuditLog, AdminAuditLog>();
 builder.Services.AddScoped<Monburan.Core.UseCases.Admin.AdminListJobsUseCase>();
@@ -366,6 +375,7 @@ builder.Services.AddScoped<SaveJobUseCase>();
 builder.Services.AddScoped<UnsaveJobUseCase>();
 builder.Services.AddScoped<ListSavedJobsUseCase>();
 builder.Services.AddScoped<ListRecommendedJobsUseCase>();
+builder.Services.AddScoped<ListInternationalJobsUseCase>();
 builder.Services.AddScoped<RegisterJobViewUseCase>();
 
 // Registrar Use Cases de Alertas de Vaga
@@ -395,6 +405,10 @@ builder.Services.AddScoped<Monburan.Core.UseCases.Candidates.DeleteCandidateUseC
 builder.Services.AddScoped<Monburan.Core.UseCases.Candidates.UpdateCandidateUseCase>();
 builder.Services.AddScoped<GetCareerProfileUseCase>();
 builder.Services.AddScoped<UpsertCareerProfileUseCase>();
+builder.Services.AddScoped<GetInternationalPreferencesUseCase>();
+builder.Services.AddScoped<UpsertInternationalPreferencesUseCase>();
+builder.Services.AddScoped<GetCandidateLanguagesUseCase>();
+builder.Services.AddScoped<ReplaceCandidateLanguagesUseCase>();
 builder.Services.AddScoped<GetCandidateProgressUseCase>();
 
 // Registrar Use Cases de Advertisers
@@ -412,6 +426,14 @@ builder.Services.AddScoped<DeleteResumeUseCase>();
 builder.Services.AddScoped<ListResumesByCandidateUseCase>();
 builder.Services.AddScoped<GetResumeByIdUseCase>();
 builder.Services.AddScoped<ImproveResumeUseCase>();
+builder.Services.AddScoped<ListResumeVariantsUseCase>();
+builder.Services.AddScoped<CreateResumeVariantUseCase>();
+builder.Services.AddScoped<GetResumeVariantUseCase>();
+builder.Services.AddScoped<UpdateResumeVariantUseCase>();
+builder.Services.AddScoped<DeleteResumeVariantUseCase>();
+builder.Services.AddScoped<GetResumeVariantPreviewUseCase>();
+builder.Services.AddScoped<GenerateVariantSuggestionsUseCase>();
+builder.Services.AddScoped<ResolveVariantSuggestionsUseCase>();
 builder.Services.AddScoped<ImportResumeFromPdfUseCase>();
 builder.Services.AddSingleton<Monburan.Core.Interfaces.Services.IPdfTextExtractor, Monburan.Core.Services.PdfTextExtractor>();
 
@@ -437,10 +459,25 @@ builder.Services.AddScoped<Monburan.Core.UseCases.Notifications.PasswordResetUse
 
 // Registrar Use Cases de Assinatura
 builder.Services.AddScoped<GetAvailablePlansUseCase>();
-builder.Services.AddSingleton<IBillingPolicy, BillingPolicy>();
+builder.Services.AddScoped<GetSubscriptionStatusUseCase>();
 builder.Services.AddScoped<UpgradePlanUseCase>();
 builder.Services.AddScoped<CancelSubscriptionUseCase>();
 builder.Services.AddScoped<CheckJobLimitUseCase>();
+builder.Services.AddScoped<CheckResumeLimitUseCase>();
+builder.Services.Configure<MercadoPagoOptions>(builder.Configuration.GetSection(MercadoPagoOptions.SectionName));
+builder.Services.PostConfigure<MercadoPagoOptions>(options =>
+{
+    if (string.IsNullOrWhiteSpace(options.PublicBaseUrl))
+        options.PublicBaseUrl = builder.Configuration["App:PublicBaseUrl"] ?? string.Empty;
+    if (!builder.Environment.IsDevelopment())
+    {
+        // A simulação local nunca pode vazar para homologação ou produção
+        options.SimulateLocally = false;
+        options.ApiBaseUrl = MercadoPagoOptions.DefaultApiBaseUrl;
+    }
+});
+builder.Services.AddHttpClient<MercadoPagoBillingService>(client => client.Timeout = TimeSpan.FromSeconds(20));
+builder.Services.AddScoped<IRecurringPaymentGateway>(services => services.GetRequiredService<MercadoPagoBillingService>());
 
 // Registrar Storage Provider
 builder.Services.AddScoped<IStorageProvider, LocalStorageProvider>();
@@ -455,6 +492,8 @@ builder.Services.AddSingleton<ISubmitterKeyHasher, HmacSubmitterKeyHasher>();
 builder.Services.AddScoped<SubmitJobSuggestionUseCase>();
 builder.Services.AddScoped<ModerateJobSubmissionUseCase>();
 builder.Services.AddScoped<ExtractJobDraftUseCase>();
+builder.Services.AddScoped<ImportCollectedJobSuggestionsUseCase>();
+builder.Services.AddScoped<LocalAdCampaignService>();
 
 // Registrar CurrentUserHelper
 builder.Services.AddHttpContextAccessor();
@@ -528,10 +567,20 @@ app.UseWhen(ctx => ctx.Request.Path.StartsWithSegments("/api"),
     }));
 
 app.UseHttpsRedirection();
-app.UseRequestLocalization(new RequestLocalizationOptions()
+// i18n: pt-BR é o idioma padrão; es-ES e en-US são a primeira fatia da internacionalização.
+// Ordem dos provedores: cookie (escolha do usuário) → Accept-Language → padrão.
+var localizationOptions = new RequestLocalizationOptions()
     .SetDefaultCulture("pt-BR")
-    .AddSupportedCultures("pt-BR")
-    .AddSupportedUICultures("pt-BR"));
+    .AddSupportedCultures("pt-BR", "es-ES", "en-US")
+    .AddSupportedUICultures("pt-BR", "es-ES", "en-US");
+// O cookie (escolha salva do usuário) prevalece sobre query string e Accept-Language.
+localizationOptions.RequestCultureProviders =
+[
+    new Microsoft.AspNetCore.Localization.CookieRequestCultureProvider(),
+    new Microsoft.AspNetCore.Localization.QueryStringRequestCultureProvider(),
+    new Microsoft.AspNetCore.Localization.AcceptLanguageHeaderRequestCultureProvider()
+];
+app.UseRequestLocalization(localizationOptions);
 app.UseLegacyRouteRedirects();
 app.UseRateLimiter();
 app.UseSecurityHeaders();
@@ -568,6 +617,7 @@ app.MapRazorComponents<App>()
 
 app.MapAdditionalIdentityEndpoints();
 app.MapEvidenceEndpoints();
+app.MapLocalAdEndpoints();
 
 // API REST consumida pelo app mobile
 app.MapApiEndpoints();

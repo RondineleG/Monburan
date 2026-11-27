@@ -7,6 +7,7 @@ using Monburan.Core.Interfaces.UseCases;
 using Monburan.Core.Interfaces.Validations;
 using Monburan.Core.Requests;
 using Monburan.Core.ValueObjects;
+using Monburan.Core.UseCases.Subscriptions;
 
 namespace Monburan.Core.UseCases.Resumes;
 
@@ -14,13 +15,16 @@ public class CreateResumeUseCase : IUseCase<CreateResumeRequest, ResumeResponse>
 {
     private readonly IBaseRepository<Resume> _resumeRepository;
     private readonly IEntityValidator<Resume> _validator;
+    private readonly CheckResumeLimitUseCase _resumeLimit;
 
     public CreateResumeUseCase(
         IBaseRepository<Resume> resumeRepository,
-        IEntityValidator<Resume> validator)
+        IEntityValidator<Resume> validator,
+        CheckResumeLimitUseCase resumeLimit)
     {
         _resumeRepository = resumeRepository;
         _validator = validator;
+        _resumeLimit = resumeLimit;
     }
 
     public async Task<RequestResult<ResumeResponse>> ExecuteAsync(CreateResumeRequest request, CancellationToken cancellationToken = default)
@@ -44,6 +48,14 @@ public class CreateResumeUseCase : IUseCase<CreateResumeRequest, ResumeResponse>
         var validationResult = _validator.Validate(resume);
         if (!validationResult.IsValid)
             return RequestResult<ResumeResponse>.WithValidationError(validationResult.Errors.First().Message);
+
+        // Limite de currículos do plano (a tela de planos anuncia esse limite)
+        var limit = await _resumeLimit.ExecuteAsync(request.CandidateId, cancellationToken);
+        if (limit.Status != EResultStatus.Success)
+            return RequestResult<ResumeResponse>.FromResult(limit);
+        if (!limit.Data!.CanCreate)
+            return RequestResult<ResumeResponse>.WithDomainError(
+                $"Seu plano permite até {limit.Data.MaxResumes} currículos. Exclua um currículo ou conheça os planos para criar outro.");
 
         var result = await _resumeRepository.CreateAsync(resume, cancellationToken);
         if (result.Status != EResultStatus.Success)

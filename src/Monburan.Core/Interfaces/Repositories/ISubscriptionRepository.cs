@@ -12,6 +12,12 @@ public interface ISubscriptionRepository : IBaseRepository<Subscription>
     /// <summary>Assinatura ativa do anunciante (com o plano carregado) ou <c>null</c>.</summary>
     Task<RequestResult<Subscription?>> GetActiveByAdvertiserIdAsync(Id advertiserId, CancellationToken cancellationToken = default);
 
+    /// <summary>Checkout mais recente ainda pendente do anunciante — nulo quando não há nenhum.</summary>
+    Task<RequestResult<Subscription?>> GetPendingByAdvertiserIdAsync(Id advertiserId, CancellationToken cancellationToken = default);
+
+    /// <summary>Checkout mais recente ainda pendente do candidato — nulo quando não há nenhum.</summary>
+    Task<RequestResult<Subscription?>> GetPendingByCandidateIdAsync(Id candidateId, CancellationToken cancellationToken = default);
+
     /// <summary>Assinatura ativa do candidato (com o plano carregado) ou <c>null</c>.</summary>
     Task<RequestResult<Subscription?>> GetActiveByCandidateIdAsync(Id candidateId, CancellationToken cancellationToken = default);
 

@@ -32,4 +32,10 @@ public class UpdateJobRequest
     public ESalaryPeriod? SalaryPeriod { get; set; }
     public string SalaryCurrency { get; set; } = "BRL";
     public bool SalaryDisplay { get; set; } = true;
+
+    // Carreira internacional (nulo = não informado)
+    public ERemoteScope? RemoteScope { get; set; }
+    public string? EligibleCountries { get; set; }
+    public bool? OffersRelocation { get; set; }
+    public bool? SponsorsVisa { get; set; }
 }

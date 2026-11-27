@@ -40,6 +40,9 @@ else if (_resume is not null)
 
     <div class="action-stack">
         <a class="btn btn-primary btn-block" href="/resumes/@Id/edit"><Icon Name="edit" /> Editar currículo</a>
+        <FeatureGate Feature="carreira-internacional">
+            <a class="btn btn-secondary btn-block" href="/resumes/@Id/translation" data-testid="resume-translation">Preparar em outro idioma</a>
+        </FeatureGate>
     </div>
 
     <ResumeAiPanel ResumeId="Id" />

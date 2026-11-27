@@ -5,7 +5,6 @@ using Monburan.Core.Entities;
 using Monburan.Core.Enums;
 using Monburan.Core.Interfaces.Repositories;
 using Monburan.Core.Interfaces.Repositories.Base;
-using Monburan.Core.Interfaces.Services;
 using Monburan.Core.Requests;
 using Monburan.Core.UseCases.Subscriptions;
 using Monburan.Core.ValueObjects;
@@ -19,14 +18,13 @@ public class UpgradePlanUseCaseTests
     private readonly IBaseRepository<Advertiser> _advertisers = Substitute.For<IBaseRepository<Advertiser>>();
     private readonly IBaseRepository<SubscriptionPlan> _plans = Substitute.For<IBaseRepository<SubscriptionPlan>>();
     private readonly ISubscriptionRepository _subscriptions = Substitute.For<ISubscriptionRepository>();
-    private readonly IBillingPolicy _billing = Substitute.For<IBillingPolicy>();
     private readonly UpgradePlanUseCase _useCase;
 
     public UpgradePlanUseCaseTests()
     {
         _advertisers.GetByIdAsync(Arg.Any<Id>(), Arg.Any<CancellationToken>())
             .Returns(RequestResult<Advertiser>.Success(new Advertiser()));
-        _useCase = new UpgradePlanUseCase(_advertisers, _plans, _subscriptions, _billing);
+        _useCase = new UpgradePlanUseCase(_advertisers, _plans, _subscriptions);
     }
 
     private void GivenPlan(decimal price) =>
@@ -41,9 +39,8 @@ public class UpgradePlanUseCaseTests
     };
 
     [Fact]
-    public async Task PaidPlan_WithoutBilling_IsRefusedAndNothingIsChanged()
+    public async Task PaidPlan_IsNeverActivatedThroughUpgradeEndpoint()
     {
-        _billing.AllowsSelfServicePaidPlans.Returns(false);
         GivenPlan(price: 99.9m);
 
         var result = await _useCase.ExecuteAsync(Request());
@@ -54,23 +51,8 @@ public class UpgradePlanUseCaseTests
     }
 
     [Fact]
-    public async Task PaidPlan_WithSelfServiceEnabled_GoesOnToTheSubscriptionChange()
+    public async Task FreePlan_CanStillUseTheUpgradeEndpoint()
     {
-        _billing.AllowsSelfServicePaidPlans.Returns(true);
-        GivenPlan(price: 99.9m);
-        _subscriptions.GetActiveByAdvertiserIdAsync(Arg.Any<Id>(), Arg.Any<CancellationToken>())
-            .Returns(RequestResult<Subscription?>.WithError("parou aqui de propósito"));
-
-        var result = await _useCase.ExecuteAsync(Request());
-
-        result.Status.Should().NotBe(EResultStatus.DomainError);
-        await _subscriptions.Received(1).GetActiveByAdvertiserIdAsync(Arg.Any<Id>(), Arg.Any<CancellationToken>());
-    }
-
-    [Fact]
-    public async Task FreePlan_IsNeverBlockedByTheBillingPolicy()
-    {
-        _billing.AllowsSelfServicePaidPlans.Returns(false);
         GivenPlan(price: 0m);
         _subscriptions.GetActiveByAdvertiserIdAsync(Arg.Any<Id>(), Arg.Any<CancellationToken>())
             .Returns(RequestResult<Subscription?>.WithError("parou aqui de propósito"));

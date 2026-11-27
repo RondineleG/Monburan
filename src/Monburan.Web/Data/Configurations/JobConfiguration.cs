@@ -89,6 +89,14 @@ public class JobConfiguration : IEntityTypeConfiguration<Job>
         builder.Property(j => j.CboCode)
             .HasMaxLength(10);
 
+        // Carreira internacional: nulo = não informado (colunas novas, opcionais)
+        builder.Property(j => j.RemoteScope)
+            .HasConversion<string>()
+            .HasMaxLength(20);
+
+        builder.Property(j => j.EligibleCountries)
+            .HasMaxLength(200);
+
         builder.HasOne(j => j.Advertiser)
             .WithMany(a => a.Jobs)
             .HasForeignKey(j => j.AdvertiserId)

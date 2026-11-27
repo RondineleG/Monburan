@@ -36,7 +36,10 @@ public class MonburanApiFactory : WebApplicationFactory<Program>
         builder.ConfigureAppConfiguration((_, configuration) =>
             configuration.AddInMemoryCollection(new Dictionary<string, string?>
             {
-                ["Ai:MaxRequestsPerHour"] = "100"
+                ["Ai:MaxRequestsPerHour"] = "100",
+                // O appsettings.Development.json local pode apontar a URL pública para o localhost
+                // da máquina (ex.: simulador de pagamento) — nos testes ela fica fixa.
+                ["App:PublicBaseUrl"] = "http://localhost"
             }));
 
         builder.ConfigureServices(services =>
