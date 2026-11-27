@@ -475,6 +475,7 @@ builder.Services.AddHostedService<JobExpirationBackgroundService>();
 // Feature flags por grupo de acesso (docs/FEATURE-FLAGS.md)
 builder.Services.AddSingleton<IFeatureFlags, FeatureFlagService>();
 builder.Services.AddScoped<FeatureFlagAdminService>();
+builder.Services.AddScoped<IntegrationTokenService>();
 // Retenção das imagens de sugestões encerradas (Evidence:RetentionDays, padrão 90 dias; 0 desliga)
 builder.Services.AddHostedService<EvidenceRetentionBackgroundService>();
 

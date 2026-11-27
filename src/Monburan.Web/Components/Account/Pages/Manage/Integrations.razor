@@ -1,0 +1,143 @@
+@page "/conta/integracoes"
+@rendermode InteractiveServer
+
+@using Monburan.Core.Entities
+@using Monburan.Core.Interfaces.Services
+@using Monburan.Web.Services
+
+@inject IntegrationTokenService Tokens
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject IFeatureFlags FeatureFlags
+
+<PageTitle>Integrações - Monburan</PageTitle>
+
+<h2>Integrações</h2>
+
+@if (!featureEnabled && tokens.Count == 0)
+{
+    <div class="alert alert-warning">Esta funcionalidade ainda não está liberada para a sua conta.</div>
+}
+else if (candidateId is null || userId is null)
+{
+    <div class="alert alert-warning">Integrações de vagas exigem uma conta com perfil de candidato.</div>
+}
+else
+{
+    @if (!featureEnabled)
+    {
+        <div class="alert alert-warning">A emissão está desligada; tokens ativos ainda podem ser revogados abaixo.</div>
+    }
+    @if (featureEnabled)
+    {
+    <section class="card mb-4" aria-labelledby="new-token-title">
+        <div class="card-body">
+            <h3 id="new-token-title">Novo token para HiMarshall</h3>
+            <p class="text-muted">O token autoriza só os escopos escolhidos. Ele aparece uma única vez; guarde-o no HiMarshall e revogue aqui quando quiser.</p>
+            <div class="mb-3">
+                <label class="form-label" for="token-name">Nome</label>
+                <input id="token-name" class="form-control" maxlength="80" @bind="name" @bind:event="oninput" placeholder="HiMarshall" />
+            </div>
+            <p class="text-muted small">Escopos concedidos: consulta de vagas públicas mínimas e resumo de prontidão.</p>
+            <button class="btn btn-primary" disabled="@busy" @onclick="CreateAsync">Gerar token</button>
+            @if (!string.IsNullOrWhiteSpace(error))
+            {
+                <div class="alert alert-danger mt-3" role="alert">@error</div>
+            }
+            @if (!string.IsNullOrWhiteSpace(createdToken))
+            {
+                <div class="alert alert-success mt-3" role="status">
+                    <strong>Copie agora:</strong> este token não será mostrado de novo.
+                    <input class="form-control mt-2" readonly value="@createdToken" aria-label="Token gerado" onclick="this.select()" />
+                </div>
+            }
+        </div>
+    </section>
+    }
+
+    <section aria-labelledby="tokens-title">
+        <h3 id="tokens-title">Tokens ativos</h3>
+        @if (tokens.Count == 0)
+        {
+            <p class="text-muted">Nenhum token ativo.</p>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="table align-middle">
+                    <thead><tr><th>Nome</th><th>Escopos</th><th>Expira</th><th>Último uso</th><th></th></tr></thead>
+                    <tbody>
+                    @foreach (var token in tokens)
+                    {
+                        <tr>
+                            <td>@token.Name</td>
+                            <td>@string.Join(", ", token.Scopes.Split(' ', StringSplitOptions.RemoveEmptyEntries))</td>
+                            <td>@token.ExpiresAt.ToString("dd/MM/yyyy")</td>
+                            <td>@(token.LastUsedAt?.ToString("dd/MM/yyyy HH:mm") ?? "Nunca")</td>
+                            <td><button class="btn btn-outline-danger btn-sm" disabled="@busy" @onclick="() => RevokeAsync(token.Id.Value)">Revogar</button></td>
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </section>
+}
+
+@code {
+    private Guid? userId;
+    private Guid? candidateId;
+    private bool featureEnabled;
+    private bool busy;
+    private bool jobsScope = true;
+    private bool readinessScope = true;
+    private string name = "HiMarshall";
+    private string? error;
+    private string? createdToken;
+    private IReadOnlyList<IntegrationToken> tokens = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        var state = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        userId = FeatureFlagService.UserIdOf(state.User);
+        candidateId = state.User.GetCandidateId();
+        featureEnabled = await FeatureFlags.IsEnabledAsync("integracao-himarshall", state.User);
+        if (userId is not null)
+            tokens = await Tokens.ListActiveAsync(userId.Value, CancellationToken.None);
+    }
+
+    private async Task CreateAsync()
+    {
+        if (userId is null || candidateId is null) return;
+        var state = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        featureEnabled = await FeatureFlags.IsEnabledAsync("integracao-himarshall", state.User);
+        if (!featureEnabled)
+        {
+            error = "A emissão de tokens está desligada para esta conta.";
+            return;
+        }
+        busy = true;
+        error = null;
+        var scopes = new List<string>();
+        if (jobsScope) scopes.Add(IntegrationTokenService.JobsScope);
+        if (readinessScope) scopes.Add(IntegrationTokenService.ReadinessScope);
+        var (token, secret, failure) = await Tokens.CreateAsync(
+            userId.Value, candidateId.Value, name, [.. scopes], 30, userId.Value.ToString("D"), CancellationToken.None);
+        busy = false;
+        if (token is null)
+        {
+            error = failure;
+            return;
+        }
+        createdToken = secret;
+        tokens = await Tokens.ListActiveAsync(userId.Value, CancellationToken.None);
+    }
+
+    private async Task RevokeAsync(Guid id)
+    {
+        if (userId is null) return;
+        busy = true;
+        await Tokens.RevokeAsync(id, userId.Value, CancellationToken.None);
+        tokens = await Tokens.ListActiveAsync(userId.Value, CancellationToken.None);
+        busy = false;
+    }
+}

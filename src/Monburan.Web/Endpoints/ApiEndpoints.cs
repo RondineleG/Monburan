@@ -24,6 +24,7 @@ public static class ApiEndpoints
         api.MapSubscriptionEndpoints();
         api.MapDashboardEndpoints();
         api.MapFeatureEndpoints();
+        api.MapIntegrationEndpoints();
 
         return app;
     }

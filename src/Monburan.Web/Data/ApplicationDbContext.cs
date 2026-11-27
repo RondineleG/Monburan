@@ -45,6 +45,8 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
 
     public DbSet<JobRevision> JobRevisions => Set<JobRevision>();
 
+    public DbSet<IntegrationToken> IntegrationTokens => Set<IntegrationToken>();
+
     public DbSet<JobSubmission> JobSubmissions => Set<JobSubmission>();
 
     public DbSet<JobSubmissionEvidence> JobSubmissionEvidences => Set<JobSubmissionEvidence>();
