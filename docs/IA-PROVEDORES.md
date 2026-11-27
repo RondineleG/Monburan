@@ -115,6 +115,14 @@ produção o endereço local é bloqueado (ver abaixo).
   expressa a cada uso, o conteúdo mínimo e a Política de Privacidade seguem como descritos em
   [IA-CURRICULO.md](IA-CURRICULO.md). Ao cadastrar um provedor novo, confira os termos dele sobre uso e retenção dos dados.
 
+## Gateway interno multimodal (MO-GA)
+
+O adapter atual já é compatível com o Gateway interno pelo protocolo **OpenAI-compatível**: configure a URL raiz do Gateway terminada em `/v1`, o modelo como o alias de chat multimodal publicado pelo Gateway e a variável com a chave da aplicação `monburan` — nunca uma credencial de sessão de agente. Marque **Aceita imagens (multimodal)** somente depois do botão **Testar** passar e da fixture de imagem ser validada no Gateway.
+
+Para o rascunho de vaga, o Monburan envia somente as imagens privadas da sugestão como partes `image_url` em data URI; o Gateway não busca URLs remotas. A fixture do Gateway limita JPEG/PNG/WebP, 4 imagens por mensagem, 2 MiB por imagem e 5 MiB por requisição, e os bytes entram na quota. O rascunho continua sendo apenas uma sugestão com confiança por campo para o moderador: nada é publicado automaticamente.
+
+Rollback: torne o provedor anterior o padrão novamente. A revisão humana, a evidência original e o preenchimento manual permanecem disponíveis; nenhuma migração ou reprocessamento é necessário.
+
 ## Quando o teste não funciona
 
 | Mensagem do teste | O que conferir |

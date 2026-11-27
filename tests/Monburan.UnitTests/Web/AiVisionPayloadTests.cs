@@ -32,6 +32,26 @@ public class AiVisionPayloadTests
         json.Should().Contain(Convert.ToBase64String(Png));
     }
 
+
+    [Fact]
+    public void GatewayCompatibleVisionProvider_SendsImageAsLocalDataUriPart()
+    {
+        var provider = Provider(supportsVision: true) with
+        {
+            Protocol = EAiProtocol.OpenAiCompatible,
+            BaseUrl = "https://gateway.exemplo.com/v1",
+            Model = "simulated-chat"
+        };
+
+        var payload = OpenAiProtocol.BuildPayload(provider, ImageRequest());
+
+        var json = JsonSerializer.Serialize(payload);
+        json.Should().Contain("\"model\":\"simulated-chat\"");
+        json.Should().Contain("\"type\":\"image_url\"");
+        json.Should().Contain("data:image/png;base64," + Convert.ToBase64String(Png));
+        json.Should().NotContain("https://gateway.exemplo.com/v1/chat/completions/");
+    }
+
     [Fact]
     public void TextOnlyRequest_DoesNotNeedVisionAndSendsNoImage()
     {
