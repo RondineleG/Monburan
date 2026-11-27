@@ -1,0 +1,16 @@
+{
+  "tenantId": "default",
+  "candidates": [
+    { "sourceId": "cand-1", "email": "candidata@example.test", "name": "Candidata Fixture", "canMigrate": false }
+  ],
+  "advertisers": [],
+  "jobs": [
+    { "sourceId": "job-1", "advertiserSourceId": "adv-inexistente", "title": "Vaga Fixture", "status": "Active" }
+  ],
+  "resumes": [],
+  "files": [
+    { "sourceId": "file-1", "ownerType": "candidate", "ownerSourceId": "dono-inexistente", "contentHash": "", "sizeBytes": 0, "canMigrate": true }
+  ],
+  "applications": [],
+  "transitions": []
+}
