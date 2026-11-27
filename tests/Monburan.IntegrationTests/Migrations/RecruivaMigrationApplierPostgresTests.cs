@@ -59,6 +59,40 @@ public sealed class RecruivaMigrationApplierPostgresTests : IClassFixture<Postgr
         (await context.Jobs.SingleAsync()).ApplicationChannel.Should().Be(EApplicationChannel.InternalPlatform);
         var blockedRollback = async () => await RecruivaMigrationApplier.RollbackAsync(context, applied with { Applied = false });
         await blockedRollback.Should().ThrowAsync<InvalidOperationException>();
+        context.Resumes.Add(new Resume
+        {
+            Id = Id.Create(Guid.NewGuid()),
+            CandidateId = Id.Create(applied.IdMap["candidate:cand-1"]),
+            Title = "Currículo criado após o corte",
+            IsActive = true,
+            TenantId = "default",
+            CreatedBy = "usuario-pos-corte"
+        });
+        await context.SaveChangesAsync();
+        var resumeDependentRollback = async () => await RecruivaMigrationApplier.RollbackAsync(context, applied);
+        (await resumeDependentRollback.Should().ThrowAsync<InvalidOperationException>())
+            .WithMessage("*currículos criados após o corte*");
+        context.Resumes.RemoveRange(context.Resumes.Where(row => row.CreatedBy == "usuario-pos-corte"));
+        await context.SaveChangesAsync();
+
+        context.Jobs.Add(new Job
+        {
+            Id = Id.Create(Guid.NewGuid()),
+            AdvertiserId = Id.Create(applied.IdMap["advertiser:adv-1"]),
+            Title = "Vaga criada após o corte",
+            Description = "Descrição",
+            ExpirationDate = DateTime.UtcNow.AddDays(30),
+            Status = EJobStatus.Active,
+            TenantId = "default",
+            CreatedBy = "usuario-pos-corte"
+        });
+        await context.SaveChangesAsync();
+        var jobDependentRollback = async () => await RecruivaMigrationApplier.RollbackAsync(context, applied);
+        (await jobDependentRollback.Should().ThrowAsync<InvalidOperationException>())
+            .WithMessage("*vagas criadas após o corte*");
+        context.Jobs.RemoveRange(context.Jobs.Where(row => row.CreatedBy == "usuario-pos-corte"));
+        await context.SaveChangesAsync();
+
         context.SavedJobs.Add(new SavedJob { Id = Id.Create(Guid.NewGuid()), CandidateId = Id.Create(applied.IdMap["candidate:cand-1"]), JobId = Id.Create(applied.IdMap["job:job-1"]), TenantId = "default" });
         await context.SaveChangesAsync();
         var dependentRollback = async () => await RecruivaMigrationApplier.RollbackAsync(context, applied);
@@ -86,6 +120,31 @@ public sealed class RecruivaMigrationApplierPostgresTests : IClassFixture<Postgr
         retry.RemovedCounts.Values.Sum().Should().Be(0);
         retry.RemovedFiles.Should().Be(1);
         File.Exists(leftover.TargetPath).Should().BeFalse();
+    }
+
+
+    [Fact]
+    public async Task ApplyAsync_FileUrlOutsideUploadsPrefix_RefusesApply()
+    {
+        await using var context = _database.CreateContext();
+        await context.Database.MigrateAsync();
+        var source = Directory.CreateTempSubdirectory();
+        var target = Directory.CreateTempSubdirectory();
+        var content = Encoding.UTF8.GetBytes("logo sintetica");
+        await File.WriteAllBytesAsync(Path.Combine(source.FullName, "logo.png"), content);
+        var hash = Convert.ToHexString(SHA256.HashData(content)).ToLowerInvariant();
+        var baseExport = Export(hash, content.Length);
+        var export = baseExport with
+        {
+            Files = [baseExport.Files[0] with { SourceUrl = "https://arquivos.externo/uploads/logo.png" }]
+        };
+        var dry = (await new BuildRecruivaMigrationDryRunUseCase().ExecuteAsync(export)).Data!;
+
+        var applied = await RecruivaMigrationApplier.ApplyAsync(context, export, dry, source.FullName, target.FullName, Guid.NewGuid());
+
+        applied.Applied.Should().BeFalse();
+        applied.Problems.Should().Contain(problem => problem.Entity == "file" && problem.Message.Contains("prefixo /uploads/"));
+        (await context.Users.CountAsync()).Should().Be(0);
     }
 
     private static RecruivaMigrationExport Export(string hash, int size) => new()
