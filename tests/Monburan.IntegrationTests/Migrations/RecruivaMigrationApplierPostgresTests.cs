@@ -125,7 +125,7 @@ public sealed class RecruivaMigrationApplierPostgresTests : IClassFixture<Postgr
 
 
     [Fact]
-    public async Task ApplyThenRollback_SoftDeletedPostCutoverResume_DoesNotBlockRollback()
+    public async Task ApplyThenRollback_SoftDeletedPostCutoverResume_BlocksRollbackUntilReconciled()
     {
         await using var context = _database.CreateContext();
         await context.Database.MigrateAsync();
@@ -139,7 +139,7 @@ public sealed class RecruivaMigrationApplierPostgresTests : IClassFixture<Postgr
         var applied = await RecruivaMigrationApplier.ApplyAsync(context, export, dry, source.FullName, target.FullName, Guid.NewGuid());
         applied.Applied.Should().BeTrue(string.Join(';', applied.Problems.Select(p => p.Message)));
 
-        context.Resumes.Add(new Resume
+        var softDeletedResume = new Resume
         {
             Id = Id.Create(Guid.NewGuid()),
             CandidateId = Id.Create(applied.IdMap["candidate:cand-1"]),
@@ -148,9 +148,16 @@ public sealed class RecruivaMigrationApplierPostgresTests : IClassFixture<Postgr
             IsDeleted = true,
             TenantId = "default",
             CreatedBy = "usuario-pos-corte"
-        });
+        };
+        context.Resumes.Add(softDeletedResume);
         await context.SaveChangesAsync();
 
+        var blockedRollback = async () => await RecruivaMigrationApplier.RollbackAsync(context, applied);
+        (await blockedRollback.Should().ThrowAsync<InvalidOperationException>())
+            .WithMessage("*currículos criados após o corte*");
+
+        context.Resumes.Remove(softDeletedResume);
+        await context.SaveChangesAsync();
         var rollback = await RecruivaMigrationApplier.RollbackAsync(context, applied);
 
         rollback.RemovedCounts["candidate"].Should().Be(1);
