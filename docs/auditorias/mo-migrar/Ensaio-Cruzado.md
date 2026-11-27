@@ -30,3 +30,7 @@ O arquivo de rollback é o relatório operacional do desfazimento e usa `removed
 ## Sanitização
 
 Os dados usados foram fixtures sintéticos (`cand@teste.com`, `empresa@teste.com`). Nenhum segredo, dado real ou caminho de produção aparece no relatório.
+
+## Dependências criadas após o corte
+
+A exclusão de currículo pela aplicação é lógica e preserva o vínculo com o candidato. Se o rollback reportar esse bloqueio, reconcilie os currículos com os candidatos que continuarão no destino antes de repetir. O rollback preserva também os registros excluídos logicamente que foram criados após o corte.
