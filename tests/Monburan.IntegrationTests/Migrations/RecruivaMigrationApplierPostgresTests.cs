@@ -38,7 +38,11 @@ public sealed class RecruivaMigrationApplierPostgresTests : IClassFixture<Postgr
         var applied = await RecruivaMigrationApplier.ApplyAsync(context, export, dry, source.FullName, target.FullName, batch);
 
         applied.Applied.Should().BeTrue(string.Join(';', applied.Problems.Select(p => p.Message)));
-        (await context.Users.CountAsync()).Should().Be(1);
+        var identity = await context.Users.SingleAsync();
+        identity.Id.Should().Be(applied.IdMap["user:user-1"]);
+        identity.Email.Should().Be("cand-mig@teste.com");
+        identity.EmailConfirmed.Should().BeTrue();
+        identity.Email.Should().Be((await context.Candidates.SingleAsync()).Email);
         var token = await context.Set<IdentityUserToken<Guid>>().SingleAsync();
         token.LoginProvider.Should().Be("[AspNetUserStore]");
         token.Name.Should().Be("AuthenticatorKey");
