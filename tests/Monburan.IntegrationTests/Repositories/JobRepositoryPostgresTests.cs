@@ -448,4 +448,3 @@ public class JobRepositoryPostgresTests : IClassFixture<PostgresDatabase>
     }
 
 }
-
