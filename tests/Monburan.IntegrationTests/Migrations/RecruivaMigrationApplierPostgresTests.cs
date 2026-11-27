@@ -123,6 +123,40 @@ public sealed class RecruivaMigrationApplierPostgresTests : IClassFixture<Postgr
     }
 
 
+
+    [Fact]
+    public async Task ApplyThenRollback_SoftDeletedPostCutoverResume_DoesNotBlockRollback()
+    {
+        await using var context = _database.CreateContext();
+        await context.Database.MigrateAsync();
+        var source = Directory.CreateTempSubdirectory();
+        var target = Directory.CreateTempSubdirectory();
+        var content = Encoding.UTF8.GetBytes("logo sintetica");
+        await File.WriteAllBytesAsync(Path.Combine(source.FullName, "logo.png"), content);
+        var hash = Convert.ToHexString(SHA256.HashData(content)).ToLowerInvariant();
+        var export = Export(hash, content.Length);
+        var dry = (await new BuildRecruivaMigrationDryRunUseCase().ExecuteAsync(export)).Data!;
+        var applied = await RecruivaMigrationApplier.ApplyAsync(context, export, dry, source.FullName, target.FullName, Guid.NewGuid());
+        applied.Applied.Should().BeTrue(string.Join(';', applied.Problems.Select(p => p.Message)));
+
+        context.Resumes.Add(new Resume
+        {
+            Id = Id.Create(Guid.NewGuid()),
+            CandidateId = Id.Create(applied.IdMap["candidate:cand-1"]),
+            Title = "Currículo excluído após o corte",
+            IsActive = false,
+            IsDeleted = true,
+            TenantId = "default",
+            CreatedBy = "usuario-pos-corte"
+        });
+        await context.SaveChangesAsync();
+
+        var rollback = await RecruivaMigrationApplier.RollbackAsync(context, applied);
+
+        rollback.RemovedCounts["candidate"].Should().Be(1);
+        (await context.Candidates.CountAsync()).Should().Be(0);
+    }
+
     [Fact]
     public async Task ApplyAsync_FileUrlOutsideUploadsPrefix_RefusesApply()
     {

@@ -157,8 +157,8 @@ public static class RecruivaMigrationApplier
         var applications = await context.Applications.Select(row => new { row.CandidateId, row.JobId, row.CreatedBy }).ToListAsync(cancellationToken);
         if (applications.Any(row => row.CreatedBy != marker && (candidateIds.Contains(row.CandidateId.Value) || jobIds.Contains(row.JobId.Value))))
             throw new InvalidOperationException("Rollback bloqueado: há candidaturas criadas após o corte; remova ou reconcile esses dependentes primeiro.");
-        var resumes = await context.Resumes.Select(row => new { row.CandidateId, row.CreatedBy }).ToListAsync(cancellationToken);
-        if (resumes.Any(row => row.CreatedBy != marker && candidateIds.Contains(row.CandidateId.Value)))
+        var resumes = await context.Resumes.Select(row => new { row.CandidateId, row.CreatedBy, row.IsDeleted }).ToListAsync(cancellationToken);
+        if (resumes.Any(row => row.CreatedBy != marker && !row.IsDeleted && candidateIds.Contains(row.CandidateId.Value)))
             throw new InvalidOperationException("Rollback bloqueado: há currículos criados após o corte; remova ou reconcile esses dependentes primeiro.");
         var advertiserIds = Ids(report, "advertiser").ToHashSet();
         var jobs = await context.Jobs.Select(row => new { row.AdvertiserId, row.CreatedBy }).ToListAsync(cancellationToken);
