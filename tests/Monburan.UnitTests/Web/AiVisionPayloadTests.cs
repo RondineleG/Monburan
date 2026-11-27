@@ -33,6 +33,33 @@ public class AiVisionPayloadTests
     }
 
     [Fact]
+    public void GatewayCompatibleVisionProvider_SendsImageAsLocalDataUriPart()
+    {
+        var provider = Provider(supportsVision: true) with
+        {
+            Protocol = EAiProtocol.OpenAiCompatible,
+            BaseUrl = "https://gateway.exemplo.com/v1",
+            Model = "simulated-chat"
+        };
+
+        using var document = JsonDocument.Parse(JsonSerializer.Serialize(OpenAiProtocol.BuildPayload(provider, ImageRequest())));
+        var payload = document.RootElement;
+
+        OpenAiProtocol.Endpoint(provider.BaseUrl).Should().Be(new Uri("https://gateway.exemplo.com/v1/chat/completions"));
+        payload.GetProperty("model").GetString().Should().Be("simulated-chat");
+        var userMessage = payload.GetProperty("messages")[1];
+        userMessage.GetProperty("role").GetString().Should().Be("user");
+        var parts = userMessage.GetProperty("content");
+        parts.GetArrayLength().Should().Be(2);
+        parts[0].GetProperty("type").GetString().Should().Be("text");
+        parts[0].GetProperty("text").GetString().Should().Be("Veja a imagem.");
+        parts[1].GetProperty("type").GetString().Should().Be("image_url");
+        parts[1].GetProperty("image_url").GetProperty("url").GetString()
+            .Should().Be("data:image/png;base64," + Convert.ToBase64String(Png));
+        payload.GetRawText().Should().NotContain(OpenAiProtocol.Endpoint(provider.BaseUrl).AbsoluteUri);
+    }
+
+    [Fact]
     public void TextOnlyRequest_DoesNotNeedVisionAndSendsNoImage()
     {
         var request = new AiCompletionRequest([new AiMessage("user", "Olá")]);

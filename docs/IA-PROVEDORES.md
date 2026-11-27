@@ -115,6 +115,22 @@ produção o endereço local é bloqueado (ver abaixo).
   expressa a cada uso, o conteúdo mínimo e a Política de Privacidade seguem como descritos em
   [IA-CURRICULO.md](IA-CURRICULO.md). Ao cadastrar um provedor novo, confira os termos dele sobre uso e retenção dos dados.
 
+## Gateway interno multimodal (MO-GA)
+
+Configure o protocolo **OpenAI-compatível**, a URL raiz HTTPS terminada em `/v1` e uma variável `AI_KEY_*` com a chave da aplicação `monburan`. Em produção, o DNS do Gateway precisa resolver somente para endereços públicos aceitos pela proteção de rede. Um hostname que resolve para rede privada é recusado antes da conexão. A configuração de redes privadas fica restrita ao ambiente de desenvolvimento.
+
+Use o alias simulado para verificar o envio de imagem sintética por data URI. No checkout do Gateway que contém o MO-GA, rode:
+
+```sh
+dotnet test tests/AiGateway.Tests/AiGateway.Tests.csproj --filter FullyQualifiedName~ChatEndpointAcceptsFixtureAndRejectsImageLimitAcrossMessages
+```
+
+A fixture cria um servidor local com um alias simulado. Confere HTTP 200 com uma imagem pequena, HTTP 400 acima do limite agregado e a ausência de consumo de quota na requisição rejeitada. O botão **Testar** do Monburan confirma somente o caminho de texto. Habilite **Aceita imagens (multimodal)** para rascunhos reais somente quando houver um alias aprovado que devolva o JSON estruturado esperado no teste de extração. O rascunho continua sujeito à revisão humana.
+
+Para extração pelo Gateway, use JPEG, PNG ou WebP, com até 4 imagens, 2 MiB por imagem e 5 MiB no total. Os limites de anexos das sugestões no Monburan são maiores. Uma sugestão pode continuar válida para moderação e exceder o limite do Gateway. Nesse caso, preencha o rascunho manualmente com as evidências originais.
+
+Rollback: torne o provedor anterior o padrão novamente. A revisão humana, a evidência original e o preenchimento manual permanecem disponíveis; nenhuma migração ou reprocessamento é necessário.
+
 ## Quando o teste não funciona
 
 | Mensagem do teste | O que conferir |
