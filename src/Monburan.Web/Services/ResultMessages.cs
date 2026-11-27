@@ -24,7 +24,7 @@ public static class ResultMessages
         return result.Status switch
         {
             EResultStatus.DomainError => NonEmpty(result.Message, fallback),
-            EResultStatus.EntityNotFound or EResultStatus.EntityAlreadyExists =>
+            EResultStatus.EntityNotFound or EResultStatus.EntityAlreadyExists or EResultStatus.Conflict =>
                 NonEmpty(result.RequestEntityWarning?.Message, NonEmpty(result.Message, fallback)),
             _ => fallback
         };

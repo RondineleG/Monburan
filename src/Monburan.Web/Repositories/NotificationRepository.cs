@@ -85,6 +85,16 @@ public class NotificationRepository : INotificationRepository
         return RequestResult<IEnumerable<Notification>>.Success(notifications);
     }
 
+
+    public async Task<RequestResult<bool>> ExistsJobAlertNotificationAsync(Guid jobAlertId, Guid jobId, CancellationToken cancellationToken = default)
+    {
+        await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);
+        var exists = await context.Notifications
+            .AnyAsync(n => !n.IsDeleted && n.JobAlertId == jobAlertId && n.JobId == jobId, cancellationToken);
+
+        return RequestResult<bool>.Success(exists);
+    }
+
     public async Task<RequestResult<int>> MarkAllAsReadAsync(string recipientId, CancellationToken cancellationToken = default)
     {
         await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);

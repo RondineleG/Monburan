@@ -153,6 +153,8 @@ public sealed class ModerateJobSubmissionUseCase : IUseCase<ModerateJobSubmissio
             SourceName = submission.SourceDescription ?? submission.SourceUrl,
             SourceUrl = submission.SourceUrl,
             LastVerifiedAt = DateTime.UtcNow,
+            CreatedBy = request.Actor.Id,
+            UpdatedBy = request.Actor.Id,
             Location = new JobLocation
             {
                 City = submission.City,

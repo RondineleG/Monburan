@@ -61,6 +61,33 @@ public class ApplicationHistoryApiTests : IClassFixture<MonburanApiFactory>
         history[1].Responsible.Should().Be("RH da empresa");
     }
 
+
+    [Fact]
+    public async Task InvalidStatusTransition_Returns409_AndDoesNotWriteHistory()
+    {
+        var advertiser = await RegisterAdvertiserAsync();
+        var jobId = await CreateJobAsync(advertiser.AccessToken);
+        var candidate = await RegisterCandidateAsync();
+        var application = await ApplyAsync(candidate.AccessToken, jobId);
+
+        var reject = await SendAsync(advertiser.AccessToken, HttpMethod.Put, $"/api/v1/applications/{application.Id}/status",
+            new UpdateApplicationStatusRequest { NewStatus = Core.Enums.EApplicationStatus.Rejected });
+        reject.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var backwards = await SendAsync(advertiser.AccessToken, HttpMethod.Put, $"/api/v1/applications/{application.Id}/status",
+            new UpdateApplicationStatusRequest { NewStatus = Core.Enums.EApplicationStatus.Viewed });
+        backwards.StatusCode.Should().Be(HttpStatusCode.Conflict);
+
+        var repeated = await SendAsync(advertiser.AccessToken, HttpMethod.Put, $"/api/v1/applications/{application.Id}/status",
+            new UpdateApplicationStatusRequest { NewStatus = Core.Enums.EApplicationStatus.Rejected });
+        repeated.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var history = await GetAsync<List<ApplicationHistoryItemResponse>>(
+            advertiser.AccessToken, $"/api/v1/applications/{application.Id}/history");
+        history.Should().HaveCount(2);
+        history!.Select(item => item.Status).Should().Equal("Sent", "Rejected");
+    }
+
     [Fact]
     public async Task History_ForAnotherCandidateOrAdvertiser_Returns404()
     {

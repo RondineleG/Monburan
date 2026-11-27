@@ -50,6 +50,58 @@
                 {
                     <LoadingState Compact="true" Message="Carregando currículo…" />
                 }
+                else if (Application.ResumeSnapshot is { } snapshot)
+                {
+                    <p class="mb-2"><strong>@snapshot.Title</strong></p>
+                    @if (!string.IsNullOrWhiteSpace(snapshot.Summary))
+                    {
+                        <p class="small resume-pre">@snapshot.Summary</p>
+                    }
+                    @if (snapshot.ExperienceHistory is { Count: > 0 })
+                    {
+                        <details class="applicant-resume__details">
+                            <summary>Experiências (@snapshot.ExperienceHistory.Count)</summary>
+                            <ul class="small mt-1">
+                                @foreach (var exp in snapshot.ExperienceHistory)
+                                {
+                                    <li>
+                                        <strong>@exp.Position</strong> — @exp.Company
+                                        @if (!string.IsNullOrWhiteSpace(exp.Description))
+                                        {
+                                            <div class="resume-pre">@exp.Description</div>
+                                        }
+                                    </li>
+                                }
+                            </ul>
+                        </details>
+                    }
+                    @if (snapshot.EducationHistory is { Count: > 0 })
+                    {
+                        <details class="applicant-resume__details">
+                            <summary>Formação (@snapshot.EducationHistory.Count)</summary>
+                            <ul class="small mt-1">
+                                @foreach (var edu in snapshot.EducationHistory)
+                                {
+                                    <li>@edu.Course — @edu.Institution (@UiLabels.EducationLevel(edu.Level), @UiLabels.EducationStatus(edu.Status))</li>
+                                }
+                            </ul>
+                        </details>
+                    }
+                    @if (snapshot.Skills is { Count: > 0 })
+                    {
+                        <details class="applicant-resume__details">
+                            <summary>Habilidades (@snapshot.Skills.Count)</summary>
+                            <p class="small mt-1">@string.Join(" · ", snapshot.Skills.Select(s => $"{s.Skill} ({s.Level})"))</p>
+                        </details>
+                    }
+                    @if (snapshot.Languages is { Count: > 0 })
+                    {
+                        <details class="applicant-resume__details">
+                            <summary>Idiomas (@snapshot.Languages.Count)</summary>
+                            <p class="small mt-1">@string.Join(" · ", snapshot.Languages.Select(l => $"{l.Language} ({UiLabels.LanguageLevel(l.Level)})"))</p>
+                        </details>
+                    }
+                }
                 else if (attachedResume is not null)
                 {
                     <p class="mb-2"><strong>@attachedResume.Resume.Title</strong></p>
@@ -129,10 +181,22 @@
                 <textarea id="applicant-note" class="form-control" rows="2" @bind="statusNote" data-testid="applicant-note"></textarea>
             </div>
             <div class="d-flex flex-wrap gap-2">
-                <button type="button" class="btn btn-outline-secondary btn-sm" @onclick="() => ChangeStatusAsync(EApplicationStatus.Viewed)" disabled="@isUpdating" aria-busy="@(isUpdating ? "true" : null)" data-testid="application-viewed">Marcar como visualizada</button>
-                <button type="button" class="btn btn-primary btn-sm" @onclick="() => ChangeStatusAsync(EApplicationStatus.Selected)" disabled="@isUpdating" aria-busy="@(isUpdating ? "true" : null)" data-testid="application-select">Selecionar</button>
-                <button type="button" class="btn btn-outline-danger btn-sm" @onclick="() => ConfirmAndChangeAsync(EApplicationStatus.Rejected)" disabled="@isUpdating" data-testid="application-reject">Não selecionar</button>
-                <button type="button" class="btn btn-outline-secondary btn-sm" @onclick="() => ConfirmAndChangeAsync(EApplicationStatus.Archived)" disabled="@isUpdating" data-testid="application-archive">Arquivar</button>
+                @if (CanTransitionTo(EApplicationStatus.Viewed))
+                {
+                    <button type="button" class="btn btn-outline-secondary btn-sm" @onclick="() => ChangeStatusAsync(EApplicationStatus.Viewed)" disabled="@isUpdating" aria-busy="@(isUpdating ? "true" : null)" data-testid="application-viewed">Marcar como visualizada</button>
+                }
+                @if (CanTransitionTo(EApplicationStatus.Selected))
+                {
+                    <button type="button" class="btn btn-primary btn-sm" @onclick="() => ChangeStatusAsync(EApplicationStatus.Selected)" disabled="@isUpdating" aria-busy="@(isUpdating ? "true" : null)" data-testid="application-select">Selecionar</button>
+                }
+                @if (CanTransitionTo(EApplicationStatus.Rejected))
+                {
+                    <button type="button" class="btn btn-outline-danger btn-sm" @onclick="() => ConfirmAndChangeAsync(EApplicationStatus.Rejected)" disabled="@isUpdating" data-testid="application-reject">Não selecionar</button>
+                }
+                @if (CanTransitionTo(EApplicationStatus.Archived))
+                {
+                    <button type="button" class="btn btn-outline-secondary btn-sm" @onclick="() => ConfirmAndChangeAsync(EApplicationStatus.Archived)" disabled="@isUpdating" data-testid="application-archive">Arquivar</button>
+                }
             </div>
         </section>
 
@@ -202,6 +266,13 @@
         if (Application?.ResumeId is not { } resumeId)
             return;
 
+        if (Application.ResumeSnapshot is not null)
+        {
+            attachedResume = null;
+            resumeLoadFailed = false;
+            return;
+        }
+
         resumeLoading = true;
         resumeLoadFailed = false;
         var result = await ResumeViewer.GetAsync(resumeId);
@@ -251,6 +322,13 @@
     }
 
     // Não selecionar e arquivar tiram a candidatura do fluxo ativo: pedem confirmação com o nome da pessoa
+
+    private bool CanTransitionTo(EApplicationStatus target) =>
+        Application is not null
+        && Enum.TryParse<EApplicationStatus>(Application.Status, out var current)
+        && current != target
+        && UpdateApplicationStatusUseCase.IsAllowedTransition(current, target);
+
     private async Task ConfirmAndChangeAsync(EApplicationStatus newStatus)
     {
         if (Application is null || isUpdating)

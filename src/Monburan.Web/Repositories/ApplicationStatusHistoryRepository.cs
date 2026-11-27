@@ -31,7 +31,8 @@ public class ApplicationStatusHistoryRepository : IApplicationStatusHistoryRepos
         var history = await context.ApplicationStatusHistory
             .AsNoTracking()
             .Where(item => !item.IsDeleted && item.ApplicationId == applicationKey)
-            .OrderBy(item => item.Date)
+            .OrderBy(item => item.Version)
+            .ThenBy(item => item.Date)
             .ThenBy(item => item.CreatedAt)
             .ToListAsync(cancellationToken);
 

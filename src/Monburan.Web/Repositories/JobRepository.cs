@@ -1,7 +1,9 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 
 using Monburan.Core.DTOs.Response;
 using Monburan.Core.Entities;
+using Monburan.Core.Enums;
 using Monburan.Core.Interfaces.Repositories;
 using Monburan.Core.Interfaces.Repositories.Base;
 using Monburan.Core.Requests;
@@ -18,10 +20,36 @@ public class JobRepository : IJobRepository
         _contextFactory = contextFactory;
     }
 
+    private static bool IsRelationalStore(ApplicationDbContext context) =>
+        context.Database.IsRelational()
+        && context.Database.ProviderName != "Microsoft.EntityFrameworkCore.InMemory";
+
+    /// <summary>
+    /// Serializa as escritas da mesma vaga no PostgreSQL. A leitura, a mudança e a numeração da revisão ficam na
+    /// mesma transação; outra escrita espera o fim da primeira antes de fotografar o estado.
+    /// </summary>
+    private static async Task<IDbContextTransaction?> BeginJobWriteTransactionAsync(ApplicationDbContext context, Id jobId, CancellationToken cancellationToken)
+    {
+        if (!IsRelationalStore(context))
+            return null;
+
+        var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
+        await context.Database.ExecuteSqlAsync($"""SELECT 1 FROM "Jobs" WHERE "Id" = {jobId.Value} FOR UPDATE""", cancellationToken);
+        return transaction;
+    }
+
+    private static async Task CommitAsync(IDbContextTransaction? transaction, CancellationToken cancellationToken)
+    {
+        if (transaction is not null)
+            await transaction.CommitAsync(cancellationToken);
+    }
+
     public async Task<RequestResult<Job>> CreateAsync(Job entity, CancellationToken cancellationToken = default)
     {
         await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);
+        entity.PublishedAt ??= entity.Status == EJobStatus.Active ? DateTime.UtcNow : null;
         context.Jobs.Add(entity);
+        context.JobRevisions.Add(JobRevision.Capture(entity, 1, EJobRevisionAction.Created, entity.CreatedBy));
         await context.SaveChangesAsync(cancellationToken);
         return RequestResult<Job>.Success(entity);
     }
@@ -157,12 +185,14 @@ public class JobRepository : IJobRepository
     public async Task<RequestResult<Job>> UpdateAsync(Job entity, CancellationToken cancellationToken = default)
     {
         await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);
+        await using var transaction = await BeginJobWriteTransactionAsync(context, entity.Id, cancellationToken);
 
         // A vaga chega desanexada (lida em outra unidade de trabalho). Gravar com Update()
         // marcaria TODAS as colunas como modificadas, incluindo as que esta edição não
         // tocou — uma edição feita com dados antigos apagaria a moderação da administração
         // e os contadores da vaga. Por isso a gravação passa por uma cópia explícita: só
-        // entram as colunas que a edição da vaga de fato controla.
+        // entram as colunas que a edição da vaga de fato controla. A situação fica fora
+        // desta gravação; mudanças de ciclo de vida usam UpdateStatusAsync.
         var tracked = await context.Jobs
             .Include(job => job.Advertiser)
             .FirstOrDefaultAsync(job => job.Id == entity.Id, cancellationToken);
@@ -181,18 +211,115 @@ public class JobRepository : IJobRepository
         tracked.Tags = entity.Tags;
         tracked.ContractType = entity.ContractType;
         tracked.ExpirationDate = entity.ExpirationDate;
-        tracked.Status = entity.Status;
         tracked.AdvertiserId = entity.AdvertiserId;
 
         CopyLocation(tracked.Location, entity.Location);
         CopySalary(tracked.Salary, entity.Salary);
 
+        var relational = context.Database.IsRelational()
+            && context.Database.ProviderName != "Microsoft.EntityFrameworkCore.InMemory";
+        if (!relational && tracked.Status != EJobStatus.Closed)
+            tracked.UpdatedBy = entity.UpdatedBy;
+
         await context.SaveChangesAsync(cancellationToken);
+
+        if (relational)
+        {
+            // Vaga encerrada preserva quem a encerrou; nas demais situações a autoria acompanha a edição.
+            var authorshipChanged = await context.Jobs
+                .Where(job => job.Id == entity.Id && job.Status != EJobStatus.Closed)
+                .ExecuteUpdateAsync(setters => setters
+                    .SetProperty(job => job.UpdatedBy, entity.UpdatedBy)
+                    .SetProperty(job => job.UpdatedAt, DateTime.UtcNow),
+                    cancellationToken);
+            if (authorshipChanged > 0)
+                tracked.UpdatedBy = entity.UpdatedBy;
+            else
+                await context.Entry(tracked).ReloadAsync(cancellationToken);
+        }
+
+        await SaveRevisionAsync(context, tracked, EJobRevisionAction.Updated, entity.UpdatedBy, cancellationToken);
+        await CommitAsync(transaction, cancellationToken);
         return RequestResult<Job>.Success(tracked);
+    }
+
+    public async Task<RequestResult<Job>> UpdateStatusAsync(Job entity, EJobStatus expectedStatus, string updatedBy, CancellationToken cancellationToken = default)
+    {
+        await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);
+        await using var transaction = await BeginJobWriteTransactionAsync(context, entity.Id, cancellationToken);
+        var tracked = await context.Jobs
+            .Include(job => job.Advertiser)
+            .FirstOrDefaultAsync(job => job.Id == entity.Id, cancellationToken);
+        if (tracked is null)
+            return RequestResult<Job>.EntityNotFound("Job", entity.Id.Value, "Vaga não encontrada.");
+
+        var relational = context.Database.IsRelational()
+            && context.Database.ProviderName != "Microsoft.EntityFrameworkCore.InMemory";
+        if (!relational)
+        {
+            var changedInMemory = tracked.Status == expectedStatus;
+            if (changedInMemory)
+            {
+                tracked.Status = entity.Status;
+                tracked.PublishedAt ??= entity.Status == EJobStatus.Active ? DateTime.UtcNow : null;
+                tracked.UpdatedBy = updatedBy;
+                await context.SaveChangesAsync(cancellationToken);
+                await SaveRevisionAsync(context, tracked, EJobRevisionAction.StatusChanged, updatedBy, cancellationToken);
+            }
+
+            return RequestResult<Job>.Success(tracked);
+        }
+
+        var now = DateTime.UtcNow;
+        var changed = await context.Jobs
+            .Where(job => job.Id == entity.Id && job.Status == expectedStatus)
+            .ExecuteUpdateAsync(setters => setters
+                .SetProperty(job => job.Status, entity.Status)
+                .SetProperty(job => job.PublishedAt, job => job.PublishedAt ?? (entity.Status == EJobStatus.Active ? (DateTime?)now : null))
+                .SetProperty(job => job.UpdatedBy, updatedBy)
+                .SetProperty(job => job.UpdatedAt, now),
+                cancellationToken);
+        if (changed > 0)
+        {
+            tracked.Status = entity.Status;
+            tracked.PublishedAt ??= entity.Status == EJobStatus.Active ? now : null;
+            tracked.UpdatedBy = updatedBy;
+        }
+        else
+        {
+            await context.Entry(tracked).ReloadAsync(cancellationToken);
+        }
+
+        if (changed > 0)
+            await SaveRevisionAsync(context, tracked, EJobRevisionAction.StatusChanged, updatedBy, cancellationToken);
+
+        await CommitAsync(transaction, cancellationToken);
+        return RequestResult<Job>.Success(tracked);
+    }
+
+    private static async Task SaveRevisionAsync(ApplicationDbContext context, Job job, EJobRevisionAction action, string actorId, CancellationToken cancellationToken)
+    {
+        // No PostgreSQL a vaga está bloqueada pela transação do fluxo chamador: nenhuma outra escrita
+        // participante pode intercalar uma revisão entre a leitura do máximo e esta fotografia.
+        var latest = await context.JobRevisions
+            .Where(revision => revision.JobId == job.Id)
+            .Select(revision => (int?)revision.Revision)
+            .MaxAsync(cancellationToken);
+        var revision = JobRevision.Capture(job, (latest ?? 0) + 1, action, actorId);
+        context.JobRevisions.Add(revision);
+
+        // A vaga já foi gravada pelo fluxo chamador; salvar a revisão não pode regravar
+        // situação/autoria por cima de uma transição concorrente.
+        context.Entry(job).State = EntityState.Unchanged;
+        await context.SaveChangesAsync(cancellationToken);
     }
 
     // Local e salário são "owned" (tabelas próprias): só são gravados quando o valor
     // recebido é diferente do que já está no banco.
+
+    private static bool IsStatusLocked(EJobStatus status) =>
+        status is EJobStatus.Closed or EJobStatus.Hidden or EJobStatus.Rejected;
+
     private static void CopyLocation(JobLocation? target, JobLocation? source)
     {
         if (target is null || source is null)
@@ -218,20 +345,32 @@ public class JobRepository : IJobRepository
         target.Display = source.Display;
     }
 
+    public async Task<IReadOnlyList<JobRevision>> ListRevisionsAsync(Id jobId, CancellationToken cancellationToken = default)
+    {
+        await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);
+        return await context.JobRevisions
+            .AsNoTracking()
+            .Where(revision => revision.JobId == jobId)
+            .OrderByDescending(revision => revision.Revision)
+            .ToListAsync(cancellationToken);
+    }
+
     /// <summary>
     /// Grava a moderação da vaga (aprovada, rejeitada ou escondida). Fica fora da
     /// atualização geral da vaga de propósito: são campos da administração, e uma edição
     /// da empresa não pode sobrescrever o que a administração gravou.
     /// </summary>
-    public async Task<RequestResult<Job>> UpdateModerationAsync(Job job, CancellationToken cancellationToken = default)
+    public async Task<RequestResult<Job>> UpdateModerationAsync(Job job, CancellationToken cancellationToken = default, EJobRevisionAction revisionAction = EJobRevisionAction.Moderated, bool updateExpirationDate = true)
     {
         await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);
+        await using var transaction = await BeginJobWriteTransactionAsync(context, job.Id, cancellationToken);
         var tracked = await context.Jobs.FirstOrDefaultAsync(item => item.Id == job.Id, cancellationToken);
         if (tracked is null)
             return RequestResult<Job>.EntityNotFound("Job", job.Id.Value, "Vaga não encontrada.");
 
         tracked.Status = job.Status;
-        tracked.ExpirationDate = job.ExpirationDate;
+        if (updateExpirationDate)
+            tracked.ExpirationDate = job.ExpirationDate;
         tracked.Moderation ??= new ModerationInfo();
         tracked.Moderation.Status = job.Moderation!.Status;
         tracked.Moderation.Reason = job.Moderation.Reason;
@@ -239,6 +378,8 @@ public class JobRepository : IJobRepository
         tracked.Moderation.ModerationDate = job.Moderation.ModerationDate;
 
         await context.SaveChangesAsync(cancellationToken);
+        await SaveRevisionAsync(context, tracked, revisionAction, job.Moderation.ModeratorId ?? job.UpdatedBy, cancellationToken);
+        await CommitAsync(transaction, cancellationToken);
         return RequestResult<Job>.Success(tracked);
     }
 
@@ -393,17 +534,18 @@ public class JobRepository : IJobRepository
             query = query.Where(j => j.Salary != null && j.Salary.Period == salaryPeriod.Value);
         }
 
-        // Filtro por data de publicação: vagas criadas nos últimos N dias
+        // Filtro por data de publicação: rascunho antigo conta da data em que virou vaga pública.
         if (publishedWithinDays is > 0)
         {
             var cutoff = DateTime.UtcNow.AddDays(-publishedWithinDays.Value);
-            query = query.Where(j => j.CreatedAt >= cutoff);
+            query = query.Where(j => (j.PublishedAt ?? j.CreatedAt) >= cutoff);
         }
 
-        // Ordenação — sortBy: "createdAt" (default), "title", "salary"
+        // Ordenação — sortBy: "publishedAt" (default/recência pública), "createdAt", "title", "salary"
         var descending = sortDescending ?? true;
         query = sortBy?.ToLowerInvariant() switch
         {
+            "createdat" => descending ? query.OrderByDescending(j => j.CreatedAt) : query.OrderBy(j => j.CreatedAt),
             "title" => descending ? query.OrderByDescending(j => j.Title) : query.OrderBy(j => j.Title),
             // Vagas sem salário visível vão sempre para o fim: no PostgreSQL o NULL vem primeiro em ordem
             // decrescente, e "maior salário" listaria antes as vagas que não informam (ou ocultam) o valor.
@@ -412,7 +554,7 @@ public class JobRepository : IJobRepository
                     .ThenByDescending(j => j.Salary == null || !j.Salary.Display ? null : j.Salary.Max ?? j.Salary.Min)
                 : query.OrderBy(j => j.Salary == null || !j.Salary.Display || (j.Salary.Max ?? j.Salary.Min) == null)
                     .ThenBy(j => j.Salary == null || !j.Salary.Display ? null : j.Salary.Max ?? j.Salary.Min),
-            _ => descending ? query.OrderByDescending(j => j.CreatedAt) : query.OrderBy(j => j.CreatedAt),
+            _ => descending ? query.OrderByDescending(j => j.PublishedAt ?? j.CreatedAt) : query.OrderBy(j => j.PublishedAt ?? j.CreatedAt),
         };
 
         // Paginação com OFFSET/FETCH — TotalCount é o total filtrado, não o tamanho da página
@@ -443,15 +585,34 @@ public class JobRepository : IJobRepository
     public async Task<RequestResult<IEnumerable<Job>>> ListActiveForRecommendationsAsync(CancellationToken cancellationToken = default)
     {
         await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);
-        var now = DateTime.UtcNow;
-        var jobs = await context.Jobs
-            .AsNoTracking()
-            .Include(j => j.Advertiser)
-            .Where(j => !j.IsDeleted && j.Status == EJobStatus.Active && j.ExpirationDate >= now)
-            .OrderByDescending(j => j.CreatedAt)
+        var jobs = await ActiveRecommendationsQuery(context)
             .ToListAsync(cancellationToken);
 
         return RequestResult<IEnumerable<Job>>.Success(jobs);
+    }
+
+    public async Task<RequestResult<IEnumerable<Job>>> ListRecentForRecommendationsAsync(int take, IReadOnlyCollection<Id> excludedJobIds, CancellationToken cancellationToken = default)
+    {
+        await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);
+        var query = ActiveRecommendationsQuery(context);
+        if (excludedJobIds.Count > 0)
+            query = query.Where(job => !excludedJobIds.Contains(job.Id));
+
+        var jobs = await query
+            .Take(take)
+            .ToListAsync(cancellationToken);
+
+        return RequestResult<IEnumerable<Job>>.Success(jobs);
+    }
+
+    private static IQueryable<Job> ActiveRecommendationsQuery(ApplicationDbContext context)
+    {
+        var now = DateTime.UtcNow;
+        return context.Jobs
+            .AsNoTracking()
+            .Include(j => j.Advertiser)
+            .Where(j => !j.IsDeleted && j.Status == EJobStatus.Active && j.ExpirationDate >= now)
+            .OrderByDescending(j => j.PublishedAt ?? j.CreatedAt);
     }
 
     public async Task<RequestResult<bool>> IncrementViewsAsync(Guid jobId, CancellationToken cancellationToken = default)

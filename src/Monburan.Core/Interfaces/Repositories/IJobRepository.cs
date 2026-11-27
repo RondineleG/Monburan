@@ -49,6 +49,9 @@ public interface IJobRepository : IBaseRepository<Job>
     /// <summary>Vagas ativas e não expiradas, mais recentes primeiro — candidatas às recomendações.</summary>
     Task<RequestResult<IEnumerable<Job>>> ListActiveForRecommendationsAsync(CancellationToken cancellationToken = default);
 
+    /// <summary>As vagas ativas e não expiradas mais recentes, limitadas no banco — ranking básico sem personalização.</summary>
+    Task<RequestResult<IEnumerable<Job>>> ListRecentForRecommendationsAsync(int take, IReadOnlyCollection<Id> excludedJobIds, CancellationToken cancellationToken = default);
+
     /// <summary>Incrementa o contador de visualizações de forma atômica. <c>false</c> quando a vaga não existe.</summary>
     Task<RequestResult<bool>> IncrementViewsAsync(Guid jobId, CancellationToken cancellationToken = default);
 
@@ -58,9 +61,18 @@ public interface IJobRepository : IBaseRepository<Job>
     Task<RequestResult<bool>> IncrementApplicationsAsync(Guid jobId, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Muda somente a situação e a autoria da vaga quando ela ainda está na situação esperada.
+    /// Não grava conteúdo, para uma publicação/pausa não sobrescrever uma edição concorrente.
+    /// </summary>
+    Task<RequestResult<Job>> UpdateStatusAsync(Job entity, EJobStatus expectedStatus, string updatedBy, CancellationToken cancellationToken = default);
+
+    /// <summary>Histórico imutável da vaga, da revisão mais nova para a mais antiga.</summary>
+    Task<IReadOnlyList<JobRevision>> ListRevisionsAsync(Id jobId, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Grava a moderação, o status e a validade da vaga numa única gravação, para a mudança feita
     /// pela administração não ficar pela metade. Fica fora da atualização geral da vaga: uma edição
     /// da empresa não pode sobrescrever o que a administração gravou.
     /// </summary>
-    Task<RequestResult<Job>> UpdateModerationAsync(Job job, CancellationToken cancellationToken = default);
+    Task<RequestResult<Job>> UpdateModerationAsync(Job job, CancellationToken cancellationToken = default, EJobRevisionAction revisionAction = EJobRevisionAction.Moderated, bool updateExpirationDate = true);
 }

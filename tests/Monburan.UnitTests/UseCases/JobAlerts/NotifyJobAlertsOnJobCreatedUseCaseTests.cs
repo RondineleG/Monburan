@@ -4,7 +4,6 @@ using NSubstitute;
 using Monburan.Core.Entities;
 using Monburan.Core.Enums;
 using Monburan.Core.Interfaces.Repositories;
-using Monburan.Core.Interfaces.Repositories.Base;
 using Monburan.Core.Requests;
 using Monburan.Core.UseCases.JobAlerts;
 using Monburan.Core.UseCases.Notifications;
@@ -16,18 +15,21 @@ namespace Monburan.UnitTests.UseCases.JobAlerts;
 public class NotifyJobAlertsOnJobCreatedUseCaseTests
 {
     private readonly IJobAlertRepository _alerts = Substitute.For<IJobAlertRepository>();
-    private readonly IBaseRepository<Notification> _notifications = Substitute.For<IBaseRepository<Notification>>();
+    private readonly INotificationRepository _notifications = Substitute.For<INotificationRepository>();
     private readonly NotifyJobAlertsOnJobCreatedUseCase _useCase;
 
     public NotifyJobAlertsOnJobCreatedUseCaseTests()
     {
         _notifications.CreateAsync(Arg.Any<Notification>())
             .Returns(call => RequestResult<Notification>.Success(call.Arg<Notification>()));
+        _notifications.ExistsJobAlertNotificationAsync(Arg.Any<Guid>(), Arg.Any<Guid>())
+            .Returns(RequestResult<bool>.Success(false));
         _alerts.UpdateAsync(Arg.Any<JobAlert>())
             .Returns(call => RequestResult<JobAlert>.Success(call.Arg<JobAlert>()));
 
         _useCase = new NotifyJobAlertsOnJobCreatedUseCase(
             _alerts,
+            _notifications,
             new CreateNotificationUseCase(_notifications),
             Substitute.For<ILogger<NotifyJobAlertsOnJobCreatedUseCase>>());
     }
@@ -74,6 +76,23 @@ public class NotifyJobAlertsOnJobCreatedUseCaseTests
             && notification.RecipientId == alert.CandidateId.Value.ToString()));
         alert.LastMatchedAt.Should().NotBeNull();
         await _alerts.Received(1).UpdateAsync(alert);
+    }
+
+
+    [Fact]
+    public async Task ExecuteAsync_WhenTheAlertAlreadyNotifiedTheJob_DoesNotDuplicateTheNotification()
+    {
+        var alert = AlertOf();
+        ReturnsAlerts(alert);
+        _notifications.ExistsJobAlertNotificationAsync(alert.Id.Value, Arg.Any<Guid>())
+            .Returns(RequestResult<bool>.Success(true));
+
+        var result = await _useCase.ExecuteAsync(new NotifyJobAlertsOnJobCreatedRequest(JobOf()));
+
+        result.Status.Should().Be(EResultStatus.Success);
+        result.Data.Should().Be(0);
+        await _notifications.DidNotReceiveWithAnyArgs().CreateAsync(default!);
+        await _alerts.DidNotReceiveWithAnyArgs().UpdateAsync(default!);
     }
 
     [Fact]

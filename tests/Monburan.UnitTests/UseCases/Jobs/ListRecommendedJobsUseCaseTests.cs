@@ -3,6 +3,7 @@ using NSubstitute;
 using Monburan.Core.Entities;
 using Monburan.Core.Enums;
 using Monburan.Core.Interfaces.Repositories;
+using Monburan.Core.Interfaces.Services;
 using Monburan.Core.Requests;
 using Monburan.Core.UseCases.Jobs;
 using Monburan.Core.ValueObjects;
@@ -16,6 +17,8 @@ public class ListRecommendedJobsUseCaseTests
     private readonly ICareerProfileRepository _profiles = Substitute.For<ICareerProfileRepository>();
     private readonly IResumeRepository _resumes = Substitute.For<IResumeRepository>();
     private readonly IApplicationRepository _applications = Substitute.For<IApplicationRepository>();
+    private readonly IFeatureFlags _featureFlags = Substitute.For<IFeatureFlags>();
+    private readonly ICurrentPrincipalAccessor _currentPrincipal = Substitute.For<ICurrentPrincipalAccessor>();
     private readonly Guid _candidateId = Guid.NewGuid();
     private readonly ListRecommendedJobsUseCase _useCase;
 
@@ -25,8 +28,16 @@ public class ListRecommendedJobsUseCaseTests
         _resumes.GetActiveWithSkillsAsync(_candidateId).Returns(RequestResult<Resume?>.Success(null));
         _applications.ListByCandidateAsync(_candidateId)
             .Returns(RequestResult<IEnumerable<Application>>.Success([]));
+        _jobs.ListRecentForRecommendationsAsync(Arg.Any<int>(), Arg.Any<IReadOnlyCollection<Id>>(), Arg.Any<CancellationToken>())
+            .Returns(RequestResult<IEnumerable<Job>>.Success([]));
 
-        _useCase = new ListRecommendedJobsUseCase(_jobs, _profiles, _resumes, _applications);
+        _useCase = new ListRecommendedJobsUseCase(
+            _jobs,
+            _profiles,
+            _resumes,
+            _applications,
+            _featureFlags,
+            _currentPrincipal);
     }
 
     private static Job JobOf(
@@ -77,17 +88,100 @@ public class ListRecommendedJobsUseCaseTests
         TenantId = "default"
     };
 
-    private void ReturnsJobs(params Job[] jobs) =>
+
+    private static Job WithCreatedAt(Job job, DateTime createdAt)
+    {
+        typeof(Job).GetProperty(nameof(Job.CreatedAt))!.SetValue(job, createdAt);
+        return job;
+    }
+
+    private void ReturnsJobs(params Job[] jobs)
+    {
         _jobs.ListActiveForRecommendationsAsync().Returns(RequestResult<IEnumerable<Job>>.Success(jobs));
+        _jobs.ListRecentForRecommendationsAsync(Arg.Any<int>(), Arg.Any<IReadOnlyCollection<Id>>(), Arg.Any<CancellationToken>())
+            .Returns(RequestResult<IEnumerable<Job>>.Success(jobs));
+    }
+
+    private void EnableExplanation() =>
+        _featureFlags.IsEnabledAsync(
+            ListRecommendedJobsUseCase.ExplainableRecommendationFeature,
+            Arg.Any<System.Security.Claims.ClaimsPrincipal?>(),
+            Arg.Any<CancellationToken>()).Returns(true);
 
     [Fact]
-    public async Task ExecuteAsync_WithoutProfileAndWithoutSkills_ReturnsEmptyWithoutQueryingJobs()
+    public async Task ExecuteAsync_WithoutProfileAndWithoutSkills_UsesBasicOrderingByRecency()
     {
+        var now = DateTime.UtcNow;
+        var older = WithCreatedAt(JobOf("Vaga antiga"), now.AddMinutes(-3));
+        var newer = WithCreatedAt(JobOf("Vaga recente"), now.AddMinutes(-2));
+        var alreadyApplied = WithCreatedAt(JobOf("Vaga aplicada"), now.AddMinutes(-1));
+        ReturnsJobs(older, newer, alreadyApplied);
+        _applications.ListByCandidateAsync(_candidateId).Returns(RequestResult<IEnumerable<Application>>.Success(
+        [
+            new Application
+            {
+                Id = Id.Create(Guid.NewGuid()),
+                CandidateId = Id.Create(_candidateId),
+                JobId = alreadyApplied.Id,
+                Status = EApplicationStatus.Sent,
+                TenantId = "default"
+            }
+        ]));
+
+        EnableExplanation();
+
+        var result = await _useCase.ExecuteAsync(_candidateId);
+
+        result.Status.Should().Be(EResultStatus.Success);
+        result.Data!.Jobs.Select(job => job.Title).Should().Equal("Vaga recente", "Vaga antiga");
+        await _jobs.Received(1).ListRecentForRecommendationsAsync(
+            ListRecommendedJobsUseCase.MaxResults,
+            Arg.Is<IReadOnlyCollection<Id>>(ids => ids.Contains(alreadyApplied.Id)),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_WithoutPersonalization_OrdersADraftByWhenItBecamePublic()
+    {
+        var now = DateTime.UtcNow;
+        var oldDraftPublishedNow = WithCreatedAt(JobOf("Rascunho publicado agora"), now.AddDays(-30));
+        oldDraftPublishedNow.PublishedAt = now.AddMinutes(-1);
+        var newerDraftPublishedBefore = WithCreatedAt(JobOf("Vaga publicada antes"), now.AddDays(-2));
+        newerDraftPublishedBefore.PublishedAt = now.AddDays(-1);
+        ReturnsJobs(newerDraftPublishedBefore, oldDraftPublishedNow);
+        EnableExplanation();
+
+        var result = await _useCase.ExecuteAsync(_candidateId);
+
+        result.Data!.Jobs.Select(job => job.Title).Should().Equal("Rascunho publicado agora", "Vaga publicada antes");
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_WithoutProfileAndWithoutSkills_KeepsTheListEmptyWhenTheFeatureIsOff()
+    {
+        ReturnsJobs(JobOf("Vaga recente"));
+
         var result = await _useCase.ExecuteAsync(_candidateId);
 
         result.Status.Should().Be(EResultStatus.Success);
         result.Data!.Jobs.Should().BeEmpty();
         await _jobs.DidNotReceiveWithAnyArgs().ListActiveForRecommendationsAsync();
+        await _jobs.DidNotReceiveWithAnyArgs().ListRecentForRecommendationsAsync(default, default!, default);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_WithOnlyAShortDesiredRole_UsesBasicOrdering()
+    {
+        _profiles.GetByCandidateIdAsync(_candidateId).Returns(RequestResult<CareerProfile?>.Success(ProfileOf(desiredRole: "QA")));
+        var now = DateTime.UtcNow;
+        ReturnsJobs(
+            WithCreatedAt(JobOf("Vaga antiga"), now.AddMinutes(-2)),
+            WithCreatedAt(JobOf("Vaga recente"), now.AddMinutes(-1)));
+        EnableExplanation();
+
+        var result = await _useCase.ExecuteAsync(_candidateId);
+
+        result.Data!.Jobs.Select(job => job.Title).Should().ContainInOrder("Vaga recente", "Vaga antiga");
     }
 
     [Fact]
@@ -188,4 +282,52 @@ public class ListRecommendedJobsUseCaseTests
 
         result.Status.Should().Be(EResultStatus.HasError);
     }
+    [Fact]
+    public async Task ExecuteAsync_WhenExplanationFeatureIsOn_ReturnsScoreAndFactors()
+    {
+        _featureFlags.IsEnabledAsync(
+            ListRecommendedJobsUseCase.ExplainableRecommendationFeature,
+            Arg.Any<System.Security.Claims.ClaimsPrincipal?>(),
+            Arg.Any<CancellationToken>()).Returns(true);
+        _profiles.GetByCandidateIdAsync(_candidateId).Returns(RequestResult<CareerProfile?>.Success(
+            ProfileOf(desiredRole: "Backend", category: "Tecnologia")));
+        ReturnsJobs(JobOf("Backend", category: "Tecnologia"));
+
+        var result = await _useCase.ExecuteAsync(_candidateId);
+
+        var job = result.Data!.Jobs.Single();
+        job.RecommendationScore.Should().Be(5);
+        job.RecommendationFactors.Should().Equal(
+            "Cargo desejado encontrado na vaga (+3)",
+            "Categoria compatível com o perfil (+2)");
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_WhenExplanationFeatureIsOff_OmitsScoreAndFactors()
+    {
+        _profiles.GetByCandidateIdAsync(_candidateId).Returns(RequestResult<CareerProfile?>.Success(ProfileOf(category: "Tecnologia")));
+        ReturnsJobs(JobOf("Backend", category: "Tecnologia"));
+
+        var result = await _useCase.ExecuteAsync(_candidateId);
+
+        var job = result.Data!.Jobs.Single();
+        job.RecommendationScore.Should().BeNull();
+        job.RecommendationFactors.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_WithTheSameInputInDifferentSourceOrder_ReturnsTheSameOrdering()
+    {
+        _profiles.GetByCandidateIdAsync(_candidateId).Returns(RequestResult<CareerProfile?>.Success(ProfileOf(category: "Tecnologia")));
+        var first = JobOf("Primeira", category: "Tecnologia");
+        var second = JobOf("Segunda", category: "Tecnologia");
+        ReturnsJobs(first, second);
+        var forward = await _useCase.ExecuteAsync(_candidateId);
+        ReturnsJobs(second, first);
+
+        var reversed = await _useCase.ExecuteAsync(_candidateId);
+
+        reversed.Data!.Jobs.Select(job => job.Id).Should().Equal(forward.Data!.Jobs.Select(job => job.Id));
+    }
+
 }

@@ -4,10 +4,15 @@ using Monburan.Core.Entities;
 using Monburan.Core.Enums;
 using Monburan.Core.Interfaces.Repositories;
 using Monburan.Core.Interfaces.Repositories.Base;
+using Monburan.Core.Interfaces.Services;
 using Monburan.Core.Requests;
+using Monburan.Core.UseCases.JobAlerts;
 using Monburan.Core.UseCases.Jobs;
+using Monburan.Core.UseCases.Notifications;
 using Monburan.Core.UseCases.Subscriptions;
 using Monburan.Core.ValueObjects;
+
+using Microsoft.Extensions.Logging;
 
 using NSubstitute;
 
@@ -16,7 +21,7 @@ namespace Monburan.UnitTests.UseCases.Jobs;
 public class ChangeJobStatusUseCaseTests
 {
     private readonly Guid _advertiserId = Guid.NewGuid();
-    private readonly IBaseRepository<Job> _jobs = Substitute.For<IBaseRepository<Job>>();
+    private readonly IJobRepository _jobs = Substitute.For<IJobRepository>();
     private readonly IJobRepository _jobQueries = Substitute.For<IJobRepository>();
     private readonly ChangeJobStatusUseCase _useCase;
 
@@ -29,8 +34,27 @@ public class ChangeJobStatusUseCaseTests
             [new SubscriptionPlan { Name = CheckJobLimitUseCase.FreePlanName, MaxJobs = 5, IsActive = true }]));
         _jobQueries.CountActiveByAdvertiserAsync(Arg.Any<Guid>()).Returns(1);
 
-        _jobs.UpdateAsync(Arg.Any<Job>()).Returns(call => RequestResult<Job>.Success(call.Arg<Job>()));
-        _useCase = new ChangeJobStatusUseCase(_jobs, new CheckJobLimitUseCase(subscriptions, plans, _jobQueries));
+        _jobs.UpdateStatusAsync(Arg.Any<Job>(), Arg.Any<EJobStatus>(), Arg.Any<string>()).Returns(call =>
+        {
+            var job = call.Arg<Job>();
+            job.UpdatedBy = call.ArgAt<string>(2);
+            return RequestResult<Job>.Success(job);
+        });
+        var flags = Substitute.For<IFeatureFlags>();
+        flags.IsEnabledAsync(Arg.Any<string>(), Arg.Any<System.Security.Claims.ClaimsPrincipal?>(), Arg.Any<CancellationToken>()).Returns(true);
+        _useCase = new ChangeJobStatusUseCase(_jobs, new CheckJobLimitUseCase(subscriptions, plans, _jobQueries), flags, Substitute.For<ICurrentPrincipalAccessor>(), AlertNotifier(), Substitute.For<ILogger<ChangeJobStatusUseCase>>());
+    }
+
+    private static NotifyJobAlertsOnJobCreatedUseCase AlertNotifier()
+    {
+        var alerts = Substitute.For<IJobAlertRepository>();
+        alerts.ListActiveAsync(Arg.Any<CancellationToken>()).Returns(RequestResult<IEnumerable<JobAlert>>.Success([]));
+        var notifications = Substitute.For<INotificationRepository>();
+        return new NotifyJobAlertsOnJobCreatedUseCase(
+            alerts,
+            notifications,
+            new CreateNotificationUseCase(notifications),
+            Substitute.For<ILogger<NotifyJobAlertsOnJobCreatedUseCase>>());
     }
 
     [Fact]
@@ -42,6 +66,7 @@ public class ChangeJobStatusUseCaseTests
 
         result.Status.Should().Be(EResultStatus.Success);
         result.Data!.Status.Should().Be("Paused");
+        job.UpdatedBy.Should().Be(_advertiserId.ToString());
     }
 
     [Fact]
@@ -53,7 +78,7 @@ public class ChangeJobStatusUseCaseTests
 
         result.Status.Should().Be(EResultStatus.DomainError);
         result.Message.Should().Contain("data de expiração");
-        await _jobs.DidNotReceive().UpdateAsync(Arg.Any<Job>());
+        await _jobs.DidNotReceive().UpdateStatusAsync(Arg.Any<Job>(), Arg.Any<EJobStatus>(), Arg.Any<string>());
     }
 
     [Fact]
@@ -68,6 +93,105 @@ public class ChangeJobStatusUseCaseTests
         result.Message.Should().Contain("5 vagas ativas");
     }
 
+
+
+    [Fact]
+    public async Task Publish_DraftJob_Succeeds()
+    {
+        var job = Arrange(EJobStatus.Draft, DateTime.UtcNow.AddDays(10));
+
+        var result = await _useCase.ExecuteAsync(new ChangeJobStatusRequest(job.Id.Value, _advertiserId, EJobStatus.Active));
+
+        result.Status.Should().Be(EResultStatus.Success);
+        result.Data!.Status.Should().Be("Active");
+    }
+
+    [Fact]
+    public async Task Close_ActiveJob_Succeeds()
+    {
+        var job = Arrange(EJobStatus.Active, DateTime.UtcNow.AddDays(10));
+
+        var result = await _useCase.ExecuteAsync(new ChangeJobStatusRequest(job.Id.Value, _advertiserId, EJobStatus.Closed));
+
+        result.Status.Should().Be(EResultStatus.Success);
+        result.Data!.Status.Should().Be("Closed");
+    }
+
+    [Fact]
+    public async Task Close_ExpiredJob_SucceedsWithoutPlanLimitCheck()
+    {
+        var job = Arrange(EJobStatus.Expired, DateTime.UtcNow.AddDays(-2));
+        _jobQueries.CountActiveByAdvertiserAsync(_advertiserId).Returns(5);
+
+        var result = await _useCase.ExecuteAsync(new ChangeJobStatusRequest(job.Id.Value, _advertiserId, EJobStatus.Closed));
+
+        result.Status.Should().Be(EResultStatus.Success);
+        result.Data!.Status.Should().Be("Closed");
+    }
+
+    [Fact]
+    public async Task Reactivate_ClosedJob_IsRejected()
+    {
+        var job = Arrange(EJobStatus.Closed, DateTime.UtcNow.AddDays(10));
+
+        var result = await _useCase.ExecuteAsync(new ChangeJobStatusRequest(job.Id.Value, _advertiserId, EJobStatus.Active));
+
+        result.Status.Should().Be(EResultStatus.DomainError);
+        await _jobs.DidNotReceive().UpdateStatusAsync(Arg.Any<Job>(), Arg.Any<EJobStatus>(), Arg.Any<string>());
+    }
+
+
+
+    [Fact]
+    public async Task Close_WhenModerationWinsTheRace_ReturnsConflict()
+    {
+        var job = Arrange(EJobStatus.Active, DateTime.UtcNow.AddDays(10));
+        _jobs.UpdateStatusAsync(Arg.Any<Job>(), Arg.Any<EJobStatus>(), Arg.Any<string>()).Returns(call =>
+        {
+            var requested = call.Arg<Job>();
+            requested.Status = EJobStatus.Hidden;
+            return RequestResult<Job>.Success(requested);
+        });
+
+        var result = await _useCase.ExecuteAsync(new ChangeJobStatusRequest(job.Id.Value, _advertiserId, EJobStatus.Closed));
+
+        result.Status.Should().Be(EResultStatus.Conflict);
+        result.Data.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task PublishDraft_WhenDraftFeatureIsDisabled_IsRejected()
+    {
+        var job = Arrange(EJobStatus.Draft, DateTime.UtcNow.AddDays(10));
+        var flags = Substitute.For<IFeatureFlags>();
+        flags.IsEnabledAsync(CreateJobUseCase.DraftJobFeature, Arg.Any<System.Security.Claims.ClaimsPrincipal?>(), Arg.Any<CancellationToken>()).Returns(false);
+        flags.IsEnabledAsync(ChangeJobStatusUseCase.CloseJobFeature, Arg.Any<System.Security.Claims.ClaimsPrincipal?>(), Arg.Any<CancellationToken>()).Returns(true);
+        var subscriptions = Substitute.For<ISubscriptionRepository>();
+        var plans = Substitute.For<IBaseRepository<SubscriptionPlan>>();
+        var useCase = new ChangeJobStatusUseCase(_jobs, new CheckJobLimitUseCase(subscriptions, plans, _jobQueries), flags, Substitute.For<ICurrentPrincipalAccessor>(), AlertNotifier(), Substitute.For<ILogger<ChangeJobStatusUseCase>>());
+
+        var result = await useCase.ExecuteAsync(new ChangeJobStatusRequest(job.Id.Value, _advertiserId, EJobStatus.Active));
+
+        result.Status.Should().Be(EResultStatus.DomainError);
+        await _jobs.DidNotReceive().UpdateStatusAsync(Arg.Any<Job>(), Arg.Any<EJobStatus>(), Arg.Any<string>());
+    }
+
+    [Fact]
+    public async Task Close_WhenFeatureIsDisabled_IsRejected()
+    {
+        var job = Arrange(EJobStatus.Active, DateTime.UtcNow.AddDays(10));
+        var flags = Substitute.For<IFeatureFlags>();
+        flags.IsEnabledAsync(Arg.Any<string>(), Arg.Any<System.Security.Claims.ClaimsPrincipal?>(), Arg.Any<CancellationToken>()).Returns(false);
+        var subscriptions = Substitute.For<ISubscriptionRepository>();
+        var plans = Substitute.For<IBaseRepository<SubscriptionPlan>>();
+        var useCase = new ChangeJobStatusUseCase(_jobs, new CheckJobLimitUseCase(subscriptions, plans, _jobQueries), flags, Substitute.For<ICurrentPrincipalAccessor>(), AlertNotifier(), Substitute.For<ILogger<ChangeJobStatusUseCase>>());
+
+        var result = await useCase.ExecuteAsync(new ChangeJobStatusRequest(job.Id.Value, _advertiserId, EJobStatus.Closed));
+
+        result.Status.Should().Be(EResultStatus.DomainError);
+        await _jobs.DidNotReceive().UpdateStatusAsync(Arg.Any<Job>(), Arg.Any<EJobStatus>(), Arg.Any<string>());
+    }
+
     [Fact]
     public async Task JobOfAnotherAdvertiser_IsReportedAsNotFound()
     {
@@ -76,7 +200,7 @@ public class ChangeJobStatusUseCaseTests
         var result = await _useCase.ExecuteAsync(new ChangeJobStatusRequest(job.Id.Value, Guid.NewGuid(), EJobStatus.Paused));
 
         result.Status.Should().Be(EResultStatus.EntityNotFound);
-        await _jobs.DidNotReceive().UpdateAsync(Arg.Any<Job>());
+        await _jobs.DidNotReceive().UpdateStatusAsync(Arg.Any<Job>(), Arg.Any<EJobStatus>(), Arg.Any<string>());
     }
 
     [Fact]

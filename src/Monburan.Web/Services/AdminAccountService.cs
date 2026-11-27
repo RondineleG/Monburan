@@ -62,6 +62,7 @@ public sealed class AdminAccountService
     private readonly ActiveAccountChecker _activeAccounts;
     private readonly AccountProfileService _profiles;
     private readonly ISubscriptionRepository _subscriptions;
+    private readonly IJobRepository _jobs;
     private readonly IConfiguration _configuration;
     private readonly TimeProvider _time;
 
@@ -73,6 +74,7 @@ public sealed class AdminAccountService
         ActiveAccountChecker activeAccounts,
         AccountProfileService profiles,
         ISubscriptionRepository subscriptions,
+        IJobRepository jobs,
         IConfiguration configuration,
         TimeProvider time)
     {
@@ -83,6 +85,7 @@ public sealed class AdminAccountService
         _activeAccounts = activeAccounts;
         _profiles = profiles;
         _subscriptions = subscriptions;
+        _jobs = jobs;
         _configuration = configuration;
         _time = time;
     }
@@ -507,14 +510,14 @@ public sealed class AdminAccountService
         if (string.IsNullOrWhiteSpace(email))
             return;
 
+        await using var context = await _contexts.CreateDbContextAsync();
         var key = email.ToLowerInvariant();
         var today = _time.GetUtcNow().UtcDateTime.Date;
-        await using var context = await _contexts.CreateDbContextAsync();
-
         var candidates = await context.Candidates.Where(candidate => !candidate.IsDeleted && candidate.Email.ToLower() == key).ToListAsync();
         foreach (var candidate in candidates)
             candidate.Status = blocked ? EAccountStatus.Blocked : EAccountStatus.Active;
 
+        var jobChanges = new List<(Job Job, EJobRevisionAction Action)>();
         var advertisers = await context.Advertisers.Where(advertiser => !advertiser.IsDeleted && advertiser.Email.ToLower() == key).ToListAsync();
         foreach (var advertiser in advertisers)
         {
@@ -522,32 +525,53 @@ public sealed class AdminAccountService
 
             if (blocked)
             {
-                var visible = await context.Jobs.Where(job => !job.IsDeleted && job.AdvertiserId == advertiser.Id && job.Status == EJobStatus.Active).ToListAsync();
+                var visible = await context.Jobs.AsNoTracking().Where(job => !job.IsDeleted && job.AdvertiserId == advertiser.Id && job.Status == EJobStatus.Active).ToListAsync();
                 foreach (var job in visible)
                 {
-                    job.Status = EJobStatus.Hidden;
-                    job.Moderation ??= new ModerationInfo();
-                    job.Moderation.Reason = JobsHiddenReason;
-                    job.Moderation.ModeratorId = actor.Id;
-                    job.Moderation.ModerationDate = _time.GetUtcNow().UtcDateTime;
+                    jobChanges.Add((new Job
+                    {
+                        Id = job.Id,
+                        Status = EJobStatus.Hidden,
+                        ExpirationDate = job.ExpirationDate,
+                        UpdatedBy = actor.Id,
+                        Moderation = new ModerationInfo
+                        {
+                            Status = job.Moderation?.Status ?? EModerationStatus.Pending,
+                            Reason = JobsHiddenReason,
+                            ModeratorId = actor.Id,
+                            ModerationDate = _time.GetUtcNow().UtcDateTime
+                        }
+                    }, EJobRevisionAction.Moderated));
                 }
             }
             else
             {
-                var hidden = await context.Jobs
+                var hidden = await context.Jobs.AsNoTracking()
                     .Where(job => !job.IsDeleted && job.AdvertiserId == advertiser.Id && job.Status == EJobStatus.Hidden && job.Moderation!.Reason == JobsHiddenReason)
                     .ToListAsync();
                 foreach (var job in hidden)
                 {
-                    job.Status = job.ExpirationDate.Date >= today ? EJobStatus.Active : EJobStatus.Expired;
-                    job.Moderation!.Reason = null;
-                    job.Moderation.ModeratorId = null;
-                    job.Moderation.ModerationDate = null;
+                    jobChanges.Add((new Job
+                    {
+                        Id = job.Id,
+                        Status = job.ExpirationDate.Date >= today ? EJobStatus.Active : EJobStatus.Expired,
+                        ExpirationDate = job.ExpirationDate,
+                        UpdatedBy = actor.Id,
+                        Moderation = new ModerationInfo
+                        {
+                            Status = job.Moderation?.Status ?? EModerationStatus.Pending
+                        }
+                    }, EJobRevisionAction.StatusChanged));
                 }
             }
         }
 
         await context.SaveChangesAsync();
+
+        // Cada vaga passa pelo repositório: ele recarrega o conteúdo atual, grava moderação/status e
+        // repete a numeração da revisão se uma edição concorrente ocupar o próximo número primeiro.
+        foreach (var (job, action) in jobChanges)
+            await _jobs.UpdateModerationAsync(job, revisionAction: action, updateExpirationDate: false);
     }
 
     private Task RecordAsync(string action, AdminActor actor, ApplicationUser user, string? details = null) =>

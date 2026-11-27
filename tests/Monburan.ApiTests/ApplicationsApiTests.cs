@@ -200,7 +200,7 @@ public class ApplicationsApiTests : IClassFixture<MonburanApiFactory>
     }
 
     [Fact]
-    public async Task Apply_DuplicateApplication_Returns409()
+    public async Task Apply_DuplicateApplicationWithTheSamePayload_Returns200AndTheExistingApplication()
     {
         var token = await RegisterCandidateAsync();
         var jobs = await _client.GetFromJsonAsync<ListJobsResponse>("/api/v1/jobs?page=1&size=1");
@@ -210,16 +210,49 @@ public class ApplicationsApiTests : IClassFixture<MonburanApiFactory>
         {
             using var req = new HttpRequestMessage(HttpMethod.Post, "/api/v1/applications")
             {
-                Content = JsonContent.Create(new CreateApplicationRequest { JobId = jobId })
+                Content = JsonContent.Create(new CreateApplicationRequest { JobId = jobId, Notes = "Mesmo envio" })
             };
             req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token.AccessToken);
             return await _client.SendAsync(req);
         }
 
-        (await ApplyAsync()).StatusCode.Should().Be(HttpStatusCode.Created);
-        var second = await ApplyAsync();
+        var firstResponse = await ApplyAsync();
+        firstResponse.StatusCode.Should().Be(HttpStatusCode.Created);
+        var first = await firstResponse.Content.ReadFromJsonAsync<ApplicationResponse>();
+
+        var secondResponse = await ApplyAsync();
+        secondResponse.StatusCode.Should().Be(HttpStatusCode.OK,
+            "reenviar o mesmo payload recupera a candidatura em vez de criar efeito novo");
+        var second = await secondResponse.Content.ReadFromJsonAsync<ApplicationResponse>();
+        second!.Id.Should().Be(first!.Id);
+
+        using var mineRequest = new HttpRequestMessage(HttpMethod.Get, "/api/v1/applications/mine");
+        mineRequest.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token.AccessToken);
+        var mine = await (await _client.SendAsync(mineRequest)).Content.ReadFromJsonAsync<List<ApplicationResponse>>();
+        mine!.Count(a => a.Id == first.Id).Should().Be(1);
+    }
+
+    [Fact]
+    public async Task Apply_DuplicateApplicationWithDifferentPayload_Returns409()
+    {
+        var token = await RegisterCandidateAsync();
+        var jobs = await _client.GetFromJsonAsync<ListJobsResponse>("/api/v1/jobs?page=1&size=1");
+        var jobId = jobs!.Jobs.First().Id;
+
+        async Task<HttpResponseMessage> ApplyAsync(string notes)
+        {
+            using var req = new HttpRequestMessage(HttpMethod.Post, "/api/v1/applications")
+            {
+                Content = JsonContent.Create(new CreateApplicationRequest { JobId = jobId, Notes = notes })
+            };
+            req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token.AccessToken);
+            return await _client.SendAsync(req);
+        }
+
+        (await ApplyAsync("Primeiro envio")).StatusCode.Should().Be(HttpStatusCode.Created);
+        var second = await ApplyAsync("Payload divergente");
         second.StatusCode.Should().Be(HttpStatusCode.Conflict,
-            "segunda candidatura na mesma vaga deve ser 409, não 400 genérico");
+            "mesma chave natural com payload divergente é conflito, não nova candidatura");
 
         var problem = await second.Content.ReadFromJsonAsync<ProblemDetails>();
         problem!.Detail.Should().Contain("candidatou",

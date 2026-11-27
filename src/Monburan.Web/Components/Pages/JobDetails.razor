@@ -127,7 +127,7 @@
                 }
 
                 <p class="job-hero__meta">
-                    <span><Icon Name="clock" Size="15" />Publicada @JobDisplay.Age(job.CreatedAt)</span>
+                    <span><Icon Name="clock" Size="15" />Publicada @JobDisplay.Age(job.PublishedAt ?? job.CreatedAt)</span>
                     @if (job.ExpirationDate != default)
                     {
                         <span><Icon Name="calendar" Size="15" />Candidaturas até @UiLabels.FormatDate(job.ExpirationDate)</span>

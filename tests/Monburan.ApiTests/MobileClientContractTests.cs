@@ -8,6 +8,9 @@ using Microsoft.Extensions.DependencyInjection;
 
 using Monburan.Core.DTOs.Request;
 using Monburan.Core.DTOs.Response;
+using Monburan.Core.Enums;
+using Monburan.Core.Interfaces.Services;
+using Monburan.Core.UseCases.Jobs;
 using Monburan.Mobile.Shared.Api;
 using Monburan.Mobile.Shared.Auth;
 
@@ -118,14 +121,10 @@ public class MobileClientContractTests : IClassFixture<MonburanApiFactory>
         await candidate.SignInAsync(CandidateEmail);
         var application = await candidate.Api.ApplyAsync(job.Id, "Quero participar");
 
-        var advertiserClient = _factory.CreateClient();
-        var advertiserToken = await LoginAsync(advertiserClient, AdvertiserEmail);
-        using var update = new HttpRequestMessage(HttpMethod.Put, $"/api/v1/applications/{application.Id}/status")
-        {
-            Content = JsonContent.Create(new { newStatus = "Selected" })
-        };
-        update.Headers.Authorization = new("Bearer", advertiserToken);
-        (await advertiserClient.SendAsync(update)).StatusCode.Should().Be(HttpStatusCode.OK);
+        var advertiser = MobileApp.Create(_factory);
+        await advertiser.SignInWithSessionOnlyAsync(AdvertiserEmail);
+        var updatedApplication = await advertiser.Api.UpdateApplicationStatusAsync(application.Id, EApplicationStatus.Selected);
+        updatedApplication.Status.Should().Be("Selected");
 
         var notifications = await candidate.Api.GetMyNotificationsAsync();
         notifications.Should().Contain(n => n.Title == "Você foi selecionado(a)!" && n.Message.Contains(job.Title));
@@ -133,6 +132,26 @@ public class MobileClientContractTests : IClassFixture<MonburanApiFactory>
         (await candidate.Api.GetUnreadCountAsync()).Should().BeGreaterThan(0);
         await candidate.Api.MarkAllNotificationsAsReadAsync();
         (await candidate.Api.GetUnreadCountAsync()).Should().Be(0);
+    }
+
+    [Fact]
+    public async Task JobStatus_PutThroughMobileClient_ClosesTheJob_AndConflictKeepsTheServerReason()
+    {
+        await EnableJobStatusApiForRecruitersAsync();
+        var job = await PublishJobAsync("Vaga encerrada pelo app");
+        var advertiser = MobileApp.Create(_factory);
+        await advertiser.SignInWithSessionOnlyAsync(AdvertiserEmail);
+
+        var closed = await advertiser.Api.UpdateJobStatusAsync(job.Id, EJobStatus.Closed);
+
+        closed.Status.Should().Be("Closed");
+        var publicJobs = await advertiser.Api.GetJobsAsync(new ListJobsRequest { Page = 1, Size = 100 });
+        publicJobs.Jobs.Should().NotContain(item => item.Id == job.Id, "vaga encerrada some da busca aplicável");
+
+        var again = async () => await advertiser.Api.UpdateJobStatusAsync(job.Id, EJobStatus.Active);
+        var error = (await again.Should().ThrowAsync<ApiException>()).Which;
+        error.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        error.Message.Should().Contain("reativada");
     }
 
     [Fact]
@@ -277,6 +296,17 @@ public class MobileClientContractTests : IClassFixture<MonburanApiFactory>
         error.Message.Should().Contain("resposta inesperada");
     }
 
+    private async Task EnableJobStatusApiForRecruitersAsync()
+    {
+        using var scope = _factory.Services.CreateScope();
+        var admin = scope.ServiceProvider.GetRequiredService<Monburan.Web.Services.FeatureFlagAdminService>();
+        foreach (var feature in new[] { ChangeJobStatusUseCase.ApiStatusFeature, ChangeJobStatusUseCase.CloseJobFeature })
+        {
+            (await admin.SaveFlagAsync(new Monburan.Web.Services.FeatureFlagInput(null, feature, "Situação da vaga pela API", false, ["recrutador"], null),
+                new AdminActor(Guid.NewGuid().ToString(), "admin@monburan.com.br"))).Status.Should().Be(EResultStatus.Success);
+        }
+    }
+
     private async Task<JobResponse> PublishJobAsync(string title)
     {
         var client = _factory.CreateClient();
@@ -334,6 +364,12 @@ public class MobileClientContractTests : IClassFixture<MonburanApiFactory>
         {
             var login = await AuthApi.LoginAsync(email, Password);
             await Auth.SignInAsync(login);
+        }
+
+        public async Task SignInWithSessionOnlyAsync(string email)
+        {
+            var login = await AuthApi.LoginAsync(email, Password);
+            await Tokens.SetSessionAsync(new AuthSession(login.AccessToken, login.RefreshToken));
         }
     }
 

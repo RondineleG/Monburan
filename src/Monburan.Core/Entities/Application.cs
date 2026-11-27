@@ -25,13 +25,23 @@ public class Application : BaseEntity
     /// <summary>Currículo anexado à candidatura (FK lógica para Resume, sem cascata).</summary>
     public Guid? ResumeId { get; set; }
 
+    /// <summary>Fotografia imutável do currículo enviado na candidatura, serializada em JSON.</summary>
+    public string? ResumeSnapshotJson { get; set; }
+
     public DateTime? RejectedAt { get; set; }
 
     public DateTime? SelectedAt { get; set; }
 
     public EApplicationStatus Status { get; set; } = EApplicationStatus.Sent;
 
+    /// <summary>Versão do estado da candidatura, usada para concorrência otimista e trilha do ATS.</summary>
+    public int Version { get; set; } = 1;
+
     public virtual ICollection<ApplicationStatusHistory> StatusHistory { get; set; } = [];
 
     public DateTime? ViewedAt { get; set; }
+
+    public bool HasSamePayload(Guid? resumeId, string? notes) =>
+        ResumeId == resumeId
+        && string.Equals(Notes ?? string.Empty, notes ?? string.Empty, StringComparison.Ordinal);
 }

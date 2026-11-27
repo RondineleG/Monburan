@@ -45,6 +45,19 @@ public class JobStructuredDataTests
         data.GetProperty("@type").GetString().Should().Be("JobPosting");
         data.GetProperty("title").GetString().Should().Be("Desenvolvedor .NET");
         data.GetProperty("datePosted").GetString().Should().Be("2026-10-17");
+    }
+
+    [Fact]
+    public void Build_UsesTheFirstPublicationDate_ForADraftPublishedLater()
+    {
+        var job = Job(item =>
+        {
+            item.CreatedAt = new DateTime(2026, 10, 1, 12, 0, 0, DateTimeKind.Utc);
+            item.PublishedAt = new DateTime(2026, 10, 17, 12, 0, 0, DateTimeKind.Utc);
+        });
+        var data = Parse(JobStructuredData.Build(job, PageUrl));
+
+        data.GetProperty("datePosted").GetString().Should().Be("2026-10-17");
         data.GetProperty("validThrough").GetString().Should().Be("2026-11-16");
         data.GetProperty("url").GetString().Should().Be(PageUrl);
         data.GetProperty("hiringOrganization").GetProperty("name").GetString().Should().Be("Tech Solutions");

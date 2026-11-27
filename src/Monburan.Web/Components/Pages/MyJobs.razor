@@ -137,7 +137,7 @@
                                         <td data-label="Ações">
                                             @* Divulgação simples (botão + lista), não role="menu": Tab percorre as ações e Esc fecha *@
                                             <div class="job-actions" @onkeydown="OnMenuKeyDown">
-                                                <a class="btn btn-outline-secondary btn-sm" href="/vagas/@job/editar.Id" data-testid="my-job-edit"
+                                                <a class="btn btn-outline-secondary btn-sm" href="/vagas/@job.Id/editar" data-testid="my-job-edit"
                                                    aria-label="Editar a vaga @job.Title">Editar</a>
                                                 <button type="button"
                                                         id="job-actions-@job.Id"
@@ -154,6 +154,10 @@
                                                     <ul class="job-actions__menu" id="job-actions-list-@job.Id">
                                                         <li><a class="job-actions__item" href="@($"/jobs/{job.Id}")">Ver página da vaga</a></li>
                                                         <li><a class="job-actions__item" href="@($"/vagas/{job.Id}/candidaturas")" data-testid="my-job-applications">Ver candidaturas</a></li>
+                                                        @if (job.Status == "Draft")
+                                                        {
+                                                            <li><button type="button" class="job-actions__item" @onclick="() => ChangeStatusAsync(job, EJobStatus.Active)" disabled="@(changingId == job.Id)" data-testid="my-job-publish">Publicar</button></li>
+                                                        }
                                                         @if (job.Status == "Active")
                                                         {
                                                             <li><button type="button" class="job-actions__item" @onclick="() => ChangeStatusAsync(job, EJobStatus.Paused)" disabled="@(changingId == job.Id)" data-testid="my-job-pause">Pausar</button></li>
@@ -168,6 +172,10 @@
                                                             {
                                                                 <li><a class="job-actions__item" href="@($"/vagas/{job.Id}/editar")">Renovar validade</a></li>
                                                             }
+                                                        }
+                                                        @if (job.Status is "Active" or "Paused" or "Expired")
+                                                        {
+                                                            <li><FeatureGate Feature="encerramento-vaga"><button type="button" class="job-actions__item job-actions__item--danger" @onclick="() => CloseAsync(job)" disabled="@(changingId == job.Id)" data-testid="my-job-close">Encerrar</button></FeatureGate></li>
                                                         }
                                                         <li>
                                                             <button type="button" class="job-actions__item job-actions__item--danger"
@@ -221,9 +229,11 @@
 @code {
     private static readonly (string Value, string Label)[] Tabs =
     [
+        ("rascunhos", "Rascunhos"),
         ("ativas", "Ativas"),
         ("pausadas", "Pausadas"),
         ("expiradas", "Expiradas"),
+        ("encerradas", "Encerradas"),
         ("ocultas", "Ocultas e reprovadas")
     ];
 
@@ -244,7 +254,7 @@
 
     private string Situation => SituationQuery switch
     {
-        "pausadas" or "expiradas" or "ocultas" => SituationQuery,
+        "rascunhos" or "pausadas" or "expiradas" or "encerradas" or "ocultas" => SituationQuery,
         _ => "ativas"
     };
 
@@ -327,9 +337,11 @@
 
     private static bool MatchesTab(string status, string tab) => tab switch
     {
+        "rascunhos" => status == "Draft",
         "ativas" => status == "Active",
         "pausadas" => status == "Paused",
         "expiradas" => status == "Expired",
+        "encerradas" => status == "Closed",
         "ocultas" => status is "Hidden" or "Rejected",
         _ => true
     };
@@ -390,15 +402,33 @@
         {
             job.Status = result.Data.Status;
             ApplyFilter();
-            Toast.ShowSuccess(newStatus == EJobStatus.Paused
-                ? $"\"{job.Title}\" foi pausada e não recebe novas candidaturas."
-                : $"\"{job.Title}\" está ativa e visível para os candidatos.");
+            Toast.ShowSuccess(newStatus switch
+            {
+                EJobStatus.Paused => $"\"{job.Title}\" foi pausada e não recebe novas candidaturas.",
+                EJobStatus.Closed => $"\"{job.Title}\" foi encerrada e saiu da busca.",
+                _ => $"\"{job.Title}\" está ativa e visível para os candidatos."
+            });
         }
         else
         {
             Logger.LogFailure(result, "Alterar situação da vaga");
             Toast.ShowError(ResultMessages.ToUserMessage(result, "Não foi possível alterar a situação da vaga. Tente novamente."));
         }
+    }
+
+
+    private async Task CloseAsync(JobResponse job)
+    {
+        openMenuId = null;
+        var confirmed = await confirmDialog.ShowAsync(new ConfirmOptions
+        {
+            Title = "Encerrar vaga?",
+            Message = $"A vaga \"{job.Title}\" sairá da busca e não poderá ser reativada. As candidaturas recebidas continuam no histórico.",
+            ConfirmText = "Encerrar vaga",
+            Destructive = true
+        });
+        if (confirmed)
+            await ChangeStatusAsync(job, EJobStatus.Closed);
     }
 
     private async Task DeleteAsync(JobResponse job)

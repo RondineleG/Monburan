@@ -5,6 +5,7 @@ using Monburan.Core.DTOs.Response;
 using Monburan.Core.Entities;
 using Monburan.Core.Enums;
 using Monburan.Core.Interfaces.Repositories.Base;
+using Monburan.Core.Interfaces.Services;
 using Monburan.Core.Interfaces.UseCases;
 using Monburan.Core.Interfaces.Validations;
 using Monburan.Core.Mappers;
@@ -17,24 +18,31 @@ namespace Monburan.Core.UseCases.Jobs;
 
 public class CreateJobUseCase : IUseCase<CreateJobRequest, JobResponse>
 {
+    public const string DraftJobFeature = "rascunho-vaga";
     private readonly IBaseRepository<Job> _jobRepository;
     private readonly IEntityValidator<Job> _jobValidator;
     private readonly CheckJobLimitUseCase _checkJobLimit;
     private readonly NotifyJobAlertsOnJobCreatedUseCase _notifyAlerts;
     private readonly ILogger<CreateJobUseCase> _logger;
+    private readonly IFeatureFlags _featureFlags;
+    private readonly ICurrentPrincipalAccessor _currentPrincipal;
 
     public CreateJobUseCase(
         IBaseRepository<Job> jobRepository,
         IEntityValidator<Job> jobValidator,
         CheckJobLimitUseCase checkJobLimit,
         NotifyJobAlertsOnJobCreatedUseCase notifyAlerts,
-        ILogger<CreateJobUseCase> logger)
+        ILogger<CreateJobUseCase> logger,
+        IFeatureFlags featureFlags,
+        ICurrentPrincipalAccessor currentPrincipal)
     {
         _jobRepository = jobRepository;
         _jobValidator = jobValidator;
         _checkJobLimit = checkJobLimit;
         _notifyAlerts = notifyAlerts;
         _logger = logger;
+        _featureFlags = featureFlags;
+        _currentPrincipal = currentPrincipal;
     }
 
     public async Task<RequestResult<JobResponse>> ExecuteAsync(CreateJobRequest request, CancellationToken cancellationToken = default)
@@ -55,8 +63,11 @@ public class CreateJobUseCase : IUseCase<CreateJobRequest, JobResponse>
             Tags = request.Tags,
             ContractType = request.ContractType,
             ExpirationDate = request.ExpirationDate,
-            Status = EJobStatus.Active,
+            Status = request.SaveAsDraft ? EJobStatus.Draft : EJobStatus.Active,
+            PublishedAt = request.SaveAsDraft ? null : DateTime.UtcNow,
             TenantId = "default",
+            CreatedBy = request.AdvertiserId.ToString(),
+            UpdatedBy = request.AdvertiserId.ToString(),
             Location = new JobLocation
             {
                 City = request.City,
@@ -80,6 +91,9 @@ public class CreateJobUseCase : IUseCase<CreateJobRequest, JobResponse>
             Counters = new JobCounters()
         };
 
+        if (request.SaveAsDraft && !await _featureFlags.IsEnabledAsync(DraftJobFeature, _currentPrincipal.User, cancellationToken))
+            return RequestResult<JobResponse>.WithDomainError("O rascunho de vagas ainda não está liberado para esta conta.");
+
         var validationResult = _jobValidator.Validate(job);
         if (!validationResult.IsValid)
         {
@@ -91,33 +105,39 @@ public class CreateJobUseCase : IUseCase<CreateJobRequest, JobResponse>
             return createResult;
         }
 
-        // Limite de vagas ativas do plano — a página de planos promete esse limite
-        var limitResult = await _checkJobLimit.ExecuteAsync(new CheckJobLimitRequest(request.AdvertiserId), cancellationToken);
-        if (limitResult.Status != EResultStatus.Success)
-            return RequestResult<JobResponse>.FromResult(limitResult);
-
-        if (!limitResult.Data!.CanCreate)
+        if (!request.SaveAsDraft)
         {
-            return RequestResult<JobResponse>.WithDomainError(
-                $"Seu plano {limitResult.Data.PlanName} permite até {limitResult.Data.MaxJobs} vagas ativas. " +
-                "Encerre uma vaga ou mude de plano para publicar outra.");
+            // Limite de vagas ativas do plano — a página de planos promete esse limite
+            var limitResult = await _checkJobLimit.ExecuteAsync(new CheckJobLimitRequest(request.AdvertiserId), cancellationToken);
+            if (limitResult.Status != EResultStatus.Success)
+                return RequestResult<JobResponse>.FromResult(limitResult);
+
+            if (!limitResult.Data!.CanCreate)
+            {
+                return RequestResult<JobResponse>.WithDomainError(
+                    $"Seu plano {limitResult.Data.PlanName} permite até {limitResult.Data.MaxJobs} vagas ativas. " +
+                    "Encerre uma vaga ou mude de plano para publicar outra.");
+            }
         }
 
         var createJobResult = await _jobRepository.CreateAsync(job, cancellationToken);
         if (createJobResult.Status != EResultStatus.Success)
             return RequestResult<JobResponse>.FromResult(createJobResult);
 
-        // Alertas de vaga (não bloqueante: avaliar alertas nunca impede a publicação)
-        try
+        if (!request.SaveAsDraft)
         {
-            var notifyResult = await _notifyAlerts.ExecuteAsync(new NotifyJobAlertsOnJobCreatedRequest(createJobResult.Data!), cancellationToken);
-            if (notifyResult.Status != EResultStatus.Success)
-                _logger.LogWarning("Vaga {JobId} criada, mas os alertas não foram avaliados: {Detail}",
-                    createJobResult.Data!.Id.Value, notifyResult.Message);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Falha ao avaliar os alertas da vaga {JobId}", createJobResult.Data!.Id.Value);
+            // Alertas de vaga (não bloqueante: avaliar alertas nunca impede a publicação)
+            try
+            {
+                var notifyResult = await _notifyAlerts.ExecuteAsync(new NotifyJobAlertsOnJobCreatedRequest(createJobResult.Data!), cancellationToken);
+                if (notifyResult.Status != EResultStatus.Success)
+                    _logger.LogWarning("Vaga {JobId} criada, mas os alertas não foram avaliados: {Detail}",
+                        createJobResult.Data!.Id.Value, notifyResult.Message);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Falha ao avaliar os alertas da vaga {JobId}", createJobResult.Data!.Id.Value);
+            }
         }
 
         return RequestResult<JobResponse>.Success(JobResponseMapper.ToResponse(createJobResult.Data!));

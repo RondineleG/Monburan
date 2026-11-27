@@ -119,6 +119,20 @@ public class JobRecommendationScorerTests
         JobRecommendationScorer.Score(job, profile, []).Should().Be(1);
     }
 
+
+    [Fact]
+    public void Evaluate_WhenTheSalaryIsHidden_DoesNotScoreOrExplainIt()
+    {
+        var job = JobOf(salaryMin: 5000, salaryMax: 9000);
+        job.Salary!.Display = false;
+        var profile = ProfileOf(minimumSalary: 8000);
+
+        var evaluation = JobRecommendationScorer.Evaluate(job, profile, []);
+
+        evaluation.Score.Should().Be(0);
+        evaluation.Factors.Should().NotContain(factor => factor.Contains("Salário"));
+    }
+
     [Fact]
     public void Score_WhenTheJobMaximumReachesTheMinimumSalary_AddsTwo()
     {
@@ -186,4 +200,33 @@ public class JobRecommendationScorerTests
 
         JobRecommendationScorer.Score(job, profile: null, ["C#", ".NET"]).Should().Be(1);
     }
+    [Fact]
+    public void Evaluate_ReturnsTheFactorsThatComposeTheScore()
+    {
+        var job = JobOf(
+            title: "Desenvolvedor Backend C#",
+            category: "Tecnologia",
+            city: "São Paulo",
+            mode: "Remote",
+            salaryMin: 7000,
+            salaryMax: 9000);
+        var profile = ProfileOf(
+            desiredRole: "Desenvolvedor Backend",
+            category: "Tecnologia",
+            city: "São Paulo",
+            mode: "Remote",
+            minimumSalary: 8000);
+
+        var evaluation = JobRecommendationScorer.Evaluate(job, profile, ["C#"]);
+
+        evaluation.Score.Should().Be(11);
+        evaluation.Factors.Should().Equal(
+            "Cargo desejado encontrado na vaga (+3)",
+            "Categoria compatível com o perfil (+2)",
+            "Localização compatível com o perfil (+2)",
+            "Modalidade compatível com o perfil (+1)",
+            "Salário informado atinge o mínimo desejado (+2)",
+            "Habilidade \"C#\" encontrada na vaga (+1)");
+    }
+
 }

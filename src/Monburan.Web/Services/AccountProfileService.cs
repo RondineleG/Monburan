@@ -123,6 +123,12 @@ public sealed class AccountProfileService
                 .ToListAsync();
             foreach (var share in shares)
                 share.RevokedAt = now;
+
+            var applications = await context.Applications
+                .Where(a => a.CandidateId == candidateId && a.ResumeSnapshotJson != null)
+                .ToListAsync();
+            foreach (var application in applications)
+                application.ResumeSnapshotJson = null;
         }
 
         var advertisers = await context.Advertisers

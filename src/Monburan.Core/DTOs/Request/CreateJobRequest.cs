@@ -33,4 +33,7 @@ public class CreateJobRequest
     public bool SalaryDisplay { get; set; } = true;
     
     public Guid AdvertiserId { get; set; }
+
+    /// <summary>Quando verdadeiro, grava sem publicar nem consumir vaga ativa do plano.</summary>
+    public bool SaveAsDraft { get; set; }
 }

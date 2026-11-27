@@ -62,6 +62,8 @@ public class UpdateJobUseCase : IUseCase<UpdateJobRequest, JobResponse>
             existingJob.Salary.Display = request.SalaryDisplay;
         }
 
+        existingJob.UpdatedBy = existingJob.AdvertiserId?.Value.ToString() ?? string.Empty;
+
         var validationResult = _jobValidator.ValidateUpdate(existingJob);
         if (!validationResult.IsValid)
         {

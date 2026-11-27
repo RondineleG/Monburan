@@ -17,8 +17,7 @@ namespace Monburan.UnitTests.UseCases.Applications;
 
 public class UpdateApplicationStatusUseCaseTests
 {
-    private readonly IBaseRepository<Application> _applications = Substitute.For<IBaseRepository<Application>>();
-    private readonly IApplicationStatusHistoryRepository _history = Substitute.For<IApplicationStatusHistoryRepository>();
+    private readonly IApplicationRepository _applications = Substitute.For<IApplicationRepository>();
     private readonly Guid _candidateId = Guid.NewGuid();
     private readonly Guid _advertiserId = Guid.NewGuid();
     private readonly Guid _applicationId = Guid.NewGuid();
@@ -26,10 +25,8 @@ public class UpdateApplicationStatusUseCaseTests
 
     public UpdateApplicationStatusUseCaseTests()
     {
-        _applications.UpdateAsync(Arg.Any<Application>())
+        _applications.UpdateStatusWithHistoryAsync(Arg.Any<Application>(), Arg.Any<ApplicationStatusHistory>(), Arg.Any<CancellationToken>())
             .Returns(call => RequestResult<Application>.Success(call.Arg<Application>()));
-        _history.CreateAsync(Arg.Any<ApplicationStatusHistory>())
-            .Returns(call => RequestResult<ApplicationStatusHistory>.Success(call.Arg<ApplicationStatusHistory>()));
 
         var notifications = new NotifyOnApplicationStatusChangedUseCase(
             Substitute.For<IBaseRepository<Application>>(),
@@ -41,8 +38,8 @@ public class UpdateApplicationStatusUseCaseTests
 
         _useCase = new UpdateApplicationStatusUseCase(
             _applications,
-            _history,
             notifications,
+            Substitute.For<ICurrentPrincipalAccessor>(),
             Substitute.For<ILogger<UpdateApplicationStatusUseCase>>());
     }
 
@@ -76,42 +73,74 @@ public class UpdateApplicationStatusUseCaseTests
     };
 
     [Fact]
-    public async Task ExecuteAsync_WhenTheStatusChanges_WritesTheHistoryWithNoteAndResponsible()
+    public async Task ExecuteAsync_WhenTheStatusChanges_WritesTheHistoryAtomicallyWithNoteAndResponsible()
     {
         _applications.GetByIdAsync(Arg.Any<Id>()).Returns(RequestResult<Application>.Success(ApplicationOf()));
 
         var result = await _useCase.ExecuteAsync(Request(EApplicationStatus.Viewed));
 
         result.Status.Should().Be(EResultStatus.Success);
-        await _history.Received(1).CreateAsync(Arg.Is<ApplicationStatusHistory>(history =>
-            history.ApplicationId.Value == _applicationId
-            && history.Status == EApplicationStatus.Viewed
-            && history.Note == "Perfil aprovado."
-            && history.Responsible == "ana@empresa.com"));
+        await _applications.Received(1).UpdateStatusWithHistoryAsync(
+            Arg.Is<Application>(application => application.Status == EApplicationStatus.Viewed && application.Version == 2),
+            Arg.Is<ApplicationStatusHistory>(history =>
+                history.ApplicationId.Value == _applicationId
+                && history.Status == EApplicationStatus.Viewed
+                && history.Version == 2
+                && history.Note == "Perfil aprovado."
+                && history.Responsible == "ana@empresa.com"),
+            Arg.Any<CancellationToken>());
     }
 
     [Fact]
-    public async Task ExecuteAsync_WhenTheStatusDoesNotChange_DoesNotWriteTheHistory()
+    public async Task ExecuteAsync_WhenTheStatusDoesNotChange_DoesNotWriteAnything()
     {
         _applications.GetByIdAsync(Arg.Any<Id>()).Returns(RequestResult<Application>.Success(ApplicationOf(EApplicationStatus.Viewed)));
 
         var result = await _useCase.ExecuteAsync(Request(EApplicationStatus.Viewed));
 
         result.Status.Should().Be(EResultStatus.Success);
-        await _history.DidNotReceiveWithAnyArgs().CreateAsync(default!);
+        await _applications.DidNotReceiveWithAnyArgs().UpdateStatusWithHistoryAsync(default!, default!, default);
     }
 
     [Fact]
-    public async Task ExecuteAsync_WhenTheHistoryWriteFails_StillUpdatesTheStatus()
+    public async Task ExecuteAsync_WhenTheAtomicUpdateFails_DoesNotReportSuccess()
     {
         _applications.GetByIdAsync(Arg.Any<Id>()).Returns(RequestResult<Application>.Success(ApplicationOf()));
-        _history.CreateAsync(Arg.Any<ApplicationStatusHistory>())
-            .Returns(RequestResult<ApplicationStatusHistory>.WithError("banco fora do ar"));
+        _applications.UpdateStatusWithHistoryAsync(Arg.Any<Application>(), Arg.Any<ApplicationStatusHistory>(), Arg.Any<CancellationToken>())
+            .Returns(RequestResult<Application>.WithError("banco fora do ar"));
 
         var result = await _useCase.ExecuteAsync(Request(EApplicationStatus.Selected));
 
+        result.Status.Should().Be(EResultStatus.HasError);
+    }
+
+
+    [Fact]
+    public async Task ExecuteAsync_WhenTheNoteOrResponsibleIsTooLong_ReturnsValidationWithoutWriting()
+    {
+        var request = Request(EApplicationStatus.Viewed);
+        request.Notes = new string('x', ApplicationStatusHistory.MaxNoteLength + 1);
+        request.Responsible = new string('r', ApplicationStatusHistory.MaxResponsibleLength + 1);
+
+        var result = await _useCase.ExecuteAsync(request);
+
+        result.Status.Should().Be(EResultStatus.HasValidation);
+        result.ValidationResult.Errors.Should().Contain(error => error.Field == nameof(request.Notes));
+        result.ValidationResult.Errors.Should().Contain(error => error.Field == nameof(request.Responsible));
+        await _applications.DidNotReceiveWithAnyArgs().GetByIdAsync(default!, default);
+    }
+
+
+    [Fact]
+    public async Task ExecuteAsync_WhenUnicodeTextFitsTheCharacterLimit_UpdatesTheStatus()
+    {
+        _applications.GetByIdAsync(Arg.Any<Id>()).Returns(RequestResult<Application>.Success(ApplicationOf()));
+        var request = Request(EApplicationStatus.Viewed);
+        request.Notes = new string('x', ApplicationStatusHistory.MaxNoteLength - 1) + "😀";
+
+        var result = await _useCase.ExecuteAsync(request);
+
         result.Status.Should().Be(EResultStatus.Success);
-        result.Data!.Status.Should().Be("Selected");
     }
 
     [Fact]
@@ -124,7 +153,31 @@ public class UpdateApplicationStatusUseCaseTests
         var result = await _useCase.ExecuteAsync(request);
 
         result.Status.Should().Be(EResultStatus.EntityNotFound);
-        await _applications.DidNotReceiveWithAnyArgs().UpdateAsync(default!);
-        await _history.DidNotReceiveWithAnyArgs().CreateAsync(default!);
+        await _applications.DidNotReceiveWithAnyArgs().UpdateStatusWithHistoryAsync(default!, default!, default);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_WhenTheTransitionGoesBackward_ReturnsConflictWithoutWriting()
+    {
+        _applications.GetByIdAsync(Arg.Any<Id>()).Returns(RequestResult<Application>.Success(ApplicationOf(EApplicationStatus.Rejected)));
+
+        var result = await _useCase.ExecuteAsync(Request(EApplicationStatus.Viewed));
+
+        result.Status.Should().Be(EResultStatus.Conflict);
+        await _applications.DidNotReceiveWithAnyArgs().UpdateStatusWithHistoryAsync(default!, default!, default);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_WhenTheTerminalStateIsArchived_AllowsTheTransition()
+    {
+        _applications.GetByIdAsync(Arg.Any<Id>()).Returns(RequestResult<Application>.Success(ApplicationOf(EApplicationStatus.Selected)));
+
+        var result = await _useCase.ExecuteAsync(Request(EApplicationStatus.Archived));
+
+        result.Status.Should().Be(EResultStatus.Success);
+        await _applications.Received(1).UpdateStatusWithHistoryAsync(
+            Arg.Is<Application>(a => a.Status == EApplicationStatus.Archived),
+            Arg.Any<ApplicationStatusHistory>(),
+            Arg.Any<CancellationToken>());
     }
 }

@@ -50,6 +50,8 @@ public class ModerateJobSubmissionUseCaseTests
             && job.SourceUrl == "https://instagram.com/exemplo"
             && job.ApplicationChannel == EApplicationChannel.WhatsApp
             && job.ApplicationContact == "(47) 99999-8888"
+            && job.CreatedBy == "mod-1"
+            && job.UpdatedBy == "mod-1"
             && job.Salary == null), Arg.Any<CancellationToken>());
         _submission.Status.Should().Be(ESubmissionStatus.Approved);
         _submission.ApprovedJobId.Should().NotBeNull();
